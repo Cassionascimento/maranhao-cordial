@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel da Cozinha — Maranhão Guaraná</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; }
+        .card { background: #1e1e1e; border-left: 5px solid #e1a93b; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+        .pronto-btn { background: #2b7a3e; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; float: right; }
+    </style>
+</head>
+<body>
+    <h2>🍳 Pedidos para Preparo (Cozinha)</h2>
+    <div id="lista-cozinha"></div>
+
+    <script>
+        function atualizarCozinha() {
+            const pedidos = JSON.parse(localStorage.getItem('pedidos_krikati')) || [];
+            const container = document.getElementById('lista-cozinha');
+            container.innerHTML = pedidos.length === 0 ? '<p>Nenhum pedido pendente para a cozinha.</p>' : '';
+            
+            pedidos.forEach((p, index) => {
+                container.innerHTML += `
+                    <div class="card">
+                        <button class="pronto-btn" onclick="concluir(${index})">Concluir Preparo</button>
+                        <h3>${p.id} — ${p.horario}</h3>
+                        <p><strong>Produto:</strong> ${p.produto} (${p.embalagem})</p>
+                        <p><strong>Cliente:</strong> ${p.cliente} | <strong>Telefone:</strong> ${p.telefone || 'Não informado'}</p>
+                    </div>
+                `;
+            });
+        }
+        function concluir(index) {
+            let pedidos = JSON.parse(localStorage.getItem('pedidos_krikati')) || [];
+            pedidos.splice(index, 1); // Remove após fazer
+            localStorage.setItem('pedidos_krikati', JSON.stringify(pedidos));
+            atualizarCozinha();
+        }
+        setInterval(atualizarCozinha, 3000); // Atualiza a tela a cada 3 segundos automaticamente
+        atualizarCozinha();
+    </script>
+</body>
+</html>

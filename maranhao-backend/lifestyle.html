@@ -1,0 +1,954 @@
+<header class="topbar">
+    <nav class="navbar">
+        <!-- Lado Esquerdo -->
+        <div class="nav-group">
+            <a href="/raizes" class="nav-link">Nossas Raízes</a>
+        </div>
+        
+        <!-- Centro: Logo perfeitamente centralizada -->
+        <a href="/index" class="logo">
+            <span class="brand-main">Maranhão</span>
+            <span class="brand-sub">Guaraná</span>
+        </a>
+
+        <!-- Lado Direito: Link e Botão funcional -->
+        <div class="nav-group j-end">
+            <a href="/lifestyle" class="nav-link">Nosso Lifestyle</a>
+            <a href="/compreaqui" class="btn-whatsapp">
+                <svg class="icon-wa" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.528 1.977 14.075.953 11.49.953c-5.44 0-9.866 4.371-9.87 9.8c-.001 1.742.469 3.44 1.36 4.966L1.901 21.8l6.23-1.61zM17.521 14.3c-.324-.162-1.92-.949-2.219-1.058-.299-.11-.517-.162-.734.162-.218.324-.844 1.058-1.036 1.275-.192.217-.384.243-.709.081-.324-.162-1.367-.504-2.604-1.608-.962-.858-1.611-1.918-1.8-2.242-.189-.324-.02-.5-.182-.661-.146-.145-.324-.378-.486-.567-.162-.189-.216-.324-.324-.54-.108-.217-.054-.405-.027-.567.027-.162.216-.514.324-.676.108-.162.145-.27.216-.405.072-.135.036-.253-.018-.364-.054-.11-.517-1.244-.709-1.703-.188-.452-.378-.39-.517-.397-.13-.006-.28-.008-.43-.008-.15 0-.395.056-.602.28-.206.225-.785.767-.785 1.871s.804 2.167.916 2.318c.112.151 1.58 2.411 3.829 3.379.535.23 1.01.378 1.355.487.538.171 1.027.147 1.414.089.431-.064 1.321-.54 1.506-1.062.185-.523.185-.971.13-1.062-.056-.092-.206-.146-.53-.308z"/>
+                </svg>
+                Entre em contato
+            </a>
+        </div>
+    </nav>
+</header>
+
+<style>
+/* ==========================================
+   HEADER PREMIUM - MARANHÃO
+========================================== */
+.topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 98px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    background: 
+        radial-gradient(circle at top left, rgba(255,220,170,.16), transparent 38%),
+        radial-gradient(circle at bottom right, rgba(0,0,0,.22), transparent 55%),
+        linear-gradient(135deg, #5c2416 0%, #74311d 20%, #8b4224 40%, #72331f 62%, #582013 100%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    box-shadow:
+        inset 0 1px rgba(255,255,255,.08),
+        inset 0 -1px rgba(0,0,0,.35),
+        0 18px 45px rgba(0,0,0,.22);
+    overflow: hidden;
+}
+
+/* TEXTURA ARTESANAL */
+.topbar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: .10;
+    background:
+        radial-gradient(#f6d8b3 .8px, transparent .8px),
+        radial-gradient(#6d2d18 .6px, transparent .6px);
+    background-size: 9px 9px, 13px 13px;
+    mix-blend-mode: soft-light;
+}
+
+/* ILUMINAÇÃO DOURADA */
+.topbar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(255,225,175,.18), transparent 18%, transparent 82%, rgba(255,220,170,.18));
+}
+
+/* NAVBAR EQUILIBRADA (3 BLOCOS PRINCIPAIS) */
+.navbar {
+    width: min(1450px, 92%);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-group {
+    display: flex;
+    align-items: center;
+    gap: 50px;
+    flex: 1;
+}
+
+.nav-group.j-end {
+    justify-content: flex-end;
+}
+
+/* LINKS INDIVIDUAIS */
+.nav-link {
+    position: relative;
+    text-decoration: none;
+    color: #F4E3D1;
+    text-transform: uppercase;
+    font-family: "Cormorant Garamond", serif;
+    letter-spacing: 3.5px;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 12px 0;
+    transition: color .35s ease, text-shadow .35s ease, opacity .35s ease;
+    z-index: 10;
+}
+
+.nav-link:hover {
+    color: #fff8ef;
+    text-shadow: 0 0 12px rgba(255,223,170,.55);
+}
+
+.nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 4px;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,223,170,.55), transparent);
+    opacity: 0;
+    transition: opacity .35s;
+}
+
+.nav-link:hover::after {
+    opacity: 1;
+}
+
+/* ==========================================
+   LOGO CENTRALIZADA FIXA
+========================================== */
+.logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    padding: 0 30px;
+    /* Impede que os links laterais empurrem a logo fora do centro */
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.logo .brand-main {
+    font-size: 26px;
+    font-weight: 400;
+    letter-spacing: 14px;
+    text-transform: uppercase;
+    color: #F6EBDC;
+    line-height: 1.1;
+    text-shadow: 0 1px rgba(255,255,255,.15), 0 0 18px rgba(255,220,170,.15);
+    transition: .35s;
+}
+
+.logo .brand-sub {
+    font-size: 8px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: rgba(246, 235, 220, 0.65);
+    margin-top: 4px;
+}
+
+.logo:hover .brand-main {
+    color: #fffaf2;
+    text-shadow: 0 0 22px rgba(255,225,180,.40);
+}
+
+/* ==========================================
+   BOTÃO WHATSAPP - VERDE MILITAR PREMIUM
+========================================== */
+.btn-whatsapp {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    /* Paleta Verde Oliva / Militar de Luxo */
+    background: linear-gradient(135deg, #4a5d43 0%, #2c3a27 100%);
+    color: #F4E3D1; 
+    text-decoration: none !important;
+    font-family: "Cormorant Garamond", serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 10px 20px;
+    border-radius: 50px;
+    box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.25),
+        inset 0 1px rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(236, 196, 120, 0.25); /* Bordas em ouro suave */
+    transition: all .35s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    z-index: 20; /* Garante clique sem interferências */
+}
+
+.btn-whatsapp .icon-wa {
+    width: 13px;
+    height: 13px;
+    color: #F4E3D1;
+    transition: transform .35s ease;
+}
+
+/* Hover refinado */
+.btn-whatsapp:hover {
+    transform: translateY(-2px);
+    color: #ffffff;
+    background: linear-gradient(135deg, #5b7353 0%, #354730 100%);
+    box-shadow: 
+        0 6px 20px rgba(0, 0, 0, 0.35),
+        0 0 10px rgba(236, 196, 120, 0.15);
+    border-color: rgba(236, 196, 120, 0.45);
+}
+
+.btn-whatsapp:hover .icon-wa {
+    transform: scale(1.1) rotate(5deg);
+    color: #ffffff;
+}
+
+/* ==========================================
+   RESPONSIVO
+========================================== */
+@media(max-width: 1024px) {
+    .navbar {
+        width: 95%;
+    }
+    .nav-group {
+        gap: 20px;
+    }
+    .logo .brand-main {
+        font-size: 20px;
+        letter-spacing: 8px;
+    }
+    .nav-link {
+        font-size: 9px;
+        letter-spacing: 1.5px;
+    }
+    .btn-whatsapp {
+        padding: 8px 14px;
+        font-size: 10px;
+    }
+}
+</style>
+<!-- Estilos CSS Premium Maranhão Guaraná - Ajustado com 3in Vertical e 2in Horizontal -->
+<style>
+    :root {
+        --bg-color: #0a0908;          /* Preto absoluto para fundo */
+        --card-bg: #141210;           /* Chocolate escuro profundo para seções */
+        --accent-gold: #d4af37;       /* Ouro metálico mais elegante e sofisticado */
+        --matte-gray: #4a4a4a;        /* Cinza fosco idêntico à tampa da sua garrafa */
+        --text-main: #f8f6f2;         /* Branco marfim suave para leitura confortável */
+        --text-muted: #a89e92;        /* Tom areia para descrições secundárias */
+        --success-green: #1e5c2e;     /* Verde esmeralda fechado para o sucesso */
+        --shadow-premium: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Quebra amarras de contêineres pais e garante o comportamento fluido */
+    .container, 
+    main, 
+    #wrapper,
+    [class*="container"], 
+    [class*="wrapper"] {
+        max-width: 100% !important;
+        width: 100vw !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        transform: none !important;
+    }
+
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
+        background-color: var(--bg-color);
+    }
+
+    .container {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        color: var(--text-main);
+        -webkit-font-smoothing: antialiased;
+        box-sizing: border-box;
+    }
+
+    .success-banner {
+        display: none;
+        background: linear-gradient(135deg, var(--success-green), #143d1f);
+        color: #ffffff;
+        padding: 16px 20px;
+        border-radius: 0;
+        width: 100% !important;
+        margin-bottom: 24px;
+        text-align: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 10px 25px rgba(30, 92, 46, 0.3);
+        animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        font-size: 0.95rem;
+        box-sizing: border-box;
+    }
+
+    /* --- CONFIGURAÇÃO PARA COMPUTADORES (Telas Grandes) --- */
+    .step-section {
+        background: var(--card-bg);
+        border-top: 1px solid rgba(212, 175, 55, 0.08);
+        border-bottom: 1px solid rgba(212, 175, 55, 0.08);
+        border-left: none !important;
+        border-right: none !important;
+        border-radius: 0 !important;
+        width: 100vw !important;
+        max-width: 100% !important;
+        
+        /* ALTERADO MANUALMENTE: 3 polegadas em cima/baixo e 2 polegadas de cada lado */
+        padding: 3in 2in !important;
+        
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow-premium);
+        transition: border-color 0.3s ease;
+        box-sizing: border-box;
+    }
+
+    /* --- PROTOCOLO ANTICORTE PARA AS IMAGENS --- */
+    .step-section img {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        object-fit: contain !important; /* Força a foto inteira a aparecer sem cortes */
+        display: block;
+        margin: 0 auto 20px auto;
+    }
+
+    /* --- RESPONSIVIDADE: COMPATIBILIDADE IPAD / TABLETS (Até 1024px) --- */
+    @media (max-width: 1024px) {
+        .step-section {
+            /* No iPad adaptamos proporcionalmente para não esmagar o conteúdo */
+            padding: 1.5in 1in !important;
+        }
+    }
+
+    /* --- RESPONSIVIDADE: COMPATIBILIDADE CELULARES (Até 768px) --- */
+    @media (max-width: 768px) {
+        .step-section {
+            /* No celular removemos as medidas pesadas para o texto e fotos encaixarem perfeitamente */
+            padding: 40px 20px !important;
+            margin-bottom: 16px;
+        }
+        
+        .single-product-box {
+            flex-direction: column; /* Alinha ícone e texto verticalmente no celular */
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .product-badge {
+            margin: 0 auto;
+        }
+        
+        .product-price {
+            font-size: 1.6rem;
+            margin-top: 10px;
+        }
+    }
+
+
+    .step-section:hover {
+        border-color: rgba(212, 175, 55, 0.2);
+    }
+
+    .step-section img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    .step-title {
+        color: var(--accent-gold);
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+    }
+
+    .single-product-box {
+        display: flex;
+        background: #0d0b0a;
+        border: 1px solid var(--accent-gold);
+        border-radius: 12px;
+        padding: 18px;
+        align-items: center;
+        gap: 18px;
+        position: relative;
+        overflow: hidden;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    .single-product-box::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: radial-gradient(circle at top left, rgba(212, 175, 55, 0.05), transparent 60%);
+        pointer-events: none;
+    }
+
+    .product-badge {
+        font-size: 1.8rem;
+        background: var(--matte-gray);
+        color: #ffffff;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 2px 4px rgba(255,255,255,0.1);
+        flex-shrink: 0;
+    }
+
+    .product-info {
+        flex-grow: 1;
+    }
+
+    .product-title {
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: #ffffff;
+        letter-spacing: -0.3px;
+    }
+
+    .product-tag {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--accent-gold);
+        background: rgba(212, 175, 55, 0.1);
+        padding: 4px 10px;
+        border-radius: 20px;
+        margin-top: 8px;
+        display: inline-block;
+        border: 1px solid rgba(212, 175, 55, 0.15);
+    }
+
+    .product-price {
+        font-weight: 800;
+        color: var(--accent-gold);
+        font-size: 1.4rem;
+        letter-spacing: -0.5px;
+    }
+
+    .input-group {
+        margin-bottom: 20px;
+        width: 100%;
+    }
+
+    .input-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .input-group input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 8px;
+        border: 1px solid #2e2a25;
+        background: #0d0b0a;
+        color: #ffffff;
+        box-sizing: border-box;
+        font-size: 0.95rem;
+        transition: all 0.25s ease;
+    }
+
+    .input-group input:focus {
+        border-color: var(--accent-gold);
+        background: #12100e;
+        box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15);
+        outline: none;
+    }
+
+    .input-group input::placeholder {
+        color: #5e564d;
+    }
+
+    .btn-order {
+        background: linear-gradient(135deg, var(--accent-gold), #b3922e);
+        color: #0a0908;
+        font-weight: 700;
+        border: none;
+        padding: 16px;
+        border-radius: 10px;
+        font-size: 1.05rem;
+        cursor: pointer;
+        width: 100%;
+        letter-spacing: 0.5px;
+        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.2);
+        transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+        box-sizing: border-box;
+    }
+
+    .btn-order:hover {
+        background: linear-gradient(135deg, #e5c153, var(--accent-gold));
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(212, 175, 55, 0.35);
+    }
+
+    .btn-order:active {
+        transform: translateY(1px);
+    }
+
+    .btn-copy {
+        background: transparent;
+        color: var(--accent-gold);
+        border: 1px solid rgba(212, 175, 55, 0.4);
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin-bottom: 20px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-copy:hover {
+        background: rgba(212, 175, 55, 0.08);
+        border-color: var(--accent-gold);
+        color: #ffffff;
+    }
+
+    .pix-code {
+        transition: all 0.3s ease;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .pix-code:hover {
+        background-color: #120e0b !important;
+        border-color: var(--accent-gold) !important;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-16px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+<div class="container" style="max-width: 500px; margin: 0 auto; font-family: 'Inter', sans-serif; position: relative; padding-top: 60px;">
+
+    <!-- SEÇÃO PRINCIPAL -->
+    <section class="product-story-section" style="margin-bottom: 30px; padding: 20px; background: #1a1512; border: 1px solid rgba(225, 169, 59, 0.2); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+       
+        <!-- FOTO 1: FIXADA NO TOPO DO CONTEÚDO -->
+        <div style="width: 100%; height: auto; border-radius: 8px; overflow: hidden; margin-bottom: 20px; border: 1px solid rgba(244, 236, 225, 0.08); box-shadow: 0 2px 8px rgba(0,0,0,0.2); background: #000000;">
+            <img src="6B324D54-0173-445A-A959-FBF2628705AE_1_201_a.jpeg" alt="Origem do Guaraná Ancestral" style="width: 100%; height: auto; display: block; margin: 0 auto; object-fit: contain;">
+        </div>
+
+        <!-- CARROSSEL ROTATIVO: APENAS AS FOTOS 2 E 3 -->
+        <div class="carousel-wrapper" style="position: relative; width: 100%; aspect-ratio: 4 / 5; border-radius: 8px; overflow: hidden; margin-bottom: 20px; border: 1px solid rgba(244, 236, 225, 0.08); box-shadow: 0 4px 12px rgba(0,0,0,0.4); background: #000000;">
+            
+            <!-- Slide A (Foto 1) -->
+            <div class="premium-slide active" style="position: absolute; width: 100%; height: 100%; opacity: 1; transition: opacity 0.6s ease-in-out; display: flex; align-items: center; justify-content: center;">
+                <img src="BAF9C9BF-A01D-4669-B7F2-FBA3B9459FB4.png" alt="Conceito Premium e Moderno" style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+
+            <!-- Slide A (Foto 2) -->
+            <div class="premium-slide active" style="position: absolute; width: 100%; height: 100%; opacity: 1; transition: opacity 0.6s ease-in-out; display: flex; align-items: center; justify-content: center;">
+                <img src="3B3FC921-D3F1-4453-972A-E5EE599DFF39.png" alt="Conceito Premium e Moderno" style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+
+              <!-- Setas de Navegação -->
+            <button onclick="changeSlide(-1)" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: rgba(26,21,18,0.6); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; z-index: 10; backdrop-filter: blur(4px); transition: 0.2s;">‹</button>
+            <button onclick="changeSlide(1)" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: rgba(26,21,18,0.6); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; z-index: 10; backdrop-filter: blur(4px); transition: 0.2s;">›</button>
+
+            <!-- Barra de Tempo Elegante -->
+            <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(255,255,255,0.15); z-index: 10;">
+                <div id="premium-progress-bar" style="width: 0%; height: 100%; background: #d4af37; transition: width 30ms linear;"></div>
+            </div>
+        </div>
+
+    </section>
+
+
+
+
+
+
+
+
+<!-- SCRIPT DE CONTROLE DO CARROSSEL -->
+<script>
+    let slideIndex = 0;
+    let progress = 0;
+    let slideInterval;
+    let progressInterval;
+    
+    const duration = 80000; // 20 segundos fixos para as imagens rotativas
+    const intervalStep = 30; 
+    const slides = document.querySelectorAll('.premium-slide');
+    const progressBar = document.getElementById('premium-progress-bar');
+
+    function startCarousels() {
+        if(slides.length === 0) return;
+        clearInterval(slideInterval);
+        clearInterval(progressInterval);
+        progress = 0;
+        progressBar.style.width = '0%';
+
+        slideInterval = setInterval(() => {
+            changeSlide(1);
+        }, duration);
+
+        progressInterval = setInterval(() => {
+            progress += (intervalStep / duration) * 100;
+            if (progress <= 100) {
+                progressBar.style.width = progress + '%';
+            }
+        }, intervalStep);
+    }
+
+    function changeSlide(n) {
+        if(slides.length === 0) return;
+        slides[slideIndex].style.opacity = '0';
+        slides[slideIndex].classList.remove('active');
+
+        slideIndex += n;
+        if (slideIndex >= slides.length) { slideIndex = 0; }
+        if (slideIndex < 0) { slideIndex = slides.length - 1; }
+
+        slides[slideIndex].style.opacity = '1';
+        slides[slideIndex].classList.add('active');
+
+        startCarousels();
+    }
+
+    document.addEventListener("DOMContentLoaded", startCarousels);
+    if (document.readyState === "interactive" || document.readyState === "complete") {
+        startCarousels();
+    }
+</script>
+
+
+<!-- ==========================================
+   FOOTER HIGH-LUXURY ARCHITECTURAL — MARANHÃO
+========================================== -->
+<footer class="maison-footer">
+    <div class="maison-footer-container">
+        
+        <!-- Lado Esquerdo: Identidade Prestígio & Manifesto Magnificado -->
+        
+         
+
+        <!-- Eixo Central: Linha Divisória de Alta Costura Micrométrica -->
+        <div class="maison-axis-divider"></div>
+
+        <!-- Lado Direito: Menu Vertical Simétrico Autoral -->
+      <div class="maison-navigation-block">
+            <span class="maison-menu-header">MENU</span>
+            <nav class="maison-vertical-nav">
+                <a href="/raizes" class="maison-nav-item">
+                    <span class="nav-item-text">Nossas Raízes</span>
+                    <span class="nav-item-line"></span>
+                </a>
+                
+                 <a href="index.html" class="maison-nav-item">
+                    <span class="nav-item-text">Maranhão Guaraná</span>
+                    <span class="nav-item-line"></span>
+                </a>
+                
+                <a href="/lifestyle" class="maison-nav-item">
+                    <span class="nav-item-text">Nosso Lifestyle</span>
+                    <span class="nav-item-line"></span>
+                </a>
+                
+               
+            </nav>
+        </div>
+    </div>
+
+    <!-- Base Inferior: Adequação Regulatória Institucional e Oficial -->
+    <div class="maison-legal-base">
+        <div class="maison-legal-divider"></div>
+        <div class="maison-legal-grid">
+            <!-- Advertência nos moldes formais de agências reguladoras (Sóbria e legível) -->
+            <p class="regulatory-warning-text">
+                INFORMAÇÃO CONSUMIDOR: CONTÉM CERCA DE 160 mg DE CAFEÍNA POR EMBALAGEM (200ml) PROVENIENTE DE PÓ PURO DE GUARANÁ NATURAL.
+            </p>
+            <!-- Propriedade Intelectual Formalizada -->
+            <p class="regulatory-copyright-text">
+                © 2026 INSTITUTO VALÉRIA NASCIMENTO. TODOS OS DIREITOS RESERVADOS. PROTEGIDO POR PROPRIEDADE INDUSTRIAL.
+            </p>
+        </div>
+    </div>
+</footer>
+
+<style>
+/* ==========================================
+   ESTILOS ARQUITETÔNICOS DE LUXO (MAISON)
+========================================== */
+.maison-footer {
+    position: relative;
+    width: 100%;
+    background: #0a0908; /* Preto profundo absoluto das passarelas */
+    border-top: 1px solid rgba(212, 175, 55, 0.12); /* Linha divisória em ouro velho linear */
+    padding: 90px 0 40px 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    margin-top: 120px;
+}
+
+/* Brilho Atmosférico Interno em Ouro Translúcido */
+.maison-footer::before {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.02) 0%, transparent 75%);
+    pointer-events: none;
+    filter: blur(50px);
+}
+
+.maison-footer-container {
+    width: min(1450px, 90%);
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 60px;
+}
+
+/* LADO ESQUERDO: PRESTÍGIO DA ASSINATURA E MANIFESTO VISCERAL */
+.maison-identity-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1;
+    min-width: 320px;
+}
+
+.maison-brand-signature {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 35px;
+}
+
+.maison-brand-signature .brand-title {
+    font-family: "Inter", sans-serif;
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 16px;
+    text-transform: uppercase;
+    color: #ffffff;
+    line-height: 1;
+}
+
+.maison-brand-signature .brand-subtitle {
+    font-family: "Inter", sans-serif;
+    font-size: 2px;
+    font-weight: 600;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #d4af37; /* Dourado nobre corporativo */
+    margin-top: 6px;
+}
+
+/* O MANIFESTO: IMPACTO VISUAL ABSOLUTO QUE "ENCHE OS OLHOS" */
+.maison-manifesto-container {
+    position: relative;
+    display: inline-block;
+    margin-top: 10px;
+}
+
+.maison-manifesto-text {
+    font-family: "Georgia", serif;
+    font-size: 2.4rem;
+    font-weight: 300;
+    font-style: italic;
+    color: #f4ece1; /* Off-white puro sedoso de altíssimo contraste */
+    letter-spacing: 2px;
+    margin: 0;
+    position: relative;
+    z-index: 2;
+    text-shadow: 0 0 40px rgba(244, 236, 225, 0.25);
+}
+
+/* Efeito sutil de iluminação atrás do manifesto */
+.maison-manifesto-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.08) 0%, transparent 80%);
+    filter: blur(10px);
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* EIXO CENTRAL DE ALTA COSTURA */
+.maison-axis-divider {
+    width: 1px;
+    height: 180px;
+    background: linear-gradient(180deg, rgba(212,175,55,0.2) 0%, rgba(255,255,255,0.03) 100%);
+    align-self: center;
+}
+
+/* LADO DIREITO: MENU DE NAVEGAÇÃO MINIMALISTA DA MODA */
+.maison-navigation-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 250px;
+    text-align: right;
+}
+
+.maison-menu-header {
+    font-family: "Inter", sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 4px;
+    margin-bottom: 24px;
+}
+
+.maison-vertical-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-end;
+}
+
+.maison-nav-item {
+    position: relative;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding-bottom: 4px;
+}
+
+.nav-item-text {
+    font-family: "Inter", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    font-size: 11px;
+    font-weight: 400;
+    color: #a49685; /* Tom areia das grifes de luxo */
+    transition: color 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.nav-item-line {
+    width: 0;
+    height: 1px;
+    background: #d4af37;
+    margin-top: 4px;
+    transition: width 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Interações Premium (Hover) inspirados em portfólios de moda */
+.maison-nav-item:hover .nav-item-text {
+    color: #ffffff;
+}
+
+.maison-nav-item:hover .nav-item-line {
+    width: 100%;
+}
+
+/* BASE LEGAL REGULATÓRIA PADRÃO OFICIAL */
+.maison-legal-base {
+    width: min(1450px, 90%);
+    margin: 60px auto 0 auto;
+    box-sizing: border-box;
+}
+
+.maison-legal-divider {
+    width: 100%;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+    margin-bottom: 24px;
+}
+
+.maison-legal-grid {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+/* Mensagem de Advertência Estilo Notificação do Ministério da Saúde/Órgãos Oficiais */
+.regulatory-warning-text {
+    font-family: "Inter", sans-serif;
+    font-size: 10px;
+    color: #8e8071;
+    letter-spacing: 1px;
+    margin: 0;
+    font-weight: 500;
+    max-width: 600px;
+    text-align: left;
+    line-height: 1.5;
+}
+
+/* Direitos Autorais Formalizados */
+.regulatory-copyright-text {
+    font-family: "Inter", sans-serif;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.25);
+    letter-spacing: 1.5px;
+    margin: 0;
+    font-weight: 400;
+    text-align: right;
+}
+
+/* TRATAMENTO DE RESPONSIVIDADE ARQUITETÔNICA */
+@media(max-width: 820px) {
+    .maison-footer-container {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 40px;
+    }
+    .maison-identity-block, .maison-navigation-block {
+        align-items: center;
+        text-align: center;
+    }
+    .maison-brand-signature {
+        align-items: center;
+    }
+    .maison-vertical-nav {
+        align-items: center;
+    }
+    .maison-nav-item {
+        align-items: center;
+    }
+    .maison-axis-divider {
+        display: none;
+    }
+    .maison-legal-grid {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .regulatory-warning-text, .regulatory-copyright-text {
+        text-align: center;
+    }
+}
+</style>
+

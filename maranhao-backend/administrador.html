@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel Administrativo — BI & Telemetria Geral</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; border: 1px solid #333; text-align: left; font-size: 0.85rem; vertical-align: top; }
+        th { background: #222; color: #e1a93b; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+        tr:nth-child(even) { background: #282828; }
+        
+        /* Boxes de BI no Topo */
+        .metrics-container { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+        .faturamento-box { font-size: 1.1rem; background: #222; padding: 15px; border-radius: 6px; border: 1px solid #e1a93b; min-width: 220px; box-sizing: border-box; }
+        
+        /* Estilização das Ações */
+        .btn-autorizar { background: #e1a93b; color: #1a1a1a; border: none; padding: 6px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-top: 5px; width: 100%; text-align: center; box-sizing: border-box; }
+        .btn-autorizar:hover { background: #c9932b; }
+        .btn-whatsapp { background: #25d366; color: #fff; border: none; padding: 6px 12px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.85rem; text-decoration: none; display: block; text-align: center; box-sizing: border-box; }
+        .btn-whatsapp:hover { background: #128c7e; }
+        .status-liberado { color: #4caf50; font-weight: bold; display: inline-block; margin-top: 6px; font-size: 0.8rem; }
+        
+        /* Badges de Filtros Dinâmicos */
+        .badge-perfil { padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; display: inline-block; }
+        .perfil-varejo { background: #4a3728; color: #d4af37; border: 1px solid rgba(212,175,55,0.3); }
+        .perfil-atacado { background: #1b365d; color: #7fa9e6; border: 1px solid rgba(127,169,230,0.3); }
+        .perfil-influenciador { background: #4c1d5c; color: #e07fe6; border: 1px solid rgba(224,127,230,0.3); }
+        
+        .badge-sexo { padding: 2px 6px; border-radius: 3px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; display: inline-block; margin-top: 4px; }
+        .sex-f { background: #5c1d43; color: #e67fbc; }
+        .sex-m { background: #1d5c56; color: #7fe6dd; }
+        
+        /* Seção de Backup e Intercâmbio de Leads */
+        .tool-section { background: #222; padding: 20px; border-radius: 6px; border: 1px solid #333; margin-top: 30px; }
+        .tool-section h3 { margin-top: 0; color: #e1a93b; font-size: 1.1rem; }
+        textarea { width: 100%; background: #141210; color: #25d366; border: 1px solid #444; font-family: monospace; padding: 12px; box-sizing: border-box; border-radius: 4px; resize: vertical; font-size: 0.85rem; }
+        .btn-tool { background: #333; color: #fff; border: 1px solid #555; padding: 8px 16px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: 0.2s; }
+        .btn-tool:hover { background: #444; border-color: #e1a93b; }
+    </style>
+</head>
+<body>
+    <h2>💼 Administração Central & Telemetria — Maranhão Guaraná</h2>
+    
+    <!-- Dashboard de Indicadores em Tempo Real -->
+    <div class="metrics-container">
+        <div class="faturamento-box">💰 Faturamento Estimado:<br><strong style="color: #4caf50; font-size: 1.5rem;">R$ <span id="faturamento-total">0,00</span></strong></div>
+        <div class="faturamento-box">⏱️ Latência do Painel:<br><strong style="color: #e1a93b; font-size: 1.5rem;"><span id="tempo-resposta">0</span>ms</strong></div>
+    </div>
+    
+    <!-- Tabela Geral de Auditoria do Lead -->
+    <table>
+        <thead>
+            <tr>
+                <th>ID / Registro</th>
+                <th>Cliente (Est. Sexo)</th>
+                <th>Telefone (Origem DDD)</th>
+                <th>Perfil Solicitado</th>
+                <th>Telemetria Comportamental</th>
+                <th>Recorrência & Cliques</th>
+                <th>Ações e Fluxo</th>
+            </tr>
+        </thead>
+        <tbody id="tabela-adm"></tbody>
+    </table>
+
+    <!-- FERRAMENTAS DE BACKUP E IMPORTAÇÃO DOS DADOS -->
+    <div class="tool-section">
+        <h3>📦 Importação e Exportação do Banco de Dados de Leads</h3>
+        <p style="color: #aaa; font-size: 0.8rem; margin-bottom: 12px;">Transfira informações completas ou realize backups copiando o bloco JSON gerado abaixo:</p>
+        <textarea id="json-box" rows="4" placeholder="O código estruturado das fichas aparecerá aqui ao exportar..."></textarea>
+        <div style="margin-top: 12px; display: flex; gap: 10px;">
+            <button class="btn-tool" onclick="exportarDados()" style="color: #e1a93b;">⬇️ Exportar Banco Atual</button>
+            <button class="btn-tool" onclick="importarDados()">⬆️ Importar e Mesclar Texto JSON</button>
+        </div>
+    </div>
+
+    <script>
+        const inicioSessaoPainel = Date.now();
+
+        function atualizarAdm() {
+            // Calcula em milissegundos o tempo de resposta do painel de administração
+            const latenciaCalculada = Date.now() - inicioSessaoPainel;
+            document.getElementById('tempo-resposta').innerText = latenciaCalculada;
+
+            const pedidos = JSON.parse(localStorage.getItem('pedidos_krikati')) || [];
+            const tbody = document.getElementById('tabela-adm');
+            const fatSpan = document.getElementById('faturamento-total');
+            
+            // Filtro antifraude de ID único
+            const pedidosUnicos = [];
+            const idsVistos = new Set();
+            
+            pedidos.forEach(p => {
+                if (!idsVistos.has(p.id)) {
+                    idsVistos.add(p.id);
+                    pedidosUnicos.push(p);
+                }
+            });
+            
+            tbody.innerHTML = pedidosUnicos.length === 0 ? '<tr><td colspan="7" style="text-align:center; padding: 24px; color: #888;">Nenhum lead capturado ou registrado na memória local hoje.</td></tr>' : '';
+            
+            let total = 0;
+            pedidosUnicos.forEach((p) => {
+                total += 59.00; 
+                
+                // Configuração da Badge de Perfil
+                let classePerfil = "perfil-varejo";
+                if(p.perfil === "ATACADO") classePerfil = "perfil-atacado";
+                if(p.perfil === "INFLUENCIADOR") classePerfil = "perfil-influenciador";
+
+                // Heurística de Sexo Presumido
+                const sexoLabel = p.sexoInferido || "Masculino";
+                const classeSexo = sexoLabel === "Feminino" ? "sex-f" : "sex-m";
+
+                // Limpeza e processamento do link do WhatsApp (Corrigido para não travar a aplicação)
+                const numeroLimpo = p.telefone ? p.telefone.replace(/\D/g, "") : "";
+                const linkWhats = numeroLimpo 
+                    ? `<a href="https://wa.me{numeroLimpo}?text=Olá ${p.nome}, identificamos sua solicitação como ${p.perfil || 'VAREJO'} no Maranhão Guaraná! Como podemos te ajudar?" target="_blank" class="btn-whatsapp">💬 Chamar no Whats</a>`
+                    : '<span style="color:#666;">Sem telefone</span>';
+                
+                // Controle de Recorrência/Bloqueio
+                const jaLiberado = localStorage.getItem(`liberado_${p.telefone}`) === 'true';
+                const botaoControle = jaLiberado 
+                    ? '<span class="status-liberado">✓ Novo Pedido Liberado</span>' 
+                    : `<button class="btn-autorizar" onclick="autorizarNovo('${p.telefone}')">Liberar Próximo</button>`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${p.id}</strong><br><span style="color:#888; font-size:0.75rem;">${p.data || 'N/A'}</span></td>
+                        <td>
+                            <b>${p.nome || 'Não informado'}</b><br>
+                            <span class="badge-sexo ${classeSexo}">${sexoLabel}</span>
+                        </td>
+                        <td>
+                            ${p.telefone || 'Não informado'}<br>
+                            <span style="color:#aaa; font-size:0.75rem;">📍 ${p.regiaoDDD || 'Região não mapeada'}</span>
+                        </td>
+                        <td><span class="badge-perfil ${classePerfil}">${p.perfil || 'VAREJO'}</span></td>
+                        <td>
+                            ⏱️ Navegação: <b>${p.tempoNavegacao || '0s'}</b><br>
+                            ✍️ Veloc. Escrita: <b>${p.velocidadePreenchimento || '0s'}</b>
+                        </td>
+                        <td>
+                            🔄 Frequência: <b>${p.frequenciaHistorica || '1º acesso'}</b><br>
+                            ⚠️ Cliques Errados: <b>${p.cliquesFrustrados || '0'}</b>
+                        </td>
+                        <td>
+                            ${linkWhats}
+                            ${botaoControle}
+                        </td>
+                    </tr>
+                `;
+            });
+            fatSpan.innerText = total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function autorizarNovo(telefoneCliente) {
+            localStorage.setItem(`liberado_${telefoneCliente}`, 'true');
+            alert("Lead autorizado! A trava de duplicidade foi removida para este número de telefone.");
+            atualizarAdm();
+        }
+
+        // FUNÇÕES DO BANCO DE DADOS LOCAL (IMPORTAÇÃO/EXPORTAÇÃO DE LEADS)
+        function exportarDados() {
+            const dados = localStorage.getItem('pedidos_krikati') || "[]";
+            document.getElementById('json-box').value = dados;
+            alert("Backup do banco gerado com sucesso no campo de texto abaixo! Copie e salve com segurança.");
+        }
+
+     
+                    function importarDados() {
+            const textoJson = document.getElementById('json-box').value.trim();
+            try {
+                if(!textoJson) {
+                    alert("Por favor, cole um texto JSON válido no campo correspondente.");
+                    return;
+                }
+                
+                // Validação estrutural do JSON para evitar quebras no sistema
+                const dadosValidados = JSON.parse(textoJson);
+                
+                if (!Array.isArray(dadosValidados)) {
+                    alert("Formato inválido! O arquivo de backup deve conter uma lista de registros estruturada.");
+                    return;
+                }
+
+                // Injeta os novos registros importados na memória do navegador
+                localStorage.setItem('pedidos_krikati', textoJson);
+                alert(`Sucesso! ${dadosValidados.length} registros foram importados e consolidados.`);
+                
+                // Limpa o campo de texto e força o reprocessamento visual imediato da tabela
+                document.getElementById('json-box').value = "";
+                atualizarAdm();
+                
+            } catch(e) {
+                alert("Erro crítico de validação! Certifique-se de que colou o código completo do backup sem modificações ou cortes.");
+            }
+        }
+
+        // SISTEMA COMPLEMENTAR: Botão para resetar registros (Limpeza de Lote se necessário)
+        function limparHistoricoGeral() {
+            if (confirm("⚠️ ATENÇÃO: Você tem certeza que deseja apagar permanentemente todos os leads e zerar o faturamento deste navegador?")) {
+                localStorage.removeItem('pedidos_krikati');
+                alert("Memória local limpa com sucesso. Iniciando novo lote.");
+                atualizarAdm();
+            }
+        }
+
+        // Loop contínuo de escuta e atualização em tempo real a cada 3 segundos
+        setInterval(atualizarAdm, 3000);
+        
+        // Disparo imediato da primeira renderização assim que o painel é carregado
+        atualizarAdm();
+    </script>
+</body>
+</html>
+
