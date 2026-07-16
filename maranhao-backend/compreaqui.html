@@ -323,17 +323,18 @@
     <h3 class="step-title" style="font-family: 'Inter', sans-serif; color: rgba(255, 255, 255, 0.3); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 4px; margin-top: 0; margin-bottom: 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 8px;">
         III. Seus Dados de Acesso
     </h3>
-    
+    <form id="form">
+
     <!-- Grid Inteligente: Nome e Telefone Lado a Lado -->
     <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px;">
         <div class="input-group" style="flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 8px;">
             <label for="clientName" style="font-family: 'Inter', sans-serif; color: #8e8071; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Nome Completo</label>
-            <input type="text" id="clientName" placeholder="Ex: Gabriel Silva" required style="padding: 14px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(20, 18, 16, 0.3); color: #ffffff; font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none; width: 100%; box-sizing: border-box; transition: all 0.2s ease;">
-        </div>
+            <input type="text" id="clientName" placeholder="Ex: Gabriel Silva" name="name" required style="padding: 14px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(20, 18, 16, 0.3); color: #ffffff; font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none; width: 100%; box-sizing: border-box; transition: all 0.2s ease;">
+        
 
         <div class="input-group" style="flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 8px;">
             <label for="clientPhone" style="font-family: 'Inter', sans-serif; color: #8e8071; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Telefone / WhatsApp</label>
-            <input type="tel" id="clientPhone" placeholder="Ex: (98) 99123-4567" required oninput="maskPhone(this)" maxlength="15" style="padding: 14px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(20, 18, 16, 0.3); color: #ffffff; font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none; width: 100%; box-sizing: border-box; transition: all 0.2s ease;">
+            <input type="tel" id="clientPhone" placeholder="Ex: (98) 99123-4567" name="phone" required oninput="maskPhone(this)" maxlength="15" style="padding: 14px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(20, 18, 16, 0.3); color: #ffffff; font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none; width: 100%; box-sizing: border-box; transition: all 0.2s ease;">
         </div>
     </div>
 
@@ -341,6 +342,7 @@
     <div class="input-group" style="display: flex; flex-direction: column; gap: 10px;">
         <label style="font-family: 'Inter', sans-serif; color: #8e8071; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Selecione seu Perfil de Interesse</label>
         
+
         <!-- Grid de Botões de Opção -->
         <div style="display: flex; gap: 12px; flex-wrap: wrap; width: 100%;">
             
@@ -367,7 +369,7 @@
 </div>
 
 <!-- BOTÃO DE DISPARO (Estilo Ultra-Clean / Esporte Fino) -->
-<button type="button" onclick="handleOrderSubmit()" class="btn-order" id="btnFinalizar" style="background: #d4af37; color: #1a1512; font-family: 'Inter', sans-serif; font-weight: 700; padding: 16px; width: 100%; border: none; border-radius: 4px; font-size: 0.9rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 4px 20px rgba(212, 175, 55, 0.1); transition: all 0.3s ease; box-sizing: border-box;">
+<button type="submit" class="btn-order" id="btnFinalizar" style="background: #d4af37; color: #1a1512; font-family: 'Inter', sans-serif; font-weight: 700; padding: 16px; width: 100%; border: none; border-radius: 4px; font-size: 0.9rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 4px 20px rgba(212, 175, 55, 0.1); transition: all 0.3s ease; box-sizing: border-box;">
     Confirmar Solicitação
 </button>
 
@@ -381,9 +383,12 @@
         A sua identificação e perfil selecionado foram salvos com sucesso em nossa base de dados.
     </p>
     <p style="font-family: 'Inter', sans-serif; font-weight: 400; font-size: 0.78rem; color: #8e8071; margin: 0; letter-spacing: 0.3px; line-height: 1.5; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
-        O painel administrativo do sistema já recebeu seu cadastro. Nossa equipe entrará em contato diretamente via WhatsApp para prosseguir com o seu atendimento personalizado.
-    </p>
-</div>
+        O painel administrativo do sistema já recebeu seu cadastro. Nossa equipe entrará em contato diretamente via WhatsApp para prosseguir com o seu atendimento personalizado.   
+
+
+</form>
+
+
 
 <!-- SCRIPT DE INTERAÇÃO DOS CLIQUES E PROCESSAMENTO -->
 <script>
