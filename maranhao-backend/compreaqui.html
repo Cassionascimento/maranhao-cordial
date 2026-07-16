@@ -531,9 +531,8 @@
 </script>
 
 
-
-<!-- BOTÃO DE DISPARO (Estilo Cîroc Ultra-Clean - Sem menção a Pix) -->
-<button type="button" onclick="handleOrderSubmit()" class="btn-order" id="btnFinalizar" style="background: #d4af37; color: #1a1512; font-family: 'Inter', sans-serif; font-weight: 700; padding: 16px; width: 100%; border: none; border-radius: 4px; font-size: 0.95rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.15); transition: all 0.3s ease; box-sizing: border-box;">
+<!-- BOTÃO DE DISPARO ALTERADO PARA SUPORTAR O WEB3FORMS (MUDADO PARA TYPE="SUBMIT" E REMOVIDO O ONCLICK) -->
+<button type="submit" class="btn-order" id="btnFinalizar" style="background: #d4af37; color: #1a1512; font-family: 'Inter', sans-serif; font-weight: 700; padding: 16px; width: 100%; border: none; border-radius: 4px; font-size: 0.95rem; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.15); transition: all 0.3s ease; box-sizing: border-box;">
     Finalizar 
 </button>
 
@@ -566,68 +565,110 @@
 <script>
     let telefoneClienteAtual = "";
 
-    function handleOrderSubmit() {
-        const nameEl = document.getElementById('clientName');
-        const phoneEl = document.getElementById('clientPhone');
+    // Unificamos o envio para o Web3Forms diretamente dentro do evento de Submit do Formulário
+    const form = document.getElementById('form');
+    const submitBtn = form.querySelector('button[type="submit"]');
 
-        if (!nameEl || !phoneEl) {
-            alert("Erro interno: Verifique se os campos de Nome e Telefone existem na página.");
-            return;
-        }
+    if (form && submitBtn) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Impede o recarregamento da página
 
-        const name = nameEl.value.trim();
-        const phone = phoneEl.value.trim();
+            const nameEl = document.getElementById('clientName');
+            const phoneEl = document.getElementById('clientPhone');
 
-        // Removida a validação do endereço que estava quebrando o código
-        if (name === "" || phone === "") {
-            alert("Por favor, preencha o seu Nome e Telefone para prosseguir.");
-            return;
-        }
+            if (!nameEl || !phoneEl) {
+                alert("Erro interno: Verifique se os campos de Nome e Telefone existem na página.");
+                return;
+            }
 
-        // BLOQUEIO DE REENVIOS: Evita spam de pedidos repetidos
-        const jaTemPedidoAtivo = localStorage.getItem('pedidos_krikati') 
-            ? JSON.parse(localStorage.getItem('pedidos_krikati')).some(p => p.telefone === phone) 
-            : false;
-        const estaLiberadoPeloAdm = localStorage.getItem(`liberado_${phone}`) === 'true';
+            const name = nameEl.value.trim();
+            const phone = phoneEl.value.trim();
 
-        if (jaTemPedidoAtivo && !estaLiberadoPeloAdm) {
-            alert("Você já possui um pedido pendente em processamento! Aguarde o contato do nosso administrador no seu WhatsApp antes de enviar novamente.");
-            return;
-        }
+            if (name === "" || phone === "") {
+                alert("Por favor, preencha o seu Nome e Telefone para prosseguir.");
+                return;
+            }
 
-        if (estaLiberadoPeloAdm) {
-            localStorage.removeItem(`liberado_${phone}`);
-        }
+            // BLOQUEIO DE REENVIOS: Evita spam de pedidos repetidos localmente
+            const jaTemPedidoAtivo = localStorage.getItem('pedidos_krikati') 
+                ? JSON.parse(localStorage.getItem('pedidos_krikati')).some(p => p.telefone === phone) 
+                : false;
+            const estaLiberadoPeloAdm = localStorage.getItem(`liberado_${phone}`) === 'true';
 
-        telefoneClienteAtual = phone.replace(/\D/g, "");
+            if (jaTemPedidoAtivo && !estaLiberadoPeloAdm) {
+                alert("Você já possui um pedido pendente em processamento! Aguarde o contato do nosso administrador no seu WhatsApp antes de enviar novamente.");
+                return;
+            }
 
-        // Telemetria simplificada integrada
-        const novoPedido = {
-            id: Date.now(),
-            nome: name,
-            telefone: phone,
-            perfil: (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) ? perfilSelecionado.toUpperCase() : "VAREJO",
-            valor: "59,00",
-            data: new Date().toLocaleString('pt-BR'),
-            status: "Pendente"
-        };
+            if (estaLiberadoPeloAdm) {
+                localStorage.removeItem(`liberado_${phone}`);
+            }
 
-        let listaPedidos = localStorage.getItem('pedidos_krikati') 
-            ? JSON.parse(localStorage.getItem('pedidos_krikati')) 
-            : [];
-        
-        listaPedidos.push(novoPedido);
-        localStorage.setItem('pedidos_krikati', JSON.stringify(listaPedidos));
+            telefoneClienteAtual = phone.replace(/\D/g, "");
 
-        document.getElementById('btnFinalizar').style.display = 'none';
-        document.getElementById('paymentBox').style.display = 'block';
-        document.getElementById('paymentBox').scrollIntoView({ behavior: 'smooth' });
+            // Telemetria simplificada integrada (Salva no seu navegador atual)
+            const novoPedido = {
+                id: Date.now(),
+                nome: name,
+                telefone: phone,
+                perfil: (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) ? perfilSelecionado.toUpperCase() : "VAREJO",
+                valor: "59,00",
+                data: new Date().toLocaleString('pt-BR'),
+                status: "Pendente"
+            };
+
+            let listaPedidos = localStorage.getItem('pedidos_krikati') 
+                ? JSON.parse(localStorage.getItem('pedidos_krikati')) 
+                : [];
+            
+            listaPedidos.push(novoPedido);
+            localStorage.setItem('pedidos_krikati', JSON.stringify(listaPedidos));
+
+            // --- INÍCIO DO DISPARO DE E-MAIL (WEB3FORMS) ---
+            const formData = new FormData(form);
+            formData.append("access_key", "732eca8f-8763-47c9-9f9f-7eaca3ee585f");
+            // Adiciona os dados extras ao e-mail para você saber o tipo de perfil e valor
+            formData.append("Perfil", novoPedido.perfil);
+            formData.append("Valor do Lote", novoPedido.valor);
+
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = "Enviando...";
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch("https://api.web3forms.com/submit", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert("Sucesso! Seus dados foram enviados.");
+                    form.reset(); // Limpa o formulário após o envio bem-sucedido
+
+                    // Ativa a transição visual do Pix/Pagamento na tela
+                    document.getElementById('btnFinalizar').style.display = 'none';
+                    document.getElementById('paymentBox').style.display = 'block';
+                    document.getElementById('paymentBox').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert("Erro ao processar: " + data.message);
+                }
+
+            } catch (error) {
+                alert("Algo deu errado no servidor. Por favor, tente novamente.");
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+            // --- FIM DO DISPARO DE E-MAIL ---
+        });
     }
 
     function redirectToWhatsApp() {
         alert("Encaminhando você para o atendimento. Lembre-se que seus dados já constam no painel da nossa equipe!");
         const numeroSuporte = "5599999999999"; 
-        // CORRIGIDO: Adicionada a barra "/" que faltava para construir a URL corretamente
+        // CORRIGIDO: Adicionada a barra técnica "/" essencial após o wa.me para o link funcionar
         window.open("https://wa.me" + numeroSuporte + "?text=Olá! Acabei de enviar meus dados no formulário do lote.", '_blank');
     }
 
@@ -638,6 +679,7 @@
         input.value = v;
     }
 </script>
+
 
 
 <!-- ==========================================
