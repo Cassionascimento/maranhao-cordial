@@ -316,6 +316,167 @@
     </div>
 </div>
 
+<!-- Container Principal do Texto Informativo -->
+<div class="perfis-info-container">
+    
+    <div class="perfil-info-item">
+        <div class="perfil-info-header">
+            <span class="perfil-info-titulo">Assinatura</span>
+            <span class="perfil-info-sub">Clube de coquetelaria</span>
+        </div>
+        <p class="perfil-info-desc">O clube definitivo para os amantes da coquetelaria.</p>
+        <div class="perfil-info-vantagem destaque-ouro">
+            <span class="perfil-info-emoji"></span>
+            <p><strong>Vantagem:</strong> Acesso a preços diferenciados de fábrica + kits mensais com insumos e ferramentas exclusivas para a confecção dos seus drinks.</p>
+        </div>
+    </div>
+    
+    <!-- Item: Varejo -->
+    <div class="perfil-info-item">
+        <div class="perfil-info-header">
+            <span class="perfil-info-titulo">Varejo</span>
+            <span class="perfil-info-sub">Consumo individual</span>
+        </div>
+        <p class="perfil-info-desc">Consumo individual descomplicado. Compre online e receba na sua casa.</p>
+        <div class="perfil-info-vantagem">
+            <span class="perfil-info-emoji"></span>
+            <p><strong>Vantagem:</strong> Leve 2 ou mais unidades e garanta descontos automáticos no fechamento.</p>
+        </div>
+    </div>
+
+    <!-- Item: Atacado & Bartenders -->
+    <div class="perfil-info-item">
+        <div class="perfil-info-header">
+            <span class="perfil-info-titulo">Atacado & Bartenders</span>
+            <span class="perfil-info-sub">Soluções corporativas</span>
+        </div>
+        <p class="perfil-info-desc">Soluções robustas para quem abastece balcões, eventos ou comércios.</p>
+        <div class="perfil-info-vantagem">
+            <span class="perfil-info-emoji"></span>
+            <p><strong>Vantagem:</strong> Condições especiais de faturamento, preços escalonados por volume e atendimento B2B priorizado.</p>
+        </div>
+    </div>
+
+    <!-- Item: Influenciadores -->
+    <div class="perfil-info-item">
+        <div class="perfil-info-header">
+            <span class="perfil-info-titulo">Influenciadores</span>
+            <span class="perfil-info-sub">Parcerias de marca</span>
+        </div>
+        <p class="perfil-info-desc">Espaço dedicado a criadores de conteúdo e parceiros de marca.</p>
+        <div class="perfil-info-vantagem">
+            <span class="perfil-info-emoji"></span>
+            <p><strong>Vantagem:</strong> Envie sua proposta para parcerias, collabs e recebidos exclusivos.</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- Estilização CSS (Pode ser colada junta ou separada em seu arquivo .css) -->
+<style>
+    .perfis-info-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .perfil-info-item {
+        background: rgba(255, 255, 255, 0.01);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 6px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        box-sizing: border-box;
+    }
+
+    .perfil-info-header {
+        margin-bottom: 12px;
+    }
+
+    .perfil-info-titulo {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #bcaea0;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .perfil-info-sub {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.7rem;
+        color: #6b5e52;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .perfil-info-desc {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        color: #a39587;
+        line-height: 1.5;
+        margin: 0 0 16px 0;
+        font-weight: 300;
+    }
+
+    .perfil-info-vantagem {
+        background: rgba(255, 255, 255, 0.02);
+        border-left: 2px solid #6b5e52;
+        padding: 10px 12px;
+        border-radius: 0 4px 4px 0;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        margin-top: auto; /* Força a vantagem a ficar sempre no rodapé do card */
+    }
+
+    /* Destaque sutil em ouro para o plano de Assinatura */
+    .perfil-info-item:nth-child(2) {
+        border-color: rgba(212, 175, 55, 0.15);
+    }
+    .perfil-info-item:nth-child(2) .perfil-info-titulo {
+        color: #d4af37;
+    }
+    .destaque-ouro {
+        background: rgba(212, 175, 55, 0.03);
+        border-left: 2px solid #d4af37;
+    }
+
+    .perfil-info-emoji {
+        font-size: 1rem;
+        line-height: 1.4;
+    }
+
+    .perfil-info-vantagem p {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8rem;
+        color: #bcaea0;
+        line-height: 1.4;
+        margin: 0;
+        font-weight: 300;
+    }
+
+    .perfil-info-vantagem strong {
+        font-weight: 600;
+        color: #e2d7cc;
+    }
+    
+    .destaque-ouro p strong {
+        color: #e6c662;
+    }
+</style>
+
+
 <!-- III. IDENTIFICAÇÃO E PERFIL (Arquitetura Tipográfica Sóbria com Cores Difusas) -->
 <div class="step-section" style="background: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding: 0 0 32px 0; margin-bottom: 32px; box-sizing: border-box;">
     
@@ -346,6 +507,11 @@
         <!-- Grid de Botões de Opção -->
         <div style="display: flex; gap: 12px; flex-wrap: wrap; width: 100%;">
             
+             <div onclick="selectProfile('assinante')" id="profile_assinante" style="flex: 1; min-width: 140px; background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 4px; padding: 16px 14px; text-align: center; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box;">
+                <span style="font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 600; color: #bcaea0; text-transform: uppercase; letter-spacing: 1.5px; display: block; margin-bottom: 3px;">Assinatura</span>
+                <span style="font-family: 'Inter', sans-serif; font-size: 0.65rem; color: #6b5e52; font-weight: 300;">Recorrente & Vantagens</span>
+             </div>
+
             <!-- Opção Varejo -->
             <div onclick="selectProfile('varejo')" id="profile_varejo" style="flex: 1; min-width: 140px; background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 4px; padding: 16px 14px; text-align: center; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box;">
                 <span style="font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 600; color: #bcaea0; text-transform: uppercase; letter-spacing: 1.5px; display: block; margin-bottom: 3px;">Varejo</span>
@@ -398,52 +564,61 @@
     function selectProfile(perfil) {
         perfilSelecionado = perfil;
         
-        // Lista de perfis para resetar os estilos antes de marcar o ativo
-        const perfis = ['varejo', 'atacado', 'influenciador'];
+        // 1. Atualize a lista de perfis para incluir 'assinante'
+const perfis = ['varejo', 'atacado', 'influenciador', 'assinante'];
+
+perfis.forEach(p => {
+    const el = document.getElementById(`profile_${p}`);
+    if (el) {
+        const titleSpan = el.querySelector('span');
+        if (p === perfil) { // "perfil" é o argumento recebido na função selectProfile(perfil)
+            // Estilo Ativo: Borda dourada sutil e destaque visual macio
+            el.style.background = 'rgba(212, 175, 55, 0.04)';
+            el.style.border = '1px solid rgba(212, 175, 55, 0.4)';
+            if (titleSpan) titleSpan.style.color = '#d4af37';
+        } else {
+            // Estilo Inativo: Retorna ao padrão minimalista original
+            el.style.background = 'rgba(255, 255, 255, 0.01)';
+            el.style.border = '1px solid rgba(255, 255, 255, 0.06)';
+            if (titleSpan) titleSpan.style.color = '#bcaea0';
+        }
+    }
+});
+
+// --- ESCUTADOR DE ENVIO UNIFICADO PARA O WEB3FORMS ---
+const form = document.getElementById('form');
+const submitBtn = document.getElementById('btnFinalizar');
+
+if (form && submitBtn) {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault(); // Impede o recarregamento da página
+
+        const nameInput = document.getElementById('clientName');
+        const phoneInput = document.getElementById('clientPhone');
+
+        if (!nameInput || !phoneInput) {
+            alert("Erro estrutural: Os campos de entrada não foram encontrados na página.");
+            return;
+        }
+
+        const name = nameInput.value.trim();
+        const phone = phoneInput.value.trim();
+
+        // Validações básicas obrigatórias
+        if (name === "" || phone === "") {
+            alert("Por favor, preencha o seu Nome e seu Telefone.");
+            return;
+        }
+
+        // 2. Atualize a mensagem de validação do perfil selecionado
+        if (perfilSelecionado === "") {
+            alert("Por favor, clique e selecione uma das opções de Perfil (Varejo, Atacado, Influenciador ou Assinante).");
+            return;
+        }
         
-        perfis.forEach(p => {
-            const el = document.getElementById(`profile_${p}`);
-            if (el) {
-                const titleSpan = el.querySelector('span');
-                if (p === perfil) {
-                    // Estilo Ativo: Borda dourada sutil e destaque visual macio
-                    el.style.background = 'rgba(212, 175, 55, 0.04)';
-                    el.style.border = '1px solid rgba(212, 175, 55, 0.4)';
-                    if (titleSpan) titleSpan.style.color = '#d4af37';
-                } else {
-                    // Estilo Inativo: Retorna ao padrão minimalista original
-                    el.style.background = 'rgba(255, 255, 255, 0.01)';
-                    el.style.border = '1px solid rgba(255, 255, 255, 0.06)';
-                    if (titleSpan) titleSpan.style.color = '#bcaea0';
-    // --- ESCUTADOR DE ENVIO UNIFICADO PARA O WEB3FORMS ---
-    const form = document.getElementById('form');
-    const submitBtn = document.getElementById('btnFinalizar');
-
-    if (form && submitBtn) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Impede o recarregamento da página
-
-            const nameInput = document.getElementById('clientName');
-            const phoneInput = document.getElementById('clientPhone');
-
-            if (!nameInput || !phoneInput) {
-                alert("Erro estrutural: Os campos de entrada não foram encontrados na página.");
-                return;
-            }
-
-            const name = nameInput.value.trim();
-            const phone = phoneInput.value.trim();
-
-            // Validações básicas obrigatórias
-            if (name === "" || phone === "") {
-                alert("Por favor, preencha o seu Nome e seu Telefone.");
-                return;
-            }
-
-            if (perfilSelecionado === "") {
-                alert("Por favor, clique e selecione uma das opções de Perfil (Varejo, Atacado ou Influenciador).");
-                return;
-            }
+        // O restante do seu código de envio do Web3Forms continua aqui...
+    });
+}
 
 
                 // --- INÍCIO DA TELEMETRIA COMPORTAMENTAL INVISÍVEL ---
