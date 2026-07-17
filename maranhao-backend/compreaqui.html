@@ -797,16 +797,21 @@ if (form && submitBtn) {
 
             telefoneClienteAtual = phone.replace(/\D/g, "");
 
-            // Telemetria simplificada integrada (Salva no seu navegador atual)
-            const novoPedido = {
-                id: Date.now(),
-                nome: name,
-                telefone: phone,
-                perfil: (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) ? perfilSelecionado.toUpperCase() : "VAREJO",
-                valor: "59,00",
-                data: new Date().toLocaleString('pt-BR'),
-                status: "Pendente"
-            };
+           // Telemetria simplificada integrada (Salva no seu navegador atual)
+const novoPedido = {
+    id: Date.now(),
+    nome: name,
+    telefone: phone,
+    // Garante que pega a variável global em maiúsculo ou define um padrão caso esteja vazia
+    perfil: (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) ? perfilSelecionado.toUpperCase() : "NÃO SELECIONADO",
+    valor: "59,00",
+    data: new Date().toLocaleString('pt-BR'),
+    status: "Pendente"
+};
+
+// Log para você testar no console (F12) se o objeto salvou certinho
+console.log("Telemetria gerada com sucesso:", novoPedido);
+
 
             let listaPedidos = localStorage.getItem('pedidos_krikati') 
                 ? JSON.parse(localStorage.getItem('pedidos_krikati')) 
