@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Maranhão Guaraná</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+
+            margin: 0;
+            padding: 0;
+
+            width: 100%;
+            height: 100%;
+
+            overflow: hidden;
+
+            background:
+                radial-gradient(
+                    ellipse at center,
+                    #3a1807 0%,
+                    #160802 48%,
+                    #080301 100%
+                );
+
+            font-family: Georgia, serif;
+        }
+
+
+        /* =====================================================
+           CENA
+        ===================================================== */
+
+        .scene {
+
+            width: 100vw;
+            height: 100vh;
+
+            position: relative;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            perspective: 1400px;
+
+            overflow: hidden;
+        }
+
+
+        /* =====================================================
+           LUZ AMBIENTE
+        ===================================================== */
+
+        .light {
+
+            position: absolute;
+
+            width: 700px;
+            height: 700px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(255, 164, 61, .23) 0%,
+                    rgba(180, 73, 10, .10) 30%,
+                    transparent 70%
+                );
+
+            filter: blur(30px);
+
+            pointer-events: none;
+
+            transition:
+                transform 1s cubic-bezier(.2,.8,.2,1);
+        }
+
+
+        /* =====================================================
+           FRUTOS DE GUARANÁ
+        ===================================================== */
+
+        .guarana-floor {
+
+            position: absolute;
+
+            bottom: -14vh;
+
+            width: 120vw;
+            height: 46vh;
+
+            border-radius: 50%;
+
+            background:
+
+                radial-gradient(
+                    ellipse at center,
+                    rgba(120, 42, 8, .35),
+                    transparent 65%
+                ),
+
+                url("https://images.unsplash.com/photo-1603046891744-76e6300f6b8b?auto=format&fit=crop&w=2000&q=90");
+
+            background-size: cover;
+
+            background-position: center;
+
+            filter:
+                saturate(1.3)
+                sepia(.4)
+                brightness(.65);
+
+            transform:
+                rotateX(64deg)
+                translateZ(-180px)
+                scale(1.4);
+
+            opacity: .75;
+
+            box-shadow:
+                0 -60px 100px rgba(255, 100, 10, .14);
+        }
+
+
+        /* =====================================================
+           PARTÍCULAS DE LUZ
+        ===================================================== */
+
+        .particles {
+
+            position: absolute;
+
+            inset: 0;
+
+            pointer-events: none;
+        }
+
+        .particle {
+
+            position: absolute;
+
+            width: 3px;
+            height: 3px;
+
+            border-radius: 50%;
+
+            background: #f6c46a;
+
+            opacity: .35;
+
+            animation:
+                floatParticle linear infinite;
+        }
+
+        .particle:nth-child(1) {
+            left: 14%;
+            top: 30%;
+            animation-duration: 8s;
+        }
+
+        .particle:nth-child(2) {
+            left: 75%;
+            top: 22%;
+            animation-duration: 11s;
+        }
+
+        .particle:nth-child(3) {
+            left: 25%;
+            top: 68%;
+            animation-duration: 10s;
+        }
+
+        .particle:nth-child(4) {
+            left: 82%;
+            top: 64%;
+            animation-duration: 13s;
+        }
+
+        .particle:nth-child(5) {
+            left: 50%;
+            top: 15%;
+            animation-duration: 9s;
+        }
+
+        @keyframes floatParticle {
+
+            0% {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+
+            30% {
+                opacity: .6;
+            }
+
+            70% {
+                opacity: .4;
+            }
+
+            100% {
+                transform: translateY(-120px);
+                opacity: 0;
+            }
+        }
+
+
+        /* =====================================================
+           PRODUTO
+        ===================================================== */
+
+        .product-wrapper {
+
+            position: relative;
+
+            width: min(80vw, 430px);
+            height: 80vh;
+
+            display: flex;
+
+            justify-content: center;
+            align-items: center;
+
+            cursor: grab;
+
+            transform-style: preserve-3d;
+
+            z-index: 10;
+        }
+
+        .product-wrapper:active {
+
+            cursor: grabbing;
+        }
+
+
+        /* =====================================================
+           GARRAFA
+        ===================================================== */
+
+        .bottle {
+
+            position: relative;
+
+            width: min(62vw, 320px);
+
+            transform-style: preserve-3d;
+
+            will-change: transform;
+
+            transition:
+                transform .12s ease-out;
+        }
+
+
+        .bottle img {
+
+            display: block;
+
+            width: 100%;
+
+            height: auto;
+
+            user-select: none;
+
+            pointer-events: none;
+
+            filter:
+
+                drop-shadow(
+                    0 45px 35px rgba(0, 0, 0, .65)
+                )
+
+                drop-shadow(
+                    0 0 25px rgba(255, 131, 34, .22)
+                );
+
+            transform:
+
+                translateZ(50px)
+
+                scale(1.03);
+        }
+
+
+        /* =====================================================
+           REFLEXO DE LUZ SOBRE O VIDRO
+        ===================================================== */
+
+        .glass-reflection {
+
+            position: absolute;
+
+            inset: 0;
+
+            pointer-events: none;
+
+            z-index: 4;
+
+            mix-blend-mode: screen;
+
+            opacity: .48;
+
+            background:
+
+                linear-gradient(
+
+                    105deg,
+
+                    transparent 15%,
+
+                    rgba(255, 255, 255, .03) 25%,
+
+                    rgba(255, 220, 164, .30) 35%,
+
+                    rgba(255, 255, 255, .05) 43%,
+
+                    transparent 52%
+
+                );
+
+            background-size: 250% 100%;
+
+            animation:
+
+                reflectionMove 6s ease-in-out infinite;
+        }
+
+        @keyframes reflectionMove {
+
+            0% {
+                background-position: 150% 0;
+            }
+
+            50% {
+                background-position: -80% 0;
+            }
+
+            100% {
+                background-position: 150% 0;
+            }
+        }
+
+
+        /* =====================================================
+           HALO ATRÁS DA GARRAFA
+        ===================================================== */
+
+        .bottle-halo {
+
+            position: absolute;
+
+            width: 300px;
+            height: 500px;
+
+            border-radius: 50%;
+
+            background:
+
+                radial-gradient(
+
+                    ellipse,
+
+                    rgba(220, 92, 17, .30),
+
+                    rgba(150, 42, 5, .10) 45%,
+
+                    transparent 72%
+                );
+
+            filter: blur(28px);
+
+            z-index: -1;
+
+            transform:
+
+                translateZ(-120px)
+                scale(.95);
+
+            animation:
+
+                haloPulse 5s ease-in-out infinite;
+        }
+
+        @keyframes haloPulse {
+
+            0%,
+            100% {
+                opacity: .65;
+                transform: translateZ(-120px) scale(.95);
+            }
+
+            50% {
+                opacity: 1;
+                transform: translateZ(-120px) scale(1.08);
+            }
+        }
+
+
+        /* =====================================================
+           TEXTO
+        ===================================================== */
+
+        .brand-copy {
+
+            position: absolute;
+
+            left: 7vw;
+            top: 50%;
+
+            transform: translateY(-50%);
+
+            color: #e9c88c;
+
+            z-index: 20;
+
+            max-width: 300px;
+
+            pointer-events: none;
+        }
+
+        .brand-copy small {
+
+            display: block;
+
+            font-size: 10px;
+
+            letter-spacing: 5px;
+
+            opacity: .7;
+
+            margin-bottom: 20px;
+        }
+
+        .brand-copy h1 {
+
+            margin: 0;
+
+            font-size: clamp(32px, 4vw, 64px);
+
+            line-height: .95;
+
+            font-weight: normal;
+
+            letter-spacing: -2px;
+
+            color: #f1d29a;
+
+            text-shadow:
+
+                0 3px 20px rgba(0,0,0,.8);
+        }
+
+        .brand-copy p {
+
+            margin-top: 22px;
+
+            font-family: Arial, sans-serif;
+
+            font-size: 12px;
+
+            line-height: 1.6;
+
+            letter-spacing: 1px;
+
+            color: rgba(242, 211, 163, .65);
+        }
+
+
+        /* =====================================================
+           INSTRUÇÃO
+        ===================================================== */
+
+        .interaction {
+
+            position: absolute;
+
+            bottom: 38px;
+
+            left: 50%;
+
+            transform: translateX(-50%);
+
+            z-index: 30;
+
+            color: rgba(231, 194, 126, .65);
+
+            font-family: Arial, sans-serif;
+
+            font-size: 10px;
+
+            letter-spacing: 4px;
+
+            text-transform: uppercase;
+
+            white-space: nowrap;
+
+            transition: opacity .6s ease;
+        }
+
+        .interaction.hidden {
+
+            opacity: 0;
+        }
+
+
+        /* =====================================================
+           BOTÃO DE COMPRA
+        ===================================================== */
+
+        .buy-button {
+
+            position: absolute;
+
+            right: 7vw;
+            bottom: 9vh;
+
+            z-index: 30;
+
+            padding: 16px 25px;
+
+            color: #261004;
+
+            background: #d7a75f;
+
+            border: none;
+
+            font-family: Georgia, serif;
+
+            letter-spacing: 2px;
+
+            cursor: pointer;
+
+            box-shadow:
+
+                0 12px 40px rgba(0,0,0,.35);
+
+            transition:
+
+                transform .3s ease,
+                box-shadow .3s ease,
+                background .3s ease;
+        }
+
+        .buy-button:hover {
+
+            transform: translateY(-5px);
+
+            background: #efc57e;
+
+            box-shadow:
+
+                0 18px 50px rgba(218, 143, 52, .3);
+        }
+
+
+        /* =====================================================
+           MOBILE
+        ===================================================== */
+
+        @media (max-width: 800px) {
+
+            .brand-copy {
+
+                top: 8vh;
+                left: 50%;
+
+                transform: translateX(-50%);
+
+                text-align: center;
+
+                width: 90%;
+
+            }
+
+            .brand-copy p {
+
+                display: none;
+            }
+
+            .product-wrapper {
+
+                height: 72vh;
+
+                margin-top: 8vh;
+            }
+
+            .buy-button {
+
+                right: 50%;
+
+                transform: translateX(50%);
+
+                bottom: 8vh;
+            }
+
+            .buy-button:hover {
+
+                transform:
+                    translateX(50%)
+                    translateY(-5px);
+            }
+        }
+
+    </style>
+</head>
+
+
+<body>
+
+
+    <main class="scene">
+
+
+        <!-- LUZ PRINCIPAL -->
+
+        <div class="light"></div>
+
+
+        <!-- UNIVERSO DE GUARANÁ -->
+
+        <div class="guarana-floor"></div>
+
+
+        <!-- PARTÍCULAS -->
+
+        <div class="particles">
+
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+
+        </div>
+
+
+        <!-- TEXTO -->
+
+        <div class="brand-copy">
+
+          
+
+            <h1>
+                O sabor<br>
+                de uma<br>
+                origem.
+            </h1>
+
+            <p>
+                Guaraná brasileiro.<br>
+                Concentrado em uma garrafa.
+            </p>
+
+        </div>
+
+
+        <!-- PRODUTO -->
+
+        <div
+            class="product-wrapper"
+            id="productWrapper"
+        >
+
+            <div class="bottle-halo"></div>
+
+
+            <div
+                class="bottle"
+                id="bottle"
+            >
+
+                <!-- SUA IMAGEM REAL -->
+
+                <img
+                    id="bottleImage"
+                    src="CACC1AE9-CF25-4853-8A2B-19596132D788_1_105_c.jpeg"
+                    alt="Maranhão Guaraná"
+                >
+
+
+                <!-- REFLEXO -->
+
+                <div
+                    class="glass-reflection"
+                ></div>
+
+            </div>
+
+        </div>
+
+
+        <!-- INSTRUÇÃO -->
+
+        <div
+            class="interaction"
+            id="interaction"
+        >
+
+            arraste para explorar
+
+        </div>
+
+
+        <!-- CTA -->
+
+     
+
+
+    </main>
+
+
+    <script>
+
+
+        /* =====================================================
+           ELEMENTOS
+        ===================================================== */
+
+        const wrapper =
+            document.getElementById(
+                "productWrapper"
+            );
+
+        const bottle =
+            document.getElementById(
+                "bottle"
+            );
+
+        const light =
+            document.querySelector(
+                ".light"
+            );
+
+        const interaction =
+            document.getElementById(
+                "interaction"
+            );
+
+
+        /* =====================================================
+           ESTADO
+        ===================================================== */
+
+        let isDragging = false;
+
+        let startX = 0;
+        let startY = 0;
+
+        let rotationY = 0;
+        let rotationX = 0;
+
+        let targetRotationY = 0;
+        let targetRotationX = 0;
+
+        let autoRotation = 0;
+
+        let hasInteracted = false;
+
+
+        /* =====================================================
+           ANIMAÇÃO
+        ===================================================== */
+
+        function animate() {
+
+
+            if (!isDragging) {
+
+                /*
+                 Pequeno movimento vivo.
+                 A garrafa nunca parece completamente parada.
+                */
+
+                autoRotation += .04;
+
+                targetRotationY =
+                    autoRotation;
+            }
+
+
+            rotationY +=
+                (targetRotationY - rotationY)
+                * .08;
+
+
+            rotationX +=
+                (targetRotationX - rotationX)
+                * .08;
+
+
+            bottle.style.transform = `
+
+                rotateX(${rotationX}deg)
+
+                rotateY(${rotationY}deg)
+
+                translateZ(50px)
+
+            `;
+
+
+            requestAnimationFrame(
+                animate
+            );
+        }
+
+
+        animate();
+
+
+        /* =====================================================
+           MOUSE
+        ===================================================== */
+
+        wrapper.addEventListener(
+            "mousedown",
+
+            function(e) {
+
+                isDragging = true;
+
+                startX = e.clientX;
+
+                startY = e.clientY;
+
+                targetRotationY =
+                    rotationY;
+
+                targetRotationX =
+                    rotationX;
+
+                wrapper.style.cursor =
+                    "grabbing";
+
+                interaction.classList.add(
+                    "hidden"
+                );
+
+                hasInteracted = true;
+
+            }
+        );
+
+
+        window.addEventListener(
+            "mousemove",
+
+            function(e) {
+
+
+                /* Movimento da luz */
+
+                const mouseX =
+                    e.clientX /
+                    window.innerWidth;
+
+                const mouseY =
+                    e.clientY /
+                    window.innerHeight;
+
+
+                light.style.transform = `
+
+                    translate(
+
+                        ${(mouseX - .5) * 300}px,
+
+                        ${(mouseY - .5) * 250}px
+
+                    )
+
+                `;
+
+
+                if (!isDragging) {
+
+                    /*
+                     Movimento suave quando
+                     apenas passa o mouse
+                    */
+
+                    const centerX =
+                        window.innerWidth / 2;
+
+                    const centerY =
+                        window.innerHeight / 2;
+
+
+                    targetRotationY =
+                        (e.clientX - centerX)
+                        * .035;
+
+
+                    targetRotationX =
+                        -(e.clientY - centerY)
+                        * .025;
+
+                    return;
+                }
+
+
+                const movementX =
+                    e.clientX - startX;
+
+                const movementY =
+                    e.clientY - startY;
+
+
+                targetRotationY =
+                    rotationY
+                    + movementX * .5;
+
+
+                targetRotationX =
+                    rotationX
+                    - movementY * .35;
+
+            }
+        );
+
+
+        window.addEventListener(
+            "mouseup",
+
+            function() {
+
+                isDragging = false;
+
+                wrapper.style.cursor =
+                    "grab";
+
+            }
+        );
+
+
+        /* =====================================================
+           TOUCH / CELULAR
+        ===================================================== */
+
+        wrapper.addEventListener(
+            "touchstart",
+
+            function(e) {
+
+                isDragging = true;
+
+                startX =
+                    e.touches[0].clientX;
+
+                startY =
+                    e.touches[0].clientY;
+
+                targetRotationY =
+                    rotationY;
+
+                targetRotationX =
+                    rotationX;
+
+                interaction.classList.add(
+                    "hidden"
+                );
+
+            },
+
+            { passive: true }
+        );
+
+
+        wrapper.addEventListener(
+            "touchmove",
+
+            function(e) {
+
+                const movementX =
+                    e.touches[0].clientX
+                    - startX;
+
+                const movementY =
+                    e.touches[0].clientY
+                    - startY;
+
+
+                targetRotationY =
+                    rotationY
+                    + movementX * .5;
+
+
+                targetRotationX =
+                    rotationX
+                    - movementY * .35;
+
+            },
+
+            { passive: true }
+        );
+
+
+        wrapper.addEventListener(
+            "touchend",
+
+            function() {
+
+                isDragging = false;
+
+            }
+        );
+
+
+    </script>
+
+</body>
+
+</html>
