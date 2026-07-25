@@ -382,17 +382,17 @@
 </body>
 </html>
 
-        <!-- IV. FORMULÁRIO DE IDENTIFICAÇÃO E COMPRA DIRETA -->
+           <!-- IV. FORMULÁRIO DE IDENTIFICAÇÃO E COMPRA DIRETA (BOTÃO CORRIGIDO) -->
     <section class="secao-cadastro">
         <div style="background: transparent; border-top: 1px solid rgba(0, 0, 0, 0.08); padding: 40px 0 32px 0; box-sizing: border-box;">
             
             <h3 style="font-family: 'Inter', sans-serif; color: #777777; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 4px; margin-top: 0; margin-bottom: 24px; padding-bottom: 8px;">
-                 Finalizar Pedido Comercial
+                III. Finalizar Pedido Comercial
             </h3>
             
-            <!-- Formulário estruturado com os nomes corretos para o Web3Forms ler -->
+            <!-- Formulário com a sua ID correta para o JavaScript monitorizar -->
             <form id="formCheckoutWhats">
-                <!-- Chave oculta para o seu Web3Forms continuar a receber no e-mail -->
+                <!-- Chave oculta para o Web3Forms enviar para o seu e-mail -->
                 <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
                 
                 <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px;">
@@ -416,9 +416,9 @@
                     <small style="font-family: 'Inter', sans-serif; font-size: 11px; color: #A36A40; letter-spacing: 0.5px;">* Frete fixo de R$ 15,00 para a região próxima à Av. Paulista, 1636.</small>
                 </div>
 
-                <!-- Botão de Ação Único de Submissão -->
+                <!-- BOTÃO REAL DE SUBMISSÃO (SUBSTITUIU A TAG <a> QUE QUEBRAVA O FLUXO) -->
                 <div style="display: flex; justify-content: flex-start;">
-                    <button type="submit" id="submitBtnCheckout" class="btn-premium-luxury" style="padding: 16px 40px; background-color: #111111; color: #ffffff; border: none; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em;">
+                    <button type="submit" id="submitBtnCheckout" class="btn-premium-luxury" style="padding: 16px 40px; background-color: #111111; color: #ffffff; border: 1px solid #111111; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 300;">
                         Compre Aqui! (Confirmar via WhatsApp)
                     </button>
                 </div>
@@ -427,8 +427,9 @@
         </div>
     </section>
 
-    <!-- LÓGICA JAVASCRIPT CORRIGIDA, DUAL-ACTION (EMAIL + WHATSAPP) -->
+    <!-- LÓGICA JAVASCRIPT REESTRUTURADA E IMUNE A BLOQUEIOS -->
     <script>
+        // Função automática de máscara de telemóvel
         function mascaraTelefone(objeto){
             setTimeout(function() {
                 let v = objeto.value;
@@ -439,48 +440,51 @@
             }, 1);
         }
 
+        // Monitorização ativa do clique de submissão do formulário
         document.getElementById('formCheckoutWhats').addEventListener('submit', async function(e) {
-            e.preventDefault(); 
+            e.preventDefault(); // Tranca o recarregamento da página para processar o JavaScript
 
             const formElement = e.target;
             const submitBtn = document.getElementById('submitBtnCheckout');
 
+            // Captura de valores inseridos pelo cliente
             const nome = document.getElementById('clientName').value.trim();
             const telefone = document.getElementById('clientPhone').value.trim();
             const endereco = document.getElementById('clientAddress').value.trim();
 
+            // Configuração dos valores comerciais da Maranhão Cordial
             const precoGarrafa = 59.00;
             const precoFrete = 15.00; 
             const valorTotal = precoGarrafa + precoFrete;
             const perfil = (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) ? perfilSelecionado.toUpperCase() : "VAREJO";
 
-            // INSIRA O SEU NÚMERO DO WHATSAPP DE ATENDIMENTO AQUI (com 55 + DDD + Número)
+            // ATENÇÃO: Substitua os números abaixo pelo seu número de telemóvel com DDD (Apenas números)
             const seuNumeroWhatsApp = "5511999999999"; 
 
-            // Alteração visual para o utilizador saber que está a processar
+            // Feedback visual de processamento de luxo no botão
             const originalText = submitBtn.textContent;
-            submitBtn.textContent = "Processando Pedido...";
+            submitBtn.textContent = "A processar pedido...";
             submitBtn.disabled = true;
 
-            // --- AÇÃO 1: DISPARO DO SEU E-MAIL (WEB3FORMS) ---
+            // --- PASSO 1: ENVIO DO E-MAIL (WEB3FORMS) ---
             const formData = new FormData(formElement);
             formData.append("Perfil de Interesse", perfil);
-            formData.append("Valor Produto", "R$ 59,00");
-            formData.append("Valor Frete", `R$ ${precoFrete.toFixed(2).replace('.', ',')}`);
-            formData.append("Valor Total Pago", `R$ ${valorTotal.toFixed(2).replace('.', ',')}`);
+            formData.append("Valor do Produto", "R$ 59,00");
+            formData.append("Valor do Frete", "R$ 15,00");
+            formData.append("Valor Total com Frete", `R$ ${valorTotal.toFixed(2).replace('.', ',')}`);
 
             try {
-                // Envia os dados para a sua conta do Web3Forms em segundo plano
+                // Executa a requisição assíncrona para o Web3Forms enviar para o seu e-mail
                 await fetch("https://web3forms.com", {
                     method: "POST",
                     body: formData
                 });
-                console.log("E-mail corporativo enviado com sucesso ao Web3Forms.");
+                console.log("Notificação enviada com sucesso para o Web3Forms.");
             } catch (error) {
-                console.error("Falha ao registar o e-mail, continuando com o fluxo do WhatsApp...", error);
+                console.error("Erro na API de e-mail, prosseguindo para o WhatsApp...", error);
             }
 
-            // --- AÇÃO 2: SALVAR NA TELEMETRIA LOCAL ---
+            // --- PASSO 2: REGISTO NA SUA TELEMETRIA LOCAL (/ADMINISTRADOR) ---
             const pedidoTelemetria = {
                 id: Date.now(),
                 nome: nome,
@@ -496,7 +500,7 @@
             lista.push(pedidoTelemetria);
             localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
 
-            // --- AÇÃO 3: MONTAR E ABRIR O LINK DO WHATSAPP COM O PREÇO ---
+            // --- PASSO 3: REDIRECIONAMENTO IMUNE A BLOQUEIOS PARA O WHATSAPP ---
             const textoMensagem = `Olá, gostaria de finalizar a compra do meu Maranhão Cordial! ✨%0A%0A` +
                                   `*DADOS DO PEDIDO:*%0A` +
                                   `• *Nome:* ${encodeURIComponent(nome)}%0A` +
@@ -512,13 +516,14 @@
 
             const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
             
-            // Restaura o botão e limpa os campos
+            // Restaura o estado original do formulário
             submitBtn.textContent = originalText;
             submitBtn.disabled = false;
             formElement.reset();
 
-            // Abre o WhatsApp para o cliente fechar o Pix com você
-            window.open(urlWhatsApp, '_blank');
+            // MUDANÇA CRUCIAL: Usa o redirecionamento na mesma aba. Isto impede que os telemóveis tranquem a abertura do WhatsApp como se fosse um anúncio (pop-up).
+            window.location.href = urlWhatsApp;
         });
     </script>
-
+</body>
+</html>
