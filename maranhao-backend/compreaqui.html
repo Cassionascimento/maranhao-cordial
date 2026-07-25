@@ -525,7 +525,7 @@
 
             const textoOriginalBotao = submitBtn.innerHTML;
             
-            // Coleta o endereço digitado pelo cliente
+            // Coleta e valida o endereço informado pelo cliente
             const enderecoField = document.getElementById('finalClientAddress');
             const endereco = enderecoField ? enderecoField.value.trim() : "";
 
@@ -534,7 +534,7 @@
                 return;
             }
 
-            // Ativa o estado visual de carregamento na hora
+            // Ativa o estado de carregamento de luxo na interface
             submitBtn.disabled = true;
             submitBtn.innerHTML = "PROCESSANDO...";
 
@@ -554,7 +554,7 @@
             if(document.getElementById('hiddenPerfil')) document.getElementById('hiddenPerfil').value = perfil;
             if(document.getElementById('hiddenTotal')) document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
 
-            // --- 1. SALVA NA TELEMETRIA LOCAL (PÁGINA DO ADMINISTRADOR) ---
+            // --- 1. SALVA NA TELEMETRIA LOCAL (ADMINISTRADOR) ---
             try {
                 const pedidoTelemetria = {
                     id: Date.now(),
@@ -568,11 +568,10 @@
                 lista.push(pedidoTelemetria);
                 localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
             } catch (err) {
-                console.error("Erro ao salvar telemetria:", err);
+                console.error("Erro na telemetria:", err);
             }
 
-            // --- 2. CONFIGURAÇÃO E DISPARO IMEDIATO DO WHATSAPP ---
-            // Abrir aqui garante que o Safari aceite o comando por ser uma ação direta do clique do usuário
+            // --- 2. CONFIGURAÇÃO DA MENSAGEM DO WHATSAPP ---
             const seuNumeroWhatsApp = "5511983684267"; 
             const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
                                   `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
@@ -584,36 +583,32 @@
                                   `_Gostaria de prosseguir com o pagamento por aqui._`;
 
             const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
-            
-            // Abre o WhatsApp na hora
-            window.open(urlWhatsApp, '_blank');
 
-            // --- 3. DISPARA O E-MAIL PARA O WEB3FORMS EM SEGUNDO PLANO ---
+            // --- 3. DISPARA O E-MAIL (WEB3FORMS) EM SEGUNDO PLANO COM BEHAVIOR ASSÍNCRONO INDEPENDENTE ---
             const formData = new FormData(formElement);
             
-            fetch('https://web3forms.com', {
+            // O fetch roda em background sem segurar o fluxo principal
+            fetch('https://api.web3forms.com/submit', {
                 method: 'POST',
                 body: formData,
                 headers: { 'Accept': 'application/json' }
             })
             .then(response => {
-                console.log('E-mail enviado e computado no dashboard.');
+                console.log('E-mail computado no Web3Forms.');
             })
             .catch(error => {
-                console.error('Erro de envio ao Web3Forms:', error);
-            })
-            .finally(() => {
-                // Destrava a interface do usuário após o término da requisição
+                console.error('Envio de e-mail ignorado ou em background:', error);
+            });
+
+            // --- 4. SOLUÇÃO DO TRAVAMENTO DO SAFARI (REDIRECIONAMENTO DIRETO SEM POP-UP) ---
+            // Pequeno delay de 300ms apenas para garantir que a requisição de e-mail saiu do navegador antes de mudar de página
+            setTimeout(function() {
                 submitBtn.innerHTML = "CONFIRMADO!";
                 submitBtn.style.backgroundColor = "#111111"; 
-                formElement.reset();
                 
-                setTimeout(() => {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = textoOriginalBotao;
-                    submitBtn.style.backgroundColor = "#A36A40";
-                }, 4000);
-            });
+                // Muda a URL da própria aba atual para o WhatsApp, burlando o bloqueador do Safari
+                window.location.href = urlWhatsApp;
+            }, 300);
         });
     });
 </script>
