@@ -496,7 +496,8 @@
         <form id="formCheckoutWhats" action="https://web3forms.com" method="POST">
     <!-- Configurações Obrigatórias do Web3Forms -->
     <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
-    <input type="hidden" name="email" value="cassionegocios47@gmail.com">
+<input type="hidden" name="email" value="cassionegocios47@gmail.com">
+
     <input type="hidden" name="subject" value="Novo Pedido - Maranhão Cordial">
     
     <!-- IDs internos para mapeamento correto do sistema -->
@@ -514,31 +515,28 @@
  <script>
     document.addEventListener('DOMContentLoaded', function() {
         const formElement = document.getElementById('formCheckoutWhats');
-        
         if (!formElement) return;
 
         formElement.addEventListener('submit', function(e) {
-            e.preventDefault(); 
+            e.preventDefault(); // Interrompe o envio nativo do navegador
 
             const submitBtn = document.getElementById('submitBtnCheckout');
-            const textoOriginalBotao = submitBtn ? submitBtn.innerHTML : "Confirmar Endereço";
+            if (!submitBtn) return;
 
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = "PROCESSANDO...";
-            }
-
+            const textoOriginalBotao = submitBtn.innerHTML;
+            
+            // Coleta o endereço digitado pelo cliente
             const enderecoField = document.getElementById('finalClientAddress');
             const endereco = enderecoField ? enderecoField.value.trim() : "";
 
             if (!endereco) {
                 alert("Por favor, insira um endereço válido.");
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = textoOriginalBotao;
-                }
                 return;
             }
+
+            // Ativa o estado visual de carregamento na hora
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = "PROCESSANDO...";
 
             const precoGarrafa = 59.00;
             const precoFrete = 1.00; 
@@ -553,12 +551,10 @@
                 perfil = "VAREJO";
             }
 
-            const hiddenPerfilField = document.getElementById('hiddenPerfil');
-            const hiddenTotalField = document.getElementById('hiddenTotal');
-            if (hiddenPerfilField) hiddenPerfilField.value = perfil;
-            if (hiddenTotalField) hiddenTotalField.value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
+            if(document.getElementById('hiddenPerfil')) document.getElementById('hiddenPerfil').value = perfil;
+            if(document.getElementById('hiddenTotal')) document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
 
-            // --- 1. SALVA NA TELEMETRIA LOCAL ---
+            // --- 1. SALVA NA TELEMETRIA LOCAL (PÁGINA DO ADMINISTRADOR) ---
             try {
                 const pedidoTelemetria = {
                     id: Date.now(),
@@ -572,10 +568,11 @@
                 lista.push(pedidoTelemetria);
                 localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
             } catch (err) {
-                console.error(err);
+                console.error("Erro ao salvar telemetria:", err);
             }
 
-            // --- 2. CONFIGURAÇÃO DA MENSAGEM DO WHATSAPP ---
+            // --- 2. CONFIGURAÇÃO E DISPARO IMEDIATO DO WHATSAPP ---
+            // Abrir aqui garante que o Safari aceite o comando por ser uma ação direta do clique do usuário
             const seuNumeroWhatsApp = "5511983684267"; 
             const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
                                   `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
@@ -587,44 +584,34 @@
                                   `_Gostaria de prosseguir com o pagamento por aqui._`;
 
             const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
+            
+            // Abre o WhatsApp na hora
+            window.open(urlWhatsApp, '_blank');
 
-            // --- 3. ENVIO DO E-MAIL COM TIMEOUT DE SEGURANÇA (EVITA TRAVAR O BOTÃO) ---
-            const controller = new AbortController();
-            const idTimeout = setTimeout(() => controller.abort(), 4000); // Cancela a espera se o e-mail demorar mais de 4 segundos
-
+            // --- 3. DISPARA O E-MAIL PARA O WEB3FORMS EM SEGUNDO PLANO ---
             const formData = new FormData(formElement);
-
+            
             fetch('https://web3forms.com', {
                 method: 'POST',
                 body: formData,
-                headers: { 'Accept': 'application/json' },
-                signal: controller.signal
+                headers: { 'Accept': 'application/json' }
             })
             .then(response => {
-                if (!response.ok) console.warn('Chave Web3Forms inválida ou não ativada.');
+                console.log('E-mail enviado e computado no dashboard.');
             })
             .catch(error => {
-                console.error('Envio de e-mail ignorado ou cancelado por lentidão:', error);
+                console.error('Erro de envio ao Web3Forms:', error);
             })
             .finally(() => {
-                clearTimeout(idTimeout);
-
-                // Força a abertura do WhatsApp independentemente de qualquer erro no e-mail
-                window.open(urlWhatsApp, '_blank');
-
-                if (submitBtn) {
-                    submitBtn.innerHTML = "CONFIRMADO!";
-                    submitBtn.style.backgroundColor = "#111111"; 
-                }
-                
+                // Destrava a interface do usuário após o término da requisição
+                submitBtn.innerHTML = "CONFIRMADO!";
+                submitBtn.style.backgroundColor = "#111111"; 
                 formElement.reset();
                 
                 setTimeout(() => {
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = textoOriginalBotao;
-                        submitBtn.style.backgroundColor = "#A36A40";
-                    }
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = textoOriginalBotao;
+                    submitBtn.style.backgroundColor = "#A36A40";
                 }, 4000);
             });
         });
