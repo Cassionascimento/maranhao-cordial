@@ -511,24 +511,18 @@
 
 
     <!-- LÓGICA JAVASCRIPT DE ALTA CONVERSÃO (ORDEM DE DISPARO INVERTIDA) -->
-  <script>
-    // Proteção Premium: Aguarda a página carregar por completo para evitar travas invisíveis
+ <script>
     document.addEventListener('DOMContentLoaded', function() {
         const formElement = document.getElementById('formCheckoutWhats');
         
-        // Verifica se o formulário realmente existe na página antes de continuar
-        if (!formElement) {
-            console.error("Erro Crítico: Formulário '#formCheckoutWhats' não foi encontrado no HTML.");
-            return;
-        }
+        if (!formElement) return;
 
         formElement.addEventListener('submit', function(e) {
-            e.preventDefault(); // Interrompe o envio nativo do navegador
+            e.preventDefault(); 
 
             const submitBtn = document.getElementById('submitBtnCheckout');
             const textoOriginalBotao = submitBtn ? submitBtn.innerHTML : "Confirmar Endereço";
 
-            // Feedback visual imediato de carregamento de luxo
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = "PROCESSANDO...";
@@ -559,13 +553,12 @@
                 perfil = "VAREJO";
             }
 
-            // Alimenta os inputs ocultos com precisão
             const hiddenPerfilField = document.getElementById('hiddenPerfil');
             const hiddenTotalField = document.getElementById('hiddenTotal');
             if (hiddenPerfilField) hiddenPerfilField.value = perfil;
             if (hiddenTotalField) hiddenTotalField.value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
 
-            // --- 1. SALVA NA PÁGINA ADMINISTRADOR (LOCALSTORAGE) ---
+            // --- 1. SALVA NA TELEMETRIA LOCAL ---
             try {
                 const pedidoTelemetria = {
                     id: Date.now(),
@@ -575,53 +568,50 @@
                     data: new Date().toLocaleString('pt-BR'),
                     status: "Endereço Confirmado"
                 };
-                
                 let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
                 lista.push(pedidoTelemetria);
                 localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
-                console.log("Pedido salvo com sucesso na telemetria local!");
             } catch (err) {
-                console.error("Falha ao gravar na telemetria:", err);
+                console.error(err);
             }
 
-            // --- 2. PREPARAÇÃO E ENVIO DO E-MAIL (WEB3FORMS) ---
+            // --- 2. CONFIGURAÇÃO DA MENSAGEM DO WHATSAPP ---
+            const seuNumeroWhatsApp = "5511983684267"; 
+            const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
+                                  `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
+                                  `• *Destino:* ${encodeURIComponent(endereco)}%0A%0A` +
+                                  `*RESUMO ESTIMADO:*%0A` +
+                                  `• 1x Maranhão Cordial: R$ 59,00%0A` +
+                                  `• Frete Estimado: R$ ${precoFrete.toFixed(2).replace('.', ',')}%0A` +
+                                  `• *Total Geral:* R$ ${valorTotal.toFixed(2).replace('.', ',')}%0A%0A` +
+                                  `_Gostaria de prosseguir com o pagamento por aqui._`;
+
+            const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
+
+            // --- 3. ENVIO DO E-MAIL COM TIMEOUT DE SEGURANÇA (EVITA TRAVAR O BOTÃO) ---
+            const controller = new AbortController();
+            const idTimeout = setTimeout(() => controller.abort(), 4000); // Cancela a espera se o e-mail demorar mais de 4 segundos
+
             const formData = new FormData(formElement);
 
             fetch('https://web3forms.com', {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'Accept': 'application/json'
-                }
+                headers: { 'Accept': 'application/json' },
+                signal: controller.signal
             })
             .then(response => {
-                if (response.ok) {
-                    console.log('Dados despachados com sucesso para cassionegocios47@gmail.com');
-                } else {
-                    console.warn('Web3Forms retornou um status de erro. Verifique sua chave.');
-                }
+                if (!response.ok) console.warn('Chave Web3Forms inválida ou não ativada.');
             })
             .catch(error => {
-                console.error('Erro na requisição Fetch do e-mail:', error);
+                console.error('Envio de e-mail ignorado ou cancelado por lentidão:', error);
             })
             .finally(() => {
-                // --- 3. DISPARO DO WHATSAPP (SEMPRE EXECUTADO NO FINAL) ---
-                const seuNumeroWhatsApp = "5511983684267"; 
-                const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
-                                      `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
-                                      `• *Destino:* ${encodeURIComponent(endereco)}%0A%0A` +
-                                      `*RESUMO ESTIMADO:*%0A` +
-                                      `• 1x Maranhão Cordial: R$ 59,00%0A` +
-                                      `• Frete Estimado: R$ ${precoFrete.toFixed(2).replace('.', ',')}%0A` +
-                                      `• *Total Geral:* R$ ${valorTotal.toFixed(2).replace('.', ',')}%0A%0A` +
-                                      `_Gostaria de prosseguir com o pagamento por aqui._`;
+                clearTimeout(idTimeout);
 
-                const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
-                
-                // Abre o WhatsApp de forma direta e limpa
+                // Força a abertura do WhatsApp independentemente de qualquer erro no e-mail
                 window.open(urlWhatsApp, '_blank');
 
-                // Reseta o botão para o estado de sucesso
                 if (submitBtn) {
                     submitBtn.innerHTML = "CONFIRMADO!";
                     submitBtn.style.backgroundColor = "#111111"; 
