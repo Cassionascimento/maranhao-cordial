@@ -407,7 +407,48 @@
                 window.location.href = urlWhatsApp;
             });
         });
-    ;
+    
+const form = document.getElementById('formCheckoutServerless');
+const btnSubmit = document.getElementById('btnFinalizarPedido');
+
+form.addEventListener('submit', function(e) {
+    e.preventDefault(); // Impede o redirecionamento externo do formulário
+    
+    btnSubmit.innerText = "A processar...";
+    btnSubmit.disabled = true;
+
+    const formData = new FormData(form);
+    const object = Object.fromEntries(formData);
+    const json = JSON.stringify(object);
+
+    fetch('https://web3forms.com', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: json
+    })
+    .then(async (response) => {
+        let json = await response.json();
+        if (response.status == 200) {
+            // Sucesso: Pode redirecionar para outra rota Flask ou exibir um alerta
+            alert("Pedido finalizado com sucesso!");
+            window.location.href = "/"; // Volta para a página inicial
+        } else {
+            alert("Erro ao enviar: " + json.message);
+            btnSubmit.innerText = "Finalizar Pedido";
+            btnSubmit.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.log(error);
+        alert("Ocorreu um erro no sistema.");
+        btnSubmit.innerText = "Finalizar Pedido";
+        btnSubmit.disabled = false;
+    });
+});
+
 </script>
 </body>
 </html>
