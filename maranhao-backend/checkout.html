@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Maranhão Cordial</title>
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS DE ALTA COSTURA - CHECKOUT D'USSÉ STYLE */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+            color: #111111;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .checkout-header-logo {
+            text-align: center;
+            padding: 40px 0 20px 0;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 32px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        .checkout-main-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+        }
+
+        .checkout-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1.8fr 1.2fr;
+            gap: 60px;
+            padding: 0 40px 100px 40px;
+            box-sizing: border-box;
+        }
+
+        /* Seção da Esquerda - Formulário */
+        .secao-dados {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        .checkout-passo {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .passo-icone {
+            background: #111111;
+            color: #ffffff;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .passo-conteudo {
+            flex: 1;
+        }
+
+        .passo-titulo {
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0 0 24px 0;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .form-grid-duplo {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .input-checkout-luxury {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #cccccc;
+            padding: 16px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 300;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-checkout-luxury:focus {
+            border-color: #111111;
+        }
+
+        /* Seção da Direita - Resumo Financeiro Fixado */
+        .secao-resumo {
+            background-color: #f9f9f9;
+            padding: 40px;
+            box-sizing: border-box;
+            height: fit-content;
+            position: sticky;
+            top: 40px;
+        }
+
+        .seguranca-tag {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #777777;
+            margin-bottom: 30px;
+        }
+
+        .resumo-linha {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 16px;
+            color: #444444;
+        }
+
+        .resumo-linha.total-geral {
+            border-top: 1px solid #e0e0e0;
+            padding-top: 20px;
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #111111;
+        }
+
+        .btn-place-order {
+            width: 100%;
+            background-color: #777777;
+            color: #ffffff;
+            border: none;
+            padding: 18px 0;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-place-order:hover {
+            background-color: #111111;
+        }
+
+        .btn-place-order:disabled {
+            background-color: #999999;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 968px) {
+            .checkout-container {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                padding: 0 20px;
+            }
+            .secao-resumo {
+                position: relative;
+                top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="checkout-header-logo">Maranhão Cordial</div>
+    <div class="checkout-main-title">Checkout</div>
+
+    <div class="checkout-container">
+        
+        <!-- FORMULÁRIO DE ENTRADA -->
+        <form id="formCheckoutServerless" class="secao-dados">
+            <!-- Camada Invisível de Backend / Web3Forms -->
+            <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
+            <input type="hidden" name="email" value="cassionegocios47@gmail.com">
+            <input type="hidden" name="subject" value="🚨 NOVO PEDIDO CONFIRMADO - SITE">
+            <input type="hidden" id="hiddenTotal" name="Total do Pedido com Frete" value="R$ 60,00">
+
+            <!-- PASSO 1: DADOS DE ENTREGA -->
+            <div class="checkout-passo">
+                <div class="passo-icone">✓</div>
+                <div class="passo-conteudo">
+                    <h3 class="passo-titulo">Dados de Entrega</h3>
+                    
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="Tipo de Endereço" value="Residencial" checked> Residencial
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="Tipo de Endereço" value="Comercial"> Comercial
+                        </label>
+                    </div>
+
+                    <div class="form-grid-duplo">
+                        <input type="text" id="cliNome" name="Nome" placeholder="Nome *" required class="input-checkout-luxury">
+                        <input type="text" id="cliSobrenome" name="Sobrenome" placeholder="Sobrenome *" required class="input-checkout-luxury">
+                    </div>
+
+                    <div class="form-grid-duplo" style="grid-template-columns: 2fr 1fr;">
+                        <input type="text" id="cliEndereco" name="Endereço de Entrega" placeholder="Endereço, Cidade, Estado e CEP *" required class="input-checkout-luxury">
+                        <input type="text" id="cliApto" name="Apto / Bloco (Opcional)" placeholder="Apto, Bloco (Opcional)" class="input-checkout-luxury">
+                    </div>
+
+                    <div class="form-grid-duplo">
+                        <input type="email" id="cliEmail" name="E-mail do Cliente" placeholder="Seu E-mail *" required class="input-checkout-luxury">
+                        <input type="tel" id="cliTelefone" name="Telefone / WhatsApp" placeholder="Seu Telefone *" required class="input-checkout-luxury" oninput="mascaraTel(this)" maxlength="15">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PASSO 2: INFORMAÇÕES ADICIONAIS EXIGIDAS -->
+            <div class="checkout-passo">
+                <div class="passo-icone">✓</div>
+                <div class="passo-conteudo">
+                    <h3 class="passo-titulo">Informações Requeridas</h3>
+                    
+                    <div class="form-grid-duplo">
+                        <div>
+                            <label style="font-size: 11px; text-transform: uppercase; color:#777777; display:block; margin-bottom:6px;">Data de Aniversário *</label>
+                            <input type="date" id="cliAniversario" name="Data de Nascimento" required class="input-checkout-luxury">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; text-transform: uppercase; color:#777777; display:block; margin-bottom:6px;">Forma de Pagamento Preferencial *</label>
+                            <select id="cliPagamento" name="Forma de Pagamento" required class="input-checkout-luxury" style="-webkit-appearance: none; border-radius: 0;">
+                                <option value="Chave Pix (Banco do Brasil / PicPay)">Chave Pix</option>
+                                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- RESUMO FINANCEIRO FIXO (DIREITA) -->
+        <div class="secao-resumo">
+            <div class="seguranca-tag">🔒 Pagamento 100% Seguro</div>
+            
+            <div class="resumo-linha">
+                <span>1x Maranhão Cordial</span>
+                <span>R$ 59,00</span>
+            </div>
+            <div class="resumo-linha">
+                <span>Taxas e Impostos</span>
+                <span>R$ 0,00</span>
+            </div>
+
+                        <div class="resumo-linha">
+                <span>Frete Estimado</span>
+                <span>R$ 1,00</span>
+            </div>
+            
+            <div class="resumo-linha total-geral">
+                <span>Total</span>
+                <span>R$ 60,00</span>
+            </div>
+
+            <!-- Botão de Disparo do Form de Cima -->
+            <button type="submit" form="formCheckoutServerless" id="btnFinalizarPedido" class="btn-place-order">
+                Finalizar Pedido
+            </button>
+        </div>
+
+    </div>
+
+    <!-- SCRIPT DE INTELIGÊNCIA E ROTEAMENTO BACKEND -->
+    <script>
+        function mascaraTel(objeto){
+            setTimeout(function() {
+                let v = objeto.value;
+                v = v.replace(/\D/g,"");             
+                v = v.replace(/^(\d{2})(\d)/g,"($1) $2"); 
+                v = v.replace(/(\d)(\d{4})$/,"$1-$2");    
+                objeto.value = v;
+            }, 1);
+        }
+
+        document.getElementById('formCheckoutServerless').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formElement = e.target;
+            const submitBtn = document.getElementById('btnFinalizarPedido');
+
+            if(submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = "PROCESSANDO...";
+            }
+
+            // Captura de Variáveis do Layout
+            const nome = document.getElementById('cliNome').value.trim();
+            const sobrenome = document.getElementById('cliSobrenome').value.trim();
+            const endereco = document.getElementById('cliEndereco').value.trim();
+            const apto = document.getElementById('cliApto').value.trim();
+            const email = document.getElementById('cliEmail').value.trim();
+            const telefone = document.getElementById('cliTelefone').value.trim();
+            const pagamento = document.getElementById('cliPagamento').value;
+            
+            // Tratamento de Data de Aniversário
+            const niverRaw = document.getElementById('cliAniversario').value;
+            const niverFormatado = niverRaw ? niverRaw.split('-').reverse().join('/') : "Não Informado";
+
+            const precoGarrafa = 59.00;
+            const precoFrete = 1.00;
+            const valorTotal = precoGarrafa + precoFrete;
+
+            // --- CANAL 1: REGISTRO NO PAINEL ADMINISTRADOR ---
+            try {
+                const logPedido = {
+                    id: Date.now(),
+                    nome: `${nome} ${sobrenome}`,
+                    telefone: telefone,
+                    endereco: `${endereco} ${apto ? '- ' + apto : ''}`,
+                    perfil: `PAGTO: ${pagamento} | NIVER: ${niverFormatado}`,
+                    total: valorTotal,
+                    data: new Date().toLocaleString('pt-BR'),
+                    status: "Pedido Pronto via Checkout"
+                };
+                let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
+                lista.push(logPedido);
+                localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
+                console.log("Registrado no Painel ADM!");
+            } catch(err) {
+                console.error("Erro na telemetria local:", err);
+            }
+
+            // --- CANAL 2: MONTAGEM DA MENSAGEM DO WHATSAPP ---
+            const seuNumeroWhatsApp = "5511983684267"; 
+            const textoMensagem = `✨ *NOVO PEDIDO - MARANHÃO CORDIAL* ✨%0A%0A` +
+                                  `*DADOS DO CLIENTE:*%0A` +
+                                  `• *Nome:* ${encodeURIComponent(nome)} ${encodeURIComponent(sobrenome)}%0A` +
+                                  `• *WhatsApp:* ${encodeURIComponent(telefone)}%0A` +
+                                  `• *E-mail:* ${encodeURIComponent(email)}%0A` +
+                                  `• *Nascimento:* ${encodeURIComponent(niverFormatado)}%0A%0A` +
+                                  `*ENTREGA (Base Av. Paulista, 1636):* %0A` +
+                                  `• *Destino:* ${encodeURIComponent(endereco)} ${encodeURIComponent(apto ? '[Apto/Bl: ' + apto + ']' : '')}%0A%0A` +
+                                  `*FINANCEIRO & PAGAMENTO:*%0A` +
+                                  `• 1x Maranhão Cordial: R$ 59,00%0A` +
+                                  `• Frete Fixo: R$ 1,00%0A` +
+                                  `• *Total Geral:* R$ 60,00%0A` +
+                                  `• *Forma Escolhida:* ${encodeURIComponent(pagamento)}%0A%0A` +
+                                  `_Aguardando validação da chave ou dados para faturamento._`;
+
+            const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
+
+            // --- CANAL 3: ENVIO PARA O SEU E-MAIL (WEB3FORMS) ---
+            const formData = new FormData(formElement);
+            
+            // Injeta variáveis extras tratadas no FormData invisível que vai para o e-mail
+            formData.append("Data de Nascimento Formatada", niverFormatado);
+
+            fetch('https://web3forms.com', {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(response => {
+                console.log('Notificação despachada ao Web3Forms.');
+            })
+            .catch(error => {
+                console.error('Falha de rede em background do e-mail:', error);
+            })
+            .finally(() => {
+                // Modifica o estado visual
+                if (submitBtn) {
+                    submitBtn.innerHTML = "FINALIZADO!";
+                }
+                formElement.reset();
+                
+                // Redirecionamento direto e limpo (Evita bloqueio de janelas pop-up no Safari)
+                window.location.href = urlWhatsApp;
+            });
+        });
+    ;
+</script>
+</body>
+</html>
+

@@ -584,193 +584,6 @@
     }
 }
 
-/* 7. CARRINHO LATERAL ESTILO SLIDE-OUT D'USSÉ */
-.carrinho-lateral-container {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 2000; /* Fica acima de tudo, inclusive do menu */
-    visibility: hidden;
-    transition: visibility 0.4s;
-}
-
-/* Quando ativo, mostra o container */
-.carrinho-lateral-container.ativo {
-    visibility: visible;
-}
-
-.carrinho-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4); /* Escurece suavemente o fundo do site */
-    opacity: 0;
-    transition: opacity 0.4s ease;
-}
-
-.carrinho-lateral-container.ativo .carrinho-overlay {
-    opacity: 1;
-}
-
-.carrinho-conteudo {
-    position: absolute;
-    top: 0;
-    right: -450px; /* Começa escondido para fora da tela */
-    width: 100%;
-    max-width: 420px;
-    height: 100%;
-    background: #f4f4f4; /* Fundo cinza claro idêntico ao da imagem */
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    transition: right 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.carrinho-lateral-container.ativo .carrinho-conteudo {
-    right: 0; /* Desliza para dentro da tela */
-}
-
-/* Cabeçalho do Carrinho */
-.carrinho-header {
-    padding: 30px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #eaeaea;
-    background: #f4f4f4;
-}
-
-.carrinho-header h2 {
-    font-family: 'Inter', sans-serif;
-    font-size: 20px;
-    font-weight: 300;
-    margin: 0;
-    color: #111111;
-}
-
-.btn-fechar-carrinho {
-    background: none;
-    border: none;
-    font-size: 28px;
-    cursor: pointer;
-    color: #111111;
-}
-
-/* Área de Itens */
-.carrinho-itens-lista {
-    flex: 1;
-    padding: 30px;
-    overflow-y: auto;
-}
-
-.carrinho-item {
-    display: flex;
-    gap: 20px;
-    background: transparent;
-    padding-bottom: 20px;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.carrinho-item-detalhes {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.carrinho-item-linha {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-
-.carrinho-item-nome {
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0.5px;
-    color: #111111;
-}
-
-.carrinho-item-meta {
-    font-family: 'Inter', sans-serif;
-    font-size: 11px;
-    color: #777777;
-    margin-top: 4px;
-}
-
-.btn-remover-item {
-    background: none;
-    border: none;
-    font-size: 18px;
-    color: #999999;
-    cursor: pointer;
-}
-
-.seletor-qtd-carrinho {
-    background: #ffffff;
-    border: 1px solid #cccccc;
-    padding: 6px 12px;
-    font-family: 'Inter', sans-serif;
-    font-size: 12px;
-    border-radius: 0;
-}
-
-.carrinho-item-preco {
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    font-weight: 400;
-}
-
-.carrinho-fulfillment-aviso {
-    font-family: 'Inter', sans-serif;
-    font-size: 11px;
-    letter-spacing: 0.5px;
-    color: #777777;
-    margin-top: 15px;
-}
-
-/* Rodapé do Carrinho */
-.carrinho-footer {
-    background: #ffffff;
-    padding: 30px;
-    border-top: 1px solid #eaeaea;
-}
-
-.carrinho-subtotal-linha {
-    display: flex;
-    justify-content: space-between;
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    margin-bottom: 20px;
-}
-
-.carrinho-subtotal-linha strong {
-    font-weight: 600;
-}
-
-.btn-checkout-carrinho {
-    width: 100%;
-    background: #777777; /* Cor cinza escura de botão D'USSÉ */
-    color: #ffffff;
-    border: none;
-    padding: 16px 0;
-    font-family: 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.btn-checkout-carrinho:hover {
-    background: #111111;
-}
-
 
     </style>
 </head>
@@ -916,12 +729,12 @@
                 </div>
             </div>
 
-         <!-- Botões de Ação Corrigidos (Chamam o Carrinho Lateral Oculto) -->
-<div class="botoes-acoes-luxury">
-    <a href="/raizes" class="btn-explore-luxury">Explorar</a>
-    <button type="button" class="btn-cart-luxury" onclick="abrirCarrinho()">Adicionar ao Carrinho</button>
-</div>
-
+            <!-- Botões de Ação -->
+            <div class="botoes-acoes-luxury">
+                <a href="/raizes" class="btn-explore-luxury">Explorar</a>
+                <button onclick="document.getElementById('finalClientAddress').focus();" class="btn-cart-luxury">Adicionar ao Carrinho</button>
+            </div>
+        </div>
 
         <!-- PRODUTO 2: EDIÇÃO LIMITADA (INDISPONÍVEL) -->
         <div class="produto-card-luxury">
@@ -941,57 +754,6 @@
 
     </div>
 </section>
-
-<!-- PAINEL DO CARRINHO LATERAL (ESTILO D'USSÉ) -->
-<div id="carrinhoLateral" class="carrinho-lateral-container">
-    <!-- Camada escura de fundo -->
-    <div class="carrinho-overlay" onclick="fecharCarrinho()"></div>
-    
-    <!-- Corpo do Carrinho -->
-    <div class="carrinho-conteudo">
-        <div class="carrinho-header">
-            <h2>Carrinho</h2>
-            <button class="btn-fechar-carrinho" onclick="fecharCarrinho()">&times;</button>
-        </div>
-
-        <!-- Item do Carrinho -->
-        <div class="carrinho-itens-lista">
-            <div class="carrinho-item">
-                <div class="carrinho-item-foto">
-                    <!-- Substitua pelo link da foto real da sua garrafa se tiver -->
-                    <div style="width: 60px; height: 60px; background: #e0e0e0; display:flex; align-items:center; justify-content:center; font-size:10px;">Garrafa</div>
-                </div>
-                <div class="carrinho-item-detalhes">
-                    <div class="carrinho-item-linha">
-                        <span class="carrinho-item-nome">MARANHÃO CORDIAL GIFT BOX</span>
-                        <button class="btn-remover-item">&times;</button>
-                    </div>
-                    <span class="carrinho-item-meta">750ml</span>
-                    <div class="carrinho-item-linha" style="margin-top: 12px;">
-                        <select class="seletor-qtd-carrinho" onchange="atualizarQuantidadeCarrinho(this)">
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                        </select>
-                        <span class="carrinho-item-preco" id="precoItemCarrinho">R$ 59,00</span>
-                    </div>
-                </div>
-            </div>
-            <p class="carrinho-fulfillment-aviso">GERALMENTE ENVIADO EM 1-2 DIAS ÚTEIS</p>
-        </div>
-
-        <!-- Rodapé do Carrinho com Subtotal e Botão -->
-        <div class="carrinho-footer">
-            <div class="carrinho-subtotal-linha">
-                <span id="textoQtdItens">Subtotal (1 item):</span>
-                <strong id="valorSubtotalCarrinho">R$ 59,00</strong>
-            </div>
-            <!-- Esse botão rola a página de volta até o seu input de endereço -->
-            <button class="btn-checkout-carrinho" onclick="irParaCheckout()">Ir para o pagamento</button>
-        </div>
-    </div>
-</div>
-
 
 
 
@@ -1086,55 +848,6 @@
             // Redireciona a própria aba para o WhatsApp sem abrir pop-ups
             window.location.href = urlWhatsApp;
         });
-
-        // Funções para Controle do Painel do Carrinho
-function abrirCarrinho() {
-    document.getElementById('carrinhoLateral').classList.add('ativo');
-    document.body.style.overflow = 'hidden'; // Trava a rolagem da página de fundo
-}
-
-function fecharCarrinho() {
-    document.getElementById('carrinhoLateral').classList.remove('ativo');
-    document.body.style.overflow = ''; // Libera a rolagem da página de fundo
-}
-
-function atualizarQuantidadeCarrinho(selectElement) {
-    const qtd = parseInt(selectElement.value);
-    const precoUnitario = 59.00;
-    const freteFixo = 1.00;
-    const novoTotalItem = precoUnitario * qtd;
-    const novoTotalGeral = novoTotalItem + freteFixo;
-
-    // Atualiza o texto visual interno do carrinho
-    document.getElementById('precoItemCarrinho').innerHTML = `R$ ${novoTotalItem.toFixed(2).replace('.', ',')}`;
-    document.getElementById('valorSubtotalCarrinho').innerHTML = `R$ ${novoTotalItem.toFixed(2).replace('.', ',')}`;
-    document.getElementById('textoQtdItens').innerHTML = `Subtotal (${qtd} ${qtd > 1 ? 'itens' : 'item'}):`;
-
-    // Atualiza com precisão os valores das tags ocultas do formulário para o Web3Forms receber certo
-    if(document.getElementById('hiddenTotal')) {
-        document.getElementById('hiddenTotal').value = `R$ ${novoTotalGeral.toFixed(2).replace('.', ',')}`;
-    }
-}
-
-function irParaCheckout() {
-    fecharCarrinho();
-    // Leva o usuário deslizando de forma suave até o campo de endereço lá em cima
-    const enderecoInput = document.getElementById('finalClientAddress');
-    if(enderecoInput) {
-        enderecoInput.scrollIntoView({ behavior: 'smooth' });
-        enderecoInput.focus();
-    }
-}
-
-// Vincula a ação de abrir o carrinho no botão da sua vitrine
-document.addEventListener('DOMContentLoaded', function() {
-    const btnAdicionarCarrinho = document.querySelector('.btn-cart-luxury');
-    if(btnAdicionarCarrinho) {
-        // Altera o comportamento do botão antigo para disparar a gaveta lateral
-        btnAdicionarCarrinho.setAttribute('onclick', 'abrirCarrinho()');
-    }
-});
-
     });
 </script>
 
