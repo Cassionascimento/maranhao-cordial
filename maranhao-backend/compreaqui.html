@@ -454,9 +454,9 @@
             <form id="formCheckoutWhats" action="https://api.web3forms.com/submit" method="POST">
                 
                 <!-- Chave de acesso oficial validada pelo administrador -->
-                                <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
-                                
-                                <input type="hidden" name="email" value="cassionegocios47@gmail.com">
+                               <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
+                               <input type="hidden" name="email" value="cassionegocios47@gmail.com">
+
 
                 <input type="hidden" name="subject" value="Novo Pedido - Maranhão Cordial">
                 <input type="hidden" id="hiddenPerfil" name="Perfil de Interesse" value="VAREJO">
@@ -525,7 +525,15 @@
         submitBtn.disabled = true;
         submitBtn.innerHTML = "PROCESSANDO...";
 
-        const endereco = document.getElementById('finalClientAddress').value.trim();
+        const enderecoField = document.getElementById('finalClientAddress');
+        const endereco = enderecoField ? enderecoField.value.trim() : "";
+
+        if (!endereco) {
+            alert("Por favor, insira um endereço válido.");
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = textoOriginalBotao;
+            return;
+        }
 
         const precoGarrafa = 59.00;
         const precoFrete = 1.00; 
@@ -540,40 +548,47 @@
             perfil = "VAREJO";
         }
 
-        document.getElementById('hiddenPerfil').value = perfil;
-        document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
+        if(document.getElementById('hiddenPerfil')) document.getElementById('hiddenPerfil').value = perfil;
+        if(document.getElementById('hiddenTotal')) document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
 
-        // 1. REGISTRO NA TELEMETRIA LOCAL
-        const pedidoTelemetria = {
-            id: Date.now(),
-            endereco: endereco,
-            perfil: perfil,
-            total: valorTotal,
-            data: new Date().toLocaleString('pt-BR'),
-            status: "Endereço Confirmado"
-        };
-        
-        let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
-        lista.push(pedidoTelemetria);
-        localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
+        // --- 1. SALVA NA PÁGINA ADMINISTRADOR (LOCALSTORAGE) ---
+        try {
+            const pedidoTelemetria = {
+                id: Date.now(),
+                endereco: endereco,
+                perfil: perfil,
+                total: valorTotal,
+                data: new Date().toLocaleString('pt-BR'),
+                status: "Endereço Confirmado"
+            };
+            
+            let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
+            lista.push(pedidoTelemetria);
+            localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
+        } catch (err) {
+            console.error("Erro na telemetria:", err);
+        }
 
-        // 2. ENVIO EM SEGUNDO PLANO PARA O WEB3FORMS
+        // --- 2. ENVIO PARA O SEU E-MAIL (cassionegocios47@gmail.com) ---
         const formData = new FormData(formElement);
 
         fetch('https://web3forms.com', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
         })
         .then(response => {
             if (response.ok) {
-                console.log('Dados enviados ao Web3Forms.');
+                console.log('E-mail enviado para cassionegocios47@gmail.com');
             }
         })
         .catch(error => {
-            console.error('Erro de rede:', error);
+            console.error('Erro no Web3Forms:', error);
         })
         .finally(() => {
-            // 3. DIRECIONAMENTO PARA O WHATSAPP
+            // --- 3. DISPARO OBRIGATÓRIO DO WHATSAPP ---
             const seuNumeroWhatsApp = "5511983684267"; 
             const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
                                   `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
@@ -588,7 +603,6 @@
             
             window.open(urlWhatsApp, '_blank');
 
-            // Feedback Visual de Sucesso
             submitBtn.innerHTML = "CONFIRMADO!";
             submitBtn.style.backgroundColor = "#111111"; 
             
