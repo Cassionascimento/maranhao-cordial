@@ -89,6 +89,11 @@ def administrador():
 def compreaqui():
     return renderizar_html("compreaqui.html")
 
+@app.route("/checkout.html")
+@app.route("/checkout.html")
+def checkout():
+    return renderizar_html("checkout.html")
+
 
 @app.route("/favicon.ico")
 def favicon():
