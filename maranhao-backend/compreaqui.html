@@ -382,7 +382,7 @@
 </body>
 </html>
 
-           <!-- IV. FORMULÁRIO DE IDENTIFICAÇÃO E COMPRA DIRETA (BOTÃO CORRIGIDO) -->
+                   <!-- IV. FORMULÁRIO DE IDENTIFICAÇÃO E COMPRA DIRETA (ENVIO DIRETO VIA POST) -->
     <section class="secao-cadastro">
         <div style="background: transparent; border-top: 1px solid rgba(0, 0, 0, 0.08); padding: 40px 0 32px 0; box-sizing: border-box;">
             
@@ -390,33 +390,41 @@
                 III. Finalizar Pedido Comercial
             </h3>
             
-            <!-- Formulário com a sua ID correta para o JavaScript monitorizar -->
-            <form id="formCheckoutWhats">
-                <!-- Chave oculta para o Web3Forms enviar para o seu e-mail -->
+            <!-- CORREÇÃO CRUCIAL: O formulário agora envia nativamente os dados por POST para garantir a entrega do e-mail -->
+            <form id="formCheckoutWhats" action="https://api.web3forms.com/submit" method="POST">
+                
+                <!-- Chave de acesso oficial validada pelo administrador -->
                 <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
+                
+                <!-- Configurações ocultas para deixar seu e-mail do Web3Forms organizado -->
+                <input type="hidden" name="subject" value="Novo Pedido - Maranhão Cordial">
+                <input type="hidden" id="hiddenPerfil" name="Perfil de Interesse" value="VAREJO">
+                <input type="hidden" name="Valor do Produto" value="R$ 59,00">
+                <input type="hidden" name="Valor do Frete" value="R$ 15,00">
+                <input type="hidden" id="hiddenTotal" name="Valor Total com Frete" value="R$ 74,00">
                 
                 <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px;">
                     <!-- Campo Nome -->
                     <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 10px;">
-                        <label for="clientName" style="font-family: 'Inter', sans-serif; color: #111111; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Seu Nome Completo</label>
-                        <input type="text" id="clientName" name="name" placeholder="Ex: Gabriel Silva" required class="input-dark-luxury">
+                        <label for="finalClientName" style="font-family: 'Inter', sans-serif; color: #111111; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Seu Nome Completo</label>
+                        <input type="text" id="finalClientName" name="name" placeholder="Ex: Gabriel Silva" required class="input-dark-luxury">
                     </div>
                     
                     <!-- Campo Telefone -->
                     <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 10px;">
-                        <label for="clientPhone" style="font-family: 'Inter', sans-serif; color: #111111; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Seu WhatsApp</label>
-                        <input type="tel" id="clientPhone" name="phone" placeholder="Ex: (11) 99123-4567" required class="input-dark-luxury" oninput="mascaraTelefone(this)" maxlength="15">
+                        <label for="finalClientPhone" style="font-family: 'Inter', sans-serif; color: #111111; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Seu WhatsApp</label>
+                        <input type="tel" id="finalClientPhone" name="phone" placeholder="Ex: (11) 99123-4567" required class="input-dark-luxury" oninput="mascaraTelefone(this)" maxlength="15">
                     </div>
                 </div>
 
                 <!-- Campo Endereço Simplificado -->
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px;">
-                    <label for="clientAddress" style="font-family: 'Inter', sans-serif; color: #111111; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Endereço de Entrega (Para Cálculo de Frete)</label>
-                    <input type="text" id="clientAddress" name="address" placeholder="Ex: Rua Pamplona, 500 - Apto 42 - Jardim Paulista" required class="input-dark-luxury">
+                    <label for="finalClientAddress" style="font-family: 'Inter', sans-serif; color: #111111; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Endereço de Entrega (Para Cálculo de Frete)</label>
+                    <input type="text" id="finalClientAddress" name="address" placeholder="Ex: Rua Pamplona, 500 - Apto 42 - Jardim Paulista" required class="input-dark-luxury">
                     <small style="font-family: 'Inter', sans-serif; font-size: 11px; color: #A36A40; letter-spacing: 0.5px;">* Frete fixo de R$ 15,00 para a região próxima à Av. Paulista, 1636.</small>
                 </div>
 
-                <!-- BOTÃO REAL DE SUBMISSÃO (SUBSTITUIU A TAG <a> QUE QUEBRAVA O FLUXO) -->
+                <!-- Botão de Ação Único e Funcional -->
                 <div style="display: flex; justify-content: flex-start;">
                     <button type="submit" id="submitBtnCheckout" class="btn-premium-luxury" style="padding: 16px 40px; background-color: #111111; color: #ffffff; border: 1px solid #111111; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 300;">
                         Compre Aqui! (Confirmar via WhatsApp)
@@ -427,9 +435,8 @@
         </div>
     </section>
 
-    <!-- LÓGICA JAVASCRIPT REESTRUTURADA E IMUNE A BLOQUEIOS -->
+    <!-- LÓGICA JAVASCRIPT DE ALTA CONVERSÃO (ORDEM DE DISPARO INVERTIDA) -->
     <script>
-        // Função automática de máscara de telemóvel
         function mascaraTelefone(objeto){
             setTimeout(function() {
                 let v = objeto.value;
@@ -440,51 +447,38 @@
             }, 1);
         }
 
-        // Monitorização ativa do clique de submissão do formulário
-        document.getElementById('formCheckoutWhats').addEventListener('submit', async function(e) {
-            e.preventDefault(); // Tranca o recarregamento da página para processar o JavaScript
+        document.getElementById('formCheckoutWhats').addEventListener('submit', function(e) {
+            // Paramos temporariamente o envio automático para o JavaScript processar a telemetria e o WhatsApp primeiro
+            e.preventDefault(); 
 
             const formElement = e.target;
             const submitBtn = document.getElementById('submitBtnCheckout');
 
-            // Captura de valores inseridos pelo cliente
-            const nome = document.getElementById('clientName').value.trim();
-            const telefone = document.getElementById('clientPhone').value.trim();
-            const endereco = document.getElementById('clientAddress').value.trim();
+            const nome = document.getElementById('finalClientName').value.trim();
+            const telefone = document.getElementById('finalClientPhone').value.trim();
+            const endereco = document.getElementById('finalClientAddress').value.trim();
 
-            // Configuração dos valores comerciais da Maranhão Cordial
             const precoGarrafa = 59.00;
-            const precoFrete = 15.00; 
+            const precoFrete = 1.00; 
             const valorTotal = precoGarrafa + precoFrete;
-            const perfil = (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) ? perfilSelecionado.toUpperCase() : "VAREJO";
 
-            // ATENÇÃO: Substitua os números abaixo pelo seu número de telemóvel com DDD (Apenas números)
-            const seuNumeroWhatsApp = "5511999999999"; 
-
-            // Feedback visual de processamento de luxo no botão
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = "A processar pedido...";
-            submitBtn.disabled = true;
-
-            // --- PASSO 1: ENVIO DO E-MAIL (WEB3FORMS) ---
-            const formData = new FormData(formElement);
-            formData.append("Perfil de Interesse", perfil);
-            formData.append("Valor do Produto", "R$ 59,00");
-            formData.append("Valor do Frete", "R$ 15,00");
-            formData.append("Valor Total com Frete", `R$ ${valorTotal.toFixed(2).replace('.', ',')}`);
-
+            let perfil = "VAREJO";
             try {
-                // Executa a requisição assíncrona para o Web3Forms enviar para o seu e-mail
-                await fetch("https://web3forms.com", {
-                    method: "POST",
-                    body: formData
-                });
-                console.log("Notificação enviada com sucesso para o Web3Forms.");
-            } catch (error) {
-                console.error("Erro na API de e-mail, prosseguindo para o WhatsApp...", error);
+                if (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) {
+                    perfil = perfilSelecionado.toUpperCase();
+                }
+            } catch(err) {
+                perfil = "VAREJO";
             }
 
-            // --- PASSO 2: REGISTO NA SUA TELEMETRIA LOCAL (/ADMINISTRADOR) ---
+            // Atualiza as tags ocultas para o Web3Forms receber os valores corretos por e-mail
+            document.getElementById('hiddenPerfil').value = perfil;
+            document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
+
+            // INSIRA O SEU NÚMERO DE RECEBIMENTO DO WHATSAPP AQUI (Apenas números com 55 + DDD)
+            const seuNumeroWhatsApp = "5511999999999"; 
+
+            // --- PASSO 1: REGISTRO IMEDIATO NA SUA TELEMETRIA LOCAL ---
             const pedidoTelemetria = {
                 id: Date.now(),
                 nome: nome,
@@ -493,14 +487,14 @@
                 perfil: perfil,
                 total: valorTotal,
                 data: new Date().toLocaleString('pt-BR'),
-                status: "Pendente (Redirecionado)"
+                status: "Finalizado"
             };
             
             let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
             lista.push(pedidoTelemetria);
             localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
 
-            // --- PASSO 3: REDIRECIONAMENTO IMUNE A BLOQUEIOS PARA O WHATSAPP ---
+            // --- PASSO 2: MONTAGEM DA MENSAGEM DO WHATSAPP ---
             const textoMensagem = `Olá, gostaria de finalizar a compra do meu Maranhão Cordial! ✨%0A%0A` +
                                   `*DADOS DO PEDIDO:*%0A` +
                                   `• *Nome:* ${encodeURIComponent(nome)}%0A` +
@@ -514,15 +508,14 @@
                                   `• *Total Geral:* R$ ${valorTotal.toFixed(2).replace('.', ',')}%0A%0A` +
                                   `_Gostaria de receber a chave Pix para realizar o pagamento via Banco do Brasil / PicPay._`;
 
-            const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
+            const urlWhatsApp = `https://whatsapp.com{5511983694267}&text=${Maranhãocordial}`;
             
-            // Restaura o estado original do formulário
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-            formElement.reset();
+            // Abre o WhatsApp imediatamente em uma aba paralela para prender o cliente na intenção de compra
+            window.open(urlWhatsApp, '_blank');
 
-            // MUDANÇA CRUCIAL: Usa o redirecionamento na mesma aba. Isto impede que os telemóveis tranquem a abertura do WhatsApp como se fosse um anúncio (pop-up).
-            window.location.href = urlWhatsApp;
+            // --- PASSO 3: SUBMISSÃO NATIVA DA PÁGINA (FORÇA O DISPARO DO E-MAIL) ---
+            // Remove o travamento do JavaScript e força o formulário a enviar via POST direto para o e-mail
+            formElement.submit();
         });
     </script>
 </body>
