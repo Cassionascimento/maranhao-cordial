@@ -55,6 +55,107 @@
 </head>
 <body>
 
+     <!-- Importação das fontes elegantes (Cole dentro da tag <head> do seu HTML se já não estiver lá) -->
+<link href="https://googleapis.com" rel="stylesheet">
+
+<style>
+/* 2. Menu Superior Hierárquico - Ajustado com Espaçamento Estilo D'USSÉ */
+.topbar {
+    width: 100%;
+    background-color: #ffffff;
+    box-sizing: border-box;
+    padding: 60px 60px 45px 60px; 
+    position: relative;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.logo-central {
+    text-decoration: none;
+    margin-bottom: 55px; 
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.brand-main {
+    font-family: 'Cormorant Garamond', serif;
+    color: #111111;
+    font-size: 44px;
+    font-weight: 400;
+    letter-spacing: 0.25em;
+    line-height: 1;
+    text-transform: uppercase;
+    transition: color 0.4s ease;
+}
+
+.brand-sub {
+    font-family: 'Alex Brush', cursive;
+    font-size: 24px; /* Ajustado para perfeito equilíbrio visual com a fonte Alex Brush */
+    font-weight: 400;
+    color: #A36A40;
+    text-transform: lowercase;
+    letter-spacing: 0.05em;
+    line-height: 0.9;
+    margin-top: -4px;
+}
+
+/* Links do Menu - Alinhamento e Espaçamento Nobre */
+.navbar-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 70px; 
+    width: 100%;
+    max-width: 900px;
+    margin-top: 0;
+}
+
+.nav-link {
+    color: #111111;
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 300;
+    letter-spacing: 0.3em; 
+    text-transform: uppercase;
+    transition: color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.nav-link:hover {
+    color: #A36A40;
+}
+
+/* Responsividade para manter o alinhamento no celular */
+@media (max-width: 768px) {
+    .topbar { padding: 40px 24px 30px 24px; }
+    .logo-central { margin-bottom: 35px; }
+    .brand-main { font-size: 32px; }
+    .navbar-links { gap: 25px; flex-wrap: wrap; }
+    .nav-link { font-size: 10px; letter-spacing: 0.2em; }
+}
+</style>
+
+<!-- Menu Superior Estruturado -->
+<header class="topbar">
+    <!-- Nome Centralizado no Topo -->
+    <a href="/index" class="logo-central">
+        <span class="brand-main">Maranhão</span>
+        <span class="brand-sub">Guaraná</span>
+    </a>
+
+    <!-- Itens inferiores rigorosamente um ao lado do outro -->
+    <nav class="navbar-links">
+        <a href="/raizes" class="nav-link">Nossas Raízes</a>
+        <a href="/lifestyle" class="nav-link">Nosso Lifestyle</a>
+        <a href="/compreaqui" class="nav-link">Comprar agora</a>
+    </nav>
+</header>
+
+
     <!-- I. BLOCo DA GARRAFA E TEXTO EDITORIAL (MANTIDOS) -->
     <main class="vitrine-container-geral">
         <div class="posicao-garrafa">
@@ -115,6 +216,13 @@
                         <option value="1">1</option>
                         <option value="2">2</option>
                         <option value="3">3</option>
+                        <option value="3">10</option>
+                        <option value="3">100</option>
+                        <option value="3">1000</option>
+                        <option value="3">2000</option>
+                        <option value="3">3000</option>
+                        <option value="3">10000</option>
+                        <option value="3">100000</option>
                     </select>
                 </div>
 
@@ -206,6 +314,10 @@
 
             btn.innerText = "PROCESSANDO...";
             btn.disabled = true;
+
+            // Adicione esta linha dentro do evento de submissão do 'formCheckoutWhats' na Home:
+            localStorage.setItem('quantidadeSelecionada', document.getElementById('seletorQuantidade').value);
+
 
             // Salva na memória do navegador para o checkout.html puxar de forma automática
             localStorage.setItem('enderecoCliente', endereco);
