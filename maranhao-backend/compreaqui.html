@@ -451,23 +451,8 @@
     
             
             <!-- CORREÇÃO CRUCIAL: O formulário agora envia nativamente os dados por POST para garantir a entrega do e-mail -->
-            <form id="formCheckoutWhats" action="https://api.web3forms.com/submit" method="POST">
-                
-                <!-- Chave de acesso oficial validada pelo administrador -->
-                               <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
-                               <input type="hidden" name="email" value="cassionegocios47@gmail.com">
+            <!-- Seção de Cadastro Otimizada Estilo Premium -->
 
-
-                <input type="hidden" name="subject" value="Novo Pedido - Maranhão Cordial">
-                <input type="hidden" id="hiddenPerfil" name="Perfil de Interesse" value="VAREJO">
-                <input type="hidden" name="Valor do Produto" value="R$ 59,00">
-                <input type="hidden" name="Valor do Frete" value="R$ 1,00">
-                <input type="hidden" id="hiddenTotal" name="Valor Total com Frete" value="R$ 60,00">
-                
-                <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px;">
-                </button>
-                </div>
-            </form>
 
         </div>
     </section>
@@ -508,110 +493,150 @@
         <p class="texto-termos-legais">
             Este site é protegido por reCAPTCHA e as <a href="#">Políticas de Privacidade</a> e <a href="#">Termos de Serviço</a> do Google se aplicam.
         </p>
-        
-    </div>
+        <form id="formCheckoutWhats" action="https://web3forms.com" method="POST">
+    <!-- Configurações Obrigatórias do Web3Forms -->
+    <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
+    <input type="hidden" name="email" value="cassionegocios47@gmail.com">
+    <input type="hidden" name="subject" value="Novo Pedido - Maranhão Cordial">
+    
+    <!-- IDs internos para mapeamento correto do sistema -->
+    <input type="hidden" id="hiddenPerfil" name="Perfil de Interesse" value="VAREJO">
+    <input type="hidden" id="hiddenTotal" name="Valor Total com Frete" value="R$ 60,00">
+    <input type="hidden" name="Valor do Produto" value="R$ 59,00">
+    <input type="hidden" name="Valor do Frete" value="R$ 1,00">
+
+    <!-- Linha de busca minimalista -->
+
 </section>
 
 
     <!-- LÓGICA JAVASCRIPT DE ALTA CONVERSÃO (ORDEM DE DISPARO INVERTIDA) -->
-   <script>
-    document.getElementById('formCheckoutWhats').addEventListener('submit', function(e) {
-        e.preventDefault(); 
-
-        const formElement = e.target;
-        const submitBtn = document.getElementById('submitBtnCheckout');
-
-        const textoOriginalBotao = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = "PROCESSANDO...";
-
-        const enderecoField = document.getElementById('finalClientAddress');
-        const endereco = enderecoField ? enderecoField.value.trim() : "";
-
-        if (!endereco) {
-            alert("Por favor, insira um endereço válido.");
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = textoOriginalBotao;
+  <script>
+    // Proteção Premium: Aguarda a página carregar por completo para evitar travas invisíveis
+    document.addEventListener('DOMContentLoaded', function() {
+        const formElement = document.getElementById('formCheckoutWhats');
+        
+        // Verifica se o formulário realmente existe na página antes de continuar
+        if (!formElement) {
+            console.error("Erro Crítico: Formulário '#formCheckoutWhats' não foi encontrado no HTML.");
             return;
         }
 
-        const precoGarrafa = 59.00;
-        const precoFrete = 1.00; 
-        const valorTotal = precoGarrafa + precoFrete;
+        formElement.addEventListener('submit', function(e) {
+            e.preventDefault(); // Interrompe o envio nativo do navegador
 
-        let perfil = "VAREJO";
-        try {
-            if (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) {
-                perfil = perfilSelecionado.toUpperCase();
+            const submitBtn = document.getElementById('submitBtnCheckout');
+            const textoOriginalBotao = submitBtn ? submitBtn.innerHTML : "Confirmar Endereço";
+
+            // Feedback visual imediato de carregamento de luxo
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = "PROCESSANDO...";
             }
-        } catch(err) {
-            perfil = "VAREJO";
-        }
 
-        if(document.getElementById('hiddenPerfil')) document.getElementById('hiddenPerfil').value = perfil;
-        if(document.getElementById('hiddenTotal')) document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
+            const enderecoField = document.getElementById('finalClientAddress');
+            const endereco = enderecoField ? enderecoField.value.trim() : "";
 
-        // --- 1. SALVA NA PÁGINA ADMINISTRADOR (LOCALSTORAGE) ---
-        try {
-            const pedidoTelemetria = {
-                id: Date.now(),
-                endereco: endereco,
-                perfil: perfil,
-                total: valorTotal,
-                data: new Date().toLocaleString('pt-BR'),
-                status: "Endereço Confirmado"
-            };
-            
-            let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
-            lista.push(pedidoTelemetria);
-            localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
-        } catch (err) {
-            console.error("Erro na telemetria:", err);
-        }
-
-        // --- 2. ENVIO PARA O SEU E-MAIL (cassionegocios47@gmail.com) ---
-        const formData = new FormData(formElement);
-
-        fetch('https://web3forms.com', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Accept': 'application/json'
+            if (!endereco) {
+                alert("Por favor, insira um endereço válido.");
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = textoOriginalBotao;
+                }
+                return;
             }
-        })
-        .then(response => {
-            if (response.ok) {
-                console.log('E-mail enviado para cassionegocios47@gmail.com');
+
+            const precoGarrafa = 59.00;
+            const precoFrete = 1.00; 
+            const valorTotal = precoGarrafa + precoFrete;
+
+            let perfil = "VAREJO";
+            try {
+                if (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) {
+                    perfil = perfilSelecionado.toUpperCase();
+                }
+            } catch(err) {
+                perfil = "VAREJO";
             }
-        })
-        .catch(error => {
-            console.error('Erro no Web3Forms:', error);
-        })
-        .finally(() => {
-            // --- 3. DISPARO OBRIGATÓRIO DO WHATSAPP ---
-            const seuNumeroWhatsApp = "5511983684267"; 
-            const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
-                                  `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
-                                  `• *Destino:* ${encodeURIComponent(endereco)}%0A%0A` +
-                                  `*RESUMO ESTIMADO:*%0A` +
-                                  `• 1x Maranhão Cordial: R$ 59,00%0A` +
-                                  `• Frete Estimado: R$ ${precoFrete.toFixed(2).replace('.', ',')}%0A` +
-                                  `• *Total Geral:* R$ ${valorTotal.toFixed(2).replace('.', ',')}%0A%0A` +
-                                  `_Gostaria de prosseguir com o pagamento por aqui._`;
 
-            const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
-            
-            window.open(urlWhatsApp, '_blank');
+            // Alimenta os inputs ocultos com precisão
+            const hiddenPerfilField = document.getElementById('hiddenPerfil');
+            const hiddenTotalField = document.getElementById('hiddenTotal');
+            if (hiddenPerfilField) hiddenPerfilField.value = perfil;
+            if (hiddenTotalField) hiddenTotalField.value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
 
-            submitBtn.innerHTML = "CONFIRMADO!";
-            submitBtn.style.backgroundColor = "#111111"; 
-            
-            formElement.reset();
-            setTimeout(() => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = textoOriginalBotao;
-                submitBtn.style.backgroundColor = "#A36A40";
-            }, 4000);
+            // --- 1. SALVA NA PÁGINA ADMINISTRADOR (LOCALSTORAGE) ---
+            try {
+                const pedidoTelemetria = {
+                    id: Date.now(),
+                    endereco: endereco,
+                    perfil: perfil,
+                    total: valorTotal,
+                    data: new Date().toLocaleString('pt-BR'),
+                    status: "Endereço Confirmado"
+                };
+                
+                let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
+                lista.push(pedidoTelemetria);
+                localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
+                console.log("Pedido salvo com sucesso na telemetria local!");
+            } catch (err) {
+                console.error("Falha ao gravar na telemetria:", err);
+            }
+
+            // --- 2. PREPARAÇÃO E ENVIO DO E-MAIL (WEB3FORMS) ---
+            const formData = new FormData(formElement);
+
+            fetch('https://web3forms.com', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log('Dados despachados com sucesso para cassionegocios47@gmail.com');
+                } else {
+                    console.warn('Web3Forms retornou um status de erro. Verifique sua chave.');
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição Fetch do e-mail:', error);
+            })
+            .finally(() => {
+                // --- 3. DISPARO DO WHATSAPP (SEMPRE EXECUTADO NO FINAL) ---
+                const seuNumeroWhatsApp = "5511983684267"; 
+                const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
+                                      `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
+                                      `• *Destino:* ${encodeURIComponent(endereco)}%0A%0A` +
+                                      `*RESUMO ESTIMADO:*%0A` +
+                                      `• 1x Maranhão Cordial: R$ 59,00%0A` +
+                                      `• Frete Estimado: R$ ${precoFrete.toFixed(2).replace('.', ',')}%0A` +
+                                      `• *Total Geral:* R$ ${valorTotal.toFixed(2).replace('.', ',')}%0A%0A` +
+                                      `_Gostaria de prosseguir com o pagamento por aqui._`;
+
+                const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
+                
+                // Abre o WhatsApp de forma direta e limpa
+                window.open(urlWhatsApp, '_blank');
+
+                // Reseta o botão para o estado de sucesso
+                if (submitBtn) {
+                    submitBtn.innerHTML = "CONFIRMADO!";
+                    submitBtn.style.backgroundColor = "#111111"; 
+                }
+                
+                formElement.reset();
+                
+                setTimeout(() => {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = textoOriginalBotao;
+                        submitBtn.style.backgroundColor = "#A36A40";
+                    }
+                }, 4000);
+            });
         });
     });
 </script>
