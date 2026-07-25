@@ -300,6 +300,7 @@
     </div>
 
    <!-- SCRIPT DE INTELIGÊNCIA E ROTEAMENTO BACKEND UNIFICADO -->
+<!-- SCRIPT DE INTELIGÊNCIA E ROTEAMENTO BACKEND UNIFICADO -->
 <script>
     function mascaraTel(objeto){
         setTimeout(function() {
@@ -311,8 +312,9 @@
         }, 1);
     }
 
-    // --- PASSO 1: PUXAR OS DADOS AUTOMATICAMENTE DA OUTRA PÁGINA ---
+    // --- PASSO 1: PUXAR E EXIBIR OS DADOS DA PÁGINA ANTERIOR AUTOMATICAMENTE ---
     document.addEventListener('DOMContentLoaded', function() {
+        // Puxa o endereço guardado e injeta direto no campo real do formulário
         const enderecoSalvo = localStorage.getItem('enderecoCliente');
         const campoEndereco = document.getElementById('cliEndereco');
         
@@ -320,13 +322,14 @@
             campoEndereco.value = enderecoSalvo;
         }
 
+        // Puxa a quantidade escolhida (padrão é 1 se estiver vazio)
         const qtdSalva = localStorage.getItem('quantidadeSelecionada') ? parseInt(localStorage.getItem('quantidadeSelecionada')) : 1;
         const precoUnitario = 59.90; // Sincronizado com o valor real da vitrine
         const frete = 1.00;
         const subtotal = precoUnitario * qtdSalva;
         const totalGeral = subtotal + frete;
 
-        // Atualiza a tabela financeira visual na tela do checkout
+        // Atualiza a tabela financeira visual na tela do checkout (coluna da direita)
         const resumoLinhaProduto = document.querySelector('.secao-resumo .resumo-linha:first-of-type span:first-child');
         const resumoPrecoProduto = document.querySelector('.secao-resumo .resumo-linha:first-of-type span:last-child');
         const resumoTotalGeral = document.querySelector('.total-geral span:last-child');
@@ -335,14 +338,14 @@
         if (resumoPrecoProduto) resumoPrecoProduto.innerText = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
         if (resumoTotalGeral) resumoTotalGeral.innerText = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
 
-        // Configura as tags invisíveis ocultas do form para o e-mail não bugar
+        // Configura a tag invisível oculta do formulário para o e-mail ir correto
         const hiddenTotalInput = document.getElementById('hiddenTotal');
         if (hiddenTotalInput) {
             hiddenTotalInput.value = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
         }
     });
 
-    // --- PASSO 2: COMPILAR O PEDIDO FINAL, ENVIAR EMAIL E ENCAMINHAR WHATSAPP ---
+    // --- PASSO 2: ENVIAR EMAIL E REDIRECIONAR PARA O WHATSAPP ---
     document.getElementById('formCheckoutServerless').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -389,8 +392,8 @@
             console.error("Erro na telemetria local:", err);
         }
 
-        // CANAL 2: MONTAGEM DA MENSAGEM DO WHATSAPP (Sintaxe Corrigida com Template String)
-        const seuNumeroWhatsApp = "5511983694267"; // Alterado para o telefone final correto que você enviou
+        // CANAL 2: MONTAGEM DA MENSAGEM DO WHATSAPP
+        const seuNumeroWhatsApp = "5511983694267"; 
         const textoMensagem = `✨ *NOVO PEDIDO - MARANHÃO CORDIAL* ✨%0A%0A` +
                               `*DADOS DO CLIENTE:*%0A` +
                               `• *Nome:* ${encodeURIComponent(nome)} ${encodeURIComponent(sobrenome)}%0A` +
@@ -408,7 +411,7 @@
 
         const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
 
-        // CANAL 3: ENVIO PARA O SEU E-MAIL (Usando o Endpoint Correto de API do Web3Forms)
+        // CANAL 3: ENVIO PARA O SEU E-MAIL (API DO WEB3FORMS)
         const formData = new FormData(formElement);
         formData.append("Data de Nascimento Formatada", niverFormatado);
         formData.append("Quantidade Comprada", qtdSalva);
@@ -419,11 +422,7 @@
             headers: { 'Accept': 'application/json' }
         })
         .then(response => {
-            if(response.ok) {
-                console.log('Notificação despachada ao Web3Forms com sucesso.');
-            } else {
-                console.error('Falha de resposta no Web3Forms.');
-            }
+            console.log('Notificação despachada ao Web3Forms.');
         })
         .catch(error => {
             console.error('Falha de rede em background do e-mail:', error);
@@ -434,11 +433,11 @@
             }
             formElement.reset();
             
-            // Limpa as variáveis locais para compras futuras não pegarem dados velhos
+            // Limpa o armazenamento para novas compras futuras
             localStorage.removeItem('enderecoCliente');
             localStorage.removeItem('quantidadeSelecionada');
             
-            // Redireciona de forma direta (Evita o bloqueador do Safari/Chrome)
+            // Redireciona de forma limpa para o WhatsApp do cliente
             window.location.href = urlWhatsApp;
         });
     });
