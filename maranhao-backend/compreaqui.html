@@ -394,7 +394,383 @@
     .desktop-only {
         display: none;
     }
+    
 }
+
+/* 6. VITRINE DE PRODUTOS LADO A LADO - ESTILO D'USSÉ */
+.vitrine-produtos-luxury {
+    width: 100%;
+    max-width: 1400px;
+    margin: 80px auto;
+    padding: 0 60px;
+    box-sizing: border-box;
+}
+
+.vitrine-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Divide a tela perfeitamente ao meio */
+    gap: 80px; /* Espaçamento generoso entre as duas colunas */
+    border-top: 1px solid #eaeaea;
+    padding-top: 60px;
+}
+
+.produto-card-luxury {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.produto-titulo-luxury {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px;
+    font-weight: 400;
+    color: #111111;
+    letter-spacing: 0.1em;
+    line-height: 1.2;
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+}
+
+.produto-preco-luxury {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    font-weight: 300;
+    color: #555555;
+    margin: 0 0 28px 0;
+}
+
+/* Seletores de Garrafa e Quantidade */
+.seletores-container-luxury {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+    width: 100%;
+    max-width: 320px;
+}
+
+.seletor-luxury {
+    flex: 2;
+    background: #ffffff;
+    border: 1px solid #111111;
+    padding: 12px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 300;
+    color: #111111;
+    cursor: pointer;
+    border-radius: 0;
+    outline: none;
+    -webkit-appearance: none; /* Remove seta padrão do navegador */
+}
+
+.seletor-luxury.seletor-qtd {
+    flex: 1;
+    text-align: center;
+}
+
+/* Caixa de Opções de Envio */
+.fulfillment-box-luxury {
+    width: 100%;
+    max-width: 450px;
+    border: 1px solid #111111;
+    padding: 24px;
+    box-sizing: border-box;
+    margin-bottom: 32px;
+}
+
+.fulfillment-titulo {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 16px 0;
+}
+
+.fulfillment-linha {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 300;
+    color: #444444;
+}
+
+/* Alinhamento dos Botões */
+.botoes-acoes-luxury {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    max-width: 450px;
+}
+
+.btn-explore-luxury {
+    flex: 1;
+    border: 1px solid #111111;
+    background: transparent;
+    color: #111111;
+    padding: 16px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    text-decoration: none;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.btn-explore-luxury:hover {
+    background: #111111;
+    color: #ffffff;
+}
+
+.btn-cart-luxury {
+    flex: 1.2;
+    background: #A36A40; /* Cor Bronze Corporativa */
+    color: #ffffff;
+    border: 1px solid #A36A40;
+    padding: 16px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-cart-luxury:hover {
+    background: #111111;
+    border-color: #111111;
+}
+
+/* Estado de Indisponibilidade (Coluna Direita) */
+.mensagem-indisponivel-luxury {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #b33939; /* Vermelho escuro editorial */
+    max-width: 400px;
+    margin-bottom: 24px;
+    font-weight: 300;
+}
+
+.link-disponibilidade {
+    color: #b33939;
+    text-decoration: underline;
+}
+
+/* Linha inferior de fechamento */
+.produto-card-luxury::after {
+    content: '';
+    display: block;
+    width: 100%;
+    max-width: 450px;
+    border-bottom: 1px solid #eaeaea;
+    margin-top: 40px;
+}
+
+/* Ajuste de Responsividade para Celulares */
+@media (max-width: 768px) {
+    .vitrine-grid {
+        grid-template-columns: 1fr;
+        gap: 60px;
+        padding-top: 40px;
+    }
+    .vitrine-produtos-luxury {
+        padding: 0 24px;
+    }
+}
+
+/* 7. CARRINHO LATERAL ESTILO SLIDE-OUT D'USSÉ */
+.carrinho-lateral-container {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000; /* Fica acima de tudo, inclusive do menu */
+    visibility: hidden;
+    transition: visibility 0.4s;
+}
+
+/* Quando ativo, mostra o container */
+.carrinho-lateral-container.ativo {
+    visibility: visible;
+}
+
+.carrinho-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4); /* Escurece suavemente o fundo do site */
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.carrinho-lateral-container.ativo .carrinho-overlay {
+    opacity: 1;
+}
+
+.carrinho-conteudo {
+    position: absolute;
+    top: 0;
+    right: -450px; /* Começa escondido para fora da tela */
+    width: 100%;
+    max-width: 420px;
+    height: 100%;
+    background: #f4f4f4; /* Fundo cinza claro idêntico ao da imagem */
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.carrinho-lateral-container.ativo .carrinho-conteudo {
+    right: 0; /* Desliza para dentro da tela */
+}
+
+/* Cabeçalho do Carrinho */
+.carrinho-header {
+    padding: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eaeaea;
+    background: #f4f4f4;
+}
+
+.carrinho-header h2 {
+    font-family: 'Inter', sans-serif;
+    font-size: 20px;
+    font-weight: 300;
+    margin: 0;
+    color: #111111;
+}
+
+.btn-fechar-carrinho {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #111111;
+}
+
+/* Área de Itens */
+.carrinho-itens-lista {
+    flex: 1;
+    padding: 30px;
+    overflow-y: auto;
+}
+
+.carrinho-item {
+    display: flex;
+    gap: 20px;
+    background: transparent;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.carrinho-item-detalhes {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.carrinho-item-linha {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.carrinho-item-nome {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    color: #111111;
+}
+
+.carrinho-item-meta {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: #777777;
+    margin-top: 4px;
+}
+
+.btn-remover-item {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #999999;
+    cursor: pointer;
+}
+
+.seletor-qtd-carrinho {
+    background: #ffffff;
+    border: 1px solid #cccccc;
+    padding: 6px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    border-radius: 0;
+}
+
+.carrinho-item-preco {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+}
+
+.carrinho-fulfillment-aviso {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: #777777;
+    margin-top: 15px;
+}
+
+/* Rodapé do Carrinho */
+.carrinho-footer {
+    background: #ffffff;
+    padding: 30px;
+    border-top: 1px solid #eaeaea;
+}
+
+.carrinho-subtotal-linha {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    margin-bottom: 20px;
+}
+
+.carrinho-subtotal-linha strong {
+    font-weight: 600;
+}
+
+.btn-checkout-carrinho {
+    width: 100%;
+    background: #777777; /* Cor cinza escura de botão D'USSÉ */
+    color: #ffffff;
+    border: none;
+    padding: 16px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-checkout-carrinho:hover {
+    background: #111111;
+}
+
 
     </style>
 </head>
@@ -510,6 +886,114 @@
 
 </section>
 
+<!-- SEÇÃO VITRINE DE PRODUTOS ESTILO D'USSÉ -->
+<section class="vitrine-produtos-luxury">
+    <div class="vitrine-grid">
+        
+        <!-- PRODUTO 1: EDIÇÃO PADRÃO -->
+        <div class="produto-card-luxury">
+            <h2 class="produto-titulo-luxury">MARANHÃO CORDIAL <br>GIFT BOX</h2>
+            <p class="produto-preco-luxury">R$ 59,90</p>
+            
+            <!-- Seletores de Atributos -->
+            <div class="seletores-container-luxury">
+                <select class="seletor-luxury">
+                    <option>200ml, garrafa</option>
+                </select>
+                <select class="seletor-luxury seletor-qtd">
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                </select>
+            </div>
+
+            <!-- Opções de Envio / Cumprimento -->
+            <div class="fulfillment-box-luxury">
+                <h3 class="fulfillment-titulo">Opções de Envio</h3>
+                <div class="fulfillment-linha">
+                    <span>Geralmente enviado em 1-2 dias úteis</span>
+                    <strong>R$ 1,00</strong>
+                </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="botoes-acoes-luxury">
+                <a href="/raizes" class="btn-explore-luxury">Explorar</a>
+                <button onclick="document.getElementById('finalClientAddress').focus();" class="btn-cart-luxury">Adicionar ao Carrinho</button>
+            </div>
+        </div>
+
+        <!-- PRODUTO 2: EDIÇÃO LIMITADA (INDISPONÍVEL) -->
+        <div class="produto-card-luxury">
+            <h2 class="produto-titulo-luxury">MARANHÃO CORDIAL<br>EDIÇÃO LIMITADA KRIKATI</h2>
+            
+            <!-- Mensagem de Indisponibilidade de Luxo -->
+            <div class="mensagem-indisponivel-luxury">
+                Sinto muito, este produto não está disponível para entrega na sua região atual ou o lote esgotou.
+                <br><a href="#formCheckoutWhats" class="link-disponibilidade">Verificar disponibilidade.</a>
+            </div>
+
+            <!-- Botão de Ação Único -->
+            <div class="botoes-acoes-luxury" style="margin-top: auto;">
+                <a href="/lifestyle" class="btn-explore-luxury" style="width: 100%; text-align: center;">Explorar</a>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- PAINEL DO CARRINHO LATERAL (ESTILO D'USSÉ) -->
+<div id="carrinhoLateral" class="carrinho-lateral-container">
+    <!-- Camada escura de fundo -->
+    <div class="carrinho-overlay" onclick="fecharCarrinho()"></div>
+    
+    <!-- Corpo do Carrinho -->
+    <div class="carrinho-conteudo">
+        <div class="carrinho-header">
+            <h2>Carrinho</h2>
+            <button class="btn-fechar-carrinho" onclick="fecharCarrinho()">&times;</button>
+        </div>
+
+        <!-- Item do Carrinho -->
+        <div class="carrinho-itens-lista">
+            <div class="carrinho-item">
+                <div class="carrinho-item-foto">
+                    <!-- Substitua pelo link da foto real da sua garrafa se tiver -->
+                    <div style="width: 60px; height: 60px; background: #e0e0e0; display:flex; align-items:center; justify-content:center; font-size:10px;">Garrafa</div>
+                </div>
+                <div class="carrinho-item-detalhes">
+                    <div class="carrinho-item-linha">
+                        <span class="carrinho-item-nome">MARANHÃO CORDIAL GIFT BOX</span>
+                        <button class="btn-remover-item">&times;</button>
+                    </div>
+                    <span class="carrinho-item-meta">750ml</span>
+                    <div class="carrinho-item-linha" style="margin-top: 12px;">
+                        <select class="seletor-qtd-carrinho" onchange="atualizarQuantidadeCarrinho(this)">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                        </select>
+                        <span class="carrinho-item-preco" id="precoItemCarrinho">R$ 59,00</span>
+                    </div>
+                </div>
+            </div>
+            <p class="carrinho-fulfillment-aviso">GERALMENTE ENVIADO EM 1-2 DIAS ÚTEIS</p>
+        </div>
+
+        <!-- Rodapé do Carrinho com Subtotal e Botão -->
+        <div class="carrinho-footer">
+            <div class="carrinho-subtotal-linha">
+                <span id="textoQtdItens">Subtotal (1 item):</span>
+                <strong id="valorSubtotalCarrinho">R$ 59,00</strong>
+            </div>
+            <!-- Esse botão rola a página de volta até o seu input de endereço -->
+            <button class="btn-checkout-carrinho" onclick="irParaCheckout()">Ir para o pagamento</button>
+        </div>
+    </div>
+</div>
+
+
+
 
     <!-- LÓGICA JAVASCRIPT DE ALTA CONVERSÃO (ORDEM DE DISPARO INVERTIDA) -->
  <script>
@@ -602,5 +1086,55 @@
             // Redireciona a própria aba para o WhatsApp sem abrir pop-ups
             window.location.href = urlWhatsApp;
         });
+
+        // Funções para Controle do Painel do Carrinho
+function abrirCarrinho() {
+    document.getElementById('carrinhoLateral').classList.add('ativo');
+    document.body.style.overflow = 'hidden'; // Trava a rolagem da página de fundo
+}
+
+function fecharCarrinho() {
+    document.getElementById('carrinhoLateral').classList.remove('ativo');
+    document.body.style.overflow = ''; // Libera a rolagem da página de fundo
+}
+
+function atualizarQuantidadeCarrinho(selectElement) {
+    const qtd = parseInt(selectElement.value);
+    const precoUnitario = 59.00;
+    const freteFixo = 1.00;
+    const novoTotalItem = precoUnitario * qtd;
+    const novoTotalGeral = novoTotalItem + freteFixo;
+
+    // Atualiza o texto visual interno do carrinho
+    document.getElementById('precoItemCarrinho').innerHTML = `R$ ${novoTotalItem.toFixed(2).replace('.', ',')}`;
+    document.getElementById('valorSubtotalCarrinho').innerHTML = `R$ ${novoTotalItem.toFixed(2).replace('.', ',')}`;
+    document.getElementById('textoQtdItens').innerHTML = `Subtotal (${qtd} ${qtd > 1 ? 'itens' : 'item'}):`;
+
+    // Atualiza com precisão os valores das tags ocultas do formulário para o Web3Forms receber certo
+    if(document.getElementById('hiddenTotal')) {
+        document.getElementById('hiddenTotal').value = `R$ ${novoTotalGeral.toFixed(2).replace('.', ',')}`;
+    }
+}
+
+function irParaCheckout() {
+    fecharCarrinho();
+    // Leva o usuário deslizando de forma suave até o campo de endereço lá em cima
+    const enderecoInput = document.getElementById('finalClientAddress');
+    if(enderecoInput) {
+        enderecoInput.scrollIntoView({ behavior: 'smooth' });
+        enderecoInput.focus();
+    }
+}
+
+// Vincula a ação de abrir o carrinho no botão da sua vitrine
+document.addEventListener('DOMContentLoaded', function() {
+    const btnAdicionarCarrinho = document.querySelector('.btn-cart-luxury');
+    if(btnAdicionarCarrinho) {
+        // Altera o comportamento do botão antigo para disparar a gaveta lateral
+        btnAdicionarCarrinho.setAttribute('onclick', 'abrirCarrinho()');
+    }
+});
+
     });
 </script>
+
