@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Destaque Minimalista - Maranhão Cordial</title>
+    <title>COMPRE - Maranhão Cordial</title>
     
     <!-- Google tag (gtag.js) -->
     <script async src="https://googletagmanager.com"></script>
@@ -18,6 +18,7 @@
     <link rel="preconnect" href="https://googleapis.com">
     <link rel="preconnect" href="https://gstatic.com" crossorigin>
     <link href="https://googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+    
 
     <style>
         /* 1. RESET GERAL - CORRIGIDO PARA PERMITIR CLIQUES E ROLAGEM */
@@ -35,89 +36,81 @@
         }
 
         /* 2. Menu Superior Hierárquico */
-        .topbar {
-            width: 100%;
-            background-color: #ffffff;
-            box-sizing: border-box;
-            padding: 40px 60px 20px 60px;
-            position: relative;
-            z-index: 100; /* Garante que o menu fica acima de tudo */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+      /* 2. Menu Superior Hierárquico - Ajustado com Espaçamento Estilo D'USSÉ */
+.topbar {
+    width: 100%;
+    background-color: #ffffff;
+    box-sizing: border-box;
+    /* Aumentado o padding inferior para dar mais espaço à seção de baixo */
+    padding: 60px 60px 45px 60px; 
+    position: relative;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-        .logo-central {
-            text-decoration: none;
-            text-transform: uppercase;
-            margin-bottom: 25px;
-            text-align: center;
-        }
+.logo-central {
+    text-decoration: none;
+    /* Aumentada a margem de 35px para 55px para empurrar o menu para baixo e deixá-lo idêntico ao da D'USSÉ */
+    margin-bottom: 55px; 
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
 
-        .brand-main {
-            font-family: 'Cormorant Garamond', serif;
-            color: #111111;
-            font-size: 42px;
-            font-weight: 400;
-            letter-spacing: 0.15em;
-            line-height: 1;
-            transition: color 0.4s ease;
-        }
+.brand-main {
+    font-family: 'Cormorant Garamond', serif;
+    color: #111111;
+    font-size: 44px;
+    font-weight: 400;
+    letter-spacing: 0.25em;
+    line-height: 1;
+    text-transform: uppercase;
+    transition: color 0.4s ease;
+}
 
-        .logo-central:hover .brand-main {
-            color: #A36A40;
-        }
+.brand-sub {
+    font-family: 'Alex Brush', 'Playfair Display', cursive;
+    font-size: 1.35rem;
+    font-weight: 400;
+    font-style: italic;
+    color: #A36A40;
+    text-transform: lowercase;
+    letter-spacing: 0.05em;
+    line-height: 0.9;
+    margin-top: -4px;
+}
 
-        .navbar-links {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 60px; 
-            width: 100%;
-            max-width: 800px;
-        }
+/* Links do Menu - Alinhamento e Espaçamento Nobre */
+.navbar-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Aumentado o espaçamento entre as palavras (gap) para 70px para dar o efeito "estendido" da D'USSÉ */
+    gap: 70px; 
+    width: 100%;
+    max-width: 900px;
+    margin-top: 0;
+}
 
-        .nav-link {
-            color: #111111;
-            text-decoration: none;
-            font-size: 11px;
-            font-weight: 300;
-            letter-spacing: 0.25em;
-            text-transform: uppercase;
-            transition: color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
+.nav-link {
+    color: #111111;
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 300;
+    /* Espaçamento entre as letras aumentado para dar um visual mais leve e sofisticado */
+    letter-spacing: 0.3em; 
+    text-transform: uppercase;
+    transition: color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
 
-        .nav-link:hover {
-            color: #A36A40;
-        }
+.nav-link:hover {
+    color: #A36A40;
+}
 
-        .btn-whatsapp, .btn-premium-luxury {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            background-color: transparent;
-            color: #111111;
-            border: 1px solid #111111;
-            text-decoration: none;
-            font-size: 11px;
-            font-weight: 300;
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            padding: 10px 24px;
-            border-radius: 0px;
-            transition: all 0.4s ease;
-            cursor: pointer;
-        }
-
-        .btn-whatsapp:hover, .btn-premium-luxury:hover {
-            background-color: #111111;
-            color: #ffffff;
-        }
-
-        .icon-wa {
-            width: 13px;
-            height: 13px;
-        }
 
         /* 3. VITRINE CORRIGIDA (SEM POSICIONAMENTO ABSOLUTO CONFLITANTE) */
         .vitrine-container-geral {
@@ -280,58 +273,129 @@
         }
 
         /* 5. Área de Cadastro Otimizada para Interação */
-        .secao-cadastro {
-            max-width: 1400px;
-            width: 100%;
-            margin: 40px auto 100px auto;
-            padding: 0 60px;
-            box-sizing: border-box;
-            position: relative;
-            z-index: 30; /* Garante clique prioritário no formulário */
-        }
+        /* 5. ÁREA DE CHECKOUT ESTILO D'USSÉ MINIMALISTA */
+.secao-cadastro {
+    width: 100%;
+    max-width: 1400px;
+    margin: 100px auto;
+    padding: 0 60px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+}
 
-        .input-dark-luxury {
-            padding: 16px; 
-            border-radius: 0px; 
-            border: 1px solid rgba(0, 0, 0, 0.1); 
-            background: #ffffff; 
-            color: #111111; 
-            font-family: 'Inter', sans-serif; 
-            font-size: 0.9rem; 
-            outline: none; 
-            width: 100%; 
-            box-sizing: border-box; 
-            transition: all 0.3s ease;
-            position: relative;
-            z-index: 42;
-        }
+.conteudo-cadastro-minimalista {
+    width: 100%;
+    max-width: 850px; /* Alinhamento centralizado e compacto */
+    text-align: left;
+}
 
-        .input-dark-luxury:focus {
-            border-color: #A36A40;
-            background-color: #fcfcfc;
-        }
+.texto-informativo-checkout {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 19px;
+    line-height: 1.6;
+    color: #222222;
+    margin-bottom: 24px;
+    font-weight: 400;
+}
 
-        /* Animações */
-        @keyframes luxuryFadeIn {
-            from { opacity: 0; transform: scale(0.97) translateX(-25px); }
-            to { opacity: 1; transform: scale(1) translateX(0); }
-        }
+/* Container que junta o Input e o Botão em uma única linha no desktop */
+.campo-busca-container {
+    display: flex;
+    width: 100%;
+    margin-bottom: 16px;
+}
 
-        @keyframes textFadeIn {
-            from { opacity: 0; transform: translateX(25px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
+/* O Campo de Texto Cinza Claro / Bege */
+.input-premium-busca {
+    flex: 1;
+    background-color: #f4f4f4; /* Fundo suave neutro */
+    border: none;
+    padding: 18px 24px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 300;
+    color: #111111;
+    outline: none;
+    letter-spacing: 0.5px;
+    transition: background-color 0.3s ease;
+}
 
-        @media (max-width: 900px) {
-            .topbar { padding: 30px 20px; }
-            .navbar-links { flex-direction: column; gap: 15px; }
-            .vitrine-container-geral { flex-direction: column; padding: 20px; min-height: auto; }
-            .posicao-garrafa, .posicao-texto { max-width: 100%; width: 100%; text-align: center; }
-            .posicao-texto { justify-content: center; margin-top: 30px; }
-            .produto-minimalista { height: 45vh; }
-            .perfis-info-container, 
-            .secao-cadastro { padding: 0 20px; }}
-        
+.input-premium-busca::placeholder {
+    color: #999999;
+}
+
+.input-premium-busca:focus {
+    background-color: #eaeaea;
+}
+
+/* O Botão Bloco Cor de Bronze / Ouro Velho */
+.btn-premium-busca {
+    background-color: #A36A40; /* Tom assinatura da sua marca */
+    color: #ffffff;
+    border: none;
+    padding: 0 35px;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-premium-busca:hover {
+    background-color: #111111; /* Inversão para preto no hover */
+}
+
+.btn-premium-busca:disabled {
+    background-color: #777777;
+    cursor: not-allowed;
+}
+
+/* Texto de Termos de Serviço Inferior */
+.texto-termos-legais {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: #777777;
+    line-height: 1.5;
+    margin: 0;
+    font-weight: 300;
+    letter-spacing: 0.2px;
+}
+
+.texto-termos-legais a {
+    color: #777777;
+    text-decoration: underline;
+}
+
+.texto-termos-legais a:hover {
+    color: #111111;
+}
+
+/* Responsividade para Celulares */
+@media (max-width: 768px) {
+    .secao-cadastro {
+        padding: 0 24px;
+        margin: 60px auto;
+    }
+    .campo-busca-container {
+        flex-direction: column;
+        gap: 12px;
+    }
+    .input-premium-busca {
+        padding: 16px;
+    }
+    .btn-premium-busca {
+        padding: 16px;
+        text-align: center;
+    }
+    .desktop-only {
+        display: none;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -339,21 +403,19 @@
     <!-- Menu Superior Estruturado -->
     <header class="topbar">
         <!-- Nome Centralizado no Topo -->
-        <a href="/index" class="logo-central">
-            <span class="brand-main">Maranhão</span>
-        </a>
+       <a href="/index" class="logo-central">
+    <span class="brand-main">Maranhão</span>
+    <span class="brand-sub">guaraná</span>
+       </a>
 
         <!-- Itens inferiores rigorosamente um ao lado do outro -->
-        <nav class="navbar-links">
-            <a href="/raizes" class="nav-link">Nossas Raízes</a>
-            <a href="/lifestyle" class="nav-link">Nosso Lifestyle</a>
-            <a href="/compreaqui" class="btn-whatsapp">
-                <svg class="icon-wa" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.528 1.977 14.075.953 11.49.953c-5.44 0-9.866 4.371-9.87 9.8c-.001 1.742.469 3.44 1.36 4.966L1.901 21.8l6.23-1.61zM17.521 14.3c-.324-.162-1.92-.949-2.219-1.058-.299-.11-.517-.162-.734.162-.218.324-.844 1.058-1.036 1.275-.192.217-.384.243-.709.081-.324-.162-1.367-.504-2.604-1.608-.962-.858-1.611-1.918-1.802-2.242-.189-.324-.02-.5-.182-.661-.146-.145-.324-.378-.486-.567-.162-.189-.216-.324-.324-.54-.108-.217-.054-.405-.027-.567.027-.162.216-.514.324-.676.108-.162.145-.27.216-.405.072-.135.036-.253-.018-.364-.054-.11-.517-1.244-.709-1.703-.188-.452-.378-.39-.517-.397-.13-.006-.28-.008-.43-.008-.15 0-.395.056-.602.28-.206.225-.785.767-.785 1.871s.804 2.167.916 2.318c.112.151 1.58 2.411 3.829 3.379.535.23 1.01.378 1.355.487.538.171 1.027.147 1.414.089.431-.064 1.321-.54 1.506-1.062.185-.523.185-.971.13-1.062-.056-.092-.206-.146-.53-.308z"/>
-                </svg>
-                Comprar agora
-            </a>
-        </nav>
+       <nav class="navbar-links">
+    <a href="/raizes" class="nav-link">Nossas Raízes</a>
+    <a href="/lifestyle" class="nav-link">Nosso Lifestyle</a>
+    <!-- Removido o SVG e alterada a classe para seguir o padrão visual limpo -->
+    <a href="/compreaqui" class="nav-link">Comprar agora</a>
+</nav>
+
     </header>
 
     <!-- Contentor com Posicionamento Absoluto Controlado -->
@@ -386,137 +448,156 @@
     <section class="secao-cadastro">
         <div style="background: transparent; border-top: 1px solid rgba(0, 0, 0, 0.08); padding: 40px 0 32px 0; box-sizing: border-box;">
             
-            <h3 style="font-family: 'Inter', sans-serif; color: #777777; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 4px; margin-top: 0; margin-bottom: 24px; padding-bottom: 8px;">
-                III. Finalizar Pedido Comercial
-            </h3>
+    
             
             <!-- CORREÇÃO CRUCIAL: O formulário agora envia nativamente os dados por POST para garantir a entrega do e-mail -->
             <form id="formCheckoutWhats" action="https://api.web3forms.com/submit" method="POST">
                 
                 <!-- Chave de acesso oficial validada pelo administrador -->
-                <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
-                
-                <!-- Configurações ocultas para deixar seu e-mail do Web3Forms organizado -->
+                                <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
+                                
+                                <input type="hidden" name="email" value="cassionegocios47@gmail.com">
+
                 <input type="hidden" name="subject" value="Novo Pedido - Maranhão Cordial">
                 <input type="hidden" id="hiddenPerfil" name="Perfil de Interesse" value="VAREJO">
                 <input type="hidden" name="Valor do Produto" value="R$ 59,00">
-                <input type="hidden" name="Valor do Frete" value="R$ 15,00">
-                <input type="hidden" id="hiddenTotal" name="Valor Total com Frete" value="R$ 74,00">
+                <input type="hidden" name="Valor do Frete" value="R$ 1,00">
+                <input type="hidden" id="hiddenTotal" name="Valor Total com Frete" value="R$ 60,00">
                 
                 <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px;">
-                    <!-- Campo Nome -->
-                    <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 10px;">
-                        <label for="finalClientName" style="font-family: 'Inter', sans-serif; color: #111111; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Seu Nome Completo</label>
-                        <input type="text" id="finalClientName" name="name" placeholder="Ex: Gabriel Silva" required class="input-dark-luxury">
-                    </div>
-                    
-                    <!-- Campo Telefone -->
-                    <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 10px;">
-                        <label for="finalClientPhone" style="font-family: 'Inter', sans-serif; color: #111111; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Seu WhatsApp</label>
-                        <input type="tel" id="finalClientPhone" name="phone" placeholder="Ex: (11) 99123-4567" required class="input-dark-luxury" oninput="mascaraTelefone(this)" maxlength="15">
-                    </div>
-                </div>
-
-                <!-- Campo Endereço Simplificado -->
-                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px;">
-                    <label for="finalClientAddress" style="font-family: 'Inter', sans-serif; color: #111111; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Endereço de Entrega (Para Cálculo de Frete)</label>
-                    <input type="text" id="finalClientAddress" name="address" placeholder="Ex: Rua Pamplona, 500 - Apto 42 - Jardim Paulista" required class="input-dark-luxury">
-                    <small style="font-family: 'Inter', sans-serif; font-size: 11px; color: #A36A40; letter-spacing: 0.5px;">* Frete fixo de R$ 15,00 para a região próxima à Av. Paulista, 1636.</small>
-                </div>
-
-                <!-- Botão de Ação Único e Funcional -->
-                <div style="display: flex; justify-content: flex-start;">
-                    <button type="submit" id="submitBtnCheckout" class="btn-premium-luxury" style="padding: 16px 40px; background-color: #111111; color: #ffffff; border: 1px solid #111111; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 300;">
-                        Compre Aqui! (Confirmar via WhatsApp)
-                    </button>
+                </button>
                 </div>
             </form>
 
         </div>
     </section>
 
+    <!-- Seção de Cadastro Otimizada Estilo Premium -->
+<section class="secao-cadastro">
+    <div class="conteudo-cadastro-minimalista">
+        
+        <!-- Texto de Apoio Traduzido -->
+        <p class="texto-informativo-checkout">
+            Insira seu endereço para verificar a disponibilidade e opções de entrega perto de você. <br class="desktop-only">
+            É para presente? Certifique-se de inserir o endereço de entrega do destinatário.
+        </p>
+
+        <!-- Formulário Otimizado com Envio Invisível via JavaScript -->
+        <form id="formCheckoutWhats">
+            
+            <!-- Chaves e Configurações Ocultas para o Web3Forms -->
+            <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
+            <input type="hidden" name="subject" value="Novo Pedido - Maranhão Cordial">
+            <input type="hidden" id="hiddenPerfil" name="Perfil de Interesse" value="VAREJO">
+            <input type="hidden" name="Valor do Produto" value="R$ 59,00">
+            <input type="hidden" name="Valor do Frete" value="R$ 1,00">
+            <input type="hidden" id="hiddenTotal" name="Valor Total com Frete" value="R$ 60,00">
+            <input type="hidden" name="email" value="pedidos.maranhaocordial@seu-dominio.com">
+
+            <!-- Campo de Endereço Único e Expandido (Estilo D'USSÉ) -->
+            <div class="campo-busca-container">
+                <input type="text" id="finalClientAddress" name="address" placeholder="Insira o endereço de entrega" required class="input-premium-busca">
+                <button type="submit" id="submitBtnCheckout" class="btn-premium-busca">
+                    Confirmar Endereço
+                </button>
+            </div>
+            
+        </form>
+
+        <!-- Termos Legais Discretos -->
+        <p class="texto-termos-legais">
+            Este site é protegido por reCAPTCHA e as <a href="#">Políticas de Privacidade</a> e <a href="#">Termos de Serviço</a> do Google se aplicam.
+        </p>
+        
+    </div>
+</section>
+
+
     <!-- LÓGICA JAVASCRIPT DE ALTA CONVERSÃO (ORDEM DE DISPARO INVERTIDA) -->
-    <script>
-        function mascaraTelefone(objeto){
-            setTimeout(function() {
-                let v = objeto.value;
-                v = v.replace(/\D/g,"");             
-                v = v.replace(/^(\d{2})(\d)/g,"($1) $2"); 
-                v = v.replace(/(\d)(\d{4})$/,"$1-$2");    
-                objeto.value = v;
-            }, 1);
+   <script>
+    document.getElementById('formCheckoutWhats').addEventListener('submit', function(e) {
+        e.preventDefault(); 
+
+        const formElement = e.target;
+        const submitBtn = document.getElementById('submitBtnCheckout');
+
+        const textoOriginalBotao = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = "PROCESSANDO...";
+
+        const endereco = document.getElementById('finalClientAddress').value.trim();
+
+        const precoGarrafa = 59.00;
+        const precoFrete = 1.00; 
+        const valorTotal = precoGarrafa + precoFrete;
+
+        let perfil = "VAREJO";
+        try {
+            if (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) {
+                perfil = perfilSelecionado.toUpperCase();
+            }
+        } catch(err) {
+            perfil = "VAREJO";
         }
 
-        document.getElementById('formCheckoutWhats').addEventListener('submit', function(e) {
-            // Paramos temporariamente o envio automático para o JavaScript processar a telemetria e o WhatsApp primeiro
-            e.preventDefault(); 
+        document.getElementById('hiddenPerfil').value = perfil;
+        document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
 
-            const formElement = e.target;
-            const submitBtn = document.getElementById('submitBtnCheckout');
+        // 1. REGISTRO NA TELEMETRIA LOCAL
+        const pedidoTelemetria = {
+            id: Date.now(),
+            endereco: endereco,
+            perfil: perfil,
+            total: valorTotal,
+            data: new Date().toLocaleString('pt-BR'),
+            status: "Endereço Confirmado"
+        };
+        
+        let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
+        lista.push(pedidoTelemetria);
+        localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
 
-            const nome = document.getElementById('finalClientName').value.trim();
-            const telefone = document.getElementById('finalClientPhone').value.trim();
-            const endereco = document.getElementById('finalClientAddress').value.trim();
+        // 2. ENVIO EM SEGUNDO PLANO PARA O WEB3FORMS
+        const formData = new FormData(formElement);
 
-            const precoGarrafa = 59.00;
-            const precoFrete = 1.00; 
-            const valorTotal = precoGarrafa + precoFrete;
-
-            let perfil = "VAREJO";
-            try {
-                if (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) {
-                    perfil = perfilSelecionado.toUpperCase();
-                }
-            } catch(err) {
-                perfil = "VAREJO";
+        fetch('https://web3forms.com', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                console.log('Dados enviados ao Web3Forms.');
             }
-
-            // Atualiza as tags ocultas para o Web3Forms receber os valores corretos por e-mail
-            document.getElementById('hiddenPerfil').value = perfil;
-            document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
-
-            // INSIRA O SEU NÚMERO DE RECEBIMENTO DO WHATSAPP AQUI (Apenas números com 55 + DDD)
-            const seuNumeroWhatsApp = "5511999999999"; 
-
-            // --- PASSO 1: REGISTRO IMEDIATO NA SUA TELEMETRIA LOCAL ---
-            const pedidoTelemetria = {
-                id: Date.now(),
-                nome: nome,
-                telefone: telefone,
-                endereco: endereco,
-                perfil: perfil,
-                total: valorTotal,
-                data: new Date().toLocaleString('pt-BR'),
-                status: "Finalizado"
-            };
-            
-            let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
-            lista.push(pedidoTelemetria);
-            localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
-
-            // --- PASSO 2: MONTAGEM DA MENSAGEM DO WHATSAPP ---
-            const textoMensagem = `Olá, gostaria de finalizar a compra do meu Maranhão Cordial! ✨%0A%0A` +
-                                  `*DADOS DO PEDIDO:*%0A` +
-                                  `• *Nome:* ${encodeURIComponent(nome)}%0A` +
-                                  `• *Contato:* ${encodeURIComponent(telefone)}%0A` +
-                                  `• *Perfil:* ${encodeURIComponent(perfil)}%0A%0A` +
+        })
+        .catch(error => {
+            console.error('Erro de rede:', error);
+        })
+        .finally(() => {
+            // 3. DIRECIONAMENTO PARA O WHATSAPP
+            const seuNumeroWhatsApp = "5511983684267"; 
+            const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
                                   `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
                                   `• *Destino:* ${encodeURIComponent(endereco)}%0A%0A` +
-                                  `*RESUMO FINANCEIRO:*%0A` +
+                                  `*RESUMO ESTIMADO:*%0A` +
                                   `• 1x Maranhão Cordial: R$ 59,00%0A` +
                                   `• Frete Estimado: R$ ${precoFrete.toFixed(2).replace('.', ',')}%0A` +
                                   `• *Total Geral:* R$ ${valorTotal.toFixed(2).replace('.', ',')}%0A%0A` +
-                                  `_Gostaria de receber a chave Pix para realizar o pagamento via Banco do Brasil / PicPay._`;
+                                  `_Gostaria de prosseguir com o pagamento por aqui._`;
 
-            const urlWhatsApp = `https://whatsapp.com{5511983694267}&text=${Maranhãocordial}`;
+            const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
             
-            // Abre o WhatsApp imediatamente em uma aba paralela para prender o cliente na intenção de compra
             window.open(urlWhatsApp, '_blank');
 
-            // --- PASSO 3: SUBMISSÃO NATIVA DA PÁGINA (FORÇA O DISPARO DO E-MAIL) ---
-            // Remove o travamento do JavaScript e força o formulário a enviar via POST direto para o e-mail
-            formElement.submit();
+            // Feedback Visual de Sucesso
+            submitBtn.innerHTML = "CONFIRMADO!";
+            submitBtn.style.backgroundColor = "#111111"; 
+            
+            formElement.reset();
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = textoOriginalBotao;
+                submitBtn.style.backgroundColor = "#A36A40";
+            }, 4000);
         });
-    </script>
-</body>
-</html>
+    });
+</script>
