@@ -1,621 +1,65 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>COMPRE - Maranhão Cordial</title>
+    <title>Maranhão Cordial - Premium</title>
+    <link href="https://googleapis.com" rel="stylesheet">
     
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://googletagmanager.com"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-JPD3R3NG3S');
-    </script>
-
-    <!-- Importação de fontes Dark Luxury diretamente no Head -->
-    <link rel="preconnect" href="https://googleapis.com">
-    <link rel="preconnect" href="https://gstatic.com" crossorigin>
-    <link href="https://googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
-    
-
     <style>
-        /* 1. RESET GERAL - CORRIGIDO PARA PERMITIR CLIQUES E ROLAGEM */
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #ffffff;
-            font-family: 'Inter', sans-serif;
-            -webkit-font-smoothing: antialiased;
-            overflow-x: hidden;
-            overflow-y: auto; /* ATIVAÇÃO DA ROLAGEM REAL DA PÁGINA */
-            display: block;   /* FLUXO NATURAL DE LEITURA DO NAVEGADOR */
+        /* Estilos Base fornecidos por si */
+        body { margin: 0; padding: 0; background-color: #ffffff; color: #111111; overflow-x: hidden; }
+        
+        .vitrine-container-geral { display: flex; width: 100%; min-height: 85vh; align-items: center; position: relative; }
+        .posicao-garrafa { width: 50%; display: flex; justify-content: center; }
+        .produto-minimalista { height: 82vh; width: auto; object-fit: contain; }
+        .posicao-texto { width: 50%; padding: 0 60px; box-sizing: border-box; }
+        .produto-subtitulo { font-family: 'Inter', sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #777777; margin-bottom: 12px; }
+        .produto-descricao { font-family: 'Cormorant Garamond', serif; font-size: 22px; line-height: 1.6; color: #222222; margin: 0; font-weight: 300; }
+
+        .secao-cadastro { width: 100%; max-width: 1400px; margin: 60px auto; padding: 0 60px; box-sizing: border-box; display: flex; justify-content: center; }
+        .conteudo-cadastro-minimalista { width: 100%; max-width: 850px; text-align: left; }
+        .texto-informativo-checkout { font-family: 'Cormorant Garamond', serif; font-size: 19px; line-height: 1.6; color: #222222; margin-bottom: 24px; }
+        .campo-busca-container { display: flex; width: 100%; margin-bottom: 16px; }
+        .input-premium-busca { flex: 1; background-color: #f4f4f4; border: none; padding: 18px 24px; font-family: 'Inter', sans-serif; font-size: 14px; color: #111111; outline: none; }
+        .btn-premium-busca { background-color: #A36A40; color: #ffffff; border: none; padding: 0 35px; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; cursor: pointer; transition: background 0.3s; white-space: nowrap; }
+        .btn-premium-busca:hover { background-color: #111111; }
+        .texto-termos-legais { font-family: 'Inter', sans-serif; font-size: 11px; color: #777777; margin-top: 10px; }
+
+        .vitrine-produtos-luxury { width: 100%; max-width: 1400px; margin: 40px auto 80px auto; padding: 0 60px; box-sizing: border-box; }
+        .vitrine-grid { display: grid; grid-template-columns: 1fr; border-top: 1px solid #eaeaea; padding-top: 60px; }
+        .produto-card-luxury { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+        .produto-titulo-luxury { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 400; color: #111111; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 12px 0; }
+        .produto-preco-luxury { font-family: 'Inter', sans-serif; font-size: 16px; color: #555555; margin: 0 0 28px 0; }
+        .seletores-container-luxury { display: flex; gap: 12px; margin-bottom: 32px; width: 100%; max-width: 320px; }
+        .seletor-luxury { flex: 2; background: #ffffff; border: 1px solid #111111; padding: 12px 16px; font-family: 'Inter', sans-serif; font-size: 13px; color: #111111; }
+        .seletor-luxury.seletor-qtd { flex: 1; text-align: center; }
+        .fulfillment-box-luxury { width: 100%; max-width: 450px; border: 1px solid #111111; padding: 24px; box-sizing: border-box; margin-bottom: 32px; }
+        .fulfillment-titulo { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; text-transform: uppercase; margin: 0 0 16px 0; }
+        .fulfillment-linha { display: flex; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 13px; color: #444444; }
+        .botoes-acoes-luxury { display: flex; gap: 16px; width: 100%; max-width: 450px; }
+        .btn-explore-luxury { flex: 1; border: 1px solid #111111; background: transparent; color: #111111; padding: 16px 0; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; text-align: center; text-decoration: none; letter-spacing: 0.2em; }
+        .btn-cart-luxury { flex: 1.2; background: #A36A40; color: #ffffff; border: 1px solid #A36A40; padding: 16px 0; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; cursor: pointer; }
+        
+        /* Sidebar do Carrinho Lateral */
+        #carrinhoLateral { position: fixed; top: 0; right: -450px; width: 100%; max-width: 400px; height: 100%; background: #ffffff; box-shadow: -5px 0 15px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.4s ease; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+
+        @media (max-width: 768px) {
+            .vitrine-container-geral { flex-direction: column; }
+            .posicao-garrafa, .posicao-texto { width: 100%; }
+            .produto-minimalista { height: 50vh; }
+            .secao-cadastro, .vitrine-produtos-luxury { padding: 0 24px; }
+            .campo-busca-container { flex-direction: column; gap: 12px; }
         }
-
-        /* 2. Menu Superior Hierárquico */
-      /* 2. Menu Superior Hierárquico - Ajustado com Espaçamento Estilo D'USSÉ */
-.topbar {
-    width: 100%;
-    background-color: #ffffff;
-    box-sizing: border-box;
-    /* Aumentado o padding inferior para dar mais espaço à seção de baixo */
-    padding: 60px 60px 45px 60px; 
-    position: relative;
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.logo-central {
-    text-decoration: none;
-    /* Aumentada a margem de 35px para 55px para empurrar o menu para baixo e deixá-lo idêntico ao da D'USSÉ */
-    margin-bottom: 55px; 
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-}
-
-.brand-main {
-    font-family: 'Cormorant Garamond', serif;
-    color: #111111;
-    font-size: 44px;
-    font-weight: 400;
-    letter-spacing: 0.25em;
-    line-height: 1;
-    text-transform: uppercase;
-    transition: color 0.4s ease;
-}
-
-.brand-sub {
-    font-family: 'Alex Brush', 'Playfair Display', cursive;
-    font-size: 1.35rem;
-    font-weight: 400;
-    font-style: italic;
-    color: #A36A40;
-    text-transform: lowercase;
-    letter-spacing: 0.05em;
-    line-height: 0.9;
-    margin-top: -4px;
-}
-
-/* Links do Menu - Alinhamento e Espaçamento Nobre */
-.navbar-links {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    /* Aumentado o espaçamento entre as palavras (gap) para 70px para dar o efeito "estendido" da D'USSÉ */
-    gap: 70px; 
-    width: 100%;
-    max-width: 900px;
-    margin-top: 0;
-}
-
-.nav-link {
-    color: #111111;
-    text-decoration: none;
-    font-size: 11px;
-    font-weight: 300;
-    /* Espaçamento entre as letras aumentado para dar um visual mais leve e sofisticado */
-    letter-spacing: 0.3em; 
-    text-transform: uppercase;
-    transition: color 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.nav-link:hover {
-    color: #A36A40;
-}
-
-
-        /* 3. VITRINE CORRIGIDA (SEM POSICIONAMENTO ABSOLUTO CONFLITANTE) */
-        .vitrine-container-geral {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            max-width: 1400px;
-            min-height: 75vh; /* Ocupa a área nobre sem prender a tela */
-            margin: 0 auto;
-            padding: 40px 60px;
-            box-sizing: border-box;
-            position: relative;
-            z-index: 10;
-        }
-
-        .posicao-garrafa {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            max-width: 50%;
-        }
-
-        .produto-minimalista {
-            width: auto;
-            max-width: 100%;
-            height: 70vh; /* Porte imponente preservado */
-            object-fit: contain;
-            animation: luxuryFadeIn 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-
-        .posicao-texto {
-            flex: 1;
-            display: flex;
-            justify-content: flex-end;
-            max-width: 45%;
-        }
-
-        .conteudo-editorial {
-            max-width: 460px;
-            animation: textFadeIn 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-
-        .produto-subtitulo {
-            font-family: 'Inter', sans-serif;
-            font-size: 10px;
-            font-weight: 400;
-            letter-spacing: 0.4em;
-            color: #777777;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-        }
-
-        .produto-descricao {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 21px; 
-            line-height: 1.7;
-            color: #222222;
-            font-style: italic;
-            margin: 0;
-        }
-
-        /* 4. Secção de Cards (Fluxo Organizado) */
-        .perfis-info-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 24px;
-            width: 100%;
-            max-width: 1400px;
-            margin: 80px auto 40px auto;
-            padding: 0 60px;
-            box-sizing: border-box;
-            position: relative;
-            z-index: 20;
-        }
-
-        .perfil-info-item {
-            background: #ffffff;
-            border: 1px solid rgba(0, 0, 0, 0.06);
-            border-radius: 0px;
-            padding: 28px;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            box-sizing: border-box;
-            transition: transform 0.3s ease, border-color 0.3s ease;
-        }
-
-        .perfil-info-item:hover {
-            border-color: #A36A40;
-        }
-
-        .perfil-info-header {
-            margin-bottom: 14px;
-        }
-
-        .perfil-info-titulo {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #111111;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        .perfil-info-sub {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.68rem;
-            color: #A36A40;
-            font-weight: 400;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .perfil-info-desc {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.85rem;
-            color: #555555;
-            line-height: 1.6;
-            margin: 0 0 20px 0;
-            font-weight: 300;
-        }
-
-        .perfil-info-vantagem {
-            background: rgba(163, 106, 64, 0.04);
-            border-left: 2px solid #A36A40;
-            padding: 12px 14px;
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-            margin-top: auto; 
-        }
-
-        .perfil-info-item:nth-child(1) {
-            border-color: rgba(212, 175, 55, 0.3);
-        }
-        .perfil-info-item:nth-child(1) .perfil-info-titulo {
-            color: #d4af37;
-        }
-        .destaque-ouro {
-            background: rgba(212, 175, 55, 0.04);
-            border-left: 2px solid #d4af37;
-        }
-
-        .perfil-info-vantagem p {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.8rem;
-            color: #333333;
-            line-height: 1.5;
-            margin: 0;
-            font-weight: 300;
-        }
-
-        .perfil-info-vantagem strong {
-            font-weight: 500;
-            color: #111111;
-        }
-
-        /* 5. Área de Cadastro Otimizada para Interação */
-        /* 5. ÁREA DE CHECKOUT ESTILO D'USSÉ MINIMALISTA */
-.secao-cadastro {
-    width: 100%;
-    max-width: 1400px;
-    margin: 100px auto;
-    padding: 0 60px;
-    box-sizing: border-box;
-    display: flex;
-    justify-content: center;
-}
-
-.conteudo-cadastro-minimalista {
-    width: 100%;
-    max-width: 850px; /* Alinhamento centralizado e compacto */
-    text-align: left;
-}
-
-.texto-informativo-checkout {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 19px;
-    line-height: 1.6;
-    color: #222222;
-    margin-bottom: 24px;
-    font-weight: 400;
-}
-
-/* Container que junta o Input e o Botão em uma única linha no desktop */
-.campo-busca-container {
-    display: flex;
-    width: 100%;
-    margin-bottom: 16px;
-}
-
-/* O Campo de Texto Cinza Claro / Bege */
-.input-premium-busca {
-    flex: 1;
-    background-color: #f4f4f4; /* Fundo suave neutro */
-    border: none;
-    padding: 18px 24px;
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    font-weight: 300;
-    color: #111111;
-    outline: none;
-    letter-spacing: 0.5px;
-    transition: background-color 0.3s ease;
-}
-
-.input-premium-busca::placeholder {
-    color: #999999;
-}
-
-.input-premium-busca:focus {
-    background-color: #eaeaea;
-}
-
-/* O Botão Bloco Cor de Bronze / Ouro Velho */
-.btn-premium-busca {
-    background-color: #A36A40; /* Tom assinatura da sua marca */
-    color: #ffffff;
-    border: none;
-    padding: 0 35px;
-    font-family: 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    white-space: nowrap;
-}
-
-.btn-premium-busca:hover {
-    background-color: #111111; /* Inversão para preto no hover */
-}
-
-.btn-premium-busca:disabled {
-    background-color: #777777;
-    cursor: not-allowed;
-}
-
-/* Texto de Termos de Serviço Inferior */
-.texto-termos-legais {
-    font-family: 'Inter', sans-serif;
-    font-size: 11px;
-    color: #777777;
-    line-height: 1.5;
-    margin: 0;
-    font-weight: 300;
-    letter-spacing: 0.2px;
-}
-
-.texto-termos-legais a {
-    color: #777777;
-    text-decoration: underline;
-}
-
-.texto-termos-legais a:hover {
-    color: #111111;
-}
-
-/* Responsividade para Celulares */
-@media (max-width: 768px) {
-    .secao-cadastro {
-        padding: 0 24px;
-        margin: 60px auto;
-    }
-    .campo-busca-container {
-        flex-direction: column;
-        gap: 12px;
-    }
-    .input-premium-busca {
-        padding: 16px;
-    }
-    .btn-premium-busca {
-        padding: 16px;
-        text-align: center;
-    }
-    .desktop-only {
-        display: none;
-    }
-    
-}
-
-/* 6. VITRINE DE PRODUTOS LADO A LADO - ESTILO D'USSÉ */
-.vitrine-produtos-luxury {
-    width: 100%;
-    max-width: 1400px;
-    margin: 80px auto;
-    padding: 0 60px;
-    box-sizing: border-box;
-}
-
-.vitrine-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* Divide a tela perfeitamente ao meio */
-    gap: 80px; /* Espaçamento generoso entre as duas colunas */
-    border-top: 1px solid #eaeaea;
-    padding-top: 60px;
-}
-
-.produto-card-luxury {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-}
-
-.produto-titulo-luxury {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 36px;
-    font-weight: 400;
-    color: #111111;
-    letter-spacing: 0.1em;
-    line-height: 1.2;
-    margin: 0 0 12px 0;
-    text-transform: uppercase;
-}
-
-.produto-preco-luxury {
-    font-family: 'Inter', sans-serif;
-    font-size: 16px;
-    font-weight: 300;
-    color: #555555;
-    margin: 0 0 28px 0;
-}
-
-/* Seletores de Garrafa e Quantidade */
-.seletores-container-luxury {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 32px;
-    width: 100%;
-    max-width: 320px;
-}
-
-.seletor-luxury {
-    flex: 2;
-    background: #ffffff;
-    border: 1px solid #111111;
-    padding: 12px 16px;
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    font-weight: 300;
-    color: #111111;
-    cursor: pointer;
-    border-radius: 0;
-    outline: none;
-    -webkit-appearance: none; /* Remove seta padrão do navegador */
-}
-
-.seletor-luxury.seletor-qtd {
-    flex: 1;
-    text-align: center;
-}
-
-/* Caixa de Opções de Envio */
-.fulfillment-box-luxury {
-    width: 100%;
-    max-width: 450px;
-    border: 1px solid #111111;
-    padding: 24px;
-    box-sizing: border-box;
-    margin-bottom: 32px;
-}
-
-.fulfillment-titulo {
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin: 0 0 16px 0;
-}
-
-.fulfillment-linha {
-    display: flex;
-    justify-content: space-between;
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    font-weight: 300;
-    color: #444444;
-}
-
-/* Alinhamento dos Botões */
-.botoes-acoes-luxury {
-    display: flex;
-    gap: 16px;
-    width: 100%;
-    max-width: 450px;
-}
-
-.btn-explore-luxury {
-    flex: 1;
-    border: 1px solid #111111;
-    background: transparent;
-    color: #111111;
-    padding: 16px 0;
-    font-family: 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    text-decoration: none;
-    text-align: center;
-    transition: all 0.3s ease;
-}
-
-.btn-explore-luxury:hover {
-    background: #111111;
-    color: #ffffff;
-}
-
-.btn-cart-luxury {
-    flex: 1.2;
-    background: #A36A40; /* Cor Bronze Corporativa */
-    color: #ffffff;
-    border: 1px solid #A36A40;
-    padding: 16px 0;
-    font-family: 'Inter', sans-serif;
-    font-size: 11px;
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.btn-cart-luxury:hover {
-    background: #111111;
-    border-color: #111111;
-}
-
-/* Estado de Indisponibilidade (Coluna Direita) */
-.mensagem-indisponivel-luxury {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
-    color: #b33939; /* Vermelho escuro editorial */
-    max-width: 400px;
-    margin-bottom: 24px;
-    font-weight: 300;
-}
-
-.link-disponibilidade {
-    color: #b33939;
-    text-decoration: underline;
-}
-
-/* Linha inferior de fechamento */
-.produto-card-luxury::after {
-    content: '';
-    display: block;
-    width: 100%;
-    max-width: 450px;
-    border-bottom: 1px solid #eaeaea;
-    margin-top: 40px;
-}
-
-/* Ajuste de Responsividade para Celulares */
-@media (max-width: 768px) {
-    .vitrine-grid {
-        grid-template-columns: 1fr;
-        gap: 60px;
-        padding-top: 40px;
-    }
-    .vitrine-produtos-luxury {
-        padding: 0 24px;
-    }
-}
-
-
     </style>
 </head>
 <body>
 
-    <!-- Menu Superior Estruturado -->
-    <header class="topbar">
-        <!-- Nome Centralizado no Topo -->
-       <a href="/index" class="logo-central">
-    <span class="brand-main">Maranhão</span>
-    <span class="brand-sub">guaraná</span>
-       </a>
-
-        <!-- Itens inferiores rigorosamente um ao lado do outro -->
-       <nav class="navbar-links">
-    <a href="/raizes" class="nav-link">Nossas Raízes</a>
-    <a href="/lifestyle" class="nav-link">Nosso Lifestyle</a>
-    <!-- Removido o SVG e alterada a classe para seguir o padrão visual limpo -->
-    <a href="/compreaqui" class="nav-link">Comprar agora</a>
-</nav>
-
-    </header>
-
-    <!-- Contentor com Posicionamento Absoluto Controlado -->
+    <!-- I. BLOCo DA GARRAFA E TEXTO EDITORIAL (MANTIDOS) -->
     <main class="vitrine-container-geral">
-        
-        <!-- Bloco da Esquerda: Garrafa Forçada a 82% da Altura Útil da Tela -->
         <div class="posicao-garrafa">
             <img class="produto-minimalista" src="8FFCC13A-CF53-445D-A537-052DD1FBEA2B.png" alt="Maranhão Cordial">
         </div>
-
-        <!-- Bloco da Direita: Texto Editorial Fixado -->
         <div class="posicao-texto">
             <div class="conteudo-editorial">
                 <div class="produto-subtitulo">Preparado Líquido Concentrado</div>
@@ -627,215 +71,202 @@
                 </p>
             </div>
         </div>
-
     </main>
 
-</body>
-</html>
-
-                   <!-- IV. FORMULÁRIO DE IDENTIFICAÇÃO E COMPRA DIRETA (ENVIO DIRETO VIA POST) -->
+    <!-- II. SEÇÃO DE CADASTRO DE ENDEREÇO -->
     <section class="secao-cadastro">
-        <div style="background: transparent; border-top: 1px solid rgba(0, 0, 0, 0.08); padding: 40px 0 32px 0; box-sizing: border-box;">
-            
-    
-            
-            <!-- CORREÇÃO CRUCIAL: O formulário agora envia nativamente os dados por POST para garantir a entrega do e-mail -->
-            <!-- Seção de Cadastro Otimizada Estilo Premium -->
+        <div class="conteudo-cadastro-minimalista">
+            <p class="texto-informativo-checkout">
+                Insira seu endereço para verificar a disponibilidade e opções de entrega perto de você. <br>
+                É para presente? Certifique-se de inserir o endereço de entrega do destinatário.
+            </p>
 
+            <form id="formCheckoutWhats">
+                <!-- Configurações Web3Forms apontadas para o seu e-mail real -->
+                <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
+                <input type="hidden" name="email" value="cassionegocios47@gmail.com">
+                <input type="hidden" name="subject" value="Novo Pedido Iniciado - Maranhão Cordial">
+                
+                <input type="hidden" id="hiddenPerfil" name="Perfil de Interesse" value="VAREJO">
+                <input type="hidden" id="hiddenQtd" name="Quantidade Selecionada" value="1">
+                <input type="hidden" id="hiddenTotal" name="Valor Total com Frete" value="R$ 60,90">
 
+                <div class="campo-busca-container">
+                    <input type="text" id="finalClientAddress" name="address" placeholder="Insira o endereço de entrega" required class="input-premium-busca">
+                    <button type="submit" id="submitBtnCheckout" class="btn-premium-busca">
+                        Confirmar Endereço
+                    </button>
+                </div>
+            </form>
+            <p class="texto-termos-legais">Este site é protegido por reCAPTCHA e as Políticas do Google se aplicam.</p>
         </div>
     </section>
 
-    <!-- Seção de Cadastro Otimizada Estilo Premium -->
-<section class="secao-cadastro">
-    <div class="conteudo-cadastro-minimalista">
-        
-        <!-- Texto de Apoio Traduzido -->
-        <p class="texto-informativo-checkout">
-            Insira seu endereço para verificar a disponibilidade e opções de entrega perto de você. <br class="desktop-only">
-            É para presente? Certifique-se de inserir o endereço de entrega do destinatário.
-        </p>
+    <!-- III. VITRINE DE PRODUTOS -->
+    <section class="vitrine-produtos-luxury">
+        <div class="vitrine-grid">
+            <div class="produto-card-luxury">
+                <h2 class="produto-titulo-luxury">MARANHÃO CORDIAL <br>GIFT BOX</h2>
+                <p class="produto-preco-luxury">R$ 59,90</p>
+                
+                <div class="seletores-container-luxury">
+                    <select class="seletor-luxury"><option>200ml, garrafa</option></select>
+                    <select id="seletorQuantidade" class="seletor-luxury seletor-qtd" onchange="atualizarValores()">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
 
-        <!-- Formulário Otimizado com Envio Invisível via JavaScript -->
-        <form id="formCheckoutWhats">
-            
-            <!-- Chaves e Configurações Ocultas para o Web3Forms -->
-            <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
-            <input type="hidden" name="subject" value="Novo Pedido - Maranhão Cordial">
-            <input type="hidden" id="hiddenPerfil" name="Perfil de Interesse" value="VAREJO">
-            <input type="hidden" name="Valor do Produto" value="R$ 59,00">
-            <input type="hidden" name="Valor do Frete" value="R$ 1,00">
-            <input type="hidden" id="hiddenTotal" name="Valor Total com Frete" value="R$ 60,00">
-            <input type="hidden" name="email" value="pedidos.maranhaocordial@seu-dominio.com">
+                <div class="fulfillment-box-luxury">
+                    <h3 class="fulfillment-titulo">Opções de Envio</h3>
+                    <div class="fulfillment-linha">
+                        <span>Geralmente enviado em 1-2 dias úteis</span>
+                        <strong>R$ 1,00</strong>
+                    </div>
+                </div>
 
-            <!-- Campo de Endereço Único e Expandido (Estilo D'USSÉ) -->
-            <div class="campo-busca-container">
-                <input type="text" id="finalClientAddress" name="address" placeholder="Insira o endereço de entrega" required class="input-premium-busca">
-                <button type="submit" id="submitBtnCheckout" class="btn-premium-busca">
-                    Confirmar Endereço
-                </button>
-            </div>
-            
-        </form>
-
-        <!-- Termos Legais Discretos -->
-        <p class="texto-termos-legais">
-            Este site é protegido por reCAPTCHA e as <a href="#">Políticas de Privacidade</a> e <a href="#">Termos de Serviço</a> do Google se aplicam.
-        </p>
-        <form id="formCheckoutWhats" action="https://web3forms.com" method="POST">
-    <!-- Configurações Obrigatórias do Web3Forms -->
-    <input type="hidden" name="access_key" value="732eca8f-8763-47c9-9f9f-7eaca3ee585f">
-<input type="hidden" name="email" value="cassionegocios47@gmail.com">
-
-    <input type="hidden" name="subject" value="Novo Pedido - Maranhão Cordial">
-    
-    <!-- IDs internos para mapeamento correto do sistema -->
-    <input type="hidden" id="hiddenPerfil" name="Perfil de Interesse" value="VAREJO">
-    <input type="hidden" id="hiddenTotal" name="Valor Total com Frete" value="R$ 60,00">
-    <input type="hidden" name="Valor do Produto" value="R$ 59,00">
-    <input type="hidden" name="Valor do Frete" value="R$ 1,00">
-
-    <!-- Linha de busca minimalista -->
-
-</section>
-
-<!-- SEÇÃO VITRINE DE PRODUTOS ESTILO D'USSÉ -->
-<section class="vitrine-produtos-luxury">
-    <div class="vitrine-grid">
-        
-        <!-- PRODUTO 1: EDIÇÃO PADRÃO -->
-        <div class="produto-card-luxury">
-            <h2 class="produto-titulo-luxury">MARANHÃO CORDIAL <br>GIFT BOX</h2>
-            <p class="produto-preco-luxury">R$ 59,90</p>
-            
-            <!-- Seletores de Atributos -->
-            <div class="seletores-container-luxury">
-                <select class="seletor-luxury">
-                    <option>200ml, garrafa</option>
-                </select>
-                <select class="seletor-luxury seletor-qtd">
-                    <option>1</option>
-                    <option>2</option>
-                    <option>3</option>
-                </select>
-            </div>
-
-            <!-- Opções de Envio / Cumprimento -->
-            <div class="fulfillment-box-luxury">
-                <h3 class="fulfillment-titulo">Opções de Envio</h3>
-                <div class="fulfillment-linha">
-                    <span>Geralmente enviado em 1-2 dias úteis</span>
-                    <strong>R$ 1,00</strong>
+                <div class="botoes-acoes-luxury">
+                    <a href="/raizes" class="btn-explore-luxury">Explorar</a>
+                    <button type="button" onclick="clicouAdicionarCarrinho()" class="btn-cart-luxury">Adicionar ao Carrinho</button>
                 </div>
             </div>
+        </div>
+    </section>
 
-            <!-- Botões de Ação -->
-            <div class="botoes-acoes-luxury">
-                <a href="/raizes" class="btn-explore-luxury">Explorar</a>
-                <!-- Se quiser apenas redirecionar para o Checkout -->
-<button onclick="window.location.href='/checkout.html';" class="btn-cart-luxury">Adicionar ao Carrinho</button>
+    <!-- IV. JANELA LATERAL DO CARRINHO (SIDEBAR OCULTA) -->
+    <div id="carrinhoLateral">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #eaeaea; padding-bottom: 15px;">
+            <h3 style="font-family: 'Cormorant Garamond', serif; font-size: 24px; margin: 0; text-transform: uppercase;">Seu Carrinho</h3>
+            <button onclick="fecharCarrinho()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        <div style="flex: 1;">
+            <div style="font-family: 'Inter', sans-serif; font-size: 14px;">
 
+                                <strong style="display: block; text-transform: uppercase;"><span id="carrinhoQtdVisual">1</span>x Maranhão Cordial</strong>
+                <span style="color: #777777; display: block; margin-top: 15px;">Endereço de Entrega Registado:</span>
+                <p id="enderecoNoCarrinho" style="margin: 5px 0 0 0; font-size: 13px; color: #A36A40; font-style: italic;">Pendente (Confirme o endereço acima)</p>
             </div>
         </div>
-
-  
-
+        <div style="border-top: 1px solid #eaeaea; padding-top: 20px;">
+            <div style="display: flex; justify-content: space-between; font-family: 'Inter', sans-serif; margin-bottom: 20px;">
+                <span>Total:</span>
+                <strong id="carrinhoTotalVisual">R$ 60,90</strong>
+            </div>
+            <!-- Botão que envia o cliente diretamente para o checkout final do seu Flask -->
+            <button onclick="irParaCheckout()" style="width: 100%; background: #A36A40; color: #ffffff; border: none; padding: 16px; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; cursor: pointer; transition: background 0.3s;" onmouseover="this.style.backgroundColor='#111111'" onmouseout="this.style.backgroundColor='#A36A40'">
+                Finalizar Pedido
+            </button>
+        </div>
     </div>
-</section>
 
+    <!-- LOGICA JAVASCRIPT INTEGRADA E CONFIGURADA -->
+    <script>
+        function abrirCarrinho() { 
+            document.getElementById('carrinhoLateral').style.right = '0'; 
+        }
+        
+        function fecharCarrinho() { 
+            document.getElementById('carrinhoLateral').style.right = '-450px'; 
+        }
 
+        // Atualiza os valores matemáticos com base na quantidade que o cliente escolhe
+        function atualizarValores() {
+            const qtd = parseInt(document.getElementById('seletorQuantidade').value);
+            const precoProduto = 59.90;
+            const frete = 1.00;
+            const total = (precoProduto * qtd) + frete;
+            const totalFormatado = "R$ " + total.toFixed(2).replace('.', ',');
 
-    <!-- LÓGICA JAVASCRIPT DE ALTA CONVERSÃO (ORDEM DE DISPARO INVERTIDA) -->
- <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const formElement = document.getElementById('formCheckoutWhats');
-        if (!formElement) return;
+            // Alimenta os inputs escondidos do formulário
+            document.getElementById('hiddenQtd').value = qtd;
+            document.getElementById('hiddenTotal').value = totalFormatado;
+            
+            // Atualiza os textos visuais do carrinho lateral
+            document.getElementById('carrinhoQtdVisual').innerText = qtd;
+            document.getElementById('carrinhoTotalVisual').innerText = totalFormatado;
+        }
 
-        formElement.addEventListener('submit', function(e) {
-            e.preventDefault(); // Impede o recarregamento da página
-
-            const submitBtn = document.getElementById('submitBtnCheckout');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = "PROCESSANDO...";
-            }
-
-            // Captura APENAS o endereço (que é o único campo real do formulário)
-            const enderecoField = document.getElementById('finalClientAddress');
-            const endereco = enderecoField ? enderecoField.value.trim() : "";
-
+        // Validação caso o cliente tente abrir o carrinho sem digitar o endereço antes
+        function clicouAdicionarCarrinho() {
+            const endereco = document.getElementById('finalClientAddress').value.trim();
             if (!endereco) {
-                alert("Por favor, insira um endereço válido.");
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = "Confirmar Endereço";
-                }
-                return;
+                alert("Por favor, introduza primeiro o seu endereço no campo acima e confirme.");
+                document.getElementById('finalClientAddress').focus();
+            } else {
+                abrirCarrinho();
             }
+        }
 
-            const precoGarrafa = 59.00;
-            const precoFrete = 1.00; 
-            const valorTotal = precoGarrafa + precoFrete;
-            let perfil = "VAREJO";
+        // Intercepta a confirmação de endereço para disparar o e-mail em background e abrir o carrinho
+        document.getElementById('formCheckoutWhats').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtnCheckout');
+            const endereco = document.getElementById('finalClientAddress').value.trim();
 
-            // Alimenta os campos ocultos do Web3Forms antes de enviar
-            if(document.getElementById('hiddenPerfil')) document.getElementById('hiddenPerfil').value = perfil;
-            if(document.getElementById('hiddenTotal')) document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
+            btn.innerText = "PROCESSANDO...";
+            btn.disabled = true;
 
-            // --- 1. SALVA NA TELEMETRIA LOCAL (PAINEL ADMINISTRATIVO) ---
-            // Corrigido para não quebrar o painel informando "Cliente Web" e evitando o "Não Informado"
+            // Salva na memória do navegador para o checkout.html puxar de forma automática
+            localStorage.setItem('enderecoCliente', endereco);
+            document.getElementById('enderecoNoCarrinho').innerText = endereco;
+
+            const qtd = document.getElementById('seletorQuantidade').value;
+            const total = (59.90 * parseInt(qtd)) + 1.00;
+
+            // --- 1. GERAÇÃO DE LOG ADMINISTRATIVO LOCAL ---
             try {
                 const pedidoTelemetria = {
                     id: Date.now(),
                     nome: "Cliente Web",
-                    telefone: "(11) 98368-4267", // Telefone padrão de entrega ou do sistema
+                    telefone: "(11) 98369-4267", 
                     endereco: endereco,
-                    perfil: perfil,
-                    total: valorTotal,
+                    total: total,
+                    quantidade: qtd,
                     data: new Date().toLocaleString('pt-BR'),
-                    status: "Novo Pedido Liberado"
+                    status: "Endereço Confirmado na Home"
                 };
-                
                 let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
                 lista.push(pedidoTelemetria);
                 localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
-                console.log("Salvo no ADM com sucesso!");
             } catch (err) {
-                console.error("Erro no ADM:", err);
+                console.error("Erro no log ADM:", err);
             }
 
-            // --- 2. MONTAGEM DA MENSAGEM DO WHATSAPP ---
-            const seuNumeroWhatsApp = "5511983684267"; 
+            // --- 2. CONFIGURAÇÃO DA MENSAGEM DO WHATSAPP (Salva para o checkout final se precisar) ---
+            const seuNumeroWhatsApp = "5511983694267"; 
             const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
-                                  `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
-                                  `• *Destino:* ${encodeURIComponent(endereco)}%0A%0A` +
-                                  `*RESUMO ESTIMADO:*%0A` +
-                                  `• 1x Maranhão Cordial: R$ 59,00%0A` +
-                                  `• Frete Estimado: R$ ${precoFrete.toFixed(2).replace('.', ',')}%0A` +
-                                  `• *Total Geral:* R$ ${valorTotal.toFixed(2).replace('.', ',')}%0A%0A` +
-                                  `_Gostaria de prosseguir com o pagamento por aqui._`;
+                                  `*ENDREÇO REGISTADO:*%0A` +
+                                  `• ${encodeURIComponent(endereco)}%0A%0A` +
+                                  `*RESUMO DO PEDIDO:*%0A` +
+                                  `• ${qtd}x Maranhão Cordial: R$ ${(59.90 * qtd).toFixed(2).replace('.', ',')}%0A` +
+                                  `• Frete Fixo: R$ 1,00%0A` +
+                                  `• *Total:* R$ ${total.toFixed(2).replace('.', ',')}`;
+            
+            localStorage.setItem('linkWhatsPedido', `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`);
 
-            const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
-
-            // --- 3. ENVIA O E-MAIL EM SEGUNDO PLANO (WEB3FORMS) ---
-            const formData = new FormData(formElement);
+            // --- 3. DISPARO EM SEGUNDO PLANO PARA O WEB3FORMS (Chega direto no seu e-mail) ---
             fetch('https://web3forms.com', {
                 method: 'POST',
-                body: formData,
+                body: new FormData(this),
                 headers: { 'Accept': 'application/json' }
             })
-            .then(response => console.log('Web3Forms enviado.'))
-            .catch(error => console.error('Erro Web3Forms:', error));
-
-            // --- 4. REDIRECIONAMENTO DIRETO (BURMA O BLOQUEIO DO SAFARI) ---
-            if (submitBtn) {
-                submitBtn.innerHTML = "CONFIRMADO!";
-                submitBtn.style.backgroundColor = "#111111"; 
-            }
-
-            // Redireciona a própria aba para o WhatsApp sem abrir pop-ups
-            window.location.href = urlWhatsApp;
+            .then(() => {
+                btn.innerText = "CONFIRMADO!";
+                btn.style.backgroundColor = "#111111";
+                abrirCarrinho(); // Abre a janela lateral na tela de forma fluida
+            })
+            .catch(() => {
+                // Abre o carrinho mesmo se a rede falhar para não bloquear a experiência da venda
+                abrirCarrinho();
+            });
         });
-    });
-</script>
+
+        // Função de navegação para a rota do Flask
+        function irParaCheckout() {
+            window.location.href = '/checkout.html';
+        }
+    </script>
+</body>
+</html>
 
