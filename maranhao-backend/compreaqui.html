@@ -210,21 +210,29 @@
                 <h2 class="produto-titulo-luxury">MARANHÃO CORDIAL <br>GIFT BOX</h2>
                 <p class="produto-preco-luxury">R$ 59,90</p>
                 
-                <div class="seletores-container-luxury">
-                    <select class="seletor-luxury"><option>200ml, garrafa</option></select>
-                    <select id="seletorQuantidade" class="seletor-luxury seletor-qtd" onchange="atualizarValores()">
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="3">10</option>
-                        <option value="3">100</option>
-                        <option value="3">1000</option>
-                        <option value="3">2000</option>
-                        <option value="3">3000</option>
-                        <option value="3">10000</option>
-                        <option value="3">100000</option>
-                    </select>
-                </div>
+   <div class="seletores-container-luxury">
+    <select class="seletor-luxury">
+        <option>200ml, garrafa</option>
+    </select>
+    
+    <!-- CORREÇÃO: Cada opção tem o seu respectivo valor matemático configurado corretamente -->
+    <select id="seletorQuantidade" class="seletor-luxury seletor-qtd" onchange="atualizarValores()">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="10">10</option>
+        <option value="12">12</option>
+        <option value="24">24</option>
+        <option value="50">50 (Caixa)</option>
+        <option value="100">100</option>
+        <option value="1000"> 1000 (Limite Máximo pela internet)</option>
+    </select>
+</div>
+
+
 
                 <div class="fulfillment-box-luxury">
                     <h3 class="fulfillment-titulo">Opções de Envio</h3>

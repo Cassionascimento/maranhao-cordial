@@ -186,18 +186,16 @@
             cursor: not-allowed;
         }
 
-        @media (max-width: 968px) {
-            .checkout-container {
-                grid-template-columns: 1fr;
-                gap: 40px;
-                padding: 0 20px;
-            }
-            .secao-resumo {
-                position: relative;
-                top: 0;
-            }
-        }
-    </style>
+       /* Responsividade para manter o alinhamento no celular */
+@media (max-width: 768px) {
+    .topbar { padding: 40px 24px 30px 24px; }
+    .logo-central { margin-bottom: 35px; }
+    .brand-main { font-size: 32px; }
+    .navbar-links { gap: 25px; flex-wrap: wrap; }
+    .nav-link { font-size: 10px; letter-spacing: 0.2em; }
+}
+</style>
+
 </head>
 <body>
 
