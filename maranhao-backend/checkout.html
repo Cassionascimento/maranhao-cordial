@@ -269,27 +269,38 @@
         </form>
 
         <!-- RESUMO FINANCEIRO FIXO (DIREITA) -->
-        <div class="secao-resumo">
-            <div class="seguranca-tag">🔒 Pagamento 100% Seguro</div>
-            
-            <div class="resumo-linha">
-                <span>1x Maranhão Cordial</span>
-                <span>R$ 59,00</span>
-            </div>
-            <div class="resumo-linha">
-                <span>Taxas e Impostos</span>
-                <span>R$ 0,00</span>
-            </div>
+       <!-- RESUMO FINANCEIRO FIXO (DIREITA) CORRIGIDO COM IDs -->
+<div class="secao-resumo">
+    <div class="seguranca-tag">🔒 Pagamento 100% Seguro</div>
+    
+    <div class="resumo-linha">
+        <!-- ADICIONADO ID 'resumoTxtProduto' -->
+        <span id="resumoTxtProduto">1x Maranhão Cordial</span>
+        <!-- ADICIONADO ID 'resumoPrecoProduto' -->
+        <span id="resumoPrecoProduto">R$ 59,90</span>
+    </div>
+    <div class="resumo-linha">
+        <span>Taxas e Impostos</span>
+        <span>R$ 0,00</span>
+    </div>
 
-                        <div class="resumo-linha">
-                <span>Frete Estimado</span>
-                <span>R$ 1,00</span>
-            </div>
-            
-            <div class="resumo-linha total-geral">
-                <span>Total</span>
-                <span>R$ 60,00</span>
-            </div>
+    <div class="resumo-linha">
+        <span>Frete Estimado</span>
+        <span>R$ 1,00</span>
+    </div>
+    
+    <div class="resumo-linha total-geral">
+        <span>Total</span>
+        <!-- ADICIONADO ID 'resumoTotalGeral' -->
+        <span id="resumoTotalGeral">R$ 60,90</span>
+    </div>
+
+    <!-- Botão de Disparo do Form de Cima -->
+    <button type="submit" form="formCheckoutServerless" id="btnFinalizarPedido" class="btn-place-order">
+        Finalizar Pedido
+    </button>
+</div>
+
 
             <!-- Botão de Disparo do Form de Cima -->
             <button type="submit" form="formCheckoutServerless" id="btnFinalizarPedido" class="btn-place-order">
@@ -313,37 +324,39 @@
     }
 
     // --- PASSO 1: PUXAR E EXIBIR OS DADOS DA PÁGINA ANTERIOR AUTOMATICAMENTE ---
-    document.addEventListener('DOMContentLoaded', function() {
-        // Puxa o endereço guardado e injeta direto no campo real do formulário
-        const enderecoSalvo = localStorage.getItem('enderecoCliente');
-        const campoEndereco = document.getElementById('cliEndereco');
-        
-        if (enderecoSalvo && campoEndereco) {
-            campoEndereco.value = enderecoSalvo;
-        }
+   // Substitua APENAS o bloco do 'DOMContentLoaded' no script do seu checkout.html por este:
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Puxa e injeta o endereço
+    const enderecoSalvo = localStorage.getItem('enderecoCliente');
+    const campoEndereco = document.getElementById('cliEndereco');
+    
+    if (enderecoSalvo && campoEndereco) {
+        campoEndereco.value = enderecoSalvo;
+    }
 
-        // Puxa a quantidade escolhida (padrão é 1 se estiver vazio)
-        const qtdSalva = localStorage.getItem('quantidadeSelecionada') ? parseInt(localStorage.getItem('quantidadeSelecionada')) : 1;
-        const precoUnitario = 59.90; // Sincronizado com o valor real da vitrine
-        const frete = 1.00;
-        const subtotal = precoUnitario * qtdSalva;
-        const totalGeral = subtotal + frete;
+    // 2. Puxa a quantidade e faz o cálculo real
+    const qtdSalva = localStorage.getItem('quantidadeSelecionada') ? parseInt(localStorage.getItem('quantidadeSelecionada')) : 1;
+    const precoUnitario = 59.90;
+    const frete = 1.00;
+    const subtotal = precoUnitario * qtdSalva;
+    const totalGeral = subtotal + frete;
 
-        // Atualiza a tabela financeira visual na tela do checkout (coluna da direita)
-        const resumoLinhaProduto = document.querySelector('.secao-resumo .resumo-linha:first-of-type span:first-child');
-        const resumoPrecoProduto = document.querySelector('.secao-resumo .resumo-linha:first-of-type span:last-child');
-        const resumoTotalGeral = document.querySelector('.total-geral span:last-child');
-        
-        if (resumoLinhaProduto) resumoLinhaProduto.innerText = `${qtdSalva}x Maranhão Cordial`;
-        if (resumoPrecoProduto) resumoPrecoProduto.innerText = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
-        if (resumoTotalGeral) resumoTotalGeral.innerText = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
+    // 3. Modifica os textos na tela usando os novos IDs diretos
+    const txtProduto = document.getElementById('resumoTxtProduto');
+    const precoProduto = document.getElementById('resumoPrecoProduto');
+    const totalVisivel = document.getElementById('resumoTotalGeral');
+    
+    if (txtProduto) txtProduto.innerText = `${qtdSalva}x Maranhão Cordial`;
+    if (precoProduto) precoProduto.innerText = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+    if (totalVisivel) totalVisivel.innerText = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
 
-        // Configura a tag invisível oculta do formulário para o e-mail ir correto
-        const hiddenTotalInput = document.getElementById('hiddenTotal');
-        if (hiddenTotalInput) {
-            hiddenTotalInput.value = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
-        }
-    });
+    // 4. Sincroniza o input invisível do formulário para o e-mail ir correto
+    const hiddenTotalInput = document.getElementById('hiddenTotal');
+    if (hiddenTotalInput) {
+        hiddenTotalInput.value = `R$ ${totalGeral.toFixed(2).replace('.', ',')}`;
+    }
+});
+
 
     // --- PASSO 2: ENVIAR EMAIL E REDIRECIONAR PARA O WHATSAPP ---
     document.getElementById('formCheckoutServerless').addEventListener('submit', function(e) {
