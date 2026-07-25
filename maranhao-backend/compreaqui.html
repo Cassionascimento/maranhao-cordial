@@ -518,60 +518,59 @@
         if (!formElement) return;
 
         formElement.addEventListener('submit', function(e) {
-            e.preventDefault(); // Interrompe o envio nativo do navegador
+            e.preventDefault(); // Impede o recarregamento da página
 
             const submitBtn = document.getElementById('submitBtnCheckout');
-            if (!submitBtn) return;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = "PROCESSANDO...";
+            }
 
-            const textoOriginalBotao = submitBtn.innerHTML;
-            
-            // Coleta e valida o endereço informado pelo cliente
+            // Captura APENAS o endereço (que é o único campo real do formulário)
             const enderecoField = document.getElementById('finalClientAddress');
             const endereco = enderecoField ? enderecoField.value.trim() : "";
 
             if (!endereco) {
                 alert("Por favor, insira um endereço válido.");
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = "Confirmar Endereço";
+                }
                 return;
             }
-
-            // Ativa o estado de carregamento de luxo na interface
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = "PROCESSANDO...";
 
             const precoGarrafa = 59.00;
             const precoFrete = 1.00; 
             const valorTotal = precoGarrafa + precoFrete;
-
             let perfil = "VAREJO";
-            try {
-                if (typeof perfilSelecionado !== 'undefined' && perfilSelecionado) {
-                    perfil = perfilSelecionado.toUpperCase();
-                }
-            } catch(err) {
-                perfil = "VAREJO";
-            }
 
+            // Alimenta os campos ocultos do Web3Forms antes de enviar
             if(document.getElementById('hiddenPerfil')) document.getElementById('hiddenPerfil').value = perfil;
             if(document.getElementById('hiddenTotal')) document.getElementById('hiddenTotal').value = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
 
-            // --- 1. SALVA NA TELEMETRIA LOCAL (ADMINISTRADOR) ---
+            // --- 1. SALVA NA TELEMETRIA LOCAL (PAINEL ADMINISTRATIVO) ---
+            // Corrigido para não quebrar o painel informando "Cliente Web" e evitando o "Não Informado"
             try {
                 const pedidoTelemetria = {
                     id: Date.now(),
+                    nome: "Cliente Web",
+                    telefone: "(11) 98368-4267", // Telefone padrão de entrega ou do sistema
                     endereco: endereco,
                     perfil: perfil,
                     total: valorTotal,
                     data: new Date().toLocaleString('pt-BR'),
-                    status: "Endereço Confirmado"
+                    status: "Novo Pedido Liberado"
                 };
+                
                 let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
                 lista.push(pedidoTelemetria);
                 localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
+                console.log("Salvo no ADM com sucesso!");
             } catch (err) {
-                console.error("Erro na telemetria:", err);
+                console.error("Erro no ADM:", err);
             }
 
-            // --- 2. CONFIGURAÇÃO DA MENSAGEM DO WHATSAPP ---
+            // --- 2. MONTAGEM DA MENSAGEM DO WHATSAPP ---
             const seuNumeroWhatsApp = "5511983684267"; 
             const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
                                   `*ENTREGA (Base Av. Paulista, 1636):*%0A` +
@@ -584,31 +583,24 @@
 
             const urlWhatsApp = `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`;
 
-            // --- 3. DISPARA O E-MAIL (WEB3FORMS) EM SEGUNDO PLANO COM BEHAVIOR ASSÍNCRONO INDEPENDENTE ---
+            // --- 3. ENVIA O E-MAIL EM SEGUNDO PLANO (WEB3FORMS) ---
             const formData = new FormData(formElement);
-            
-            // O fetch roda em background sem segurar o fluxo principal
-            fetch('https://api.web3forms.com/submit', {
+            fetch('https://web3forms.com', {
                 method: 'POST',
                 body: formData,
                 headers: { 'Accept': 'application/json' }
             })
-            .then(response => {
-                console.log('E-mail computado no Web3Forms.');
-            })
-            .catch(error => {
-                console.error('Envio de e-mail ignorado ou em background:', error);
-            });
+            .then(response => console.log('Web3Forms enviado.'))
+            .catch(error => console.error('Erro Web3Forms:', error));
 
-            // --- 4. SOLUÇÃO DO TRAVAMENTO DO SAFARI (REDIRECIONAMENTO DIRETO SEM POP-UP) ---
-            // Pequeno delay de 300ms apenas para garantir que a requisição de e-mail saiu do navegador antes de mudar de página
-            setTimeout(function() {
+            // --- 4. REDIRECIONAMENTO DIRETO (BURMA O BLOQUEIO DO SAFARI) ---
+            if (submitBtn) {
                 submitBtn.innerHTML = "CONFIRMADO!";
                 submitBtn.style.backgroundColor = "#111111"; 
-                
-                // Muda a URL da própria aba atual para o WhatsApp, burlando o bloqueador do Safari
-                window.location.href = urlWhatsApp;
-            }, 300);
+            }
+
+            // Redireciona a própria aba para o WhatsApp sem abrir pop-ups
+            window.location.href = urlWhatsApp;
         });
     });
 </script>
