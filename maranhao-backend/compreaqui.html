@@ -278,66 +278,77 @@
     </div>
 
     <!-- LOGICA JAVASCRIPT INTEGRADA E CONFIGURADA -->
-    <script>
-        function abrirCarrinho() { 
-            document.getElementById('carrinhoLateral').style.right = '0'; 
-        }
+   <script>
+    function abrirCarrinho() { 
+        var cart = document.getElementById('carrinhoLateral');
+        if(cart) cart.style.right = '0'; 
+    }
+    
+    function fecharCarrinho() { 
+        var cart = document.getElementById('carrinhoLateral');
+        if(cart) cart.style.right = '-450px'; 
+    }
+
+    // Atualiza os valores matemáticos blindando contra elementos nulos
+    function atualizarValores() {
+        var elQtd = document.getElementById('seletorQuantidade');
+        var qtd = elQtd ? (parseInt(elQtd.value) || 1) : 1;
+        var precoProduto = 59.90;
+        var frete = 1.00;
+        var total = (precoProduto * qtd) + frete;
+        var totalFormatado = "R$ " + total.toFixed(2).replace('.', ',');
+
+        var hQtd = document.getElementById('hiddenQtd');
+        var hTotal = document.getElementById('hiddenTotal');
+        if(hQtd) hQtd.value = qtd;
+        if(hTotal) hTotal.value = totalFormatado;
         
-        function fecharCarrinho() { 
-            document.getElementById('carrinhoLateral').style.right = '-450px'; 
+        var vQtd = document.getElementById('carrinhoQtdVisual');
+        var vTotal = document.getElementById('carrinhoTotalVisual');
+        if(vQtd) vQtd.innerText = qtd;
+        if(vTotal) vTotal.innerText = totalFormatado;
+    }
+
+    function clicouAdicionarCarrinho() {
+        var enderecoInput = document.getElementById('finalClientAddress');
+        var endereco = enderecoInput ? enderecoInput.value.trim() : "";
+        if (!endereco) {
+            alert("Por favor, introduza primeiro o seu endereço no campo acima e confirme.");
+            if(enderecoInput) enderecoInput.focus();
+        } else {
+            abrirCarrinho();
         }
+    }
 
-        // Atualiza os valores matemáticos com base na quantidade que o cliente escolhe
-        function atualizarValores() {
-            const qtd = parseInt(document.getElementById('seletorQuantidade').value);
-            const precoProduto = 59.90;
-            const frete = 1.00;
-            const total = (precoProduto * qtd) + frete;
-            const totalFormatado = "R$ " + total.toFixed(2).replace('.', ',');
-
-            // Alimenta os inputs escondidos do formulário
-            document.getElementById('hiddenQtd').value = qtd;
-            document.getElementById('hiddenTotal').value = totalFormatado;
-            
-            // Atualiza os textos visuais do carrinho lateral
-            document.getElementById('carrinhoQtdVisual').innerText = qtd;
-            document.getElementById('carrinhoTotalVisual').innerText = totalFormatado;
-        }
-
-        // Validação caso o cliente tente abrir o carrinho sem digitar o endereço antes
-        function clicouAdicionarCarrinho() {
-            const endereco = document.getElementById('finalClientAddress').value.trim();
-            if (!endereco) {
-                alert("Por favor, introduza primeiro o seu endereço no campo acima e confirme.");
-                document.getElementById('finalClientAddress').focus();
-            } else {
-                abrirCarrinho();
-            }
-        }
-
-        // Intercepta a confirmação de endereço para disparar o e-mail em background e abrir o carrinho
-        document.getElementById('formCheckoutWhats').addEventListener('submit', function(e) {
+    // Intercepta e garante a execução mesmo se houver falhas de interface
+    var formCheckout = document.getElementById('formCheckoutWhats');
+    if (formCheckout) {
+        formCheckout.addEventListener('submit', function(e) {
             e.preventDefault();
-            const btn = document.getElementById('submitBtnCheckout');
-            const endereco = document.getElementById('finalClientAddress').value.trim();
+            var btn = document.getElementById('submitBtnCheckout');
+            var enderecoInput = document.getElementById('finalClientAddress');
+            var endereco = enderecoInput ? enderecoInput.value.trim() : "Endereço não informado";
 
-            btn.innerText = "PROCESSANDO...";
-            btn.disabled = true;
+            if(btn) {
+                btn.innerText = "PROCESSANDO...";
+                btn.disabled = true;
+            }
 
-            // Adicione esta linha dentro do evento de submissão do 'formCheckoutWhats' na Home:
-            localStorage.setItem('quantidadeSelecionada', document.getElementById('seletorQuantidade').value);
+            var elQtd = document.getElementById('seletorQuantidade');
+            var qtd = elQtd ? elQtd.value : "1";
 
-
-            // Salva na memória do navegador para o checkout.html puxar de forma automática
+            localStorage.setItem('quantidadeSelecionada', qtd);
             localStorage.setItem('enderecoCliente', endereco);
-            document.getElementById('enderecoNoCarrinho').innerText = endereco;
+            
+            var elemEnd = document.getElementById('enderecoNoCarrinho');
+            if(elemEnd) elemEnd.innerText = endereco;
 
-            const qtd = document.getElementById('seletorQuantidade').value;
-            const total = (59.90 * parseInt(qtd)) + 1.00;
+            var numQtd = parseInt(qtd) || 1;
+            var total = (59.90 * numQtd) + 1.00;
 
-            // --- 1. GERAÇÃO DE LOG ADMINISTRATIVO LOCAL ---
+            // Log Administrativo Local isolado para não travar o fluxo principal
             try {
-                const pedidoTelemetria = {
+                var pedidoTelemetria = {
                     id: Date.now(),
                     nome: "Cliente Web",
                     telefone: "(11) 98369-4267", 
@@ -347,47 +358,45 @@
                     data: new Date().toLocaleString('pt-BR'),
                     status: "Endereço Confirmado na Home"
                 };
-                let lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
+                var lista = localStorage.getItem('pedidos_krikati') ? JSON.parse(localStorage.getItem('pedidos_krikati')) : [];
                 lista.push(pedidoTelemetria);
                 localStorage.setItem('pedidos_krikati', JSON.stringify(lista));
             } catch (err) {
-                console.error("Erro no log ADM:", err);
+                console.error(err);
             }
 
-            // --- 2. CONFIGURAÇÃO DA MENSAGEM DO WHATSAPP (Salva para o checkout final se precisar) ---
-            const seuNumeroWhatsApp = "5511983694267"; 
-            const textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
+            // Link do WhatsApp estruturado
+            var seuNumeroWhatsApp = "5511983694267"; 
+            var textoMensagem = `Olá, gostaria de verificar a entrega do meu Maranhão Cordial! ✨%0A%0A` +
                                   `*ENDREÇO REGISTADO:*%0A` +
                                   `• ${encodeURIComponent(endereco)}%0A%0A` +
                                   `*RESUMO DO PEDIDO:*%0A` +
-                                  `• ${qtd}x Maranhão Cordial: R$ ${(59.90 * qtd).toFixed(2).replace('.', ',')}%0A` +
+                                  `• ${qtd}x Maranhão Cordial: R$ ${(59.90 * numQtd).toFixed(2).replace('.', ',')}%0A` +
                                   `• Frete Fixo: R$ 1,00%0A` +
                                   `• *Total:* R$ ${total.toFixed(2).replace('.', ',')}`;
             
-            localStorage.setItem('linkWhatsPedido', `https://whatsapp.com{seuNumeroWhatsApp}&text=${textoMensagem}`);
+            localStorage.setItem('linkWhatsPedido', `https://wa.me{seuNumeroWhatsApp}?text=${textoMensagem}`);
 
-            // --- 3. DISPARO EM SEGUNDO PLANO PARA O WEB3FORMS (Chega direto no seu e-mail) ---
+            // Envio para a API do Web3Forms
             fetch('https://web3forms.com', {
                 method: 'POST',
                 body: new FormData(this),
                 headers: { 'Accept': 'application/json' }
             })
-            .then(() => {
-                btn.innerText = "CONFIRMADO!";
-                btn.style.backgroundColor = "#111111";
-                abrirCarrinho(); // Abre a janela lateral na tela de forma fluida
+            .then(function() {
+                if(btn) {
+                    btn.innerText = "CONFIRMADO!";
+                    btn.style.backgroundColor = "#111111";
+                }
+                abrirCarrinho(); 
             })
-            .catch(() => {
-                // Abre o carrinho mesmo se a rede falhar para não bloquear a experiência da venda
+            .catch(function(err) {
+                // Se a rede ou api falhar, abre o carrinho mesmo assim para o cliente prosseguir
+                if(btn) {
+                    btn.innerText = "CONFIRMADO!";
+                }
                 abrirCarrinho();
             });
         });
-
-        // Função de navegação para a rota do Flask
-        function irParaCheckout() {
-            window.location.href = '/checkout.html';
-        }
-    </script>
-</body>
-</html>
-
+    }
+</script>
