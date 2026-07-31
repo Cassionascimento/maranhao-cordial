@@ -581,6 +581,92 @@
   <!-- Container Principal da Seção (Fundo Branco Absoluto Homogêneo) -->
 <section style="background-color: #ffffff; padding: 60px 24px; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; width: 100%; box-sizing: border-box; margin: 0;">
     
+<!-- Cole este código no HTML da sua tela inicial (Home) onde deseja exibir as boas-vindas -->
+<div class="secao-bem-vindo">
+  <div class="conteudo-sensorial">
+
+    <h1 class="titulo-principal">Um espetáculo para os sentidos</h1>
+    <hr class="divisor-elegante">
+    <p class="texto-descricao">
+      Uma colisão perfeita entre aroma e paladar. Nosso Cordial exala frescor assim que toca o gelo e dispensa qualquer ajuste com limão — o equilíbrio já é perfeito. Sinta o sabor encorpado e prolongado do guaraná preencher a boca, terminando com uma queimação sutil e envolvente na garganta. Descubra o sabor que fica.
+    </p>
+  </div>
+</div>
+
+<!-- Estilos CSS para a Tipografia Refinada -->
+<style>
+  /* Importação de fontes elegantes do Google Fonts */
+  @import url('https://googleapis.com');
+
+  .secao-bem-vindo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 80px 20px;
+    background: linear-gradient(rgba(18, 18, 18, 0.85), rgba(18, 18, 18, 0.85)); /* Fundo escuro sofisticado que protege o texto sobre fotos */
+    text-align: center;
+    color: #f7f5f0; /* Tom de branco off-white suave para os olhos */
+  }
+
+  .conteudo-sensorial {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .saudacao {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 4px; /* Letras bem espaçadas estilo marca de luxo */
+    color: #c5a880; /* Tom dourado/champanhe discreto */
+    margin-bottom: 15px;
+    font-weight: 300;
+  }
+
+  .titulo-principal {
+    font-family: 'Playfair Display', serif;
+    font-size: 42px;
+    font-weight: 400;
+    font-style: italic; /* Toque refinado clássico */
+    line-height: 1.2;
+    margin-bottom: 25px;
+    letter-spacing: 1px;
+    color: #ffffff;
+  }
+
+  .divisor-elegante {
+    border: 0;
+    border-top: 1px solid rgba(197, 168, 128, 0.3); /* Linha fina dourada */
+    width: 60px;
+    margin: 0 auto 30px auto;
+  }
+
+  .texto-descricao {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 1.8; /* Alto espaçamento de linhas para leitura leve e fluida */
+    color: #dfdacb;
+    letter-spacing: 0.5px;
+  }
+
+  /* Ajustes para telas de telemóvel */
+  @media (max-width: 768px) {
+    .secao-bem-vindo {
+      padding: 50px 15px;
+    }
+    .titulo-principal {
+      font-size: 32px;
+    }
+    .texto-descricao {
+      font-size: 15px;
+    }
+  }
+</style>
+
+
+
+
 <!-- Container do Produto (Garrafa Destacada, Aumentada em mais 20% e Mesclada Perfeitamente) -->
 <div style="width: 100%; max-width: 600px; text-align: center; margin-bottom: 40px; background-color: #ffffff;">
     <!-- mix-blend-mode: multiply remove qualquer diferença de tom do fundo da foto da garrafa -->
