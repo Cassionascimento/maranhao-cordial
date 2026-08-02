@@ -8,38 +8,38 @@
     
     <style>
         /* Estilos Base fornecidos por si */
-        body { margin: 0; padding: 0; background-color: #ffffff; color: #111111; overflow-x: hidden; }
+        body { margin: 0; padding: 0; background-color: #000000; color: #ffffff; overflow-x: hidden; }
         
         .vitrine-container-geral { display: flex; width: 100%; min-height: 85vh; align-items: center; position: relative; }
         .posicao-garrafa { width: 50%; display: flex; justify-content: center; }
         .produto-minimalista { height: 82vh; width: auto; object-fit: contain; }
         .posicao-texto { width: 50%; padding: 0 60px; box-sizing: border-box; }
-        .produto-subtitulo { font-family: 'Inter', sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #777777; margin-bottom: 12px; }
-        .produto-descricao { font-family: 'Cormorant Garamond', serif; font-size: 22px; line-height: 1.6; color: #222222; margin: 0; font-weight: 300; }
+        .produto-subtitulo { font-family: 'Inter', sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #ffffff; margin-bottom: 12px; }
+        .produto-descricao { font-family: 'Cormorant Garamond', serif; font-size: 22px; line-height: 1.6; color: #ffffff; margin: 0; font-weight: 300; }
 
         .secao-cadastro { width: 100%; max-width: 1400px; margin: 60px auto; padding: 0 60px; box-sizing: border-box; display: flex; justify-content: center; }
         .conteudo-cadastro-minimalista { width: 100%; max-width: 850px; text-align: left; }
-        .texto-informativo-checkout { font-family: 'Cormorant Garamond', serif; font-size: 19px; line-height: 1.6; color: #222222; margin-bottom: 24px; }
+        .texto-informativo-checkout { font-family: 'Cormorant Garamond', serif; font-size: 19px; line-height: 1.6; color: #ffffff; margin-bottom: 24px; }
         .campo-busca-container { display: flex; width: 100%; margin-bottom: 16px; }
         .input-premium-busca { flex: 1; background-color: #f4f4f4; border: none; padding: 18px 24px; font-family: 'Inter', sans-serif; font-size: 14px; color: #111111; outline: none; }
         .btn-premium-busca { background-color: #A36A40; color: #ffffff; border: none; padding: 0 35px; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; cursor: pointer; transition: background 0.3s; white-space: nowrap; }
         .btn-premium-busca:hover { background-color: #111111; }
-        .texto-termos-legais { font-family: 'Inter', sans-serif; font-size: 11px; color: #777777; margin-top: 10px; }
+        .texto-termos-legais { font-family: 'Inter', sans-serif; font-size: 11px; color: #ffffff; margin-top: 10px; }
 
         .vitrine-produtos-luxury { width: 100%; max-width: 1400px; margin: 40px auto 80px auto; padding: 0 60px; box-sizing: border-box; }
         .vitrine-grid { display: grid; grid-template-columns: 1fr; border-top: 1px solid #eaeaea; padding-top: 60px; }
         .produto-card-luxury { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
-        .produto-titulo-luxury { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 400; color: #111111; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 12px 0; }
-        .produto-preco-luxury { font-family: 'Inter', sans-serif; font-size: 16px; color: #555555; margin: 0 0 28px 0; }
+        .produto-titulo-luxury { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 400; color: #ffffff; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 12px 0; }
+        .produto-preco-luxury { font-family: 'Inter', sans-serif; font-size: 16px; color: #ffffff; margin: 0 0 28px 0; }
         .seletores-container-luxury { display: flex; gap: 12px; margin-bottom: 32px; width: 100%; max-width: 320px; }
         .seletor-luxury { flex: 2; background: #ffffff; border: 1px solid #111111; padding: 12px 16px; font-family: 'Inter', sans-serif; font-size: 13px; color: #111111; }
         .seletor-luxury.seletor-qtd { flex: 1; text-align: center; }
         .fulfillment-box-luxury { width: 100%; max-width: 450px; border: 1px solid #111111; padding: 24px; box-sizing: border-box; margin-bottom: 32px; }
         .fulfillment-titulo { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; text-transform: uppercase; margin: 0 0 16px 0; }
-        .fulfillment-linha { display: flex; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 13px; color: #444444; }
+        .fulfillment-linha { display: flex; justify-content: space-between; font-family: 'Inter', sans-serif; font-size: 13px; color: #ffffff; }
         .botoes-acoes-luxury { display: flex; gap: 16px; width: 100%; max-width: 450px; }
         .btn-explore-luxury { flex: 1; border: 1px solid #111111; background: transparent; color: #111111; padding: 16px 0; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; text-align: center; text-decoration: none; letter-spacing: 0.2em; }
-        .btn-cart-luxury { flex: 1.2; background: #A36A40; color: #ffffff; border: 1px solid #A36A40; padding: 16px 0; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; cursor: pointer; }
+        .btn-cart-luxury { flex: 1.2; background: #A36A40; color: #00000; border: 1px solid #A36A40; padding: 16px 0; font-family: 'Inter', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; cursor: pointer; }
         
         /* Sidebar do Carrinho Lateral */
         #carrinhoLateral { position: fixed; top: 0; right: -450px; width: 100%; max-width: 400px; height: 100%; background: #ffffff; box-shadow: -5px 0 15px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.4s ease; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
@@ -146,27 +146,275 @@
 }
 </style>
 
-<!-- Menu Superior Estruturado -->
 <header class="topbar">
-    <!-- Nome Centralizado no Topo -->
-    <a href="/index" class="logo-central">
-        <span class="brand-main">Maranhão</span>
-        <span class="brand-sub">Guaraná</span>
-    </a>
+    <nav class="navbar">
+        <!-- Lado Esquerdo -->
+        <div class="nav-group">
+            <a href="/raizes" class="nav-link">Nossas Raízes</a>
+        </div>
+        
+        <!-- Centro: Logo perfeitamente centralizada -->
+        <a href="/index" class="logo">
+            <span class="brand-main">Maranhão</span>
+            <span class="brand-sub">Guaraná</span>
+        </a>
 
-    <!-- Itens inferiores rigorosamente um ao lado do outro -->
-    <nav class="navbar-links">
-        <a href="/raizes" class="nav-link">Nossas Raízes</a>
-        <a href="/lifestyle" class="nav-link">Lifestyle</a>
-        <a href="/compreaqui" class="nav-link">Shop</a>
+        <!-- Lado Direito: Link e Botão funcional -->
+        <div class="nav-group j-end">
+            <a href="/lifestyle" class="nav-link">Lifestyle</a>
+           <a href="/compreaqui" class="btn-whatsapp-ghost">
+    <svg class="icon-wa" viewBox="0 0 24 24">
+        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.457L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.528 1.977 14.075.953 11.49.953c-5.44 0-9.866 4.371-9.87 9.8c-.001 1.742.469 3.44 1.36 4.966L1.901 21.8l6.23-1.61zM17.521 14.3c-.324-.162-1.92-.949-2.219-1.058-.299-.11-.517-.162-.734.162-.218.324-.844 1.058-1.036 1.275-.192.217-.384.243-.709.081-.324-.162-1.367-.504-2.604-1.608-.962-.858-1.611-1.918-1.8-2.242-.189-.324-.02-.5-.182-.661-.146-.145-.324-.378-.486-.567-.162-.189-.216-.324-.324-.54-.108-.217-.054-.405-.027-.567.027-.162.216-.514.324-.676.108-.162.145-.27.216-.405.072-.135.036-.253-.018-.364-.054-.11-.517-1.244-.709-1.703-.188-.452-.378-.39-.517-.397-.13-.006-.28-.008-.43-.008-.15 0-.395.056-.602.28-.206.225-.785.767-.785 1.871s.804 2.167.916 2.318c.112.151 1.58 2.411 3.829 3.379.535.23 1.01.378 1.355.487.538.171 1.027.147 1.414.089.431-.064 1.321-.54 1.506-1.062.185-.523.185-.971.13-1.062-.056-.092-.206-.146-.53-.308z"/>
+    </svg>
+    <span>Shop</span>
+</a>
+
+        </div>
     </nav>
 </header>
 
+<style>
+/* ==========================================
+   HEADER DARK LUXURY - MARANHÃO
+========================================== */
+.topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 98px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    /* Fundo preto puro com sutil gradiente grafite nas bordas */
+    background: 
+        radial-gradient(circle at top left, rgba(212, 175, 55, 0.05), transparent 40%),
+        radial-gradient(circle at bottom right, rgba(20, 20, 20, 0.8), transparent 60%),
+        linear-gradient(135deg, #000000 0%, #0d0d0d 50%, #050505 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    /* Borda inferior sutil em ouro velho envelhecido */
+    border-bottom: 1px solid rgba(212, 175, 55, 0.12);
+    box-shadow:
+        inset 0 1px rgba(255, 255, 255, 0.03),
+        0 20px 50px rgba(0, 0, 0, 0.9);
+    overflow: hidden;
+}
 
+/* TEXTURA ARTESANAL REFINADA */
+.topbar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: .04; /* Reduzido para ficar quase imperceptível, ultraelegante */
+    background:
+        radial-gradient(#d4af37 .5px, transparent .5px),
+        radial-gradient(#ffffff .5px, transparent .5px);
+    background-size: 12px 12px, 18px 18px;
+    mix-blend-mode: overlay;
+}
+
+/* ILUMINAÇÃO BRONZE METÁLICO NAS EXTREMIDADES */
+.topbar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(140, 115, 65, 0.1), transparent 15%, transparent 85%, rgba(140, 115, 65, 0.1));
+}
+
+/* NAVBAR EQUILIBRADA (3 BLOCOS PRINCIPAIS) */
+.navbar {
+    width: min(1450px, 92%);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-group {
+    display: flex;
+    align-items: center;
+    gap: 50px;
+    flex: 1;
+}
+
+.nav-group.j-end {
+    justify-content: flex-end;
+}
+
+/* LINKS INDIVIDUAIS - TOM OURO VELHO */
+.nav-link {
+    position: relative;
+    text-decoration: none;
+    color: #dfd5c6; /* Off-white com toque de ouro */
+    text-transform: uppercase;
+    font-family: "Cormorant Garamond", serif;
+    letter-spacing: 3.5px;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 12px 0;
+    transition: color .35s ease, text-shadow .35s ease, opacity .35s ease;
+    z-index: 10;
+}
+
+.nav-link:hover {
+    color: #ffffff;
+    text-shadow: 0 0 15px rgba(212, 175, 55, 0.6);
+}
+
+.nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 4px;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.4), transparent);
+    opacity: 0;
+    transition: opacity .35s;
+}
+
+.nav-link:hover::after {
+    opacity: 1;
+}
+
+/* ==========================================
+   LOGO CENTRALIZADA FIXA CORRIGIDA
+========================================== */
+.logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    padding: 0 30px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    /* SOLUÇÃO DO CLIQUE: Restringe a largura para não cobrir o botão Shop */
+    width: auto;
+    max-width: 250px;
+    z-index: 99;
+}
+
+.logo .brand-main {
+    font-size: 26px;
+    font-weight: 400;
+    letter-spacing: 14px;
+    text-transform: uppercase;
+    color: #ffffff;
+    line-height: 1.1;
+    text-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+    transition: .35s;
+}
+
+.logo .brand-sub {
+    font-size: 8px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: rgba(212, 175, 55, 0.5); /* Subtítulo em ouro envelhecido suave */
+    margin-top: 4px;
+    transition: .35s;
+}
+
+.logo:hover .brand-main {
+    color: #f7e7c4; /* Brilho champanhe */
+    text-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
+}
+
+.logo:hover .brand-sub {
+    color: rgba(212, 175, 55, 0.8);
+}
+
+/* ==========================================
+   CSS DO GHOST BUTTON - BLINDADO E CLICÁVEL
+========================================== */
+.btn-whatsapp-ghost {
+    display: inline-flex !important; /* Força o botão a se comportar como bloco flexível */
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: transparent !important;
+    color: #d4af37 !important; 
+    text-decoration: none !important;
+    font-family: "Cormorant Garamond", serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    padding: 12px 28px;
+    border-radius: 0px !important; 
+    border: 1px solid rgba(212, 175, 55, 0.5) !important; 
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    transition: all .4s cubic-bezier(0.25, 1, 0.5, 1);
+    cursor: pointer !important;
+    visibility: visible !important; 
+    opacity: 1 !important;
+    
+    /* INTERCEÇÃO DE CLIQUE: Obriga o navegador a acionar o link */
+    pointer-events: auto !important;
+    z-index: 99999 !important;
+}
+
+/* Impede que o ícone ou o span bloqueiem o clique no elemento pai <a> */
+.btn-whatsapp-ghost * {
+    pointer-events: none !important;
+}
+
+/* Força o preenchimento do ícone com a cor do ouro */
+.btn-whatsapp-ghost .icon-wa {
+    width: 14px;
+    height: 14px;
+    fill: #d4af37 !important; 
+    transition: all .4s ease;
+    display: inline-block;
+}
+
+/* Hover de Alta Costura: Inversão Perfeita */
+.btn-whatsapp-ghost:hover {
+    color: #000000 !important;
+    background: #d4af37 !important; 
+    border-color: #d4af37 !important;
+    box-shadow: 
+        0 0 25px rgba(212, 175, 55, 0.5),
+        0 8px 30px rgba(0, 0, 0, 0.8);
+}
+
+.btn-whatsapp-ghost:hover .icon-wa {
+    fill: #000000 !important; /* Muda a cor do ícone no hover para preto puro */
+    transform: scale(1.1) rotate(5deg);
+}
+
+/* ==========================================
+   RESPONSIVO CORRIGIDO COM A CLASSE NOVA
+========================================== */
+@media(max-width: 1024px) {
+    .navbar {
+        width: 95%;
+    }
+    .nav-group {
+        gap: 20px;
+    }
+    .logo .brand-main {
+        font-size: 20px;
+        letter-spacing: 8px;
+    }
+    .nav-link {
+        font-size: 9px;
+        letter-spacing: 1.5px;
+    }
+    /* Classe corrigida aqui para btn-whatsapp-ghost */
+    .btn-whatsapp-ghost {
+        padding: 8px 16px !important;
+        font-size: 10px !important;
+    }
+}
+</style>
     <!-- I. BLOCo DA GARRAFA E TEXTO EDITORIAL (MANTIDOS) -->
     <main class="vitrine-container-geral">
         <div class="posicao-garrafa">
-            <img class="produto-minimalista" src="EC9D5BDB-9CC0-4143-A329-1EC32AF86632.png" alt="Maranhão Cordial">
+            <img class="produto-minimalista" src="7f474a62-8d0b-49e1-a474-262c975d77ca.png" alt="Maranhão Cordial">
         </div>
         <div class="posicao-texto">
             <div class="conteudo-editorial">
@@ -180,6 +428,8 @@
             </div>
         </div>
     </main>
+
+    
 
     <!-- II. SEÇÃO DE CADASTRO DE ENDEREÇO -->
     <section class="secao-cadastro">
@@ -245,8 +495,8 @@
                 <div class="fulfillment-box-luxury">
                     <h3 class="fulfillment-titulo">Opções de Envio</h3>
                     <div class="fulfillment-linha">
-                        <span>Geralmente enviado em 1-2 dias úteis</span>
-                        <strong>R$ 1,00</strong>
+                        <span>Geralmente enviado em 1-5 dias úteis</span>
+                        <strong>Frete nacional e internacional</strong>
                     </div>
                 </div>
 
@@ -257,6 +507,11 @@
             </div>
         </div>
     </section>
+
+    <div id="aviso-manutencao" style="background-color: #8e6930; color: #fff; text-align: center; padding: 12px 20px; font-family: sans-serif; font-size: 15px; position: sticky; top: 0; z-index: 9999; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
+  ⚠️ Estamos atualizando nosso sistema de pagamentos! No momento, o botão de compra está indisponível. 
+  Para fazer seu pedido agora, <a href="https://www.instagram.com/maranhaocordial/" target="_blank" style="color: #fff; font-weight: bold; text-decoration: underline; margin-left: 5px;">clique aqui para acessar nosso Instagram</a> e nos chame no WhatsApp.
+</div>
 
     <!-- IV. JANELA LATERAL DO CARRINHO (SIDEBAR OCULTA) -->
     <div id="carrinhoLateral">
