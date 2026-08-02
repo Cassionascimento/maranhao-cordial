@@ -599,7 +599,7 @@
         </div>
 
   <!-- Container Principal da Seção (Fundo Branco Absoluto Homogêneo) -->
-<section style="background-color: #ffffff; padding: 60px 24px; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; width: 100%; box-sizing: border-box; margin: 0;">
+<section style="background-color: #000000; padding: 60px 24px; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; width: 100%; box-sizing: border-box; margin: 0;">
     
 <!-- Cole este código no HTML da sua tela inicial (Home) onde deseja exibir as boas-vindas -->
 <div class="secao-bem-vindo">
@@ -608,7 +608,7 @@
     <h1 class="titulo-principal">Um espetáculo para os sentidos</h1>
     <hr class="divisor-elegante">
     <p class="texto-descricao">
-      Uma colisão perfeita entre aroma e paladar. Nosso Cordial exala frescor assim que toca o gelo e dispensa qualquer ajuste com limão — o equilíbrio já é perfeito. Sinta o sabor encorpado e prolongado do guaraná preencher a boca, terminando com uma queimação sutil e envolvente na garganta. Descubra o sabor que fica.
+      Uma colisão perfeita entre aroma e paladar. Nosso Cordial exala frescor assim que toca o gelo e dispensa qualquer ajuste com limão — o equilíbrio já é perfeito. Sinta o sabor encorpado e prolongado do guaraná preenche a boca, terminando com uma queimação sutil e envolvente na garganta. Descubra o sabor que fica.
     </p>
   </div>
 </div>
@@ -687,31 +687,166 @@
 
 
 
-<!-- Container do Produto (Garrafa Destacada, Aumentada em mais 20% e Mesclada Perfeitamente) -->
-<div style="width: 100%; max-width: 600px; text-align: center; margin-bottom: 40px; background-color: #ffffff;">
-    <!-- mix-blend-mode: multiply remove qualquer diferença de tom do fundo da foto da garrafa -->
-    <img src="EC9D5BDB-9CC0-4143-A329-1EC32AF86632.png" alt="Maranhão Guaraná Concentrado Premium" style="width: 100%; max-width: 437px; height: auto; display: block; margin: 0 auto; mix-blend-mode: multiply;">
-</div>
+<!-- Bloco de Conteúdo Premium - Maranhão Guaraná -->
+<div class="maison-product-showcase">
+    
+    <!-- Container do Produto (Garrafa Destacada e Magnificada) -->
+    <div class="product-image-frame">
+        <!-- A garrafa agora repousa sobre a textura de carvalho sem recortes cinzentos na lateral -->
+        <img src="7F474A62-8D0B-49E1-A474-262C975D77CA.png" alt="Maranhão Guaraná Concentrado Premium" class="garrafa-magnificada">
+    </div>
 
-
-    <!-- Informações do Produto (Tipografia Ultra-Premium e Minimalista) -->
-    <div style="width: 100%; max-width: 550px; text-align: center; background-color: #ffffff;">
+    <!-- Informações do Produto (Tipografia Ultra-Premium Minimalista) -->
+    <div class="product-details-frame">
         
-
         <!-- Nova Descrição Curta e Minimalista -->
-        <p style="font-size: 1.05rem; line-height: 1.7; color: #444444; text-align: center; margin: 0 0 24px 0; font-weight: 300; letter-spacing: 0.2px;">
-            <span style="font-family: 'Georgia', serif; font-size: 1.25rem; color: #111111; display: block; margin-bottom: 8px; font-style: italic; font-weight: 400;">
+        <p class="editorial-pitch-text">
+            <span class="editorial-slogan-italic">
                 Esse drink tem Maranhão?
             </span>
             O autêntico concentrado premium de guaraná brasileiro, desenhado para elevar a alta gastronomia e redefinir a coquetelaria moderna. Uma assinatura única!
         </p>
 
         <!-- Bloco de Destaque Técnico Estilo Alta Moda -->
-        <div style="background: linear-gradient(90deg, rgba(181, 148, 16, 0.01) 0%, rgba(181, 148, 16, 0.04) 50%, rgba(181, 148, 16, 0.01) 100%); padding: 14px 12px; border-radius: 2px; border-top: 1px solid rgba(181, 148, 16, 0.2); border-bottom: 1px solid rgba(181, 148, 16, 0.2); text-align: center; margin-bottom: 36px; box-sizing: border-box;">
-            <span style="font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: #111111;">
+        <div class="alta-moda-spec-badge">
+            <span class="spec-badge-content">
                 0,0% Álcool &bull; Coquetelaria &bull; Alta Gastronomia
             </span>
         </div>
+        
+    </div>
+</div>
+
+<style>
+/* ==========================================
+   MÓDULO DE EXIBIÇÃO CARVALHO PRETO ORGANICO
+========================================== */
+.maison-product-showcase {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    box-sizing: border-box;
+    margin: 0 auto;
+    
+    /* TEXTURA ORGÂNICA REALÍSTICA: Carvalho Preto de Alta Costura */
+    background-color: #050505; 
+    background-image: 
+        /* Veios longitudinais finos da madeira simulados via gradiente */
+        linear-gradient(90deg, rgba(255,255,255,0.003) 1px, transparent 0),
+        linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+        /* Textura rústica granulada de nós de carvalho queimado */
+        radial-gradient(rgba(212, 175, 55, 0.005) 1px, transparent 0);
+    background-size: 4px 100%, 100% 100%, 12px 12px;
+    
+    border: 1px solid rgba(212, 175, 55, 0.06);
+    box-shadow: inset 0 0 100px rgba(0,0,0,0.95);
+}
+
+/* CONTAINER DA IMAGEM EM ALTA ESCALA */
+.product-image-frame {
+    width: 100%;
+    max-width: 600px;
+    text-align: center;
+    margin-bottom: 40px;
+    background-color: transparent !important; /* Limpeza radical do fundo branco */
+}
+
+.garrafa-magnificada {
+    width: 100%;
+    max-width: 524px; /* Aumentada em +20% em relação aos 437px originais */
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    
+    /* CORREÇÃO DO PNG: Remove o mix-blend e aplica sombra suave para dar profundidade na madeira */
+    mix-blend-mode: normal !important; 
+    filter: drop-shadow(0 25px 35px rgba(0, 0, 0, 0.95));
+}
+
+/* BLOCO TEXTUAL EDITORIAL */
+.product-details-frame {
+    width: 100%;
+    max-width: 550px;
+    text-align: center;
+    background-color: transparent !important; /* Limpeza radical do fundo branco */
+}
+
+.editorial-pitch-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: #a89e92; /* Tom areia / dourado apagado aristocrático */
+    text-align: center;
+    margin: 0 0 24px 0;
+    font-weight: 300;
+    letter-spacing: 0.2px;
+}
+
+.editorial-slogan-italic {
+    font-family: 'Cormorant Garamond', 'Georgia', serif;
+    font-size: 1.55rem; /* Magnificado para o Luxo Noturno */
+    color: #ffffff; /* Slogan em Branco Marfim puro */
+    display: block;
+    margin-bottom: 12px;
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 1px;
+    text-shadow: 0 0 15px rgba(255,255,255,0.1);
+}
+
+/* FAIXA TÉCNICA REFINADA EM OURO VELHO */
+/* ==========================================
+   FAIXA TÉCNICA REFINADA - TRANSPARENTE DE LUXO
+========================================== */
+.alta-moda-spec-badge {
+    /* REMOVIDO: O fundo cinzento/linear foi completamente expurgado */
+    background: transparent !important; 
+    
+    padding: 16px 12px;
+    border-radius: 0px; /* Alinhado ao corte seco minimalista e arquitetónico */
+    
+    /* Mantém apenas as linhas horizontais de ouro velho fosco como moldura flutuante */
+    border-top: 1px solid rgba(212, 175, 55, 0.25); 
+    border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+    border-left: none !important;
+    border-right: none !important;
+    
+    text-align: center;
+    margin-bottom: 36px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.spec-badge-content {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: #d4af37; /* Ouro Fosco Nobre */
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8); /* Sombra projetada para destacar o texto sobre o carvalho */
+}
+
+}
+
+/* COMPATIBILIDADE SMARTPHONES */
+@media (max-width: 768px) {
+    .garrafa-magnificada {
+        max-width: 85%; /* Encolhe proporcionalmente para telas pequenas */
+    }
+    .editorial-slogan-italic {
+        font-size: 1.35rem;
+    }
+    .spec-badge-content {
+        font-size: 0.68rem;
+        letter-spacing: 1.5px;
+    }
+}
+</style>
+
 
     </div>
 </section>
@@ -852,7 +987,7 @@
                 INFORMAÇÃO CONSUMIDOR: CONTÉM CERCA DE 160 mg DE CAFEÍNA POR EMBALAGEM (200ml) PROVENIENTE DE PÓ PURO DE GUARANÁ NATURAL.
             </p>
             <p class="copyright-text">
-                © 2026 INSTITUTO VALÉRIA NASCIMENTO. TODOS OS DIREITOS RESERVADOS. PROTEGIDO POR PROPRIEDADE INDUSTRIAL.
+                © 2026 MARANHÃO CORDIAL GROUP. TODOS OS DIREITOS RESERVADOS. PROTEGIDO POR PROPRIEDADE INDUSTRIAL.
             </p>
         </div>
 
