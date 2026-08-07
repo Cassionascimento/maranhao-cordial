@@ -162,6 +162,10 @@ def compreaqui():
 def checkout():
     return renderizar_html("checkout.html")
 
+@app.route("/home.html")
+def home():
+    return renderizar_html("home.html")
+
 
 @app.route("/favicon.ico")
 def favicon():
