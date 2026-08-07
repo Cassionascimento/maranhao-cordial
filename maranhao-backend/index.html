@@ -194,7 +194,12 @@ small{
 
 /* RESPONSIVO */
 
-@media(max-width:900px){
+@media(max-width:768px){
+    .garrafa{
+        right:0;
+        height:60vh;
+    }
+    }
 
 body{
 
@@ -203,25 +208,36 @@ body{
     padding:40px;
 
 }
-
+/*Desktop*/
 .garrafa{
-
+    position: absolute;
+    right: -120px;
+    height: 95vh;
     opacity:.20;
-
-    right:-120px;
-
-    height:95vh;
 
 }
 
-.card{
+/*Celular*/
+@media(max-width:768px){
+
+    .garrafa{
+        right: -30px;
+        height: 50vh;
+        opacity:.18;
+
+    }
+    }
+
+
+
+card{
 
     width:100%;
     max-width:420px;
 
 }
 
-}
+
 
 </style>
 
