@@ -124,7 +124,7 @@ def renderizar_html(nome_arquivo):
     )
 
 
-@app.route("/lifestyle")
+@app.route("/experience")
 def lifestyle():
     return renderizar_html("lifestyle.html")
 

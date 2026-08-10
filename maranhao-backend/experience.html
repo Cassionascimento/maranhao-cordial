@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Maranhão Experience</title>
+
+<meta name="description"
+content="Maranhão Experience — música, coquetelaria, gastronomia e cultura. Entre no universo Maranhão Cordial.">
+
+<style>
+
+    /* =========================
+   MEDIA HUB
+========================= */
+
+.media-hub{
+    display:grid;
+    grid-template-columns:
+        minmax(0,1.2fr)
+        minmax(320px,.8fr);
+
+    gap:1px;
+
+    max-width:1080px;
+
+    margin:
+        58px auto 0;
+
+    background:
+        rgba(212,175,55,.13);
+
+    border:
+        1px solid rgba(212,175,55,.12);
+
+    box-shadow:
+        0 35px 90px rgba(0,0,0,.45);
+
+    overflow:hidden;
+}
+
+
+/* =========================
+   VIDEO
+========================= */
+
+.video-panel{
+    background:
+        linear-gradient(
+            145deg,
+            #11100e,
+            #090807
+        );
+
+    padding:
+        30px;
+}
+
+
+.video-label{
+    font-size:9px;
+
+    letter-spacing:4px;
+
+    text-transform:uppercase;
+
+    color:#b89645;
+
+    margin-bottom:18px;
+
+    opacity:.8;
+}
+
+
+.video-frame{
+    position:relative;
+
+    width:100%;
+
+    aspect-ratio:16 / 9;
+
+    overflow:hidden;
+
+    background:#000;
+
+    border:
+        1px solid rgba(255,255,255,.08);
+
+    box-shadow:
+        0 20px 45px rgba(0,0,0,.5);
+}
+
+
+.video-frame iframe{
+    width:100%;
+    height:100%;
+
+    display:block;
+}
+
+
+.video-caption{
+    margin-top:22px;
+
+    display:flex;
+    flex-direction:column;
+
+    gap:5px;
+}
+
+
+.video-caption span{
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        serif;
+
+    font-size:25px;
+
+    color:#fffdf8;
+}
+
+
+.video-caption small{
+    font-size:10px;
+
+    letter-spacing:1.5px;
+
+    text-transform:uppercase;
+
+    color:#8f867c;
+}
+
+
+/* =========================
+   STREAMING PANEL
+========================= */
+
+.streaming-panel{
+    background:
+        linear-gradient(
+            180deg,
+            #15130f,
+            #0e0d0b
+        );
+
+    padding:
+        32px 28px;
+}
+
+
+.streaming-header{
+    margin-bottom:25px;
+}
+
+
+.streaming-header .eyebrow{
+    display:block;
+
+    font-size:8px;
+
+    letter-spacing:4px;
+
+    text-transform:uppercase;
+
+    color:#b89645;
+
+    margin-bottom:8px;
+}
+
+
+.streaming-header h3{
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        serif;
+
+    font-size:30px;
+
+    font-weight:400;
+
+    color:#fffdf8;
+}
+
+
+/* =========================
+   LISTA
+========================= */
+
+.streaming-list{
+    display:flex;
+
+    flex-direction:column;
+
+    gap:10px;
+}
+
+
+.stream-btn{
+    min-height:66px;
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:
+        0 19px;
+
+    text-decoration:none;
+
+    transition:
+        transform .3s ease,
+        box-shadow .3s ease,
+        filter .3s ease;
+
+    border:
+        1px solid rgba(255,255,255,.08);
+}
+
+
+.stream-btn:hover{
+    transform:
+        translateX(4px);
+
+    box-shadow:
+        0 12px 26px rgba(0,0,0,.28);
+
+    filter:
+        brightness(1.07);
+}
+
+
+.stream-left{
+    display:flex;
+
+    align-items:center;
+
+    gap:14px;
+}
+
+
+.platform-icon{
+    width:34px;
+    height:34px;
+
+    border-radius:50%;
+
+    display:flex;
+
+    align-items:center;
+    justify-content:center;
+
+    background:
+        rgba(255,255,255,.16);
+
+    color:#fff;
+
+    font-size:15px;
+
+    flex-shrink:0;
+}
+
+
+.stream-left div{
+    display:flex;
+
+    flex-direction:column;
+
+    gap:2px;
+}
+
+
+.stream-left strong{
+    font-size:14px;
+
+    font-weight:600;
+
+    letter-spacing:.3px;
+
+    color:#fff;
+}
+
+
+.stream-left small{
+    font-size:9px;
+
+    letter-spacing:1.5px;
+
+    text-transform:uppercase;
+
+    color:
+        rgba(255,255,255,.68);
+}
+
+
+.arrow{
+    color:
+        rgba(255,255,255,.7);
+
+    font-size:17px;
+}
+
+
+/* =========================
+   CORES DAS PLATAFORMAS
+========================= */
+
+.stream-btn.youtube{
+    background:
+        linear-gradient(
+            135deg,
+            #ff0000,
+            #a80000
+        );
+}
+
+
+.stream-btn.spotify{
+    background:
+        linear-gradient(
+            135deg,
+            #1db954,
+            #117a39
+        );
+}
+
+
+.stream-btn.apple{
+    background:
+        linear-gradient(
+            135deg,
+            #fa315f,
+            #b31135
+        );
+}
+
+
+.stream-btn.tiktok{
+    background:
+        linear-gradient(
+            135deg,
+            #111111,
+            #25151d
+        );
+
+    box-shadow:
+        inset 3px 0 #25f4ee,
+        inset -3px 0 #fe2c55;
+}
+
+
+.stream-btn.deezer{
+    background:
+        linear-gradient(
+            135deg,
+            #7b2cff,
+            #e832bf
+        );
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media(max-width:820px){
+
+    .media-hub{
+        grid-template-columns:1fr;
+
+        margin-top:45px;
+    }
+
+
+    .video-panel{
+        padding:
+            22px;
+    }
+
+
+    .streaming-panel{
+        padding:
+            26px 20px;
+    }
+
+}
+
+
+@media(max-width:520px){
+
+    .video-panel{
+        padding:
+            16px;
+    }
+
+
+    .streaming-panel{
+        padding:
+            22px 15px;
+    }
+
+
+    .stream-btn{
+        min-height:62px;
+
+        padding:
+            0 15px;
+    }
+
+
+    .streaming-header h3{
+        font-size:27px;
+    }
+
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+:root{
+    --bg:#0a0908;
+    --bg-soft:#11100e;
+    --bg-warm:#15120f;
+
+    --gold:#d4af37;
+    --gold-soft:#b89645;
+    --bronze:#8c7341;
+
+    --ivory:#f3efe7;
+    --sand:#a89e92;
+    --muted:#776f66;
+
+    --line:rgba(212,175,55,.14);
+    --line-soft:rgba(255,255,255,.08);
+
+    --shadow:
+        0 30px 80px rgba(0,0,0,.55);
+}
+
+body{
+    background:
+        radial-gradient(circle at top left,
+            rgba(140,115,65,.05),
+            transparent 35%),
+        var(--bg);
+
+    color:var(--ivory);
+
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Helvetica Neue",
+        Helvetica,
+        Arial,
+        sans-serif;
+
+    min-height:100vh;
+
+    -webkit-font-smoothing:antialiased;
+}
+
+
+/* =========================
+   HERO
+========================= */
+
+.hero{
+    min-height:100vh;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    position:relative;
+
+    padding:130px 20px 80px;
+
+    background:
+        linear-gradient(
+            rgba(7,6,5,.42),
+            rgba(7,6,5,.78),
+            var(--bg)
+        ),
+        url("ginga-cover.jpg");
+
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+
+    overflow:hidden;
+}
+
+.hero::before{
+    content:"";
+
+    position:absolute;
+    inset:0;
+
+    background:
+        radial-gradient(
+            circle at 50% 40%,
+            rgba(212,175,55,.055),
+            transparent 33%
+        ),
+        radial-gradient(
+            circle at center,
+            transparent 10%,
+            rgba(0,0,0,.5) 85%
+        );
+
+    pointer-events:none;
+}
+
+.hero::after{
+    content:"";
+
+    position:absolute;
+    inset:0;
+
+    opacity:.025;
+
+    background:
+        radial-gradient(#d4af37 .5px, transparent .5px),
+        radial-gradient(#ffffff .5px, transparent .5px);
+
+    background-size:
+        13px 13px,
+        19px 19px;
+
+    mix-blend-mode:overlay;
+
+    pointer-events:none;
+}
+
+
+/* =========================
+   CONTEÚDO CENTRAL
+========================= */
+
+.container{
+    position:relative;
+    z-index:2;
+
+    width:100%;
+    max-width:490px;
+
+    text-align:center;
+}
+
+.brand{
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        serif;
+
+    font-size:12px;
+    letter-spacing:6px;
+    text-transform:uppercase;
+
+    margin-bottom:36px;
+
+    color:rgba(212,175,55,.68);
+}
+
+.cover{
+    width:100%;
+    max-width:390px;
+
+    aspect-ratio:1/1;
+
+    object-fit:cover;
+
+    display:block;
+
+    margin:0 auto 34px;
+
+    border:
+        1px solid rgba(212,175,55,.12);
+
+    box-shadow:
+        0 35px 90px rgba(0,0,0,.65),
+        0 0 40px rgba(212,175,55,.04);
+}
+
+.album-title{
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-size:
+        clamp(40px,6vw,54px);
+
+    font-weight:400;
+
+    letter-spacing:6px;
+
+    margin-bottom:8px;
+
+    color:#fffdf8;
+}
+
+.album-subtitle{
+    font-size:10px;
+
+    letter-spacing:5px;
+
+    text-transform:uppercase;
+
+    color:var(--gold-soft);
+
+    opacity:.7;
+
+    margin-bottom:42px;
+}
+
+
+/* =========================
+   BOTÕES STREAMING
+========================= */
+
+.listen-text{
+    font-size:9px;
+
+    letter-spacing:4px;
+
+    text-transform:uppercase;
+
+    color:var(--sand);
+
+    margin-bottom:17px;
+}
+
+.platforms{
+    display:flex;
+    flex-direction:column;
+
+    gap:10px;
+}
+
+.platform{
+    display:flex;
+
+    align-items:center;
+    justify-content:space-between;
+
+    width:100%;
+
+    min-height:62px;
+
+    padding:0 22px;
+
+    color:var(--ivory);
+
+    text-decoration:none;
+
+    border:
+        1px solid rgba(212,175,55,.15);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(20,18,15,.72),
+            rgba(10,9,8,.56)
+        );
+
+    backdrop-filter:
+        blur(14px);
+
+    -webkit-backdrop-filter:
+        blur(14px);
+
+    transition:
+        background .35s ease,
+        border-color .35s ease,
+        transform .35s ease,
+        box-shadow .35s ease;
+}
+
+.platform:hover{
+    background:
+        rgba(212,175,55,.055);
+
+    border-color:
+        rgba(212,175,55,.42);
+
+    transform:
+        translateY(-2px);
+
+    box-shadow:
+        0 12px 35px rgba(0,0,0,.28);
+}
+
+.platform-name{
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        serif;
+
+    font-size:16px;
+
+    letter-spacing:1.6px;
+}
+
+.platform-action{
+    font-size:9px;
+
+    letter-spacing:2.5px;
+
+    color:var(--gold-soft);
+
+    text-transform:uppercase;
+
+    opacity:.7;
+}
+
+
+/* =========================
+   SETA
+========================= */
+
+.scroll-indicator{
+    margin-top:45px;
+
+    font-size:18px;
+
+    color:var(--gold-soft);
+
+    opacity:.38;
+
+    animation:
+        float 2s infinite ease-in-out;
+}
+
+@keyframes float{
+
+    0%,100%{
+        transform:translateY(0);
+    }
+
+    50%{
+        transform:translateY(7px);
+    }
+
+}
+
+
+/* =========================
+   EXPERIENCE
+========================= */
+
+.experience{
+    max-width:1040px;
+
+    margin:auto;
+
+    padding:
+        140px 28px 150px;
+}
+
+.section-label{
+    font-size:9px;
+
+    letter-spacing:5px;
+
+    color:var(--gold-soft);
+
+    opacity:.68;
+
+    margin-bottom:24px;
+
+    text-transform:uppercase;
+}
+
+.experience h2{
+    max-width:760px;
+
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-weight:400;
+
+    font-size:
+        clamp(42px,6vw,74px);
+
+    line-height:1.02;
+
+    letter-spacing:-.5px;
+
+    margin-bottom:34px;
+
+    color:#fffdf8;
+}
+
+.intro{
+    max-width:600px;
+
+    font-size:16px;
+
+    line-height:1.9;
+
+    color:
+        rgba(243,239,231,.66);
+
+    margin-bottom:95px;
+}
+
+
+/* =========================
+   3 UNIVERSOS
+========================= */
+
+.universes{
+    display:grid;
+
+    grid-template-columns:
+        repeat(3,1fr);
+
+    gap:1px;
+
+    background:
+        rgba(212,175,55,.12);
+
+    border-top:
+        1px solid rgba(212,175,55,.08);
+
+    border-bottom:
+        1px solid rgba(212,175,55,.08);
+}
+
+.universe{
+    position:relative;
+
+    background:
+        linear-gradient(
+            180deg,
+            #11100e,
+            #0c0b09
+        );
+
+    padding:
+        58px 34px;
+
+    min-height:270px;
+
+    overflow:hidden;
+}
+
+.universe::before{
+    content:"";
+
+    position:absolute;
+
+    width:150px;
+    height:150px;
+
+    top:-70px;
+    left:-70px;
+
+    border-radius:50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(140,115,65,.08),
+            transparent 65%
+        );
+}
+
+.number{
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        serif;
+
+    font-size:15px;
+
+    color:var(--gold-soft);
+
+    opacity:.5;
+
+    margin-bottom:52px;
+}
+
+.universe h3{
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        serif;
+
+    font-weight:400;
+
+    font-size:30px;
+
+    margin-bottom:14px;
+
+    color:#fffdf8;
+}
+
+.universe p{
+    font-size:13px;
+
+    line-height:1.8;
+
+    color:var(--sand);
+
+    opacity:.72;
+}
+
+
+/* =========================
+   MANIFESTO
+========================= */
+
+.manifesto{
+    min-height:78vh;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    text-align:center;
+
+    padding:120px 28px;
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(140,115,65,.07),
+            transparent 40%
+        ),
+        linear-gradient(
+            180deg,
+            #15120f,
+            #0f0d0b
+        );
+
+    border-top:
+        1px solid rgba(212,175,55,.08);
+
+    border-bottom:
+        1px solid rgba(212,175,55,.08);
+}
+
+.manifesto-inner{
+    max-width:820px;
+}
+
+.manifesto p{
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-size:
+        clamp(38px,5vw,68px);
+
+    line-height:1.12;
+
+    font-weight:400;
+
+    color:#fffdf8;
+}
+
+.manifesto small{
+    display:block;
+
+    margin-top:40px;
+
+    text-transform:uppercase;
+
+    letter-spacing:4px;
+
+    font-size:9px;
+
+    color:var(--gold-soft);
+
+    opacity:.55;
+}
+
+
+/* =========================
+   CTA MARANHÃO
+========================= */
+
+.cta{
+    padding:
+        145px 25px;
+
+    text-align:center;
+
+    background:
+        var(--bg);
+}
+
+.cta h2{
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        serif;
+
+    font-weight:400;
+
+    font-size:
+        clamp(42px,5vw,66px);
+
+    margin-bottom:18px;
+
+    color:#fffdf8;
+}
+
+.cta p{
+    color:var(--sand);
+
+    opacity:.68;
+
+    margin-bottom:40px;
+}
+
+.buy-button{
+    display:inline-block;
+
+    padding:
+        18px 40px;
+
+    border:
+        1px solid rgba(212,175,55,.5);
+
+    color:var(--gold);
+
+    text-decoration:none;
+
+    font-family:
+        "Cormorant Garamond",
+        Georgia,
+        serif;
+
+    font-size:11px;
+
+    letter-spacing:3px;
+
+    text-transform:uppercase;
+
+    background:transparent;
+
+    transition:
+        .35s ease;
+}
+
+.buy-button:hover{
+    background:
+        var(--gold);
+
+    color:
+        #0a0908;
+
+    border-color:
+        var(--gold);
+
+    box-shadow:
+        0 0 28px rgba(212,175,55,.18);
+}
+
+
+/* =========================
+   RODAPÉ
+========================= */
+
+footer{
+    padding:
+        50px 25px;
+
+    text-align:center;
+
+    border-top:
+        1px solid rgba(212,175,55,.08);
+
+    background:
+        #080706;
+}
+
+footer p{
+    font-size:9px;
+
+    letter-spacing:2px;
+
+    color:var(--sand);
+
+    opacity:.5;
+
+    line-height:2;
+}
+
+
+/* =========================
+   RESPONSIVO
+========================= */
+
+@media(max-width:700px){
+
+    .hero{
+        padding:
+            120px 18px 55px;
+    }
+
+    .brand{
+        margin-bottom:26px;
+    }
+
+    .cover{
+        max-width:335px;
+    }
+
+    .album-title{
+        font-size:38px;
+        letter-spacing:4px;
+    }
+
+    .album-subtitle{
+        letter-spacing:3px;
+    }
+
+    .universes{
+        grid-template-columns:1fr;
+    }
+
+    .universe{
+        min-height:auto;
+
+        padding:
+            46px 26px;
+    }
+
+    .number{
+        margin-bottom:34px;
+    }
+
+    .experience{
+        padding:
+            100px 22px 110px;
+    }
+
+    .manifesto{
+        min-height:65vh;
+
+        padding:
+            90px 22px;
+    }
+
+    .cta{
+        padding:
+            100px 22px;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- ======================
+     HERO / ÁLBUM
+====================== -->
+
+<section class="media-hub">
+
+    <!-- VÍDEO -->
+    <div class="video-panel">
+
+        <div class="video-label">
+            Maranhão Experience
+        </div>
+
+        <div class="video-frame">
+            <iframe
+                src="https://youtu.be/ZYU3vJ-fHAU?si=c-cIhPEXtXowB2gn"
+                title="Maranhão Experience"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen>
+            </iframe>
+        </div>
+
+        <div class="video-caption">
+            <span>GINGA — Five Moments</span>
+            <small>Uma experiência sonora Maranhão Cordial</small>
+        </div>
+
+    </div>
+
+
+    <!-- PLATAFORMAS -->
+    <div class="streaming-panel">
+
+        <div class="streaming-header">
+            <span class="eyebrow">Ouça - em breve - onde preferir</span>
+            <h3>Escolha sua plataforma</h3>
+        </div>
+
+
+        <div class="streaming-list">
+
+            <!-- YouTube -->
+            <a
+                href="#"
+                class="stream-btn youtube"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <div class="stream-left">
+                    <span class="platform-icon">▶</span>
+                    <div>
+                        <strong>YouTube</strong>
+                        <small>Assistir (em breve)</small>
+                    </div>
+                </div>
+
+                <span class="arrow">→</span>
+            </a>
+
+
+            <!-- Spotify -->
+            <a
+                href="#"
+                class="stream-btn spotify"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <div class="stream-left">
+                    <span class="platform-icon">●</span>
+                    <div>
+                        <strong>Spotify</strong>
+                        <small>Ouvir álbum (em breve)</small>
+                    </div>
+                </div>
+
+                <span class="arrow">→</span>
+            </a>
+
+
+            <!-- Apple Music -->
+            <a
+                href="#"
+                class="stream-btn apple"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <div class="stream-left">
+                    <span class="platform-icon">♪</span>
+                    <div>
+                        <strong>Apple Music</strong>
+                        <small>Reproduzir (em breve)</small>
+                    </div>
+                </div>
+
+                <span class="arrow">→</span>
+            </a>
+
+
+            <!-- TikTok -->
+            <a
+                href="#"
+                class="stream-btn tiktok"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <div class="stream-left">
+                    <span class="platform-icon">♫</span>
+                    <div>
+                        <strong>TikTok Music</strong>
+                        <small>Descobrir (em breve)</small>
+                    </div>
+                </div>
+
+                <span class="arrow">→</span>
+            </a>
+
+
+            <!-- Deezer -->
+            <a
+                href="#"
+                class="stream-btn deezer"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <div class="stream-left">
+                    <span class="platform-icon">≋</span>
+                    <div>
+                        <strong>Deezer</strong>
+                        <small>Ouvir (em breve)</small>
+                    </div>
+                </div>
+
+                <span class="arrow">→</span>
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ======================
+     UNIVERSO MARANHÃO
+====================== -->
+
+<section class="experience">
+
+    <div class="section-label">
+        Além da garrafa
+    </div>
+
+
+    <h2>
+        Entre no universo Maranhão.
+    </h2>
+
+
+    <p class="intro">
+
+        Maranhão Experience conecta música,
+        coquetelaria, gastronomia e encontros
+        em torno de uma nova expressão
+        do guaraná brasileiro.
+
+    </p>
+
+
+
+    <div class="universes">
+
+
+        <div class="universe">
+
+            <div class="number">
+                01
+            </div>
+
+            <h3>
+                Drinks
+            </h3>
+
+            <p>
+                10 ml de Maranhão Cordial
+                transformam um coquetel
+                em uma assinatura brasileira.
+            </p>
+
+        </div>
+
+
+
+        <div class="universe">
+
+            <div class="number">
+                02
+            </div>
+
+            <h3>
+                Gastronomia
+            </h3>
+
+            <p>
+                Guaraná pensado além do copo.
+                Ingrediente, aroma, textura
+                e identidade.
+            </p>
+
+        </div>
+
+
+
+        <div class="universe">
+
+            <div class="number">
+                03
+            </div>
+
+            <h3>
+                Encontros
+            </h3>
+
+            <p>
+                Música, bares, bartenders,
+                experiências e novas formas
+                de descobrir Maranhão.
+            </p>
+
+        </div>
+
+
+    </div>
+
+</section>
+
+
+
+<!-- ======================
+     MANIFESTO
+====================== -->
+
+<section class="manifesto">
+
+<div class="manifesto-inner">
+
+    <p>
+        O guaraná sempre esteve aqui.
+        Faltava colocá-lo no centro
+        da experiência.
+    </p>
+
+    <small>
+        Maranhão Cordial
+    </small>
+
+</div>
+
+</section>
+
+
+
+<!-- ======================
+     COMPRA
+====================== -->
+
+<section class="cta">
+
+    <div class="section-label">
+        Maranhão Cordial
+    </div>
+
+
+    <h2>
+        Esse drink tem Maranhão?
+    </h2>
+
+
+    <p>
+        200 ml · até 20 drinks · 10 ml por dose
+    </p>
+
+
+    <a
+    href="compre-aqui.html"
+    class="buy-button"
+    >
+
+        Conheça Maranhão
+
+    </a>
+
+</section>
+
+
+
+<!-- ======================
+     FOOTER
+====================== -->
+
+<footer>
+
+    <p>
+
+        MARANHÃO EXPERIENCE<br>
+
+        MUSIC · DRINKS · GASTRONOMIA · CULTURA
+
+    </p>
+
+</footer>
+
+
+</body>
+</html>
