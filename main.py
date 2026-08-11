@@ -59,6 +59,55 @@ PRECO_UNITARIO = 5990  # R$ 59,90 em centavos
 
 
 # =====================================================
+# C6 BANK — CONFIGURAÇÃO DA API
+# =====================================================
+#
+# O C6 libera os endpoints/credenciais definitivos após
+# cadastro, sandbox e homologação. Por isso, nada aqui
+# inventa URLs bancárias: tudo entra pelo .env.
+#
+
+C6_CLIENT_ID = os.getenv("C6_CLIENT_ID")
+C6_CLIENT_SECRET = os.getenv("C6_CLIENT_SECRET")
+C6_TOKEN_URL = os.getenv("C6_TOKEN_URL")
+C6_PIX_CREATE_URL = os.getenv("C6_PIX_CREATE_URL")
+C6_PIX_QUERY_URL_TEMPLATE = os.getenv("C6_PIX_QUERY_URL_TEMPLATE")
+C6_SCOPE = os.getenv("C6_SCOPE", "")
+
+# Alguns produtos bancários usam certificado cliente (mTLS).
+# Se o C6 exigir, coloque os caminhos dos arquivos no Render.
+C6_CERT_PATH = os.getenv("C6_CERT_PATH")
+C6_KEY_PATH = os.getenv("C6_KEY_PATH")
+
+# Modo de autenticação configurável, conforme documentação
+# que o C6 fornecer à sua empresa: basic ou body.
+C6_AUTH_MODE = os.getenv("C6_AUTH_MODE", "basic").lower()
+
+# O webhook só libera pedido automaticamente se o evento
+# recebido puder ser confirmado consultando a própria API C6.
+# Assim, não confiamos cegamente em um POST externo.
+C6_PAID_STATUS_VALUES = {
+    x.strip().upper()
+    for x in os.getenv("C6_PAID_STATUS_VALUES", "").split(",")
+    if x.strip()
+}
+
+# Nome do campo de status na resposta de consulta do C6.
+# Ex.: status, situacao etc. Ajustar após receber a documentação.
+C6_STATUS_FIELD = os.getenv("C6_STATUS_FIELD", "status")
+
+
+# =====================================================
+# LOGÍSTICA — CONFIGURAÇÃO FUTURA
+# =====================================================
+# A empresa de entrega ainda será contratada.
+# Este token é opcional e servirá para proteger um webhook
+# genérico até adaptarmos ao contrato/API da transportadora.
+
+LOGISTICA_WEBHOOK_TOKEN = os.getenv("LOGISTICA_WEBHOOK_TOKEN")
+
+
+# =====================================================
 # BANCO TEMPORÁRIO DE PEDIDOS
 # =====================================================
 #
@@ -125,8 +174,8 @@ def renderizar_html(nome_arquivo):
 
 
 @app.route("/experience")
-def lifestyle():
-    return renderizar_html("lifestyle.html")
+def experience():
+    return renderizar_html("experience.html")
 
 
 @app.route("/raizes")
@@ -170,6 +219,374 @@ def home():
 @app.route("/favicon.ico")
 def favicon():
     return "", 204
+
+
+# =====================================================
+# FUNÇÕES COMUNS — PAGAMENTO / C6 / LOGÍSTICA
+# =====================================================
+
+def finalizar_pedido_pago(codigo, origem_pagamento):
+    """
+    Centraliza a liberação operacional do pedido.
+    Pagar.me e C6 chamam exatamente a mesma função.
+    """
+
+    pedido = PEDIDOS.get(codigo)
+
+    if not pedido:
+        return False
+
+    # Idempotência: webhook repetido não dispara tudo de novo.
+    if pedido.get("status") == "pago":
+        return True
+
+    pedido["status"] = "pago"
+    pedido["payment_origin"] = origem_pagamento
+
+    emit(
+        "to_kitchen",
+        {
+            "code": codigo,
+            "quantity": pedido["quantity"]
+        },
+        broadcast=True
+    )
+
+    emit(
+        "to_delivery",
+        {
+            "code": codigo,
+            "address": pedido["address"]
+        },
+        broadcast=True
+    )
+
+    emit(
+        "to_admin",
+        pedido,
+        broadcast=True
+    )
+
+    print(f"✓ PEDIDO {codigo} PAGO via {origem_pagamento}")
+    return True
+
+
+def c6_cert():
+    """Retorna certificado mTLS somente se ambos foram configurados."""
+    if C6_CERT_PATH and C6_KEY_PATH:
+        return (C6_CERT_PATH, C6_KEY_PATH)
+    return None
+
+
+def get_c6_access_token():
+    """
+    Obtém token OAuth do C6 usando parâmetros fornecidos pelo banco.
+    O formato exato fica configurável para não inventar a especificação.
+    """
+
+    faltando = [
+        nome for nome, valor in {
+            "C6_CLIENT_ID": C6_CLIENT_ID,
+            "C6_CLIENT_SECRET": C6_CLIENT_SECRET,
+            "C6_TOKEN_URL": C6_TOKEN_URL,
+        }.items() if not valor
+    ]
+
+    if faltando:
+        raise RuntimeError(
+            "C6 ainda não configurado: " + ", ".join(faltando)
+        )
+
+    data = {"grant_type": "client_credentials"}
+    if C6_SCOPE:
+        data["scope"] = C6_SCOPE
+
+    auth = None
+
+    if C6_AUTH_MODE == "basic":
+        auth = (C6_CLIENT_ID, C6_CLIENT_SECRET)
+    elif C6_AUTH_MODE == "body":
+        data["client_id"] = C6_CLIENT_ID
+        data["client_secret"] = C6_CLIENT_SECRET
+    else:
+        raise RuntimeError("C6_AUTH_MODE deve ser basic ou body.")
+
+    resposta = requests.post(
+        C6_TOKEN_URL,
+        data=data,
+        auth=auth,
+        cert=c6_cert(),
+        timeout=20
+    )
+
+    resposta.raise_for_status()
+    dados = resposta.json()
+
+    token = dados.get("access_token")
+    if not token:
+        raise RuntimeError("C6 não retornou access_token.")
+
+    return token
+
+
+def c6_headers():
+    return {
+        "Authorization": f"Bearer {get_c6_access_token()}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "maranhao-cordial/1.0"
+    }
+
+
+def consultar_pix_c6(txid):
+    """Consulta a cobrança diretamente no C6 antes de liberar o pedido."""
+
+    if not C6_PIX_QUERY_URL_TEMPLATE:
+        raise RuntimeError("C6_PIX_QUERY_URL_TEMPLATE não configurada.")
+
+    url = C6_PIX_QUERY_URL_TEMPLATE.format(txid=txid)
+
+    resposta = requests.get(
+        url,
+        headers=c6_headers(),
+        cert=c6_cert(),
+        timeout=20
+    )
+
+    resposta.raise_for_status()
+    return resposta.json()
+
+
+# =====================================================
+# C6 BANK — STATUS DA INTEGRAÇÃO
+# =====================================================
+
+@app.route("/api/c6/status", methods=["GET"])
+def status_c6():
+    return jsonify({
+        "integration": "C6 Bank",
+        "credentials_received": bool(C6_CLIENT_ID and C6_CLIENT_SECRET),
+        "token_url_configured": bool(C6_TOKEN_URL),
+        "pix_create_configured": bool(C6_PIX_CREATE_URL),
+        "pix_query_configured": bool(C6_PIX_QUERY_URL_TEMPLATE),
+        "mtls_configured": bool(C6_CERT_PATH and C6_KEY_PATH),
+        "ready_for_live_transactions": bool(
+            C6_CLIENT_ID
+            and C6_CLIENT_SECRET
+            and C6_TOKEN_URL
+            and C6_PIX_CREATE_URL
+            and C6_PIX_QUERY_URL_TEMPLATE
+        )
+    })
+
+
+# =====================================================
+# C6 BANK — CRIAR COBRANÇA PIX
+# =====================================================
+
+@app.route("/api/c6/pix/checkout", methods=["POST"])
+def criar_checkout_c6():
+
+    if not C6_PIX_CREATE_URL:
+        return jsonify({
+            "error": "C6 ainda aguardando endpoint/credenciais de homologação."
+        }), 503
+
+    dados = request.get_json(silent=True) or {}
+
+    try:
+        quantidade = int(dados.get("quantidade", 1))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Quantidade inválida."}), 400
+
+    endereco = str(dados.get("endereco", "")).strip()
+
+    if quantidade < 1:
+        return jsonify({"error": "Quantidade inválida."}), 400
+
+    if not endereco:
+        return jsonify({"error": "Endereço obrigatório."}), 400
+
+    codigo = "MAR-" + uuid.uuid4().hex[:10].upper()
+    valor_total = PRECO_UNITARIO * quantidade
+
+    PEDIDOS[codigo] = {
+        "code": codigo,
+        "quantity": quantidade,
+        "address": endereco,
+        "amount": valor_total,
+        "status": "aguardando_pagamento",
+        "payment_origin": "c6",
+        "c6_txid": None,
+        "pagarme_id": None,
+
+        # Fiscal: propositalmente não calcula ICMS-ST aqui.
+        # A responsabilidade deve ser definida por NCM/UF/operação
+        # e pelo arranjo fiscal formal com a fábrica/contabilidade.
+        "fiscal": {
+            "status": "aguardando_definicao_fiscal",
+            "icms_st": {
+                "aplicavel": None,
+                "responsavel": None,
+                "recolhido_na_origem": None
+            }
+        },
+
+        # Logística preparada para a futura transportadora.
+        "delivery": {
+            "provider": None,
+            "status": "aguardando_pagamento",
+            "tracking_code": None
+        }
+    }
+
+    # Payload BASE. Os nomes dos campos devem ser alinhados à
+    # especificação que aparecer no portal C6 após homologação.
+    payload = {
+        "external_id": codigo,
+        "amount": valor_total,
+        "description": f"Maranhão Cordial - {quantidade} unidade(s)"
+    }
+
+    try:
+        resposta = requests.post(
+            C6_PIX_CREATE_URL,
+            headers=c6_headers(),
+            cert=c6_cert(),
+            json=payload,
+            timeout=20
+        )
+
+        dados_c6 = resposta.json() if resposta.content else {}
+
+        if not resposta.ok:
+            PEDIDOS[codigo]["status"] = "erro_pagamento"
+            return jsonify({
+                "error": "C6 recusou a criação da cobrança.",
+                "details": dados_c6
+            }), resposta.status_code
+
+        # Ajustaremos estes campos quando o C6 fornecer o schema real.
+        txid = (
+            dados_c6.get("txid")
+            or dados_c6.get("id")
+            or dados_c6.get("transaction_id")
+        )
+
+        PEDIDOS[codigo]["c6_txid"] = txid
+
+        return jsonify({
+            "success": True,
+            "order_code": codigo,
+            "c6_txid": txid,
+            "c6": dados_c6
+        })
+
+    except requests.RequestException as erro:
+        PEDIDOS[codigo]["status"] = "erro_comunicacao_c6"
+        print("ERRO C6:", erro)
+        return jsonify({
+            "error": "Não foi possível comunicar com o C6 Bank."
+        }), 502
+
+
+# =====================================================
+# C6 BANK — WEBHOOK
+# =====================================================
+
+@app.route("/webhooks/c6", methods=["POST"])
+def webhook_c6():
+    """
+    Recebe o aviso do C6, mas só libera o pedido depois de
+    consultar a cobrança diretamente na API do banco.
+    """
+
+    evento = request.get_json(silent=True) or {}
+
+    print("=" * 60)
+    print("WEBHOOK C6")
+    print(evento)
+    print("=" * 60)
+
+    # O schema exato do webhook será informado pelo C6.
+    codigo = (
+        evento.get("external_id")
+        or evento.get("order_code")
+        or evento.get("code")
+    )
+
+    txid = (
+        evento.get("txid")
+        or evento.get("id")
+        or evento.get("transaction_id")
+    )
+
+    if not codigo:
+        # Tenta localizar pelo txid já salvo.
+        for cod, pedido in PEDIDOS.items():
+            if txid and pedido.get("c6_txid") == txid:
+                codigo = cod
+                break
+
+    if not codigo or codigo not in PEDIDOS:
+        # Retorna 200 para evitar loop agressivo de reenvio,
+        # mas registra que o evento não foi correlacionado.
+        print("Webhook C6 sem pedido correlacionado.")
+        return "", 200
+
+    pedido = PEDIDOS[codigo]
+    txid = txid or pedido.get("c6_txid")
+
+    if not txid:
+        print("Webhook C6 recebido sem txid identificável.")
+        return "", 200
+
+    try:
+        consulta = consultar_pix_c6(txid)
+        status = str(consulta.get(C6_STATUS_FIELD, "")).upper()
+
+        pedido["c6_last_status"] = status
+        pedido["c6_last_query"] = consulta
+
+        # Sem C6_PAID_STATUS_VALUES configurado, NUNCA libera.
+        # Isso evita assumir nomenclatura de status bancário.
+        if C6_PAID_STATUS_VALUES and status in C6_PAID_STATUS_VALUES:
+            finalizar_pedido_pago(codigo, "c6")
+
+    except Exception as erro:
+        print("Falha ao confirmar pagamento no C6:", erro)
+
+    return "", 200
+
+
+# =====================================================
+# LOGÍSTICA — WEBHOOK GENÉRICO (FUTURA TRANSPORTADORA)
+# =====================================================
+
+@app.route("/webhooks/logistica", methods=["POST"])
+def webhook_logistica():
+
+    if LOGISTICA_WEBHOOK_TOKEN:
+        esperado = f"Bearer {LOGISTICA_WEBHOOK_TOKEN}"
+        if request.headers.get("Authorization") != esperado:
+            return jsonify({"error": "Não autorizado."}), 401
+
+    evento = request.get_json(silent=True) or {}
+    codigo = evento.get("order_code") or evento.get("code")
+
+    if not codigo or codigo not in PEDIDOS:
+        return jsonify({"error": "Pedido não encontrado."}), 404
+
+    pedido = PEDIDOS[codigo]
+    pedido.setdefault("delivery", {})
+
+    for campo in ("provider", "status", "tracking_code"):
+        if campo in evento:
+            pedido["delivery"][campo] = evento[campo]
+
+    emit("to_admin", pedido, broadcast=True)
+
+    return jsonify({"received": True}), 200
 
 
 # =====================================================
@@ -231,7 +648,26 @@ def criar_checkout():
 
         "status": "aguardando_pagamento",
 
-        "pagarme_id": None
+        "payment_origin": "pagarme",
+
+        "pagarme_id": None,
+
+        "c6_txid": None,
+
+        "fiscal": {
+            "status": "aguardando_definicao_fiscal",
+            "icms_st": {
+                "aplicavel": None,
+                "responsavel": None,
+                "recolhido_na_origem": None
+            }
+        },
+
+        "delivery": {
+            "provider": None,
+            "status": "aguardando_pagamento",
+            "tracking_code": None
+        }
 
     }
 
@@ -437,84 +873,7 @@ def webhook_pagarme():
         )
 
         if codigo in PEDIDOS:
-
-            pedido = PEDIDOS[codigo]
-
-            # -----------------------------------------
-            # MUDA STATUS
-            # -----------------------------------------
-
-            pedido["status"] = "pago"
-
-
-            # -----------------------------------------
-            # ENVIA PARA COZINHA
-            # -----------------------------------------
-
-            kitchen_data = {
-
-                "code":
-                    codigo,
-
-                "quantity":
-                    pedido["quantity"]
-
-            }
-
-            emit(
-                "to_kitchen",
-                kitchen_data,
-                broadcast=True
-            )
-
-
-            # -----------------------------------------
-            # ENVIA PARA ENTREGA
-            # -----------------------------------------
-
-            delivery_data = {
-
-                "code":
-                    codigo,
-
-                "address":
-                    pedido["address"]
-
-            }
-
-            emit(
-                "to_delivery",
-                delivery_data,
-                broadcast=True
-            )
-
-
-            # -----------------------------------------
-            # ENVIA PARA ADMINISTRADOR
-            # -----------------------------------------
-
-            emit(
-                "to_admin",
-                pedido,
-                broadcast=True
-            )
-
-
-            print(
-                f"✓ PEDIDO {codigo} PAGO"
-            )
-
-            print(
-                "✓ Enviado para cozinha"
-            )
-
-            print(
-                "✓ Enviado para entrega"
-            )
-
-            print(
-                "✓ Enviado para administrador"
-            )
+            finalizar_pedido_pago(codigo, "pagarme")
 
 
     # =================================================
