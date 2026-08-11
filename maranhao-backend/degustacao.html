@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Degustação Profissional | Maranhão Cordial</title>
+
+<meta
+  name="description"
+  content="Solicite uma degustação profissional do Maranhão Cordial para seu bar, restaurante, hotel, empório ou estabelecimento."
+>
+
+<style>
+
+:root {
+  --bg: #090807;
+  --bg-soft: #11100e;
+  --card: #151310;
+
+  --text: #f1ece3;
+  --soft: #b9b0a3;
+  --muted: #81786c;
+
+  --gold: #b79a64;
+  --gold-light: #c8aa70;
+
+  --line: rgba(183,154,100,.22);
+
+  --max: 1180px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(100,75,40,.15),
+      transparent 32%
+    ),
+    var(--bg);
+
+  color: var(--text);
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.container {
+  width: min(90%, var(--max));
+  margin: auto;
+}
+
+
+/* ==================================
+   HEADER
+================================== */
+
+header {
+
+  position: fixed;
+
+  top: 0;
+  left: 0;
+
+  width: 100%;
+
+  z-index: 100;
+
+  background: rgba(9,8,7,.84);
+
+  backdrop-filter: blur(14px);
+
+  border-bottom:
+    1px solid rgba(255,255,255,.04);
+}
+
+.nav {
+
+  height: 76px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+
+  font-size: 13px;
+
+  letter-spacing: .25em;
+
+  text-transform: uppercase;
+}
+
+.back {
+
+  color: var(--muted);
+
+  font-size: 11px;
+
+  letter-spacing: .16em;
+
+  text-transform: uppercase;
+
+  transition: .3s;
+}
+
+.back:hover {
+  color: var(--gold);
+}
+
+
+/* ==================================
+   HERO
+================================== */
+
+.hero {
+
+  min-height: 88vh;
+
+  display: flex;
+
+  align-items: center;
+
+  padding-top: 110px;
+  padding-bottom: 70px;
+}
+
+.hero-grid {
+
+  display: grid;
+
+  grid-template-columns: 1.05fr .95fr;
+
+  gap: 90px;
+
+  align-items: center;
+}
+
+.eyebrow {
+
+  color: var(--gold);
+
+  font-size: 10px;
+
+  letter-spacing: .32em;
+
+  text-transform: uppercase;
+
+  margin-bottom: 25px;
+}
+
+h1 {
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-weight: 400;
+
+  font-size: clamp(54px,7vw,96px);
+
+  line-height: .98;
+
+  letter-spacing: -.04em;
+
+  margin-bottom: 32px;
+}
+
+.hero-text {
+
+  color: var(--soft);
+
+  font-size: 19px;
+
+  max-width: 620px;
+
+  font-weight: 300;
+}
+
+.hero-small {
+
+  margin-top: 28px;
+
+  color: var(--muted);
+
+  font-size: 13px;
+
+  max-width: 520px;
+}
+
+
+/* ==================================
+   IMAGEM / VÍDEO
+================================== */
+
+.media {
+
+  min-height: 620px;
+
+  border: 1px solid var(--line);
+
+  background:
+
+    linear-gradient(
+      145deg,
+      rgba(183,154,100,.07),
+      rgba(0,0,0,.4)
+    );
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  position: relative;
+
+  overflow: hidden;
+}
+
+/*
+  SE QUISER USAR FOTO:
+
+  coloque a imagem na pasta do site
+  e retire os comentários abaixo.
+
+.media img {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  object-fit: cover;
+  opacity: .8;
+}
+
+*/
+
+.media-placeholder {
+
+   .tiktok-wrapper {
+  min-height: 620px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 30px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(183,154,100,.05),
+      rgba(0,0,0,.35)
+    );
+
+  border: 1px solid var(--line);
+
+  overflow: hidden;
+}
+
+.tiktok-wrapper .tiktok-embed {
+  margin: 0 auto !important;
+} 
+
+  text-align: center;
+
+  padding: 45px;
+
+  max-width: 380px;
+
+  position: relative;
+
+  z-index: 2;
+}
+
+
+.play {
+
+  width: 68px;
+  height: 68px;
+
+  margin:
+    0 auto
+    25px;
+
+  border:
+    1px solid var(--gold);
+
+  border-radius: 50%;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  color: var(--gold);
+
+  font-size: 18px;
+}
+
+.media-placeholder h3 {
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: 28px;
+
+  font-weight: 400;
+
+  margin-bottom: 12px;
+}
+
+.media-placeholder p {
+
+  color: var(--muted);
+
+  font-size: 13px;
+}
+
+
+/* ==================================
+   EXPERIENCE
+================================== */
+
+.experience {
+
+  padding: 120px 0;
+
+  border-top: 1px solid var(--line);
+}
+
+.section-label {
+
+  color: var(--gold);
+
+  font-size: 10px;
+
+  letter-spacing: .30em;
+
+  text-transform: uppercase;
+
+  margin-bottom: 20px;
+}
+
+h2 {
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: clamp(38px,5vw,65px);
+
+  font-weight: 400;
+
+  line-height: 1.05;
+
+  margin-bottom: 30px;
+
+  max-width: 800px;
+}
+
+.intro {
+
+  max-width: 680px;
+
+  color: var(--soft);
+
+  font-size: 18px;
+}
+
+.steps {
+
+  margin-top: 70px;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3,1fr);
+
+  border-top: 1px solid var(--line);
+
+  border-bottom: 1px solid var(--line);
+}
+
+.step {
+
+  padding: 45px 35px;
+
+  border-right:
+    1px solid var(--line);
+}
+
+.step:last-child {
+  border-right: 0;
+}
+
+.step-number {
+
+  color: var(--gold);
+
+  font-size: 11px;
+
+  margin-bottom: 25px;
+}
+
+.step h3 {
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-weight: 400;
+
+  font-size: 25px;
+
+  margin-bottom: 12px;
+}
+
+.step p {
+
+  color: var(--muted);
+
+  font-size: 14px;
+}
+
+
+/* ==================================
+   FORMULÁRIO
+================================== */
+
+.contact {
+
+  padding: 130px 0;
+
+  background: var(--bg-soft);
+}
+
+.contact-grid {
+
+  display: grid;
+
+  grid-template-columns: .8fr 1.2fr;
+
+  gap: 100px;
+}
+
+.contact-copy p {
+
+  color: var(--soft);
+
+  font-size: 17px;
+
+  max-width: 430px;
+}
+
+.form {
+
+  display: grid;
+
+  gap: 18px;
+}
+
+.form-row {
+
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 18px;
+}
+
+input,
+select,
+textarea {
+
+  width: 100%;
+
+  background: transparent;
+
+  border: 1px solid rgba(255,255,255,.12);
+
+  color: var(--text);
+
+  padding: 18px;
+
+  font-family: inherit;
+
+  font-size: 14px;
+
+  outline: none;
+
+  transition: .3s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+
+  border-color: var(--gold);
+}
+
+select {
+
+  background: var(--bg-soft);
+}
+
+textarea {
+
+  min-height: 130px;
+
+  resize: vertical;
+}
+
+::placeholder {
+
+  color: #70695f;
+}
+
+.btn {
+
+  min-height: 55px;
+
+  padding: 0 30px;
+
+  border: 1px solid var(--gold);
+
+  background: var(--gold);
+
+  color: #0b0907;
+
+  cursor: pointer;
+
+  font-size: 11px;
+
+  letter-spacing: .18em;
+
+  text-transform: uppercase;
+
+  transition: .3s;
+}
+
+.btn:hover {
+
+  background: var(--gold-light);
+}
+
+
+/* ==================================
+   CONTATO DIRETO
+================================== */
+
+.direct {
+
+  margin-top: 60px;
+
+  padding-top: 35px;
+
+  border-top: 1px solid var(--line);
+}
+
+.direct-label {
+
+  color: var(--muted);
+
+  font-size: 10px;
+
+  text-transform: uppercase;
+
+  letter-spacing: .18em;
+
+  margin-bottom: 15px;
+}
+
+.direct a {
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: 22px;
+
+  transition: .3s;
+}
+
+.direct a:hover {
+
+  color: var(--gold);
+}
+
+
+/* ==================================
+   FOOTER
+================================== */
+
+footer {
+
+  padding: 45px 0;
+
+  border-top:
+    1px solid rgba(255,255,255,.06);
+
+  color: var(--muted);
+
+  font-size: 12px;
+}
+
+.footer {
+
+  display: flex;
+
+  justify-content: space-between;
+}
+
+
+/* ==================================
+   MOBILE
+================================== */
+
+@media(max-width:800px) {
+
+  .hero-grid,
+  .contact-grid {
+
+    grid-template-columns: 1fr;
+  }
+
+  .hero-grid {
+
+    gap: 55px;
+  }
+
+  .media {
+
+    min-height: 520px;
+  }
+
+  .steps {
+
+    grid-template-columns: 1fr;
+  }
+
+  .step {
+
+    border-right: 0;
+
+    border-bottom:
+      1px solid var(--line);
+  }
+
+  .form-row {
+
+    grid-template-columns: 1fr;
+  }
+
+  .contact-grid {
+
+    gap: 55px;
+  }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- ================================
+     HEADER
+================================ -->
+
+<header>
+
+  <div class="container nav">
+
+    <a
+      href="/"
+      class="brand"
+    >
+      Maranhão Cordial
+    </a>
+
+    <a
+      href="/profissional"
+      class="back"
+    >
+      ← Maranhão Profissional
+    </a>
+
+  </div>
+
+</header>
+
+
+<main>
+
+
+<!-- ================================
+     HERO
+================================ -->
+
+<section class="hero">
+
+  <div class="container hero-grid">
+
+    <div>
+
+      <div class="eyebrow">
+        Degustação profissional
+      </div>
+
+      <h1>
+        Primeiro,<br>
+        experimente.
+      </h1>
+
+      <p class="hero-text">
+
+        Antes de falar sobre fornecimento,
+        queremos que você conheça o Maranhão
+        Cordial naquilo que realmente importa:
+        sabor, aplicação e experiência.
+
+      </p>
+
+      <p class="hero-small">
+
+        Degustações destinadas a bares,
+        restaurantes, hotéis, empórios,
+        mercados e parceiros profissionais.
+
+      </p>
+
+    </div>
+
+
+    <!-- ==================================
+         ESPAÇO PARA FOTO OU TIKTOK
+    ================================== -->
+
+    <div class="media">
+
+      <!--
+      OPÇÃO 1 — FOTO
+
+      <img
+        src="/sua-foto.jpg"
+        alt="Maranhão Cordial em aplicação profissional"
+      >
+      -->
+
+
+      <!--
+      OPÇÃO 2 — TIKTOK
+
+      Quando tiver o vídeo:
+
+      TikTok no computador
+          ↓
+      Compartilhar
+          ↓
+      Incorporar / Embed
+          ↓
+      Copiar código
+
+      APAGUE o bloco
+      .media-placeholder abaixo
+
+      e cole aqui o código fornecido
+      pelo TikTok.
+      -->
+
+<div class="media tiktok-wrapper">
+
+  <blockquote
+    class="tiktok-embed"
+    cite="https://www.tiktok.com/@maranhaocordial/video/7667171490021838098"
+    data-video-id="7667171490021838098"
+    style="max-width: 605px; min-width: 325px;"
+  >
+
+    <section>
+
+      <a
+        target="_blank"
+        title="@maranhaocordial"
+        href="https://www.tiktok.com/@maranhaocordial"
+      >
+        @maranhaocordial
+      </a>
+
+    </section>
+
+  </blockquote>
+
+</div>
+
+       
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ================================
+     COMO FUNCIONA
+================================ -->
+
+<section class="experience">
+
+  <div class="container">
+
+    <div class="section-label">
+      A experiência
+    </div>
+
+    <h2>
+      Descubra o que Maranhão
+      pode fazer pelo seu cardápio.
+    </h2>
+
+    <p class="intro">
+
+      A degustação profissional é uma oportunidade
+      para conhecer o produto, avaliar suas aplicações
+      e entender como ele pode integrar a operação
+      do seu estabelecimento.
+
+    </p>
+
+
+    <div class="steps">
+
+      <div class="step">
+
+        <div class="step-number">
+          01
+        </div>
+
+        <h3>
+          Conhecemos seu negócio
+        </h3>
+
+        <p>
+          Bar, restaurante, hotel, empório ou varejo.
+          Queremos entender onde Maranhão pode fazer sentido.
+        </p>
+
+      </div>
+
+
+      <div class="step">
+
+        <div class="step-number">
+          02
+        </div>
+
+        <h3>
+          Você experimenta
+        </h3>
+
+        <p>
+          Conheça sabor, rendimento e possibilidades
+          de aplicação do Maranhão Cordial.
+        </p>
+
+      </div>
+
+
+      <div class="step">
+
+        <div class="step-number">
+          03
+        </div>
+
+        <h3>
+          Construímos a proposta
+        </h3>
+
+        <p>
+          Havendo interesse, seguimos para condições
+          comerciais e fornecimento profissional.
+        </p>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ================================
+     FORMULÁRIO
+================================ -->
+
+<section
+  class="contact"
+  id="solicitar"
+>
+
+  <div class="container contact-grid">
+
+
+    <div class="contact-copy">
+
+      <div class="section-label">
+        Solicite sua degustação
+      </div>
+
+      <h2>
+        Vamos conhecer
+        o seu negócio.
+      </h2>
+
+      <p>
+
+        Conte um pouco sobre seu estabelecimento.
+        Nossa equipe comercial entrará em contato
+        para avaliar a melhor forma de apresentar
+        o Maranhão Cordial.
+
+      </p>
+
+
+      <!-- CONTATO DIRETO -->
+
+      <div class="direct">
+
+        <div class="direct-label">
+          Contato comercial
+        </div>
+
+        <!-- COLOQUE SEU WHATSAPP -->
+
+        <a
+          href="#"
+        >
+          WhatsApp comercial →
+        </a>
+
+      </div>
+
+    </div>
+
+
+    <!-- FORMULÁRIO -->
+
+    <form
+      class="form"
+      id="degustacaoForm"
+    >
+
+      <div class="form-row">
+
+        <input
+          type="text"
+          name="empresa"
+          placeholder="Nome do estabelecimento"
+          required
+        >
+
+        <input
+          type="text"
+          name="cnpj"
+          placeholder="CNPJ"
+        >
+
+      </div>
+
+
+      <div class="form-row">
+
+        <select
+          name="segmento"
+          required
+        >
+
+          <option value="">
+            Tipo de estabelecimento
+          </option>
+
+          <option value="bar">
+            Bar
+          </option>
+
+          <option value="restaurante">
+            Restaurante
+          </option>
+
+          <option value="hotel">
+            Hotel / Pousada
+          </option>
+
+          <option value="emporio">
+            Empório
+          </option>
+
+          <option value="mercado">
+            Mercado
+          </option>
+
+          <option value="distribuidor">
+            Distribuidor
+          </option>
+
+          <option value="outro">
+            Outro
+          </option>
+
+        </select>
+
+
+        <input
+          type="text"
+          name="cidade"
+          placeholder="Cidade / Estado"
+          required
+        >
+
+      </div>
+
+
+      <input
+        type="text"
+        name="responsavel"
+        placeholder="Nome do responsável"
+        required
+      >
+
+
+      <div class="form-row">
+
+        <input
+          type="tel"
+          name="whatsapp"
+          placeholder="WhatsApp"
+          required
+        >
+
+        <input
+          type="email"
+          name="email"
+          placeholder="E-mail"
+          required
+        >
+
+      </div>
+
+
+      <textarea
+        name="mensagem"
+        placeholder="Conte um pouco sobre o seu estabelecimento e como imagina utilizar o Maranhão Cordial."
+      ></textarea>
+
+
+      <button
+        type="submit"
+        class="btn"
+      >
+        Solicitar degustação
+      </button>
+
+    </form>
+
+  </div>
+
+</section>
+
+
+</main>
+
+
+<footer>
+
+  <div class="container footer">
+
+    <span>
+      © 2026 Maranhão Cordial
+    </span>
+
+    <span>
+      Assinatura Maranhão.
+    </span>
+
+  </div>
+
+</footer>
+
+
+<script>
+
+/*
+====================================
+FORMULÁRIO
+====================================
+
+A página já está preparada.
+
+Quando criarmos a rota Flask:
+
+POST /api/profissional/degustacao
+
+ativaremos este fetch para mandar
+automaticamente o lead para o CRM.
+
+Por enquanto ele apenas impede que
+o formulário seja enviado sem backend.
+*/
+
+const form =
+  document.getElementById("degustacaoForm");
+
+form.addEventListener(
+  "submit",
+  function(event) {
+
+    event.preventDefault();
+
+   alert(
+  "Solicitação de degustação em implantação. " +
+  "Em breve este serviço estará disponível."
+);
+
+  }
+);
+
+</script>
+
+<script async src="https://www.tiktok.com/embed.js"></script>
+
+</body>
+</html>

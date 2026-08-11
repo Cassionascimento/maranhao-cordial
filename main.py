@@ -215,6 +215,47 @@ def checkout():
 def home():
     return renderizar_html("home.html")
 
+@app.route("/profissional")
+def profissional():
+    return renderizar_html("profissional.html")
+
+@app.route("/cadastro-profissional")
+def cadastro_profissional():
+    return renderizar_html("cadastro-profissional.html")
+
+@app.route("/degustacao")
+@app.route("/degustacao.html")
+def degustacao():
+    return renderizar_html("degustacao.html")
+
+@app.route(
+    "/api/profissional/cadastro",
+    methods=["POST"]
+)
+def cadastrar_empresa():
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    empresa = {
+        "id": uuid.uuid4().hex,
+        "empresa": dados.get("empresa"),
+        "cnpj": dados.get("cnpj"),
+        "segmento": dados.get("segmento"),
+        "responsavel": dados.get("responsavel"),
+        "whatsapp": dados.get("whatsapp"),
+        "email": dados.get("email"),
+        "status": "novo_lead"
+    }
+
+    # futuramente salvar no banco de dados / CRM
+
+    return jsonify({
+        "success": True,
+        "message": "Cadastro profissional recebido.",
+        "empresa_id": empresa["id"]
+    })
 
 @app.route("/favicon.ico")
 def favicon():
