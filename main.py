@@ -281,143 +281,231 @@ def finalizar_pedido_pago(codigo, origem_pagamento):
     if pedido.get("status") == "pago":
         return True
 
-    pedido["status"] = "pago"
-    pedido["payment_origin"] = origem_pagamento
+   # =====================================================
+# C6 BANK — SANDBOX
+# =====================================================
 
-    emit(
-        "to_kitchen",
-        {
-            "code": codigo,
-            "quantity": pedido["quantity"]
-        },
-        broadcast=True
-    )
+C6_CLIENT_ID = os.getenv("C6_CLIENT_ID")
+C6_CLIENT_SECRET = os.getenv("C6_CLIENT_SECRET")
+C6_PIX_KEY = os.getenv("C6_PIX_KEY")
 
-    emit(
-        "to_delivery",
-        {
-            "code": codigo,
-            "address": pedido["address"]
-        },
-        broadcast=True
-    )
+C6_AUTH_URL = os.getenv(
+    "C6_AUTH_URL",
+    "https://baas-api-sandbox.c6bank.info/v1/auth/"
+)
 
-    emit(
-        "to_admin",
-        pedido,
-        broadcast=True
-    )
+C6_PIX_BASE_URL = os.getenv(
+    "C6_PIX_BASE_URL",
+    "https://baas-api-sandbox.c6bank.info/v2/pix"
+)
 
-    print(f"✓ PEDIDO {codigo} PAGO via {origem_pagamento}")
-    return True
+C6_CERT_PATH = os.getenv(
+    "C6_CERT_PATH",
+    "/etc/secrets/C6_sandbox.crt"
+)
 
+C6_KEY_PATH = os.getenv(
+    "C6_KEY_PATH",
+    "/etc/secrets/C6_sandbox.key"
+)
+
+
+# =====================================================
+# C6 — CERTIFICADO mTLS
+# =====================================================
 
 def c6_cert():
-    """Retorna certificado mTLS somente se ambos foram configurados."""
-    if C6_CERT_PATH and C6_KEY_PATH:
-        return (C6_CERT_PATH, C6_KEY_PATH)
-    return None
 
+    if not C6_CERT_PATH or not C6_KEY_PATH:
+        raise RuntimeError(
+            "Certificado C6 não configurado."
+        )
+
+    return (
+        C6_CERT_PATH,
+        C6_KEY_PATH
+    )
+
+
+# =====================================================
+# C6 — AUTENTICAÇÃO
+# =====================================================
 
 def get_c6_access_token():
-    """
-    Obtém token OAuth do C6 usando parâmetros fornecidos pelo banco.
-    O formato exato fica configurável para não inventar a especificação.
-    """
 
-    faltando = [
-        nome for nome, valor in {
-            "C6_CLIENT_ID": C6_CLIENT_ID,
-            "C6_CLIENT_SECRET": C6_CLIENT_SECRET,
-            "C6_TOKEN_URL": C6_TOKEN_URL,
-        }.items() if not valor
-    ]
+    faltando = []
+
+    if not C6_CLIENT_ID:
+        faltando.append("C6_CLIENT_ID")
+
+    if not C6_CLIENT_SECRET:
+        faltando.append("C6_CLIENT_SECRET")
+
+    if not C6_PIX_KEY:
+        faltando.append("C6_PIX_KEY")
 
     if faltando:
         raise RuntimeError(
-            "C6 ainda não configurado: " + ", ".join(faltando)
+            "C6 não configurado: "
+            + ", ".join(faltando)
         )
 
-    data = {"grant_type": "client_credentials"}
-    if C6_SCOPE:
-        data["scope"] = C6_SCOPE
-
-    auth = None
-
-    if C6_AUTH_MODE == "basic":
-        auth = (C6_CLIENT_ID, C6_CLIENT_SECRET)
-    elif C6_AUTH_MODE == "body":
-        data["client_id"] = C6_CLIENT_ID
-        data["client_secret"] = C6_CLIENT_SECRET
-    else:
-        raise RuntimeError("C6_AUTH_MODE deve ser basic ou body.")
-
     resposta = requests.post(
-        C6_TOKEN_URL,
-        data=data,
-        auth=auth,
+        C6_AUTH_URL,
+
+        data={
+            "client_id":
+                C6_CLIENT_ID,
+
+            "client_secret":
+                C6_CLIENT_SECRET,
+
+            "grant_type":
+                "client_credentials"
+        },
+
         cert=c6_cert(),
-        timeout=20
+
+        headers={
+            "Content-Type":
+                "application/x-www-form-urlencoded"
+        },
+
+        timeout=30
     )
 
-    resposta.raise_for_status()
+    if not resposta.ok:
+
+        print(
+            "ERRO AUTENTICAÇÃO C6:",
+            resposta.status_code,
+            resposta.text
+        )
+
+        resposta.raise_for_status()
+
     dados = resposta.json()
 
-    token = dados.get("access_token")
-    if not token:
-        raise RuntimeError("C6 não retornou access_token.")
+    access_token = dados.get(
+        "access_token"
+    )
 
-    return token
+    if not access_token:
+        raise RuntimeError(
+            "C6 não retornou access_token."
+        )
 
+    return access_token
+
+
+# =====================================================
+# C6 — HEADERS
+# =====================================================
 
 def c6_headers():
+
     return {
-        "Authorization": f"Bearer {get_c6_access_token()}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "maranhao-cordial/1.0"
+
+        "Authorization":
+            f"Bearer {get_c6_access_token()}",
+
+        "Content-Type":
+            "application/json",
+
+        "Accept":
+            "application/json",
+
+        "User-Agent":
+            "maranhao-cordial/1.0"
     }
 
 
+# =====================================================
+# C6 — CONSULTAR COBRANÇA PIX
+# =====================================================
+
 def consultar_pix_c6(txid):
-    """Consulta a cobrança diretamente no C6 antes de liberar o pedido."""
 
-    if not C6_PIX_QUERY_URL_TEMPLATE:
-        raise RuntimeError("C6_PIX_QUERY_URL_TEMPLATE não configurada.")
+    if not txid:
+        raise RuntimeError(
+            "TXID obrigatório."
+        )
 
-    url = C6_PIX_QUERY_URL_TEMPLATE.format(txid=txid)
+    url = (
+        f"{C6_PIX_BASE_URL}"
+        f"/cob/{txid}"
+    )
 
     resposta = requests.get(
         url,
+
         headers=c6_headers(),
+
         cert=c6_cert(),
-        timeout=20
+
+        timeout=30
     )
 
-    resposta.raise_for_status()
+    if not resposta.ok:
+
+        print(
+            "ERRO CONSULTA PIX C6:",
+            resposta.status_code,
+            resposta.text
+        )
+
+        resposta.raise_for_status()
+
     return resposta.json()
 
 
 # =====================================================
-# C6 BANK — STATUS DA INTEGRAÇÃO
+# C6 — STATUS DA INTEGRAÇÃO
 # =====================================================
 
-@app.route("/api/c6/status", methods=["GET"])
+@app.route(
+    "/api/c6/status",
+    methods=["GET"]
+)
 def status_c6():
+
     return jsonify({
-        "integration": "C6 Bank",
-        "credentials_received": bool(C6_CLIENT_ID and C6_CLIENT_SECRET),
-        "token_url_configured": bool(C6_TOKEN_URL),
-        "pix_create_configured": bool(C6_PIX_CREATE_URL),
-        "pix_query_configured": bool(C6_PIX_QUERY_URL_TEMPLATE),
-        "mtls_configured": bool(C6_CERT_PATH and C6_KEY_PATH),
-        "ready_for_live_transactions": bool(
-            C6_CLIENT_ID
-            and C6_CLIENT_SECRET
-            and C6_TOKEN_URL
-            and C6_PIX_CREATE_URL
-            and C6_PIX_QUERY_URL_TEMPLATE
-        )
+
+        "integration":
+            "C6 Bank",
+
+        "environment":
+            "sandbox",
+
+        "credentials_configured":
+            bool(
+                C6_CLIENT_ID
+                and C6_CLIENT_SECRET
+            ),
+
+        "pix_key_configured":
+            bool(C6_PIX_KEY),
+
+        "mtls_configured":
+            bool(
+                C6_CERT_PATH
+                and C6_KEY_PATH
+            ),
+
+        "auth_url":
+            C6_AUTH_URL,
+
+        "pix_base_url":
+            C6_PIX_BASE_URL,
+
+        "ready":
+            bool(
+                C6_CLIENT_ID
+                and C6_CLIENT_SECRET
+                and C6_PIX_KEY
+                and C6_CERT_PATH
+                and C6_KEY_PATH
+            )
     })
 
 
@@ -425,181 +513,658 @@ def status_c6():
 # C6 BANK — CRIAR COBRANÇA PIX
 # =====================================================
 
-@app.route("/api/c6/pix/checkout", methods=["POST"])
+@app.route(
+    "/api/c6/pix/checkout",
+    methods=["POST"]
+)
 def criar_checkout_c6():
 
-    if not C6_PIX_CREATE_URL:
-        return jsonify({
-            "error": "C6 ainda aguardando endpoint/credenciais de homologação."
-        }), 503
+    dados = request.get_json(
+        silent=True
+    ) or {}
 
-    dados = request.get_json(silent=True) or {}
+    # ---------------------------------------------
+    # QUANTIDADE
+    # ---------------------------------------------
 
     try:
-        quantidade = int(dados.get("quantidade", 1))
-    except (TypeError, ValueError):
-        return jsonify({"error": "Quantidade inválida."}), 400
 
-    endereco = str(dados.get("endereco", "")).strip()
+        quantidade = int(
+            dados.get(
+                "quantidade",
+                1
+            )
+        )
+
+    except (
+        TypeError,
+        ValueError
+    ):
+
+        return jsonify({
+            "error":
+                "Quantidade inválida."
+        }), 400
+
 
     if quantidade < 1:
-        return jsonify({"error": "Quantidade inválida."}), 400
+
+        return jsonify({
+            "error":
+                "Quantidade inválida."
+        }), 400
+
+
+    # ---------------------------------------------
+    # ENDEREÇO
+    # ---------------------------------------------
+
+    endereco = str(
+        dados.get(
+            "endereco",
+            ""
+        )
+    ).strip()
+
 
     if not endereco:
-        return jsonify({"error": "Endereço obrigatório."}), 400
 
-    codigo = "MAR-" + uuid.uuid4().hex[:10].upper()
-    valor_total = PRECO_UNITARIO * quantidade
+        return jsonify({
+            "error":
+                "Endereço obrigatório."
+        }), 400
 
-    PEDIDOS[codigo] = {
-        "code": codigo,
-        "quantity": quantidade,
-        "address": endereco,
-        "amount": valor_total,
-        "status": "aguardando_pagamento",
-        "payment_origin": "c6",
-        "c6_txid": None,
-        "pagarme_id": None,
 
-        # Fiscal: propositalmente não calcula ICMS-ST aqui.
-        # A responsabilidade deve ser definida por NCM/UF/operação
-        # e pelo arranjo fiscal formal com a fábrica/contabilidade.
+    # ---------------------------------------------
+    # CRIA PEDIDO
+    # ---------------------------------------------
+
+    codigo = (
+        "MAR-"
+        + uuid.uuid4().hex[:10].upper()
+    )
+
+
+    # PRECO_UNITARIO está em centavos
+    valor_total_centavos = (
+        PRECO_UNITARIO
+        * quantidade
+    )
+
+
+    # API PIX C6 recebe valor em reais:
+    # exemplo: "59.90"
+    valor_total_reais = (
+        f"{valor_total_centavos / 100:.2f}"
+    )
+
+
+    pedido = {
+
+        "code":
+            codigo,
+
+        "quantity":
+            quantidade,
+
+        "address":
+            endereco,
+
+        "amount":
+            valor_total_centavos,
+
+        "status":
+            "aguardando_pagamento",
+
+        "payment_origin":
+            "c6",
+
+        "c6_txid":
+            None,
+
+        "c6_location":
+            None,
+
+        "c6_status":
+            None,
+
+        "pagarme_id":
+            None,
+
+
+        # -----------------------------------------
+        # FISCAL
+        # -----------------------------------------
+
         "fiscal": {
-            "status": "aguardando_definicao_fiscal",
+
+            "status":
+                "aguardando_definicao_fiscal",
+
             "icms_st": {
-                "aplicavel": None,
-                "responsavel": None,
-                "recolhido_na_origem": None
+
+                "aplicavel":
+                    None,
+
+                "responsavel":
+                    None,
+
+                "recolhido_na_origem":
+                    None
             }
         },
 
-        # Logística preparada para a futura transportadora.
+
+        # -----------------------------------------
+        # LOGÍSTICA
+        # -----------------------------------------
+
         "delivery": {
-            "provider": None,
-            "status": "aguardando_pagamento",
-            "tracking_code": None
+
+            "provider":
+                None,
+
+            "status":
+                "aguardando_pagamento",
+
+            "tracking_code":
+                None
         }
     }
 
-    # Payload BASE. Os nomes dos campos devem ser alinhados à
-    # especificação que aparecer no portal C6 após homologação.
+
+    PEDIDOS[codigo] = pedido
+
+
+    # ---------------------------------------------
+    # PAYLOAD PIX C6
+    # ---------------------------------------------
+
     payload = {
-        "external_id": codigo,
-        "amount": valor_total,
-        "description": f"Maranhão Cordial - {quantidade} unidade(s)"
+
+        "calendario": {
+
+            # 1 hora
+            "expiracao":
+                3600
+        },
+
+        "valor": {
+
+            "original":
+                valor_total_reais,
+
+            "modalidadeAlteracao":
+                0
+        },
+
+        "chave":
+            C6_PIX_KEY,
+
+        "solicitacaoPagador":
+            f"Maranhão Cordial - {codigo}",
+
+
+        # Informações úteis para correlação
+        "infoAdicionais": [
+
+            {
+                "nome":
+                    "pedido",
+
+                "valor":
+                    codigo
+            },
+
+            {
+                "nome":
+                    "quantidade",
+
+                "valor":
+                    str(quantidade)
+            }
+        ]
     }
 
+
+    # ---------------------------------------------
+    # ENVIA AO C6
+    # ---------------------------------------------
+
     try:
+
         resposta = requests.post(
-            C6_PIX_CREATE_URL,
-            headers=c6_headers(),
-            cert=c6_cert(),
+
+            f"{C6_PIX_BASE_URL}/cob",
+
             json=payload,
-            timeout=20
+
+            headers=c6_headers(),
+
+            cert=c6_cert(),
+
+            timeout=30
         )
 
-        dados_c6 = resposta.json() if resposta.content else {}
 
-        if not resposta.ok:
-            PEDIDOS[codigo]["status"] = "erro_pagamento"
+        try:
+
+            dados_c6 = (
+                resposta.json()
+            )
+
+        except ValueError:
+
+            dados_c6 = {
+                "raw":
+                    resposta.text
+            }
+
+
+        if resposta.status_code != 201:
+
+            PEDIDOS[codigo][
+                "status"
+            ] = "erro_pagamento"
+
+
+            print(
+                "ERRO CRIAR PIX C6:",
+                resposta.status_code,
+                dados_c6
+            )
+
+
             return jsonify({
-                "error": "C6 recusou a criação da cobrança.",
-                "details": dados_c6
+
+                "success":
+                    False,
+
+                "error":
+                    "C6 recusou a criação da cobrança PIX.",
+
+                "details":
+                    dados_c6
+
             }), resposta.status_code
 
-        # Ajustaremos estes campos quando o C6 fornecer o schema real.
-        txid = (
-            dados_c6.get("txid")
-            or dados_c6.get("id")
-            or dados_c6.get("transaction_id")
+
+        # -----------------------------------------
+        # COBRANÇA CRIADA
+        # -----------------------------------------
+
+        txid = dados_c6.get(
+            "txid"
         )
 
-        PEDIDOS[codigo]["c6_txid"] = txid
+        location = dados_c6.get(
+            "location"
+        )
+
+        status = dados_c6.get(
+            "status"
+        )
+
+
+        PEDIDOS[codigo][
+            "c6_txid"
+        ] = txid
+
+
+        PEDIDOS[codigo][
+            "c6_location"
+        ] = location
+
+
+        PEDIDOS[codigo][
+            "c6_status"
+        ] = status
+
+
+        print("=" * 60)
+
+        print(
+            f"✓ PIX C6 CRIADO — {codigo}"
+        )
+
+        print(
+            "TXID:",
+            txid
+        )
+
+        print(
+            "STATUS:",
+            status
+        )
+
+        print("=" * 60)
+
 
         return jsonify({
-            "success": True,
-            "order_code": codigo,
-            "c6_txid": txid,
-            "c6": dados_c6
-        })
+
+            "success":
+                True,
+
+            "order_code":
+                codigo,
+
+            "amount":
+                valor_total_reais,
+
+            "c6_txid":
+                txid,
+
+            "status":
+                status,
+
+            "location":
+                location
+
+        }), 201
+
 
     except requests.RequestException as erro:
-        PEDIDOS[codigo]["status"] = "erro_comunicacao_c6"
-        print("ERRO C6:", erro)
+
+        PEDIDOS[codigo][
+            "status"
+        ] = "erro_comunicacao_c6"
+
+
+        print(
+            "ERRO DE COMUNICAÇÃO C6:",
+            erro
+        )
+
+
         return jsonify({
-            "error": "Não foi possível comunicar com o C6 Bank."
+
+            "success":
+                False,
+
+            "error":
+                "Não foi possível comunicar com o C6 Bank."
+
         }), 502
 
 
+    except Exception as erro:
+
+        PEDIDOS[codigo][
+            "status"
+        ] = "erro_interno_c6"
+
+
+        print(
+            "ERRO INTERNO C6:",
+            erro
+        )
+
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "error":
+                "Erro interno na integração C6."
+
+        }), 500
+
+
 # =====================================================
-# C6 BANK — WEBHOOK
+# C6 — CONSULTAR PEDIDO PIX
 # =====================================================
 
-@app.route("/webhooks/c6", methods=["POST"])
+@app.route(
+    "/api/c6/pix/<txid>",
+    methods=["GET"]
+)
+def consultar_cobranca_c6(txid):
+
+    try:
+
+        dados_c6 = (
+            consultar_pix_c6(
+                txid
+            )
+        )
+
+
+        # -----------------------------------------
+        # LOCALIZA PEDIDO PELO TXID
+        # -----------------------------------------
+
+        codigo_encontrado = None
+
+        for codigo, pedido in PEDIDOS.items():
+
+            if (
+                pedido.get("c6_txid")
+                == txid
+            ):
+
+                codigo_encontrado = (
+                    codigo
+                )
+
+                break
+
+
+        status = str(
+            dados_c6.get(
+                "status",
+                ""
+            )
+        ).upper()
+
+
+        # -----------------------------------------
+        # ATUALIZA PEDIDO
+        # -----------------------------------------
+
+        if codigo_encontrado:
+
+            pedido = PEDIDOS[
+                codigo_encontrado
+            ]
+
+            pedido[
+                "c6_status"
+            ] = status
+
+
+            # Cobrança PIX concluída = paga
+            if status == "CONCLUIDA":
+
+                finalizar_pedido_pago(
+                    codigo_encontrado,
+                    "c6"
+                )
+
+
+        return jsonify({
+
+            "success":
+                True,
+
+            "order_code":
+                codigo_encontrado,
+
+            "status":
+                status,
+
+            "c6":
+                dados_c6
+
+        })
+
+
+    except requests.HTTPError as erro:
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "error":
+                "C6 recusou a consulta.",
+
+            "details":
+                str(erro)
+
+        }), 502
+
+
+    except Exception as erro:
+
+        print(
+            "ERRO CONSULTA C6:",
+            erro
+        )
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "error":
+                "Não foi possível consultar a cobrança."
+
+        }), 500
+
+
+# =====================================================
+# C6 — WEBHOOK PIX
+# =====================================================
+
+@app.route(
+    "/webhooks/c6",
+    methods=["POST"]
+)
 def webhook_c6():
-    """
-    Recebe o aviso do C6, mas só libera o pedido depois de
-    consultar a cobrança diretamente na API do banco.
-    """
 
-    evento = request.get_json(silent=True) or {}
+    evento = request.get_json(
+        silent=True
+    ) or {}
+
 
     print("=" * 60)
-    print("WEBHOOK C6")
+    print("WEBHOOK C6 PIX")
     print(evento)
     print("=" * 60)
 
-    # O schema exato do webhook será informado pelo C6.
-    codigo = (
-        evento.get("external_id")
-        or evento.get("order_code")
-        or evento.get("code")
+
+    # O webhook PIX pode trazer txid diretamente.
+    txid = evento.get(
+        "txid"
     )
 
-    txid = (
-        evento.get("txid")
-        or evento.get("id")
-        or evento.get("transaction_id")
-    )
 
-    if not codigo:
-        # Tenta localizar pelo txid já salvo.
-        for cod, pedido in PEDIDOS.items():
-            if txid and pedido.get("c6_txid") == txid:
-                codigo = cod
-                break
+    # Alguns formatos podem encapsular
+    # os PIX recebidos em uma lista.
+    if not txid:
 
-    if not codigo or codigo not in PEDIDOS:
-        # Retorna 200 para evitar loop agressivo de reenvio,
-        # mas registra que o evento não foi correlacionado.
-        print("Webhook C6 sem pedido correlacionado.")
-        return "", 200
+        pix_lista = evento.get(
+            "pix"
+        )
 
-    pedido = PEDIDOS[codigo]
-    txid = txid or pedido.get("c6_txid")
+        if (
+            isinstance(
+                pix_lista,
+                list
+            )
+            and pix_lista
+        ):
+
+            txid = (
+                pix_lista[0]
+                .get("txid")
+            )
+
 
     if not txid:
-        print("Webhook C6 recebido sem txid identificável.")
+
+        print(
+            "Webhook C6 sem TXID."
+        )
+
         return "", 200
 
+
+    # ---------------------------------------------
+    # LOCALIZA PEDIDO
+    # ---------------------------------------------
+
+    codigo = None
+
+    for cod, pedido in PEDIDOS.items():
+
+        if (
+            pedido.get("c6_txid")
+            == txid
+        ):
+
+            codigo = cod
+            break
+
+
+    if not codigo:
+
+        print(
+            "Webhook C6 sem pedido correlacionado.",
+            txid
+        )
+
+        return "", 200
+
+
+    # ---------------------------------------------
+    # CONFIRMA DIRETAMENTE NO C6
+    # ---------------------------------------------
+
     try:
-        consulta = consultar_pix_c6(txid)
-        status = str(consulta.get(C6_STATUS_FIELD, "")).upper()
 
-        pedido["c6_last_status"] = status
-        pedido["c6_last_query"] = consulta
+        consulta = consultar_pix_c6(
+            txid
+        )
 
-        # Sem C6_PAID_STATUS_VALUES configurado, NUNCA libera.
-        # Isso evita assumir nomenclatura de status bancário.
-        if C6_PAID_STATUS_VALUES and status in C6_PAID_STATUS_VALUES:
-            finalizar_pedido_pago(codigo, "c6")
+        status = str(
+            consulta.get(
+                "status",
+                ""
+            )
+        ).upper()
+
+
+        PEDIDOS[codigo][
+            "c6_status"
+        ] = status
+
+
+        PEDIDOS[codigo][
+            "c6_last_query"
+        ] = consulta
+
+
+        # Só libera operação após
+        # confirmação direta no banco.
+        if status == "CONCLUIDA":
+
+            finalizar_pedido_pago(
+                codigo,
+                "c6"
+            )
+
 
     except Exception as erro:
-        print("Falha ao confirmar pagamento no C6:", erro)
+
+        print(
+            "Falha ao confirmar PIX no C6:",
+            erro
+        )
+
 
     return "", 200
-
-
 # =====================================================
 # LOGÍSTICA — WEBHOOK GENÉRICO (FUTURA TRANSPORTADORA)
 # =====================================================
