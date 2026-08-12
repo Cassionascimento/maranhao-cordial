@@ -1,3 +1,11 @@
 node_modules/
 .env
 __pycache__/
+
+# C6 Bank - certificados e segredos
+C6_sandbox.crt
+C6_sandbox.key
+.env
+
+teste_pix.py
+main.py.broken_backup

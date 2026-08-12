@@ -733,9 +733,11 @@ def criar_checkout_c6():
 
     try:
 
-        resposta = requests.post(
+        txid = uuid.uuid4().hex
 
-            f"{C6_PIX_BASE_URL}/cob",
+        resposta = requests.put(
+
+            f"{C6_PIX_BASE_URL}/cob/{txid}",
 
             json=payload,
 
