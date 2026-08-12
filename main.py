@@ -281,6 +281,23 @@ def finalizar_pedido_pago(codigo, origem_pagamento):
     if pedido.get("status") == "pago":
         return True
 
+    pedido["status"] = "pago"
+    pedido["payment_origin"] = origem_pagamento
+
+    pedido.setdefault("delivery", {})
+    pedido["delivery"]["status"] = "aguardando_despacho"
+
+    emit(
+        "to_admin",
+        pedido,
+        broadcast=True
+    )
+
+    print(
+        f"✓ PEDIDO PAGO — {codigo} — origem: {origem_pagamento}"
+    )
+
+    return True
    # =====================================================
 # C6 BANK — SANDBOX
 # =====================================================
@@ -298,7 +315,6 @@ C6_PIX_BASE_URL = os.getenv(
     "C6_PIX_BASE_URL",
     "https://baas-api-sandbox.c6bank.info/v2/pix"
 )
-
 C6_CERT_PATH = os.getenv(
     "C6_CERT_PATH",
     "/etc/secrets/C6_sandbox.crt"
