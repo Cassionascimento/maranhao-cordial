@@ -3,3 +3,4 @@ Flask-SocketIO
 python-dotenv
 requests
 gunicorn
+psycopg2-binary>=2.9,<3

@@ -4,12 +4,76 @@ import os
 import uuid
 import requests
 from dotenv import load_dotenv
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 # =====================================================
 # CONFIGURAÇÃO
 # =====================================================
 
 load_dotenv()
+
+# =====================================================
+# BANCO DE DADOS — LEADS B2B E DEGUSTAÇÃO
+# =====================================================
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+def get_db_connection():
+    if not DATABASE_URL:
+        raise RuntimeError(
+            "DATABASE_URL não configurada. Adicione a Internal Database URL "
+            "do PostgreSQL nas variáveis de ambiente do serviço."
+        )
+
+    return psycopg2.connect(
+        DATABASE_URL,
+        sslmode=os.getenv("DB_SSLMODE", "require")
+    )
+
+
+def inicializar_banco():
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS cadastros_profissionais (
+                        id UUID PRIMARY KEY,
+                        empresa VARCHAR(180) NOT NULL,
+                        cnpj VARCHAR(30) NOT NULL,
+                        segmento VARCHAR(80) NOT NULL,
+                        responsavel VARCHAR(180) NOT NULL,
+                        whatsapp VARCHAR(40) NOT NULL,
+                        email VARCHAR(180) NOT NULL,
+                        cidade VARCHAR(180) NOT NULL,
+                        interesse VARCHAR(80) NOT NULL,
+                        mensagem TEXT,
+                        consentimento BOOLEAN NOT NULL DEFAULT FALSE,
+                        status VARCHAR(40) NOT NULL DEFAULT 'novo_lead',
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS solicitacoes_degustacao (
+                        id UUID PRIMARY KEY,
+                        empresa VARCHAR(180) NOT NULL,
+                        cnpj VARCHAR(30),
+                        segmento VARCHAR(80) NOT NULL,
+                        cidade VARCHAR(180) NOT NULL,
+                        responsavel VARCHAR(180) NOT NULL,
+                        whatsapp VARCHAR(40) NOT NULL,
+                        email VARCHAR(180) NOT NULL,
+                        mensagem TEXT,
+                        status VARCHAR(40) NOT NULL DEFAULT 'nova_solicitacao',
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+    finally:
+        conn.close()
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -233,29 +297,148 @@ def degustacao():
     methods=["POST"]
 )
 def cadastrar_empresa():
+    dados = request.get_json(silent=True) or {}
 
-    dados = request.get_json(
-        silent=True
-    ) or {}
+    obrigatorios = [
+        "empresa", "cnpj", "segmento", "responsavel",
+        "whatsapp", "email", "cidade", "interesse"
+    ]
 
-    empresa = {
-        "id": uuid.uuid4().hex,
-        "empresa": dados.get("empresa"),
-        "cnpj": dados.get("cnpj"),
-        "segmento": dados.get("segmento"),
-        "responsavel": dados.get("responsavel"),
-        "whatsapp": dados.get("whatsapp"),
-        "email": dados.get("email"),
-        "status": "novo_lead"
-    }
+    faltando = [
+        campo for campo in obrigatorios
+        if not str(dados.get(campo, "")).strip()
+    ]
 
-    # futuramente salvar no banco de dados / CRM
+    if faltando:
+        return jsonify({
+            "success": False,
+            "error": "Preencha todos os campos obrigatórios.",
+            "fields": faltando
+        }), 400
 
-    return jsonify({
-        "success": True,
-        "message": "Cadastro profissional recebido.",
-        "empresa_id": empresa["id"]
-    })
+    if dados.get("consentimento") is not True:
+        return jsonify({
+            "success": False,
+            "error": "É necessário autorizar o contato comercial."
+        }), 400
+
+    cadastro_id = uuid.uuid4()
+
+    try:
+        conn = get_db_connection()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO cadastros_profissionais (
+                            id, empresa, cnpj, segmento, responsavel,
+                            whatsapp, email, cidade, interesse, mensagem,
+                            consentimento, status
+                        )
+                        VALUES (
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s,
+                            %s, %s
+                        )
+                    """, (
+                        cadastro_id,
+                        str(dados["empresa"]).strip(),
+                        str(dados["cnpj"]).strip(),
+                        str(dados["segmento"]).strip(),
+                        str(dados["responsavel"]).strip(),
+                        str(dados["whatsapp"]).strip(),
+                        str(dados["email"]).strip().lower(),
+                        str(dados["cidade"]).strip(),
+                        str(dados["interesse"]).strip(),
+                        str(dados.get("mensagem", "")).strip() or None,
+                        True,
+                        "novo_lead"
+                    ))
+        finally:
+            conn.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Cadastro profissional recebido.",
+            "empresa_id": str(cadastro_id)
+        }), 201
+
+    except Exception as erro:
+        print("ERRO SALVAR CADASTRO PROFISSIONAL:", erro)
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível salvar o cadastro agora."
+        }), 500
+
+
+@app.route(
+    "/api/degustacao",
+    methods=["POST"]
+)
+def cadastrar_degustacao():
+    dados = request.get_json(silent=True) or {}
+
+    obrigatorios = [
+        "empresa", "segmento", "cidade", "responsavel",
+        "whatsapp", "email"
+    ]
+
+    faltando = [
+        campo for campo in obrigatorios
+        if not str(dados.get(campo, "")).strip()
+    ]
+
+    if faltando:
+        return jsonify({
+            "success": False,
+            "error": "Preencha todos os campos obrigatórios.",
+            "fields": faltando
+        }), 400
+
+    degustacao_id = uuid.uuid4()
+
+    try:
+        conn = get_db_connection()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO solicitacoes_degustacao (
+                            id, empresa, cnpj, segmento, cidade,
+                            responsavel, whatsapp, email, mensagem, status
+                        )
+                        VALUES (
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s
+                        )
+                    """, (
+                        degustacao_id,
+                        str(dados["empresa"]).strip(),
+                        str(dados.get("cnpj", "")).strip() or None,
+                        str(dados["segmento"]).strip(),
+                        str(dados["cidade"]).strip(),
+                        str(dados["responsavel"]).strip(),
+                        str(dados["whatsapp"]).strip(),
+                        str(dados["email"]).strip().lower(),
+                        str(dados.get("mensagem", "")).strip() or None,
+                        "nova_solicitacao"
+                    ))
+        finally:
+            conn.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Solicitação de degustação recebida.",
+            "degustacao_id": str(degustacao_id)
+        }), 201
+
+    except Exception as erro:
+        print("ERRO SALVAR DEGUSTAÇÃO:", erro)
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível salvar a solicitação agora."
+        }), 500
+
 
 @app.route("/favicon.ico")
 def favicon():
@@ -1604,6 +1787,18 @@ for regra in app.url_map.iter_rules():
 # =====================================================
 # INICIALIZAÇÃO
 # =====================================================
+
+
+# Cria as tabelas automaticamente quando o serviço inicia.
+if DATABASE_URL:
+    try:
+        inicializar_banco()
+        print("✓ BANCO DE LEADS INICIALIZADO")
+    except Exception as erro:
+        print("ERRO AO INICIALIZAR BANCO DE LEADS:", erro)
+else:
+    print("AVISO: DATABASE_URL não configurada; formulários B2B não persistirão dados.")
+
 
 if __name__ == "__main__":
 

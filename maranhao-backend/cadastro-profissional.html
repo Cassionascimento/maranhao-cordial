@@ -995,50 +995,46 @@ footer {
 
 
 <script>
+const form = document.getElementById("b2bForm");
+const botao = form.querySelector('button[type="submit"]');
 
-/*
-========================================
-CADASTRO PROFISSIONAL
-========================================
+form.addEventListener("submit", async function(event) {
+  event.preventDefault();
 
-Por enquanto, este código apenas captura
-os dados e mostra uma confirmação.
+  const dados = Object.fromEntries(new FormData(form).entries());
+  dados.consentimento = form.querySelector('[name="consentimento"]').checked;
 
-Depois vamos trocar pelo:
+  botao.disabled = true;
+  const textoOriginal = botao.textContent;
+  botao.textContent = "ENVIANDO...";
 
-POST /api/profissional/cadastro
+  try {
+    const resposta = await fetch("/api/profissional/cadastro", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(dados)
+    });
 
-e enviar automaticamente para o CRM.
-*/
+    const retorno = await resposta.json();
 
-const form =
-  document.getElementById("b2bForm");
+    if (!resposta.ok) {
+      throw new Error(retorno.error || "Não foi possível enviar o cadastro.");
+    }
 
+    alert("Cadastro recebido com sucesso. Nossa equipe entrará em contato.");
+    form.reset();
 
-form.addEventListener(
-  "submit",
-  function(event) {
-
-    event.preventDefault();
-
-    const dados =
-      Object.fromEntries(
-        new FormData(form)
-      );
-
-    console.log(
-      "Cadastro B2B:",
-      dados
-    );
-
-    alert(
-  "Área profissional em implantação. " +
-  "Em breve este cadastro estará disponível."
-);
-
+  } catch (erro) {
+    console.error("Erro no cadastro profissional:", erro);
+    alert(erro.message || "Não foi possível enviar agora. Tente novamente.");
+  } finally {
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
   }
-);
-
+});
 </script>
 
 

@@ -1123,42 +1123,45 @@ footer {
 
 
 <script>
+const form = document.getElementById("degustacaoForm");
+const botao = form.querySelector('button[type="submit"]');
 
-/*
-====================================
-FORMULÁRIO
-====================================
+form.addEventListener("submit", async function(event) {
+  event.preventDefault();
 
-A página já está preparada.
+  const dados = Object.fromEntries(new FormData(form).entries());
 
-Quando criarmos a rota Flask:
+  botao.disabled = true;
+  const textoOriginal = botao.textContent;
+  botao.textContent = "ENVIANDO...";
 
-POST /api/profissional/degustacao
+  try {
+    const resposta = await fetch("/api/degustacao", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(dados)
+    });
 
-ativaremos este fetch para mandar
-automaticamente o lead para o CRM.
+    const retorno = await resposta.json();
 
-Por enquanto ele apenas impede que
-o formulário seja enviado sem backend.
-*/
+    if (!resposta.ok) {
+      throw new Error(retorno.error || "Não foi possível enviar a solicitação.");
+    }
 
-const form =
-  document.getElementById("degustacaoForm");
+    alert("Solicitação de degustação recebida com sucesso. Nossa equipe entrará em contato.");
+    form.reset();
 
-form.addEventListener(
-  "submit",
-  function(event) {
-
-    event.preventDefault();
-
-   alert(
-  "Solicitação de degustação em implantação. " +
-  "Em breve este serviço estará disponível."
-);
-
+  } catch (erro) {
+    console.error("Erro na degustação:", erro);
+    alert(erro.message || "Não foi possível enviar agora. Tente novamente.");
+  } finally {
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
   }
-);
-
+});
 </script>
 
 <script async src="https://www.tiktok.com/embed.js"></script>
