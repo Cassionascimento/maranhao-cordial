@@ -657,8 +657,13 @@ def sac_maranhao():
     pedido_encontrado = None
 
     match_pedido = re.search(
-        r"\bMAR-[A-Z0-9-]+\b",
+        r"MAR-[A-Z0-9-]+",
         mensagem.upper()
+    )
+
+    print(
+    "DEBUG PEDIDO SAC:",
+    match_pedido.group(0) if match_pedido else "NENHUM"
     )
 
     if match_pedido:
@@ -688,6 +693,70 @@ def sac_maranhao():
     print("TIPO:", tipo)
     print("MENSAGEM:", mensagem)
     print("=" * 60)
+
+    # -------------------------------------------------
+    # RESPOSTA RÁPIDA PARA PEDIDO ENCONTRADO
+    # -------------------------------------------------
+
+    if match_pedido and pedido_encontrado:
+
+        status_pedido = str(
+            pedido_encontrado.get("status")
+            or "sem_status"
+        ).replace("_", " ")
+
+        status_entrega = str(
+            pedido_encontrado.get("status_entrega")
+            or ""
+        ).replace("_", " ")
+
+        codigo_rastreio = (
+            pedido_encontrado.get("tracking_code")
+        )
+
+        partes = [
+            f"Encontrei o pedido {codigo_pedido}.",
+            f"Status: {status_pedido}."
+        ]
+
+        if status_entrega:
+            partes.append(
+                f"Entrega: {status_entrega}."
+            )
+
+        if codigo_rastreio:
+            partes.append(
+                f"Rastreio: {codigo_rastreio}."
+            )
+
+        texto_resposta = " ".join(partes)
+
+        return jsonify({
+            "success": True,
+            "atendimento_id": atendimento_id,
+            "resposta": texto_resposta,
+            "origem": origem,
+            "tipo": tipo,
+            "pedido": codigo_pedido
+        }), 200
+
+
+    # -------------------------------------------------
+    # PEDIDO INFORMADO, MAS NÃO ENCONTRADO
+    # -------------------------------------------------
+
+    if match_pedido and not pedido_encontrado:
+
+        return jsonify({
+            "success": True,
+            "atendimento_id": atendimento_id,
+            "resposta": (
+                f"Não encontrei o pedido {codigo_pedido}. "
+                "Confira o número e tente novamente."
+            ),
+            "origem": origem,
+            "tipo": tipo
+        }), 200
 
     if not openai_client:
         texto_resposta = (
