@@ -2,6 +2,7 @@ from flask import Flask, send_from_directory, request, jsonify
 from flask_socketio import SocketIO, emit
 import os
 import uuid
+import re
 import requests
 from dotenv import load_dotenv
 import psycopg2
@@ -648,6 +649,35 @@ def sac_maranhao():
             "success": False,
             "error": "Mensagem obrigatória."
         }), 400
+
+    # -------------------------------------------------
+    # IDENTIFICA NÚMERO DO PEDIDO NA MENSAGEM
+    # -------------------------------------------------
+
+    pedido_encontrado = None
+
+    match_pedido = re.search(
+        r"\bMAR-[A-Z0-9-]+\b",
+        mensagem.upper()
+    )
+
+    if match_pedido:
+        codigo_pedido = match_pedido.group(0)
+
+        try:
+            pedido_encontrado = buscar_pedido_postgres(
+                codigo_pedido
+            )
+
+        except Exception as erro:
+            print(
+                "ERRO SAC CONSULTAR PEDIDO:",
+                erro
+            )
+
+    # -------------------------------------------------
+    # IDENTIFICADOR DO ATENDIMENTO
+    # -------------------------------------------------
 
     atendimento_id = "SAC-" + uuid.uuid4().hex[:12].upper()
 
