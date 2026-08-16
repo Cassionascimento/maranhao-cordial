@@ -535,7 +535,7 @@ def sac_maranhao():
             "error": "Mensagem obrigatória."
         }), 400
 
-    # Identificador único do atendimento.
+       # Identificador único do atendimento.
     atendimento_id = (
         "SAC-"
         + uuid.uuid4().hex[:12].upper()
@@ -549,13 +549,57 @@ def sac_maranhao():
     print("MENSAGEM:", mensagem)
     print("=" * 60)
 
+    try:
+
+        resposta_ia = openai_client.responses.create(
+            model="gpt-5-mini",
+            instructions="""
+Você é o assistente digital oficial do Maranhão Cordial.
+
+Responda sempre em português do Brasil.
+Seja educado, elegante, objetivo e acolhedor.
+
+Não invente informações sobre pedidos, pagamentos, entregas,
+preços ou políticas que você não conhece.
+
+Nesta primeira etapa, apenas responda à dúvida do cliente.
+
+Não afirme que realizou troca, reembolso, cancelamento,
+pagamento ou qualquer outra operação.
+
+Se faltar informação para ajudar, faça uma pergunta curta
+para entender melhor o caso.
+""",
+            input=mensagem
+        )
+
+        texto_resposta = resposta_ia.output_text
+
+    except Exception as erro:
+
+        print(
+            "ERRO IA SAC MARANHÃO:",
+            erro
+        )
+
+        texto_resposta = (
+            "Recebemos sua mensagem, mas nosso atendimento "
+            "inteligente está temporariamente indisponível. "
+            "Seu protocolo foi registrado."
+        )
+
     return jsonify({
         "success": True,
         "atendimento_id": atendimento_id,
-        "resposta": "Mensagem recebida pelo SAC Maranhão.",
+        "resposta": texto_resposta,
         "origem": origem,
         "tipo": tipo
     }), 200
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
 
 @app.route("/favicon.ico")
 def favicon():
