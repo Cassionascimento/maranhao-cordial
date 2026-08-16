@@ -505,7 +505,7 @@ def cadastrar_empresa():
             "error": "É necessário autorizar o contato comercial."
         }), 400
 
-    cadastro_id = uuid.uuid4()
+    cadastro_id = str(uuid.uuid4())
 
     try:
         conn = get_db_connection()
@@ -578,7 +578,7 @@ def cadastrar_degustacao():
             "fields": faltando
         }), 400
 
-    degustacao_id = uuid.uuid4()
+   degustacao_id = str(uuid.uuid4())
 
     try:
         conn = get_db_connection()
