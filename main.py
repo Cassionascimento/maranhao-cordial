@@ -44,6 +44,11 @@ def inicializar_banco():
     try:
         with conn:
             with conn.cursor() as cur:
+
+                # ==========================================
+                # LEADS B2B
+                # ==========================================
+
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS cadastros_profissionais (
                         id UUID PRIMARY KEY,
@@ -62,6 +67,10 @@ def inicializar_banco():
                     )
                 """)
 
+                # ==========================================
+                # SOLICITAÇÕES DE DEGUSTAÇÃO
+                # ==========================================
+
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS solicitacoes_degustacao (
                         id UUID PRIMARY KEY,
@@ -77,6 +86,59 @@ def inicializar_banco():
                         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
                 """)
+
+                # ==========================================
+                # PEDIDOS
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS pedidos (
+                        id UUID PRIMARY KEY,
+
+                        codigo VARCHAR(40)
+                            UNIQUE NOT NULL,
+
+                        cliente_nome VARCHAR(180),
+                        cliente_email VARCHAR(180),
+                        cliente_whatsapp VARCHAR(40),
+                        cpf_cnpj VARCHAR(30),
+
+                        endereco TEXT NOT NULL,
+
+                        quantidade INTEGER NOT NULL,
+
+                        valor_centavos INTEGER NOT NULL,
+
+                        status VARCHAR(50)
+                            NOT NULL
+                            DEFAULT 'aguardando_pagamento',
+
+                        payment_origin VARCHAR(30),
+
+                        c6_txid VARCHAR(120),
+                        c6_status VARCHAR(50),
+
+                        pagarme_id VARCHAR(160),
+
+                        transportadora VARCHAR(160),
+
+                        status_entrega VARCHAR(60)
+                            NOT NULL
+                            DEFAULT 'aguardando_pagamento',
+
+                        tracking_code VARCHAR(180),
+                        tracking_url TEXT,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL
+                            DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL
+                            DEFAULT NOW()
+                    )
+                """)
+
     finally:
         conn.close()
 
