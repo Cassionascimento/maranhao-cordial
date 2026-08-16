@@ -722,10 +722,6 @@ def sac_maranhao():
         }), 400
 
 
-@app.route("/admin")
-@app.route("/admin.html")
-def admin():
-    return renderizar_html("admin.html")    
 
     # -------------------------------------------------
     # IDENTIFICA NÚMERO DO PEDIDO NA MENSAGEM
@@ -951,6 +947,12 @@ def admin():
         "origem": origem,
         "tipo": tipo
     }), 200
+
+
+@app.route("/admin")
+@app.route("/admin.html")
+def admin():
+    return renderizar_html("admin.html")
 
 
 @app.route("/favicon.ico")
