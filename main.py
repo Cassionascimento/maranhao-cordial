@@ -652,6 +652,12 @@ def sac_maranhao():
             "error": "Mensagem obrigatória."
         }), 400
 
+
+@app.route("/admin")
+@app.route("/admin.html")
+def admin():
+    return renderizar_html("admin.html")    
+
     # -------------------------------------------------
     # IDENTIFICA NÚMERO DO PEDIDO NA MENSAGEM
     # -------------------------------------------------

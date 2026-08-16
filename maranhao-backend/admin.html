@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Admin — Maranhão Cordial</title>
+
+    <style>
+        :root {
+            --bg: #0b0a08;
+            --panel: #12100d;
+            --text: #f4ece1;
+            --muted: #8f867b;
+            --gold: #d4af37;
+            --line: rgba(212, 175, 55, .16);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .admin-shell {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: var(--gold);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-weight: 400;
+            font-size: 38px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 34px;
+        }
+
+        .login-panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            padding: 24px;
+            max-width: 520px;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            background: #0d0c0a;
+            color: var(--text);
+            border: 1px solid var(--line);
+            outline: none;
+            margin-bottom: 12px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            color: var(--gold);
+            border: 1px solid rgba(212, 175, 55, .45);
+            cursor: pointer;
+            letter-spacing: 1px;
+        }
+
+        .status {
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .admin-content {
+            display: none;
+            margin-top: 36px;
+        }
+
+        .admin-content.show {
+            display: block;
+        }
+
+        .summary {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            padding: 18px 20px;
+            min-width: 180px;
+        }
+
+        .card small {
+            display: block;
+            color: var(--muted);
+            font-size: 9px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .card strong {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 26px;
+            font-weight: 400;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 14px;
+            border-bottom: 1px solid var(--line);
+            font-size: 12px;
+        }
+
+        th {
+            color: var(--gold);
+            font-size: 9px;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+        }
+
+        td {
+            color: #d9d1c7;
+        }
+
+        .empty {
+            padding: 30px;
+            color: var(--muted);
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="admin-shell">
+
+        <div class="eyebrow">Maranhão Cordial</div>
+
+        <h1>Administração</h1>
+
+        <p class="subtitle">
+            Área reservada para acompanhamento operacional.
+        </p>
+
+        <section class="login-panel" id="loginPanel">
+
+            <input
+                type="password"
+                id="adminKey"
+                placeholder="Chave administrativa"
+                autocomplete="off"
+            >
+
+            <button
+                id="entrarAdmin"
+                type="button"
+            >
+                Acessar pedidos
+            </button>
+
+            <div
+                id="loginStatus"
+                class="status"
+            ></div>
+
+        </section>
+
+        <section
+            id="adminContent"
+            class="admin-content"
+        >
+
+            <div class="summary">
+
+                <div class="card">
+                    <small>Total de pedidos</small>
+                    <strong id="totalPedidos">0</strong>
+                </div>
+
+                <div class="card">
+                    <small>Valor registrado</small>
+                    <strong id="valorTotal">R$ 0,00</strong>
+                </div>
+
+            </div>
+
+            <div class="table-wrap">
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pedido</th>
+                            <th>Cliente</th>
+                            <th>E-mail</th>
+                            <th>Qtd.</th>
+                            <th>Valor</th>
+                            <th>Pagamento</th>
+                            <th>Entrega</th>
+                            <th>Rastreio</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="pedidosBody"></tbody>
+                </table>
+
+                <div
+                    id="emptyState"
+                    class="empty"
+                    style="display:none;"
+                >
+                    Nenhum pedido encontrado.
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <script>
+        (() => {
+
+            const keyInput =
+                document.getElementById("adminKey");
+
+            const button =
+                document.getElementById("entrarAdmin");
+
+            const status =
+                document.getElementById("loginStatus");
+
+            const content =
+                document.getElementById("adminContent");
+
+            const tbody =
+                document.getElementById("pedidosBody");
+
+            const totalPedidos =
+                document.getElementById("totalPedidos");
+
+            const valorTotal =
+                document.getElementById("valorTotal");
+
+            const emptyState =
+                document.getElementById("emptyState");
+
+
+            function dinheiro(centavos) {
+
+                return (
+                    Number(centavos || 0) / 100
+                ).toLocaleString(
+                    "pt-BR",
+                    {
+                        style: "currency",
+                        currency: "BRL"
+                    }
+                );
+            }
+
+
+            function dataBrasil(valor) {
+
+                if (!valor) return "-";
+
+                const data = new Date(valor);
+
+                return data.toLocaleString(
+                    "pt-BR"
+                );
+            }
+
+
+            function escapar(valor) {
+
+                return String(valor ?? "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+
+            async function carregarPedidos() {
+
+                const chave =
+                    keyInput.value.trim();
+
+                if (!chave) {
+                    status.textContent =
+                        "Informe a chave administrativa.";
+                    return;
+                }
+
+                button.disabled = true;
+                button.textContent =
+                    "Carregando...";
+
+                status.textContent = "";
+
+                try {
+
+                    const response = await fetch(
+                        "/api/admin/pedidos",
+                        {
+                            headers: {
+                                "X-Admin-Key": chave
+                            }
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            data.error ||
+                            "Acesso não autorizado."
+                        );
+                    }
+
+                    const pedidos =
+                        data.pedidos || [];
+
+                    totalPedidos.textContent =
+                        pedidos.length;
+
+                    const total =
+                        pedidos.reduce(
+                            (soma, pedido) =>
+                                soma +
+                                Number(
+                                    pedido.valor_centavos
+                                    || 0
+                                ),
+                            0
+                        );
+
+                    valorTotal.textContent =
+                        dinheiro(total);
+
+                    tbody.innerHTML = "";
+
+                    if (!pedidos.length) {
+                        emptyState.style.display =
+                            "block";
+                    } else {
+                        emptyState.style.display =
+                            "none";
+                    }
+
+                    pedidos.forEach(
+                        pedido => {
+
+                            const tr =
+                                document.createElement(
+                                    "tr"
+                                );
+
+                            tr.innerHTML = `
+                                <td>${escapar(pedido.codigo)}</td>
+                                <td>${escapar(pedido.cliente_nome || "-")}</td>
+                                <td>${escapar(pedido.cliente_email || "-")}</td>
+                                <td>${escapar(pedido.quantidade)}</td>
+                                <td>${dinheiro(pedido.valor_centavos)}</td>
+                                <td>${escapar(pedido.status || "-")}</td>
+                                <td>${escapar(pedido.status_entrega || "-")}</td>
+                                <td>${escapar(pedido.tracking_code || "-")}</td>
+                                <td>${dataBrasil(pedido.criado_em)}</td>
+                            `;
+
+                            tbody.appendChild(tr);
+                        }
+                    );
+
+                    content.classList.add(
+                        "show"
+                    );
+
+                    status.textContent =
+                        "Acesso autorizado.";
+
+                    keyInput.value = "";
+
+                } catch (error) {
+
+                    content.classList.remove(
+                        "show"
+                    );
+
+                    status.textContent =
+                        error.message;
+
+                } finally {
+
+                    button.disabled = false;
+
+                    button.textContent =
+                        "Acessar pedidos";
+                }
+            }
+
+
+            button.addEventListener(
+                "click",
+                carregarPedidos
+            );
+
+
+            keyInput.addEventListener(
+                "keydown",
+                event => {
+
+                    if (event.key === "Enter") {
+                        carregarPedidos();
+                    }
+                }
+            );
+
+        })();
+    </script>
+</body>
+</html>
