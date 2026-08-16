@@ -288,6 +288,83 @@ LOGISTICA_WEBHOOK_TOKEN = os.getenv("LOGISTICA_WEBHOOK_TOKEN")
 
 PEDIDOS = {}
 
+def salvar_pedido_postgres(pedido):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    INSERT INTO pedidos (
+                        id,
+                        codigo,
+                        cliente_nome,
+                        cliente_email,
+                        cliente_whatsapp,
+                        cpf_cnpj,
+                        endereco,
+                        quantidade,
+                        valor_centavos,
+                        status,
+                        payment_origin,
+                        c6_txid,
+                        c6_status,
+                        pagarme_id,
+                        transportadora,
+                        status_entrega,
+                        tracking_code,
+                        tracking_url
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s
+                    )
+                    ON CONFLICT (codigo)
+                    DO UPDATE SET
+                        cliente_nome = EXCLUDED.cliente_nome,
+                        cliente_email = EXCLUDED.cliente_email,
+                        cliente_whatsapp = EXCLUDED.cliente_whatsapp,
+                        cpf_cnpj = EXCLUDED.cpf_cnpj,
+                        endereco = EXCLUDED.endereco,
+                        quantidade = EXCLUDED.quantidade,
+                        valor_centavos = EXCLUDED.valor_centavos,
+                        status = EXCLUDED.status,
+                        payment_origin = EXCLUDED.payment_origin,
+                        c6_txid = EXCLUDED.c6_txid,
+                        c6_status = EXCLUDED.c6_status,
+                        pagarme_id = EXCLUDED.pagarme_id,
+                        transportadora = EXCLUDED.transportadora,
+                        status_entrega = EXCLUDED.status_entrega,
+                        tracking_code = EXCLUDED.tracking_code,
+                        tracking_url = EXCLUDED.tracking_url,
+                        atualizado_em = NOW()
+                """, (
+                    uuid.uuid4(),
+                    pedido.get("code"),
+                    pedido.get("cliente_nome"),
+                    pedido.get("cliente_email"),
+                    pedido.get("cliente_whatsapp"),
+                    pedido.get("cpf_cnpj"),
+                    pedido.get("address"),
+                    pedido.get("quantity"),
+                    pedido.get("amount"),
+                    pedido.get("status"),
+                    pedido.get("payment_origin"),
+                    pedido.get("c6_txid"),
+                    pedido.get("c6_status"),
+                    pedido.get("pagarme_id"),
+                    pedido.get("delivery", {}).get("provider"),
+                    pedido.get("delivery", {}).get("status"),
+                    pedido.get("delivery", {}).get("tracking_code"),
+                    pedido.get("delivery", {}).get("tracking_url")
+                ))
+
+    finally:
+        conn.close()
+
 
 # =====================================================
 # PÁGINA INICIAL
