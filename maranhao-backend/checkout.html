@@ -588,9 +588,17 @@
         const payload = {
           quantidade: qty,
           endereco: enderecoCompleto,
+
+          // Campos padronizados para o PostgreSQL / backend
+          cliente_nome: `${nome} ${sobrenome}`,
+          cliente_email: email.toLowerCase(),
+          cliente_whatsapp: telefone,
+
+          // Mantidos por compatibilidade com integrações já existentes
           nome: `${nome} ${sobrenome}`,
-          email,
+          email: email.toLowerCase(),
           telefone,
+
           descricao: 'Maranhão Cordial 200 mL',
           origem: 'checkout-site'
         };

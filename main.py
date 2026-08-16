@@ -1146,6 +1146,43 @@ def criar_checkout_c6():
 
 
     # ---------------------------------------------
+    # E-MAIL DO CLIENTE
+    # ---------------------------------------------
+
+    cliente_email = str(
+        dados.get(
+            "cliente_email",
+            ""
+        )
+    ).strip().lower()
+
+    if not cliente_email:
+
+        return jsonify({
+            "error":
+                "E-mail obrigatório."
+        }), 400
+
+    # ---------------------------------------------
+    # DADOS DO CLIENTE
+    # ---------------------------------------------
+
+    cliente_nome = str(
+        dados.get(
+            "cliente_nome",
+            ""
+        )
+    ).strip()
+
+    cliente_whatsapp = str(
+        dados.get(
+            "cliente_whatsapp",
+            ""
+        )
+    ).strip()
+
+    
+    # ---------------------------------------------
     # CRIA PEDIDO
     # ---------------------------------------------
 
@@ -1179,6 +1216,15 @@ def criar_checkout_c6():
 
         "address":
             endereco,
+
+         "cliente_nome":
+            cliente_nome,
+
+        "cliente_email":
+            cliente_email,
+
+        "cliente_whatsapp":
+            cliente_whatsapp, 
 
         "amount":
             valor_total_centavos,
