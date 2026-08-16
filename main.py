@@ -8,9 +8,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from openai import OpenAI
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
-
 # =====================================================
 # CONFIGURAÇÃO
 # =====================================================
@@ -18,6 +15,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 # =====================================================
 # BANCO DE DADOS — LEADS B2B E DEGUSTAÇÃO
@@ -578,7 +576,7 @@ def cadastrar_degustacao():
             "fields": faltando
         }), 400
 
-   degustacao_id = str(uuid.uuid4())
+    degustacao_id = str(uuid.uuid4())
 
     try:
         conn = get_db_connection()
@@ -612,7 +610,7 @@ def cadastrar_degustacao():
         return jsonify({
             "success": True,
             "message": "Solicitação de degustação recebida.",
-            "degustacao_id": str(degustacao_id)
+            "degustacao_id": degustacao_id
         }), 201
 
     except Exception as erro:
@@ -621,7 +619,6 @@ def cadastrar_degustacao():
             "success": False,
             "error": "Não foi possível salvar a solicitação agora."
         }), 500
-
 
 
 # =====================================================
@@ -640,45 +637,19 @@ def cadastrar_degustacao():
     methods=["POST"]
 )
 def sac_maranhao():
+    dados = request.get_json(silent=True) or {}
 
-    dados = request.get_json(
-        silent=True
-    ) or {}
+    mensagem = str(dados.get("mensagem", "")).strip()
+    origem = str(dados.get("origem", "site")).strip()
+    tipo = str(dados.get("tipo", "geral")).strip()
 
-    mensagem = str(
-        dados.get(
-            "mensagem",
-            ""
-        )
-    ).strip()
-
-    origem = str(
-        dados.get(
-            "origem",
-            "site"
-        )
-    ).strip()
-
-    tipo = str(
-        dados.get(
-            "tipo",
-            "geral"
-        )
-    ).strip()
-
-    # Evita requisições vazias.
     if not mensagem:
-
         return jsonify({
             "success": False,
             "error": "Mensagem obrigatória."
         }), 400
 
-       # Identificador único do atendimento.
-    atendimento_id = (
-        "SAC-"
-        + uuid.uuid4().hex[:12].upper()
-    )
+    atendimento_id = "SAC-" + uuid.uuid4().hex[:12].upper()
 
     print("=" * 60)
     print("SAC MARANHÃO CORDIAL")
@@ -688,74 +659,41 @@ def sac_maranhao():
     print("MENSAGEM:", mensagem)
     print("=" * 60)
 
-    try:
-
-        resposta_ia = openai_client.responses.create(
-            model="gpt-5-mini",
-          instructions="""
-Você é o assistente digital oficial do Maranhão Cordial.
-
-Responda sempre em português do Brasil.
-Seja elegante, cordial, objetivo e breve.
-
-REGRAS OBRIGATÓRIAS:
-
-1. Nunca invente políticas, prazos, preços, procedimentos,
-documentos necessários ou condições comerciais.
-
-2. Nunca afirme que realizou ou realizará:
-- troca;
-- reembolso;
-- cancelamento;
-- envio;
-- pagamento;
-- alteração de pedido;
-- abertura de ocorrência;
-- qualquer outra operação.
-
-3. Nunca peça CPF, dados bancários, cartão, senha,
-documentos pessoais ou outras informações sensíveis.
-
-4. Se o cliente relatar problema com uma compra,
-peça apenas o número do pedido, caso ele o tenha.
-
-5. Se ainda não houver informação suficiente,
-faça apenas uma pergunta curta por vez.
-
-6. Se for uma dúvida geral sobre o produto,
-responda somente com informações que você realmente conhece.
-
-7. Não prometa encaminhamento humano.
-Nesta etapa você apenas conversa e identifica a necessidade.
-
-8. Quando houver uma reclamação, reconheça o problema
-sem assumir responsabilidade ou prometer uma solução.
-
-Exemplo:
-Cliente: "Minha garrafa chegou quebrada."
-Resposta adequada:
-"Sinto muito pelo ocorrido. Se você tiver o número do pedido,
-pode me informar para identificarmos o atendimento?"
-
-Nunca diga que uma troca, reembolso ou solução foi autorizada.
-""",
-            input=mensagem
-        )
-
-        texto_resposta = resposta_ia.output_text
-
-    except Exception as erro:
-
-        print(
-            "ERRO IA SAC MARANHÃO:",
-            erro
-        )
-
+    if not openai_client:
         texto_resposta = (
-            "Recebemos sua mensagem, mas nosso atendimento "
-            "inteligente está temporariamente indisponível. "
-            "Seu protocolo foi registrado."
+            "Recebemos sua mensagem. "
+            "O atendimento inteligente está temporariamente indisponível."
         )
+    else:
+        try:
+            resposta_ia = openai_client.responses.create(
+                model="gpt-5-mini",
+                instructions=(
+                    "Você é o atendimento digital oficial do Maranhão Cordial. "
+                    "Responda em português do Brasil com no máximo 2 frases curtas. "
+                    "Seja cordial, elegante e objetivo. "
+                    "Nunca invente política, prazo, preço, troca, reembolso, envio ou cancelamento. "
+                    "Nunca peça CPF, cartão, senha, dados bancários ou documentos pessoais. "
+                    "Se houver problema com compra feita no site oficial, peça apenas o número do pedido. "
+                    "O Maranhão Cordial não possui lojas físicas. "
+                    "Se a compra foi feita fora do site maranhaocordial.com.br, informe que qualquer reclamação "
+                    "ou solução deve ser tratada diretamente com o distribuidor ou estabelecimento onde a compra foi feita. "
+                    "Faça no máximo uma pergunta por resposta."
+                ),
+                input=mensagem,
+                max_output_tokens=120
+            )
+
+            texto_resposta = (resposta_ia.output_text or "").strip()
+            if not texto_resposta:
+                texto_resposta = "Como posso ajudar com seu pedido?"
+
+        except Exception as erro:
+            print("ERRO IA SAC MARANHÃO:", erro)
+            texto_resposta = (
+                "Recebemos sua mensagem. "
+                "O atendimento inteligente está temporariamente indisponível."
+            )
 
     return jsonify({
         "success": True,
@@ -798,6 +736,11 @@ def finalizar_pedido_pago(codigo, origem_pagamento):
     pedido.setdefault("delivery", {})
     pedido["delivery"]["status"] = "aguardando_despacho"
 
+    try:
+        salvar_pedido_postgres(pedido)
+    except Exception as erro:
+        print("ERRO PERSISTIR PEDIDO PAGO:", erro)
+
     emit(
         "to_admin",
         pedido,
@@ -809,7 +752,8 @@ def finalizar_pedido_pago(codigo, origem_pagamento):
     )
 
     return True
-   # =====================================================
+
+# =====================================================
 # C6 BANK — SANDBOX
 # =====================================================
 
@@ -1195,12 +1139,16 @@ def criar_checkout_c6():
                 "aguardando_pagamento",
 
             "tracking_code":
+                None,
+
+            "tracking_url":
                 None
         }
     }
 
 
     PEDIDOS[codigo] = pedido
+    salvar_pedido_postgres(pedido)
 
 
     # ---------------------------------------------
@@ -1349,6 +1297,7 @@ def criar_checkout_c6():
             "c6_status"
         ] = status
 
+        salvar_pedido_postgres(PEDIDOS[codigo])
 
         print("=" * 60)
 
@@ -1801,12 +1750,14 @@ def criar_checkout():
         "delivery": {
             "provider": None,
             "status": "aguardando_pagamento",
-            "tracking_code": None
+            "tracking_code": None,
+            "tracking_url": None
         }
 
     }
 
     PEDIDOS[codigo] = pedido
+    salvar_pedido_postgres(pedido)
 
 
     # -------------------------------------------------
@@ -1936,6 +1887,7 @@ def criar_checkout():
             "pagarme_id"
         ] = dados_pagarme.get("id")
 
+        salvar_pedido_postgres(PEDIDOS[codigo])
 
         checkout_url = \
             dados_pagarme.get("url")
@@ -2045,21 +1997,21 @@ def webhook_pagarme():
     methods=["GET"]
 )
 def consultar_pedido(codigo):
-
-    pedido = PEDIDOS.get(
-        codigo
-    )
+    try:
+        pedido = buscar_pedido_postgres(codigo.strip())
+    except Exception as erro:
+        print("ERRO CONSULTAR PEDIDO:", erro)
+        pedido = None
 
     if not pedido:
+        pedido = PEDIDOS.get(codigo)
 
+    if not pedido:
         return jsonify({
-            "error":
-                "Pedido não encontrado."
+            "error": "Pedido não encontrado."
         }), 404
 
-    return jsonify(
-        pedido
-    )
+    return jsonify(pedido)
 
 
 # =====================================================
@@ -2121,49 +2073,12 @@ def openai_teste():
             "error": str(erro)
         }), 500
 
-@app.route("/api/pedidos/teste-postgres", methods=["POST"])
-def teste_pedido_postgres():
-
-    codigo = "MAR-TESTE-" + uuid.uuid4().hex[:8].upper()
-
-    pedido_teste = {
-        "code": codigo,
-        "cliente_nome": "Cliente Teste",
-        "cliente_email": "teste@maranhaocordial.com.br",
-        "cliente_whatsapp": None,
-        "cpf_cnpj": None,
-
-        "address": "Endereço de teste",
-        "quantity": 1,
-        "amount": 5990,
-
-        "status": "teste",
-        "payment_origin": "teste",
-
-        "c6_txid": None,
-        "c6_status": None,
-        "pagarme_id": None,
-
-        "delivery": {
-            "provider": None,
-            "status": "teste",
-            "tracking_code": None,
-            "tracking_url": None
-        }
-    }
-
-    try:
-        salvar_pedido_postgres(
-            pedido_teste
-        )
-        def buscar_pedido_postgres(codigo):
-
+def buscar_pedido_postgres(codigo):
     conn = get_db_connection()
 
     try:
         with conn:
             with conn.cursor() as cur:
-
                 cur.execute("""
                     SELECT
                         codigo,
@@ -2188,9 +2103,7 @@ def teste_pedido_postgres():
                     FROM pedidos
                     WHERE codigo = %s
                     LIMIT 1
-                """, (
-                    codigo,
-                ))
+                """, (codigo,))
 
                 linha = cur.fetchone()
 
@@ -2215,45 +2128,61 @@ def teste_pedido_postgres():
                     "status_entrega": linha[14],
                     "tracking_code": linha[15],
                     "tracking_url": linha[16],
-                    "criado_em": linha[17].isoformat()
-                        if linha[17]
-                        else None,
-                    "atualizado_em": linha[18].isoformat()
-                        if linha[18]
-                        else None
+                    "criado_em": linha[17].isoformat() if linha[17] else None,
+                    "atualizado_em": linha[18].isoformat() if linha[18] else None
                 }
-
     finally:
         conn.close()
 
+
+@app.route("/api/pedidos/teste-postgres", methods=["POST"])
+def teste_pedido_postgres():
+    codigo = "MAR-TESTE-" + uuid.uuid4().hex[:8].upper()
+
+    pedido_teste = {
+        "code": codigo,
+        "cliente_nome": "Cliente Teste",
+        "cliente_email": "teste@maranhaocordial.com.br",
+        "cliente_whatsapp": None,
+        "cpf_cnpj": None,
+        "address": "Endereço de teste",
+        "quantity": 1,
+        "amount": 5990,
+        "status": "teste",
+        "payment_origin": "teste",
+        "c6_txid": None,
+        "c6_status": None,
+        "pagarme_id": None,
+        "delivery": {
+            "provider": None,
+            "status": "teste",
+            "tracking_code": None,
+            "tracking_url": None
+        }
+    }
+
+    try:
+        salvar_pedido_postgres(pedido_teste)
         return jsonify({
             "success": True,
             "codigo": codigo,
             "mensagem": "Pedido de teste salvo no PostgreSQL."
         }), 201
-
     except Exception as erro:
-
-        print(
-            "ERRO TESTE POSTGRES PEDIDO:",
-            erro
-        )
-
+        print("ERRO TESTE POSTGRES PEDIDO:", erro)
         return jsonify({
             "success": False,
             "error": str(erro)
         }), 500
+
 
 @app.route(
     "/api/pedidos/<codigo>",
     methods=["GET"]
 )
 def consultar_pedido_postgres(codigo):
-
     try:
-        pedido = buscar_pedido_postgres(
-            codigo.strip()
-        )
+        pedido = buscar_pedido_postgres(codigo.strip())
 
         if not pedido:
             return jsonify({
@@ -2267,16 +2196,12 @@ def consultar_pedido_postgres(codigo):
         }), 200
 
     except Exception as erro:
-
-        print(
-            "ERRO CONSULTAR PEDIDO POSTGRES:",
-            erro
-        )
-
+        print("ERRO CONSULTAR PEDIDO POSTGRES:", erro)
         return jsonify({
             "success": False,
             "error": "Não foi possível consultar o pedido agora."
         }), 500
+
 
 @app.route(
     "/<path:filename>"
