@@ -2150,7 +2150,9 @@ if (enviar) {
 
         try {
 
-            const resposta = await fetch("/api/sac", {
+            const resposta = await fetch(
+    "https://maranhao-cordial-api.onrender.com/api/sac",
+    {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
