@@ -13,6 +13,8 @@ from psycopg2.extras import RealDictCursor
 
 load_dotenv()
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 # =====================================================
 # BANCO DE DADOS — LEADS B2B E DEGUSTAÇÃO
 # =====================================================
@@ -1870,6 +1872,12 @@ def handle_new_order(payload):
 # =====================================================
 # ROTA DE ARQUIVOS
 # =====================================================
+
+@app.route("/api/openai/status", methods=["GET"])
+def openai_status():
+    return jsonify({
+        "openai_configured": bool(OPENAI_API_KEY)
+    })
 
 @app.route(
     "/<path:filename>"
