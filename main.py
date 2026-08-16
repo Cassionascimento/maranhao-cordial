@@ -93,6 +93,20 @@ def inicializar_banco():
                 # ==========================================
 
                 cur.execute("""
+                    CREATE TABLE IF NOT EXISTS atendimentos_sac (
+                        id UUID PRIMARY KEY,
+                        atendimento_id VARCHAR(40) UNIQUE NOT NULL,
+                        mensagem TEXT NOT NULL,
+                        resposta TEXT,
+                        origem VARCHAR(40),
+                        tipo VARCHAR(40),
+                        codigo_pedido VARCHAR(40),
+                        cliente_email VARCHAR(180),
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
                     CREATE TABLE IF NOT EXISTS pedidos (
                         id UUID PRIMARY KEY,
 
@@ -364,6 +378,58 @@ def salvar_pedido_postgres(pedido):
                     pedido.get("delivery", {}).get("status"),
                     pedido.get("delivery", {}).get("tracking_code"),
                     pedido.get("delivery", {}).get("tracking_url")
+                ))
+
+    finally:
+        conn.close()
+
+
+def salvar_atendimento_sac(
+    atendimento_id,
+    mensagem,
+    resposta,
+    origem,
+    tipo,
+    codigo_pedido=None,
+    cliente_email=None
+):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO atendimentos_sac (
+                        id,
+                        atendimento_id,
+                        mensagem,
+                        resposta,
+                        origem,
+                        tipo,
+                        codigo_pedido,
+                        cliente_email
+                    )
+                    VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s
+                    )
+                    ON CONFLICT (atendimento_id)
+                    DO UPDATE SET
+                        mensagem = EXCLUDED.mensagem,
+                        resposta = EXCLUDED.resposta,
+                        origem = EXCLUDED.origem,
+                        tipo = EXCLUDED.tipo,
+                        codigo_pedido = EXCLUDED.codigo_pedido,
+                        cliente_email = EXCLUDED.cliente_email
+                """, (
+                    str(uuid.uuid4()),
+                    atendimento_id,
+                    mensagem,
+                    resposta,
+                    origem,
+                    tipo,
+                    codigo_pedido,
+                    cliente_email
                 ))
 
     finally:
@@ -785,6 +851,19 @@ def admin():
 
         texto_resposta = " ".join(partes)
 
+        try:
+            salvar_atendimento_sac(
+                atendimento_id=atendimento_id,
+                mensagem=mensagem,
+                resposta=texto_resposta,
+                origem=origem,
+                tipo=tipo,
+                codigo_pedido=codigo_pedido,
+                cliente_email=email_cliente
+            )
+        except Exception as erro:
+            print("ERRO SALVAR SAC:", erro)
+
         return jsonify({
             "success": True,
             "atendimento_id": atendimento_id,
@@ -847,6 +926,23 @@ def admin():
                 "Recebemos sua mensagem. "
                 "O atendimento inteligente está temporariamente indisponível."
             )
+
+    try:
+        salvar_atendimento_sac(
+            atendimento_id=atendimento_id,
+            mensagem=mensagem,
+            resposta=texto_resposta,
+            origem=origem,
+            tipo=tipo,
+            codigo_pedido=(
+                codigo_pedido
+                if match_pedido
+                else None
+            ),
+            cliente_email=None
+        )
+    except Exception as erro:
+        print("ERRO SALVAR SAC:", erro)
 
     return jsonify({
         "success": True,
