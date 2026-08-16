@@ -2342,6 +2342,81 @@ def listar_pedidos_postgres(limite=100):
         conn.close()
 
 
+def listar_atendimentos_sac_postgres(limite=100):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        atendimento_id,
+                        mensagem,
+                        resposta,
+                        origem,
+                        tipo,
+                        codigo_pedido,
+                        cliente_email,
+                        criado_em
+                    FROM atendimentos_sac
+                    ORDER BY criado_em DESC
+                    LIMIT %s
+                """, (limite,))
+
+                linhas = cur.fetchall()
+
+                return [
+                    {
+                        "atendimento_id": linha[0],
+                        "mensagem": linha[1],
+                        "resposta": linha[2],
+                        "origem": linha[3],
+                        "tipo": linha[4],
+                        "codigo_pedido": linha[5],
+                        "cliente_email": linha[6],
+                        "criado_em": linha[7].isoformat() if linha[7] else None
+                    }
+                    for linha in linhas
+                ]
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/atendimentos",
+    methods=["GET"]
+)
+def admin_listar_atendimentos():
+
+    chave_recebida = request.headers.get("X-Admin-Key")
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        atendimentos = listar_atendimentos_sac_postgres()
+
+        return jsonify({
+            "success": True,
+            "total": len(atendimentos),
+            "atendimentos": atendimentos
+        }), 200
+
+    except Exception as erro:
+        print("ERRO ADMIN LISTAR ATENDIMENTOS:", erro)
+
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível listar os atendimentos."
+        }), 500
+
+
 # =====================================================
 # ADMIN — LISTAR PEDIDOS
 # =====================================================
