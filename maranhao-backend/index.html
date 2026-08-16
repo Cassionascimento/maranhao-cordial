@@ -2172,61 +2172,58 @@ if (enviar) {
                 );
             }
 
-            menu.innerHTML = `
-                <div style="
-                    padding: 22px 0;
-                    color: #f4ece1;
-                ">
-                    <p
-                        class="mc-sac-eyebrow"
-                        style="margin-bottom: 10px;"
-                    >
-                        MENSAGEM RECEBIDA
-                    </p>
+           menu.innerHTML = `
+    <div style="
+        padding: 22px 0;
+        color: #f4ece1;
+    ">
 
-                    <h3 style="
-                        font-family: 'Cormorant Garamond', serif;
-                        font-size: 24px;
-                        font-weight: 400;
-                        margin: 0 0 12px 0;
-                        color: #ffffff;
-                    ">
-                        Atendimento iniciado.
-                    </h3>
+        <p
+            class="mc-sac-eyebrow"
+            style="margin-bottom: 10px;"
+        >
+            MARANHÃO RESPONDE
+        </p>
 
-                    <p style="
-                        color: #9f9588;
-                        font-size: 12px;
-                        line-height: 1.7;
-                        margin-bottom: 18px;
-                    ">
-                        Sua mensagem foi recebida pelo SAC Maranhão.
-                    </p>
+        <div style="
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            line-height: 1.5;
+            font-weight: 400;
+            color: #f4ece1;
+            margin-bottom: 20px;
+            white-space: pre-line;
+        ">
+            ${dados.resposta}
+        </div>
 
-                    <p style="
-                        font-size: 10px;
-                        color: rgba(212,175,55,.72);
-                        letter-spacing: 1.3px;
-                    ">
-                        PROTOCOLO: ${dados.atendimento_id}
-                    </p>
+        <p style="
+            font-size: 9px;
+            color: rgba(212,175,55,.62);
+            letter-spacing: 1.3px;
+            margin-top: 22px;
+        ">
+            PROTOCOLO: ${dados.atendimento_id}
+        </p>
 
-                    <button
-                        id="mc-sac-voltar"
-                        class="mc-sac-option"
-                        type="button"
-                        style="margin-top: 18px;"
-                    >
-                        <span class="mc-sac-number">←</span>
+        <button
+            id="mc-sac-voltar"
+            class="mc-sac-option"
+            type="button"
+            style="margin-top: 18px;"
+        >
+            <span class="mc-sac-number">←</span>
 
-                        <span class="mc-sac-option-copy">
-                            <strong>Voltar</strong>
-                            <small>Retornar ao início</small>
-                        </span>
+            <span class="mc-sac-option-copy">
+                <strong>Voltar</strong>
+                <small>Retornar ao início</small>
+            </span>
 
-                        <span class="mc-sac-arrow">↗</span>
-                    </button>
-                </div>
+            <span class="mc-sac-arrow">↗</span>
+        </button>
+
+    </div>
+`;
             `;
 
             const voltar = document.getElementById("mc-sac-voltar");
