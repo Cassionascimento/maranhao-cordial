@@ -2121,6 +2121,60 @@ def openai_teste():
             "error": str(erro)
         }), 500
 
+@app.route("/api/pedidos/teste-postgres", methods=["POST"])
+def teste_pedido_postgres():
+
+    codigo = "MAR-TESTE-" + uuid.uuid4().hex[:8].upper()
+
+    pedido_teste = {
+        "code": codigo,
+        "cliente_nome": "Cliente Teste",
+        "cliente_email": "teste@maranhaocordial.com.br",
+        "cliente_whatsapp": None,
+        "cpf_cnpj": None,
+
+        "address": "Endereço de teste",
+        "quantity": 1,
+        "amount": 5990,
+
+        "status": "teste",
+        "payment_origin": "teste",
+
+        "c6_txid": None,
+        "c6_status": None,
+        "pagarme_id": None,
+
+        "delivery": {
+            "provider": None,
+            "status": "teste",
+            "tracking_code": None,
+            "tracking_url": None
+        }
+    }
+
+    try:
+        salvar_pedido_postgres(
+            pedido_teste
+        )
+
+        return jsonify({
+            "success": True,
+            "codigo": codigo,
+            "mensagem": "Pedido de teste salvo no PostgreSQL."
+        }), 201
+
+    except Exception as erro:
+
+        print(
+            "ERRO TESTE POSTGRES PEDIDO:",
+            erro
+        )
+
+        return jsonify({
+            "success": False,
+            "error": str(erro)
+        }), 500
+
 @app.route(
     "/<path:filename>"
 )
