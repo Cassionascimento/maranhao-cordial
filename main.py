@@ -2179,47 +2179,8 @@ def webhook_pagarme():
 
 
 # =====================================================
-# CONSULTAR PEDIDO
+# LISTAGEM DE PEDIDOS — POSTGRESQL
 # =====================================================
-@app.route(
-    "/api/admin/pedidos",
-    methods=["GET"]
-)
-def admin_listar_pedidos():
-
-      chave_recebida = request.headers.get("X-Admin-Key")
-
-    if not ADMIN_API_KEY or chave_recebida != ADMIN_API_KEY:
-        return jsonify({
-            "success": False,
-            "error": "Não autorizado."
-        }), 401
-
-    try:
-        pedidos = listar_pedidos_postgres()
-
-        return jsonify({
-            "success": True,
-            "total": len(pedidos),
-            "pedidos": pedidos
-        }), 200
-
-    except Exception as erro:
-
-        print(
-            "ERRO ADMIN LISTAR PEDIDOS:",
-            erro
-        )
-
-        return jsonify({
-            "success": False,
-            "error": "Não foi possível listar os pedidos."
-        }), 500
-
-@app.route(
-    "/api/pedido/<codigo>",
-    methods=["GET"]
-)
 
 def listar_pedidos_postgres(limite=100):
     conn = get_db_connection()
@@ -2274,27 +2235,85 @@ def listar_pedidos_postgres(limite=100):
         conn.close()
 
 
+# =====================================================
+# ADMIN — LISTAR PEDIDOS
+# =====================================================
+
+@app.route(
+    "/api/admin/pedidos",
+    methods=["GET"]
+)
+def admin_listar_pedidos():
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        pedidos = listar_pedidos_postgres()
+
+        return jsonify({
+            "success": True,
+            "total": len(pedidos),
+            "pedidos": pedidos
+        }), 200
+
+    except Exception as erro:
+        print(
+            "ERRO ADMIN LISTAR PEDIDOS:",
+            erro
+        )
+
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível listar os pedidos."
+        }), 500
+
+
+# =====================================================
+# CONSULTAR PEDIDO
+# =====================================================
+
 @app.route(
     "/api/pedido/<codigo>",
     methods=["GET"]
 )
-
 def consultar_pedido(codigo):
+
     try:
-        pedido = buscar_pedido_postgres(codigo.strip())
+        pedido = buscar_pedido_postgres(
+            codigo.strip()
+        )
+
     except Exception as erro:
-        print("ERRO CONSULTAR PEDIDO:", erro)
+        print(
+            "ERRO CONSULTAR PEDIDO:",
+            erro
+        )
         pedido = None
 
     if not pedido:
-        pedido = PEDIDOS.get(codigo)
+        pedido = PEDIDOS.get(
+            codigo
+        )
 
     if not pedido:
         return jsonify({
             "error": "Pedido não encontrado."
         }), 404
 
-    return jsonify(pedido)
+    return jsonify(
+        pedido
+    )
 
 
 # =====================================================
