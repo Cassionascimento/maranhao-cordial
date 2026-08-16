@@ -182,7 +182,10 @@ ORIGENS_PERMITIDAS_SAC = {
 @app.after_request
 def adicionar_cors_sac(response):
 
-    if request.path.startswith("/api/sac"):
+    if (
+        request.path.startswith("/api/sac")
+        or request.path.startswith("/api/admin")
+    ):
 
         origem = request.headers.get("Origin")
 
@@ -198,11 +201,11 @@ def adicionar_cors_sac(response):
 
             response.headers[
                 "Access-Control-Allow-Headers"
-            ] = "Content-Type"
+            ] = "Content-Type, X-Admin-Key"
 
             response.headers[
                 "Access-Control-Allow-Methods"
-            ] = "POST, OPTIONS"
+            ] = "GET, POST, OPTIONS"
 
     return response
 
