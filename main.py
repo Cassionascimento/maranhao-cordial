@@ -342,7 +342,7 @@ def salvar_pedido_postgres(pedido):
                         tracking_url = EXCLUDED.tracking_url,
                         atualizado_em = NOW()
                 """, (
-                    uuid.uuid4(),
+                    str(uuid.uuid4()),
                     pedido.get("code"),
                     pedido.get("cliente_nome"),
                     pedido.get("cliente_email"),
