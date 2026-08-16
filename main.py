@@ -2187,6 +2187,14 @@ def webhook_pagarme():
 )
 def admin_listar_pedidos():
 
+      chave_recebida = request.headers.get("X-Admin-Key")
+
+    if not ADMIN_API_KEY or chave_recebida != ADMIN_API_KEY:
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
     try:
         pedidos = listar_pedidos_postgres()
 
