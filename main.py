@@ -601,9 +601,7 @@ para entender melhor o caso.
 def favicon():
     return "", 204
 
-@app.route("/favicon.ico")
-def favicon():
-    return "", 204
+
 
 
 # =====================================================
