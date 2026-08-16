@@ -18,6 +18,8 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
+
 # =====================================================
 # BANCO DE DADOS — LEADS B2B E DEGUSTAÇÃO
 # =====================================================
@@ -2179,11 +2181,96 @@ def webhook_pagarme():
 # =====================================================
 # CONSULTAR PEDIDO
 # =====================================================
+@app.route(
+    "/api/admin/pedidos",
+    methods=["GET"]
+)
+def admin_listar_pedidos():
+
+    try:
+        pedidos = listar_pedidos_postgres()
+
+        return jsonify({
+            "success": True,
+            "total": len(pedidos),
+            "pedidos": pedidos
+        }), 200
+
+    except Exception as erro:
+
+        print(
+            "ERRO ADMIN LISTAR PEDIDOS:",
+            erro
+        )
+
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível listar os pedidos."
+        }), 500
 
 @app.route(
     "/api/pedido/<codigo>",
     methods=["GET"]
 )
+
+def listar_pedidos_postgres(limite=100):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        codigo,
+                        cliente_nome,
+                        cliente_email,
+                        cliente_whatsapp,
+                        quantidade,
+                        valor_centavos,
+                        status,
+                        payment_origin,
+                        c6_status,
+                        transportadora,
+                        status_entrega,
+                        tracking_code,
+                        criado_em,
+                        atualizado_em
+                    FROM pedidos
+                    ORDER BY criado_em DESC
+                    LIMIT %s
+                """, (limite,))
+
+                linhas = cur.fetchall()
+
+                return [
+                    {
+                        "codigo": linha[0],
+                        "cliente_nome": linha[1],
+                        "cliente_email": linha[2],
+                        "cliente_whatsapp": linha[3],
+                        "quantidade": linha[4],
+                        "valor_centavos": linha[5],
+                        "status": linha[6],
+                        "payment_origin": linha[7],
+                        "c6_status": linha[8],
+                        "transportadora": linha[9],
+                        "status_entrega": linha[10],
+                        "tracking_code": linha[11],
+                        "criado_em": linha[12].isoformat() if linha[12] else None,
+                        "atualizado_em": linha[13].isoformat() if linha[13] else None
+                    }
+                    for linha in linhas
+                ]
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/pedido/<codigo>",
+    methods=["GET"]
+)
+
 def consultar_pedido(codigo):
     try:
         pedido = buscar_pedido_postgres(codigo.strip())
