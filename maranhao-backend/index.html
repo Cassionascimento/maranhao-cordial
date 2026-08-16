@@ -2009,19 +2009,16 @@
         option.addEventListener("click", function () {
             const intent = option.dataset.sacIntent;
 
-            // COMPRAR — B2C
             if (intent === "comprar") {
                 window.location.href = "/compreaqui";
                 return;
             }
 
-            // PROFISSIONAL — B2B
             if (intent === "profissional") {
                 window.location.href = "/profissional";
                 return;
             }
 
-            // CONSULTAR PEDIDO
             if (intent === "pedido") {
                 mostrarTelaInterna(
                     "MEU PEDIDO",
@@ -2031,7 +2028,6 @@
                 return;
             }
 
-            // ATENDIMENTO / SAC
             if (intent === "atendimento") {
                 mostrarTelaAtendimento();
                 return;
@@ -2051,17 +2047,12 @@
 
         copy.innerHTML = `
             <p class="mc-sac-eyebrow">ATENDIMENTO</p>
-
             <h2>Estamos aqui para resolver.</h2>
-
-            <p>
-                Conte como podemos ajudar.
-            </p>
+            <p>Conte como podemos ajudar.</p>
         `;
 
         menu.innerHTML = `
             <div style="padding-top: 18px;">
-
                 <textarea
                     id="mc-sac-mensagem"
                     placeholder="Escreva sua mensagem..."
@@ -2107,15 +2098,12 @@
                     style="margin-top: 10px;"
                 >
                     <span class="mc-sac-number">←</span>
-
                     <span class="mc-sac-option-copy">
                         <strong>Voltar</strong>
                         <small>Retornar ao início do atendimento</small>
                     </span>
-
                     <span class="mc-sac-arrow">↗</span>
                 </button>
-
             </div>
         `;
 
@@ -2127,132 +2115,10 @@
             });
         }
 
-        // Nesta etapa o botão aparece, mas ainda não envia ao backend.
-       const enviar = document.getElementById("mc-sac-enviar");
-
-if (enviar) {
-    enviar.addEventListener("click", async function () {
-
-        const campo = document.getElementById("mc-sac-mensagem");
-
-        if (!campo || !campo.value.trim()) {
-            if (campo) {
-                campo.focus();
-                campo.style.borderColor = "rgba(212,175,55,.70)";
-            }
-            return;
-        }
-
-        const mensagem = campo.value.trim();
-
-        enviar.disabled = true;
-        enviar.textContent = "Enviando...";
-
-        try {
-
-            const resposta = await fetch(
-    "https://maranhao-cordial-api.onrender.com/api/sac",
-    {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    mensagem: mensagem,
-                    origem: "site",
-                    tipo: "atendimento"
-                })
-            });
-
-            const dados = await resposta.json();
-
-            if (!resposta.ok) {
-                throw new Error(
-                    dados.error || "Não foi possível enviar a mensagem."
-                );
-            }
-
-           menu.innerHTML = `
-    <div style="
-        padding: 22px 0;
-        color: #f4ece1;
-    ">
-
-        <p
-            class="mc-sac-eyebrow"
-            style="margin-bottom: 10px;"
-        >
-            MARANHÃO RESPONDE
-        </p>
-
-        <div style="
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 20px;
-            line-height: 1.5;
-            font-weight: 400;
-            color: #f4ece1;
-            margin-bottom: 20px;
-            white-space: pre-line;
-        ">
-            ${dados.resposta}
-        </div>
-
-        <p style="
-            font-size: 9px;
-            color: rgba(212,175,55,.62);
-            letter-spacing: 1.3px;
-            margin-top: 22px;
-        ">
-            PROTOCOLO: ${dados.atendimento_id}
-        </p>
-
-        <button
-            id="mc-sac-voltar"
-            class="mc-sac-option"
-            type="button"
-            style="margin-top: 18px;"
-        >
-            <span class="mc-sac-number">←</span>
-
-            <span class="mc-sac-option-copy">
-                <strong>Voltar</strong>
-                <small>Retornar ao início</small>
-            </span>
-
-            <span class="mc-sac-arrow">↗</span>
-        </button>
-
-    </div>
-`;
-            `;
-
-            const voltar = document.getElementById("mc-sac-voltar");
-
-            if (voltar) {
-                voltar.addEventListener("click", function () {
-                    window.location.reload();
-                });
-            }
-
-        } catch (erro) {
-
-            enviar.disabled = false;
-            enviar.textContent = "Tentar novamente →";
-
-            alert(
-                "Não foi possível enviar sua mensagem agora."
-            );
-
-            console.error(
-                "Erro SAC Maranhão:",
-                erro
-            );
-        }
-    });
-}
+        const enviar = document.getElementById("mc-sac-enviar");
 
         if (enviar) {
-            enviar.addEventListener("click", function () {
+            enviar.addEventListener("click", async function () {
                 const campo = document.getElementById("mc-sac-mensagem");
 
                 if (!campo || !campo.value.trim()) {
@@ -2261,6 +2127,99 @@ if (enviar) {
                         campo.style.borderColor = "rgba(212,175,55,.70)";
                     }
                     return;
+                }
+
+                const mensagem = campo.value.trim();
+
+                enviar.disabled = true;
+                enviar.textContent = "Enviando...";
+
+                try {
+                    const resposta = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/sac",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                mensagem: mensagem,
+                                origem: "site",
+                                tipo: "atendimento"
+                            })
+                        }
+                    );
+
+                    const dados = await resposta.json();
+
+                    if (!resposta.ok) {
+                        throw new Error(
+                            dados.error || "Não foi possível enviar a mensagem."
+                        );
+                    }
+
+                    menu.innerHTML = `
+                        <div style="
+                            padding: 22px 0;
+                            color: #f4ece1;
+                        ">
+                            <p
+                                class="mc-sac-eyebrow"
+                                style="margin-bottom: 10px;"
+                            >
+                                MARANHÃO RESPONDE
+                            </p>
+
+                            <div style="
+                                font-family: 'Cormorant Garamond', serif;
+                                font-size: 20px;
+                                line-height: 1.5;
+                                font-weight: 400;
+                                color: #f4ece1;
+                                margin-bottom: 20px;
+                                white-space: pre-line;
+                            ">${dados.resposta}</div>
+
+                            <p style="
+                                font-size: 9px;
+                                color: rgba(212,175,55,.62);
+                                letter-spacing: 1.3px;
+                                margin-top: 22px;
+                            ">
+                                PROTOCOLO: ${dados.atendimento_id}
+                            </p>
+
+                            <button
+                                id="mc-sac-voltar"
+                                class="mc-sac-option"
+                                type="button"
+                                style="margin-top: 18px;"
+                            >
+                                <span class="mc-sac-number">←</span>
+                                <span class="mc-sac-option-copy">
+                                    <strong>Voltar</strong>
+                                    <small>Retornar ao início</small>
+                                </span>
+                                <span class="mc-sac-arrow">↗</span>
+                            </button>
+                        </div>
+                    `;
+
+                    const voltarResposta = document.getElementById("mc-sac-voltar");
+
+                    if (voltarResposta) {
+                        voltarResposta.addEventListener("click", function () {
+                            window.location.reload();
+                        });
+                    }
+
+                } catch (erro) {
+                    enviar.disabled = false;
+                    enviar.textContent = "Tentar novamente →";
+
+                    alert("Não foi possível enviar sua mensagem agora.");
+
+                    console.error("Erro SAC Maranhão:", erro);
                 }
             });
         }
@@ -2278,9 +2237,7 @@ if (enviar) {
 
         copy.innerHTML = `
             <p class="mc-sac-eyebrow">${etiqueta}</p>
-
             <h2>${titulo}</h2>
-
             <p>${texto}</p>
         `;
 
@@ -2291,12 +2248,10 @@ if (enviar) {
                 type="button"
             >
                 <span class="mc-sac-number">←</span>
-
                 <span class="mc-sac-option-copy">
                     <strong>Voltar</strong>
                     <small>Retornar ao início do atendimento</small>
                 </span>
-
                 <span class="mc-sac-arrow">↗</span>
             </button>
         `;
