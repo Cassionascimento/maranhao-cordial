@@ -440,6 +440,79 @@ def cadastrar_degustacao():
         }), 500
 
 
+
+# =====================================================
+# SAC MARANHÃO CORDIAL — ETAPA 1 DO BACKEND
+# =====================================================
+#
+# Esta rota recebe mensagens do widget de atendimento.
+# Neste primeiro momento ela apenas valida a mensagem
+# e confirma que frontend e backend estão se comunicando.
+# IA, histórico, CRM e automações serão ligados nas
+# próximas etapas sem alterar esta URL pública.
+#
+
+@app.route(
+    "/api/sac",
+    methods=["POST"]
+)
+def sac_maranhao():
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    mensagem = str(
+        dados.get(
+            "mensagem",
+            ""
+        )
+    ).strip()
+
+    origem = str(
+        dados.get(
+            "origem",
+            "site"
+        )
+    ).strip()
+
+    tipo = str(
+        dados.get(
+            "tipo",
+            "geral"
+        )
+    ).strip()
+
+    # Evita requisições vazias.
+    if not mensagem:
+
+        return jsonify({
+            "success": False,
+            "error": "Mensagem obrigatória."
+        }), 400
+
+    # Identificador único do atendimento.
+    atendimento_id = (
+        "SAC-"
+        + uuid.uuid4().hex[:12].upper()
+    )
+
+    print("=" * 60)
+    print("SAC MARANHÃO CORDIAL")
+    print("ATENDIMENTO:", atendimento_id)
+    print("ORIGEM:", origem)
+    print("TIPO:", tipo)
+    print("MENSAGEM:", mensagem)
+    print("=" * 60)
+
+    return jsonify({
+        "success": True,
+        "atendimento_id": atendimento_id,
+        "resposta": "Mensagem recebida pelo SAC Maranhão.",
+        "origem": origem,
+        "tipo": tipo
+    }), 200
+
 @app.route("/favicon.ico")
 def favicon():
     return "", 204
