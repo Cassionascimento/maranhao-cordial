@@ -6,6 +6,10 @@ import requests
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from openai import OpenAI
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 # =====================================================
 # CONFIGURAÇÃO
@@ -1878,6 +1882,33 @@ def openai_status():
     return jsonify({
         "openai_configured": bool(OPENAI_API_KEY)
     })
+
+@app.route("/api/openai/teste", methods=["GET"])
+def openai_teste():
+
+    try:
+
+        resposta = openai_client.responses.create(
+            model="gpt-5-mini",
+            input="Responda apenas: Maranhão IA funcionando."
+        )
+
+        return jsonify({
+            "success": True,
+            "resposta": resposta.output_text
+        }), 200
+
+    except Exception as erro:
+
+        print(
+            "ERRO TESTE OPENAI:",
+            erro
+        )
+
+        return jsonify({
+            "success": False,
+            "error": str(erro)
+        }), 500
 
 @app.route(
     "/<path:filename>"
