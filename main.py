@@ -700,6 +700,49 @@ def sac_maranhao():
 
     if match_pedido and pedido_encontrado:
 
+        # -----------------------------------------
+        # VALIDA E-MAIL DO CLIENTE
+        # -----------------------------------------
+
+        email_informado = re.search(
+            r"[\w\.-]+@[\w\.-]+\.\w+",
+            mensagem.lower()
+        )
+
+        if not email_informado:
+            return jsonify({
+                "success": True,
+                "atendimento_id": atendimento_id,
+                "resposta": (
+                    "Encontrei esse número de pedido. "
+                    "Informe o e-mail utilizado na compra para continuar."
+                ),
+                "origem": origem,
+                "tipo": tipo,
+                "aguardando_email": True
+            }), 200
+
+        email_cliente = (
+            pedido_encontrado.get("cliente_email")
+            or ""
+        ).strip().lower()
+
+        if email_informado.group(0) != email_cliente:
+            return jsonify({
+                "success": True,
+                "atendimento_id": atendimento_id,
+                "resposta": (
+                    "O e-mail informado não corresponde a esse pedido. "
+                    "Confira os dados e tente novamente."
+                ),
+                "origem": origem,
+                "tipo": tipo
+            }), 200
+
+        # -----------------------------------------
+        # E-MAIL CONFIRMADO → EXIBE STATUS
+        # -----------------------------------------
+
         status_pedido = str(
             pedido_encontrado.get("status")
             or "sem_status"
