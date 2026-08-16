@@ -2156,6 +2156,75 @@ def teste_pedido_postgres():
         salvar_pedido_postgres(
             pedido_teste
         )
+        def buscar_pedido_postgres(codigo):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    SELECT
+                        codigo,
+                        cliente_nome,
+                        cliente_email,
+                        cliente_whatsapp,
+                        cpf_cnpj,
+                        endereco,
+                        quantidade,
+                        valor_centavos,
+                        status,
+                        payment_origin,
+                        c6_txid,
+                        c6_status,
+                        pagarme_id,
+                        transportadora,
+                        status_entrega,
+                        tracking_code,
+                        tracking_url,
+                        criado_em,
+                        atualizado_em
+                    FROM pedidos
+                    WHERE codigo = %s
+                    LIMIT 1
+                """, (
+                    codigo,
+                ))
+
+                linha = cur.fetchone()
+
+                if not linha:
+                    return None
+
+                return {
+                    "codigo": linha[0],
+                    "cliente_nome": linha[1],
+                    "cliente_email": linha[2],
+                    "cliente_whatsapp": linha[3],
+                    "cpf_cnpj": linha[4],
+                    "endereco": linha[5],
+                    "quantidade": linha[6],
+                    "valor_centavos": linha[7],
+                    "status": linha[8],
+                    "payment_origin": linha[9],
+                    "c6_txid": linha[10],
+                    "c6_status": linha[11],
+                    "pagarme_id": linha[12],
+                    "transportadora": linha[13],
+                    "status_entrega": linha[14],
+                    "tracking_code": linha[15],
+                    "tracking_url": linha[16],
+                    "criado_em": linha[17].isoformat()
+                        if linha[17]
+                        else None,
+                    "atualizado_em": linha[18].isoformat()
+                        if linha[18]
+                        else None
+                }
+
+    finally:
+        conn.close()
 
         return jsonify({
             "success": True,
@@ -2173,6 +2242,40 @@ def teste_pedido_postgres():
         return jsonify({
             "success": False,
             "error": str(erro)
+        }), 500
+
+@app.route(
+    "/api/pedidos/<codigo>",
+    methods=["GET"]
+)
+def consultar_pedido_postgres(codigo):
+
+    try:
+        pedido = buscar_pedido_postgres(
+            codigo.strip()
+        )
+
+        if not pedido:
+            return jsonify({
+                "success": False,
+                "error": "Pedido não encontrado."
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "pedido": pedido
+        }), 200
+
+    except Exception as erro:
+
+        print(
+            "ERRO CONSULTAR PEDIDO POSTGRES:",
+            erro
+        )
+
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível consultar o pedido agora."
         }), 500
 
 @app.route(
