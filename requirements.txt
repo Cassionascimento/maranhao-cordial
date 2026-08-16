@@ -4,3 +4,4 @@ python-dotenv
 requests
 gunicorn
 psycopg2-binary>=2.9,<3
+openai
