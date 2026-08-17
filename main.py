@@ -3200,10 +3200,10 @@ def ia_empresarial():
             input=pergunta,
 
             reasoning={
-                "effort": "medium"
+                "effort": "low"
             },
 
-            max_output_tokens=1200
+            max_output_tokens=1600
         )
 
         texto = (
@@ -3212,9 +3212,39 @@ def ia_empresarial():
         ).strip()
 
         if not texto:
+            resposta_retry = openai_client.responses.create(
+                model="gpt-5-mini",
+
+                instructions=(
+                    "Você é a inteligência empresarial privada da Maranhão Cordial. "
+                    "Faça uma análise executiva direta. "
+                    "Use somente fatos presentes no contexto e nos dados fornecidos. "
+                    "Não invente números. "
+                    "Indique exatamente três prioridades empresariais, "
+                    "explicando brevemente por que cada uma é importante. "
+                    + CONTEXTO_MARANHAO
+                    + CONTEXTO_EMPRESARIAL_INTERNO
+                    + contexto_operacional
+                ),
+
+                input=pergunta,
+
+                reasoning={
+                    "effort": "low"
+                },
+
+                max_output_tokens=1600
+            )
+
             texto = (
-                "Não consegui produzir uma análise "
-                "empresarial conclusiva nesta tentativa."
+                resposta_retry.output_text
+                or ""
+            ).strip()
+
+        if not texto:
+            texto = (
+                "Os dados foram consultados, mas a análise não pôde ser "
+                "gerada nesta tentativa. Tente novamente."
             )
 
         return jsonify({
