@@ -927,7 +927,10 @@ def sac_maranhao():
                     "Faça no máximo uma pergunta por resposta."
                 ),
                 input=mensagem,
-                max_output_tokens=120
+                reasoning={
+                    "effort": "low"
+                },
+                max_output_tokens=300
             )
 
             texto_resposta = (resposta_ia.output_text or "").strip()
