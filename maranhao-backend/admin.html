@@ -215,6 +215,11 @@
                     <strong id="valorTotal">R$ 0,00</strong>
                 </div>
 
+                <div class="card">
+                    <small>Atendimentos</small>
+                    <strong id="totalAtendimentos">0</strong>
+                </div>
+
             </div>
 
             <div class="table-wrap">
@@ -277,6 +282,9 @@
 
             const emptyState =
                 document.getElementById("emptyState");
+
+            const totalAtendimentos =
+                document.getElementById("totalAtendimentos");
 
 
             function dinheiro(centavos) {
@@ -408,6 +416,31 @@
                             tbody.appendChild(tr);
                         }
                     );
+
+                    const responseAtendimentos = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/atendimentos",
+                        {
+                            headers: {
+                                "X-Admin-Key": chave
+                            }
+                        }
+                    );
+
+                    const dataAtendimentos =
+                        await responseAtendimentos.json();
+
+                    if (!responseAtendimentos.ok) {
+                        throw new Error(
+                            dataAtendimentos.error ||
+                            "Não foi possível carregar os atendimentos."
+                        );
+                    }
+
+                    const atendimentos =
+                        dataAtendimentos.atendimentos || [];
+
+                    totalAtendimentos.textContent =
+                        atendimentos.length;
 
                     content.classList.add(
                         "show"
