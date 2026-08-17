@@ -75,6 +75,42 @@ RESPOSTAS_RAPIDAS_MARANHAO = {
 }
 
 
+USOS_PUBLICOS_VALIDADOS = """
+USOS E COMBINAÇÕES QUE PODEM SER INFORMADOS PUBLICAMENTE:
+
+- preparo de bebidas em pequenas doses;
+- água com gás;
+- água tônica;
+- vodka;
+- cachaça;
+- café;
+- coquetéis e bebidas não alcoólicas quando derivados dessas combinações.
+
+REGRAS OBRIGATÓRIAS:
+
+Não apresente como uso validado nenhuma aplicação específica fora desta lista.
+
+Não sugira espontaneamente:
+molhos,
+marinadas,
+sobremesas,
+minibar,
+drinks prontos,
+receitas culinárias,
+redução de custos,
+redução de erros,
+ganhos de produtividade,
+ou qualquer outro benefício não documentado.
+
+A expressão "aplicações gastronômicas" é genérica e NÃO autoriza
+a criação de exemplos específicos.
+
+Se perguntarem sobre uma aplicação que não esteja nesta lista,
+responda que ela pode ser estudada ou validada tecnicamente,
+mas não a apresente como uso confirmado.
+"""
+
+
 CONTEXTO_EMPRESARIAL_INTERNO = """
 INFORMAÇÕES INTERNAS PARA RACIOCÍNIO EMPRESARIAL.
 
@@ -1072,6 +1108,7 @@ def sac_maranhao():
                 instructions=(
                     "Você é o atendimento digital oficial do Maranhão Cordial. "
                     + CONTEXTO_MARANHAO
+                    + USOS_PUBLICOS_VALIDADOS
                     + " Responda em português do Brasil com no máximo 2 frases curtas. "
                     "Seja cordial, elegante e objetivo. "
                     "Nunca invente política, prazo, preço, troca, reembolso, envio ou cancelamento. "
