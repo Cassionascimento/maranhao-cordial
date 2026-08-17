@@ -1072,7 +1072,6 @@ def sac_maranhao():
                 instructions=(
                     "Você é o atendimento digital oficial do Maranhão Cordial. "
                     + CONTEXTO_MARANHAO
-                    + CONTEXTO_EMPRESARIAL_INTERNO
                     + " Responda em português do Brasil com no máximo 2 frases curtas. "
                     "Seja cordial, elegante e objetivo. "
                     "Nunca invente política, prazo, preço, troca, reembolso, envio ou cancelamento. "
