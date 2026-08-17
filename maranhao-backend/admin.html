@@ -225,6 +225,11 @@
                     <strong id="totalB2B">0</strong>
                 </div>
 
+                <div class="card">
+                    <small>Degustações</small>
+                    <strong id="totalDegustacoes">0</strong>
+                </div>
+
             </div>
 
             <div class="table-wrap">
@@ -330,6 +335,9 @@
 
             const totalB2B =
                 document.getElementById("totalB2B");
+
+            const totalDegustacoes =
+                document.getElementById("totalDegustacoes");
 
             const atendimentosBody =
                 document.getElementById("atendimentosBody");
@@ -517,6 +525,31 @@
 
                     totalB2B.textContent =
                         cadastrosB2B.length;
+
+                    const responseDegustacoes = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/degustacoes",
+                        {
+                            headers: {
+                                "X-Admin-Key": chave
+                            }
+                        }
+                    );
+
+                    const dataDegustacoes =
+                        await responseDegustacoes.json();
+
+                    if (!responseDegustacoes.ok) {
+                        throw new Error(
+                            dataDegustacoes.error ||
+                            "Não foi possível carregar as degustações."
+                        );
+                    }
+
+                    const degustacoes =
+                        dataDegustacoes.degustacoes || [];
+
+                    totalDegustacoes.textContent =
+                        degustacoes.length;
 
                     atendimentosBody.innerHTML = "";
 
