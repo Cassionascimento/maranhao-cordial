@@ -1098,7 +1098,7 @@ def sac_maranhao():
                 reasoning={
                     "effort": "low"
                 },
-                max_output_tokens=300
+                max_output_tokens=800
             )
 
             texto_resposta = (resposta_ia.output_text or "").strip()
