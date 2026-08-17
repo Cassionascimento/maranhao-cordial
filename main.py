@@ -1102,8 +1102,34 @@ def sac_maranhao():
             )
 
             texto_resposta = (resposta_ia.output_text or "").strip()
+
             if not texto_resposta:
-                texto_resposta = "Como posso ajudar com seu pedido?"
+                resposta_retry = openai_client.responses.create(
+                    model="gpt-5-mini",
+                    instructions=(
+                        "Responda diretamente à pergunta do cliente em português do Brasil. "
+                        "Use 1 ou 2 frases curtas. "
+                        "Não faça introdução genérica. "
+                        "Não diga 'Como posso ajudar com seu pedido?'. "
+                        + CONTEXTO_MARANHAO
+                        + CONTEXTO_EMPRESARIAL_INTERNO
+                    ),
+                    input=mensagem,
+                    reasoning={
+                        "effort": "low"
+                    },
+                    max_output_tokens=500
+                )
+
+                texto_resposta = (
+                    resposta_retry.output_text or ""
+                ).strip()
+
+            if not texto_resposta:
+                texto_resposta = (
+                    "Posso explicar melhor essa aplicação do Maranhão Cordial. "
+                    "Tente reformular a pergunta em uma frase curta."
+                )
 
         except Exception as erro:
             print("ERRO IA SAC MARANHÃO:", erro)
