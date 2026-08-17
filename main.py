@@ -2498,6 +2498,93 @@ def admin_listar_b2b():
         }), 500
 
 
+def listar_degustacoes_postgres(limite=100):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        empresa,
+                        cnpj,
+                        segmento,
+                        cidade,
+                        responsavel,
+                        whatsapp,
+                        email,
+                        mensagem,
+                        status,
+                        criado_em
+                    FROM solicitacoes_degustacao
+                    ORDER BY criado_em DESC
+                    LIMIT %s
+                """, (limite,))
+
+                linhas = cur.fetchall()
+
+                return [
+                    {
+                        "empresa": linha[0],
+                        "cnpj": linha[1],
+                        "segmento": linha[2],
+                        "cidade": linha[3],
+                        "responsavel": linha[4],
+                        "whatsapp": linha[5],
+                        "email": linha[6],
+                        "mensagem": linha[7],
+                        "status": linha[8],
+                        "criado_em": linha[9].isoformat()
+                            if linha[9]
+                            else None
+                    }
+                    for linha in linhas
+                ]
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/degustacoes",
+    methods=["GET"]
+)
+def admin_listar_degustacoes():
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        degustacoes = listar_degustacoes_postgres()
+
+        return jsonify({
+            "success": True,
+            "total": len(degustacoes),
+            "degustacoes": degustacoes
+        }), 200
+
+    except Exception as erro:
+        print(
+            "ERRO ADMIN LISTAR DEGUSTAÇÕES:",
+            erro
+        )
+
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível listar as degustações."
+        }), 500
+
+
 # =====================================================
 # ADMIN — LISTAR PEDIDOS
 # =====================================================
