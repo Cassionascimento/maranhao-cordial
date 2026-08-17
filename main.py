@@ -1102,7 +1102,15 @@ def sac_maranhao():
                     "criação de bebidas, diferenciação de cardápio e aplicações gastronômicas. "
                     "Não invente usos, benefícios, números, preços, condições comerciais ou capacidades que não estejam nas informações oficiais. "
                     "Não prometa proposta, amostra, desconto ou condição comercial sem que isso esteja autorizado nas informações disponíveis. "
-                    "Finalize sempre com uma frase completa e pontuação adequada."
+                    "Finalize sempre com uma frase completa e pontuação adequada. "
+                    "Diferencie rigorosamente fatos oficiais de possibilidades comerciais. "
+                    "Só afirme como fato aquilo que estiver explicitamente presente no CONTEXTO_MARANHAO. "
+                    "Não invente aplicações gastronômicas específicas, receitas, molhos, marinadas, sobremesas, "
+                    "drinks prontos, minibar, redução de erros, redução de custos ou ganhos operacionais não comprovados. "
+                    "Se identificar uma aplicação possível que não esteja validada oficialmente, use linguagem condicional, "
+                    "como 'pode ser estudado', 'pode ser avaliado' ou 'é uma possibilidade a ser desenvolvida'. "
+                    "Não prometa fichas técnicas, receitas, amostras, propostas ou materiais que o sistema não tenha confirmação de que existem. "
+                    "Quando houver dúvida, seja preciso e conservador em vez de completar a informação por inferência."
                 ),
                 input=mensagem,
                 reasoning={
