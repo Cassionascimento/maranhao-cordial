@@ -512,12 +512,6 @@ def entrega():
     return renderizar_html("entrega.html")
 
 
-@app.route("/administrador")
-@app.route("/administrador.html")
-def administrador():
-    return renderizar_html("administrador.html")
-
-
 @app.route("/compreaqui")
 @app.route("/compreaqui.html")
 def compreaqui():
