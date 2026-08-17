@@ -1081,7 +1081,18 @@ def sac_maranhao():
                     "O Maranhão Cordial não possui lojas físicas. "
                     "Se a compra foi feita fora do site maranhaocordial.com.br, informe que qualquer reclamação "
                     "ou solução deve ser tratada diretamente com o distribuidor ou estabelecimento onde a compra foi feita. "
-                    "Faça no máximo uma pergunta por resposta."
+                    "Faça no máximo uma pergunta por resposta. "
+                    "Evite repetir a mesma estrutura, abertura ou conclusão em respostas semelhantes. "
+                    "Varie naturalmente o vocabulário sem alterar os fatos oficiais da marca. "
+                    "Escolha o foco da resposta de acordo com a necessidade demonstrada pelo cliente. "
+                    "Quando pertinente, varie entre eficiência operacional, padronização, experiência do cliente, "
+                    "aplicações gastronômicas, hospitalidade, coquetelaria, minibar, eventos, identidade cultural "
+                    "e experiência de marca. "
+                    "Não tente mencionar todos esses aspectos na mesma resposta. "
+                    "Não use sempre expressões como 'agrega valor', 'experiência sensorial' ou 'padronização'. "
+                    "Não termine todas as respostas oferecendo atendimento B2B. "
+                    "Só faça convite comercial ou próxima pergunta quando isso realmente ajudar a avançar a conversa. "
+                    "Quando o cliente já tiver informado seu segmento, adapte a resposta especificamente àquele segmento."
                 ),
                 input=mensagem,
                 reasoning={
