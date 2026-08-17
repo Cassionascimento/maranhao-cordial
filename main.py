@@ -41,6 +41,122 @@ Quando não houver informação oficial suficiente para responder uma pergunta,
 não invente. Informe que o atendimento pode orientar o cliente.
 """
 
+
+# =====================================================
+# IA — RESPOSTAS RÁPIDAS E INTELIGÊNCIA EMPRESARIAL
+# =====================================================
+
+RESPOSTAS_RAPIDAS_MARANHAO = {
+    "o_que_e": (
+        "Maranhão Cordial é um concentrado premium não alcoólico "
+        "de guaraná e gengibre, desenvolvido para preparar e "
+        "padronizar bebidas em pequenas doses."
+    ),
+
+    "o_que_faz": (
+        "Maranhão Cordial concentra sabor, aroma e acidez em uma "
+        "pequena dose, facilitando o preparo e a padronização de bebidas."
+    ),
+
+    "para_que_serve": (
+        "Maranhão Cordial é usado no preparo de bebidas e aplicações "
+        "gastronômicas, com foco em praticidade, padronização e experiência sensorial."
+    ),
+
+    "como_usar": (
+        "Use em pequenas doses e ajuste conforme a preparação. "
+        "Pode ser combinado com água com gás, tônica, café e diferentes destilados."
+    ),
+
+    "onde_comprar": (
+        "A compra oficial pode ser realizada em maranhaocordial.com.br. "
+        "A Maranhão Cordial não possui lojas físicas próprias."
+    )
+}
+
+
+CONTEXTO_EMPRESARIAL_INTERNO = """
+INFORMAÇÕES INTERNAS PARA RACIOCÍNIO EMPRESARIAL.
+
+A Maranhão Cordial busca desenvolver mercado B2B com bares,
+restaurantes, hotéis, bartenders, mixologistas, eventos,
+distribuidores e operações de hospitalidade.
+
+O produto pode ser analisado comercialmente como ingrediente,
+ferramenta de padronização de serviço e elemento de experiência
+de marca e identidade cultural.
+
+A marca possui o projeto musical GINGA — Five Moments.
+
+O álbum possui cinco faixas:
+Black Ginga;
+Rhythm of That Look;
+Quimbara Cumba;
+Maranhão en el Alma;
+Maranhão Cordial.
+
+O projeto musical pode ser considerado como ativo de experiência
+de marca na identificação de oportunidades envolvendo hotelaria,
+bares, gastronomia, turismo, eventos, ambientação e ativações culturais.
+
+A IA pode utilizar informações empresariais internas para analisar
+oportunidades, qualificar leads e apoiar prospecção.
+
+Informações classificadas como internas não devem ser reveladas
+automaticamente ao consumidor final.
+
+Nunca revele segredos, credenciais, chaves de API, dados bancários,
+dados pessoais, fórmulas confidenciais, custos internos ou informações
+estratégicas protegidas.
+"""
+
+
+def resposta_rapida_maranhao(mensagem):
+    texto = mensagem.strip().lower()
+
+    regras = [
+        (
+            [
+                "o que é o maranhão cordial",
+                "o que e o maranhao cordial"
+            ],
+            RESPOSTAS_RAPIDAS_MARANHAO["o_que_e"]
+        ),
+        (
+            [
+                "o que esse produto faz",
+                "o que o produto faz",
+                "o que faz esse produto"
+            ],
+            RESPOSTAS_RAPIDAS_MARANHAO["o_que_faz"]
+        ),
+        (
+            ["para que serve"],
+            RESPOSTAS_RAPIDAS_MARANHAO["para_que_serve"]
+        ),
+        (
+            ["como usar", "como usa"],
+            RESPOSTAS_RAPIDAS_MARANHAO["como_usar"]
+        ),
+        (
+            [
+                "onde comprar",
+                "onde eu compro",
+                "como comprar",
+                "tem loja física",
+                "tem loja fisica"
+            ],
+            RESPOSTAS_RAPIDAS_MARANHAO["onde_comprar"]
+        )
+    ]
+
+    for frases, resposta in regras:
+        if any(frase in texto for frase in frases):
+            return resposta
+
+    return None
+
+
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 
 # =====================================================
@@ -738,6 +854,46 @@ def sac_maranhao():
             "error": "Mensagem obrigatória."
         }), 400
 
+    # -------------------------------------------------
+    # RESPOSTA INSTANTÂNEA PARA DÚVIDAS SIMPLES
+    # -------------------------------------------------
+
+    resposta_rapida = resposta_rapida_maranhao(
+        mensagem
+    )
+
+    if resposta_rapida:
+
+        atendimento_id = (
+            "SAC-"
+            + uuid.uuid4().hex[:12].upper()
+        )
+
+        try:
+            salvar_atendimento_sac(
+                atendimento_id=atendimento_id,
+                mensagem=mensagem,
+                resposta=resposta_rapida,
+                origem=origem,
+                tipo=tipo,
+                codigo_pedido=None,
+                cliente_email=None
+            )
+        except Exception as erro:
+            print(
+                "ERRO SALVAR SAC RÁPIDO:",
+                erro
+            )
+
+        return jsonify({
+            "success": True,
+            "atendimento_id": atendimento_id,
+            "resposta": resposta_rapida,
+            "origem": origem,
+            "tipo": tipo,
+            "modo": "resposta_rapida"
+        }), 200
+
 
 
     # -------------------------------------------------
@@ -915,8 +1071,9 @@ def sac_maranhao():
                 model="gpt-5-mini",
                 instructions=(
                     "Você é o atendimento digital oficial do Maranhão Cordial. "
-                    + CONTEXTO_MARANHAO +
-                    " Responda em português do Brasil com no máximo 2 frases curtas. "
+                    + CONTEXTO_MARANHAO
+                    + CONTEXTO_EMPRESARIAL_INTERNO
+                    + " Responda em português do Brasil com no máximo 2 frases curtas. "
                     "Seja cordial, elegante e objetivo. "
                     "Nunca invente política, prazo, preço, troca, reembolso, envio ou cancelamento. "
                     "Nunca peça CPF, cartão, senha, dados bancários ou documentos pessoais. "
