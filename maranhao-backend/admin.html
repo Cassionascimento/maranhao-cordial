@@ -263,6 +263,86 @@
             </div>
 
             <div style="margin-top: 42px;">
+                <div class="eyebrow">B2B</div>
+
+                <h2 style="
+                    font-family: Georgia, 'Times New Roman', serif;
+                    font-weight: 400;
+                    margin: 0 0 18px;
+                ">
+                    Leads profissionais
+                </h2>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Empresa</th>
+                                <th>Responsável</th>
+                                <th>Segmento</th>
+                                <th>Cidade</th>
+                                <th>WhatsApp</th>
+                                <th>E-mail</th>
+                                <th>Interesse</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="b2bBody"></tbody>
+                    </table>
+
+                    <div
+                        id="emptyB2B"
+                        class="empty"
+                        style="display:none;"
+                    >
+                        Nenhum lead B2B encontrado.
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 42px;">
+                <div class="eyebrow">DEGUSTAÇÕES</div>
+
+                <h2 style="
+                    font-family: Georgia, 'Times New Roman', serif;
+                    font-weight: 400;
+                    margin: 0 0 18px;
+                ">
+                    Solicitações de degustação
+                </h2>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Empresa</th>
+                                <th>Responsável</th>
+                                <th>Segmento</th>
+                                <th>Cidade</th>
+                                <th>WhatsApp</th>
+                                <th>E-mail</th>
+                                <th>Status</th>
+                                <th>Mensagem</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="degustacoesBody"></tbody>
+                    </table>
+
+                    <div
+                        id="emptyDegustacoes"
+                        class="empty"
+                        style="display:none;"
+                    >
+                        Nenhuma degustação encontrada.
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 42px;">
                 <div class="eyebrow">SAC</div>
 
                 <h2 style="
@@ -338,6 +418,18 @@
 
             const totalDegustacoes =
                 document.getElementById("totalDegustacoes");
+
+            const b2bBody =
+                document.getElementById("b2bBody");
+
+            const emptyB2B =
+                document.getElementById("emptyB2B");
+
+            const degustacoesBody =
+                document.getElementById("degustacoesBody");
+
+            const emptyDegustacoes =
+                document.getElementById("emptyDegustacoes");
 
             const atendimentosBody =
                 document.getElementById("atendimentosBody");
@@ -526,6 +618,34 @@
                     totalB2B.textContent =
                         cadastrosB2B.length;
 
+                    b2bBody.innerHTML = "";
+
+                    if (!cadastrosB2B.length) {
+                        emptyB2B.style.display = "block";
+                    } else {
+                        emptyB2B.style.display = "none";
+                    }
+
+                    cadastrosB2B.forEach(cadastro => {
+
+                        const tr =
+                            document.createElement("tr");
+
+                        tr.innerHTML = `
+                            <td>${escapar(cadastro.empresa || "-")}</td>
+                            <td>${escapar(cadastro.responsavel || "-")}</td>
+                            <td>${escapar(cadastro.segmento || "-")}</td>
+                            <td>${escapar(cadastro.cidade || "-")}</td>
+                            <td>${escapar(cadastro.whatsapp || "-")}</td>
+                            <td>${escapar(cadastro.email || "-")}</td>
+                            <td>${escapar(cadastro.interesse || "-")}</td>
+                            <td>${escapar(cadastro.status || "-")}</td>
+                            <td>${dataBrasil(cadastro.criado_em)}</td>
+                        `;
+
+                        b2bBody.appendChild(tr);
+                    });
+
                     const responseDegustacoes = await fetch(
                         "https://maranhao-cordial-api.onrender.com/api/admin/degustacoes",
                         {
@@ -550,6 +670,34 @@
 
                     totalDegustacoes.textContent =
                         degustacoes.length;
+
+                    degustacoesBody.innerHTML = "";
+
+                    if (!degustacoes.length) {
+                        emptyDegustacoes.style.display = "block";
+                    } else {
+                        emptyDegustacoes.style.display = "none";
+                    }
+
+                    degustacoes.forEach(degustacao => {
+
+                        const tr =
+                            document.createElement("tr");
+
+                        tr.innerHTML = `
+                            <td>${escapar(degustacao.empresa || "-")}</td>
+                            <td>${escapar(degustacao.responsavel || "-")}</td>
+                            <td>${escapar(degustacao.segmento || "-")}</td>
+                            <td>${escapar(degustacao.cidade || "-")}</td>
+                            <td>${escapar(degustacao.whatsapp || "-")}</td>
+                            <td>${escapar(degustacao.email || "-")}</td>
+                            <td>${escapar(degustacao.status || "-")}</td>
+                            <td>${escapar(degustacao.mensagem || "-")}</td>
+                            <td>${dataBrasil(degustacao.criado_em)}</td>
+                        `;
+
+                        degustacoesBody.appendChild(tr);
+                    });
 
                     atendimentosBody.innerHTML = "";
 
