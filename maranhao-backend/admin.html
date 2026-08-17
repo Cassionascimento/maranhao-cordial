@@ -252,6 +252,43 @@
 
             </div>
 
+            <div style="margin-top: 42px;">
+                <div class="eyebrow">SAC</div>
+
+                <h2 style="
+                    font-family: Georgia, 'Times New Roman', serif;
+                    font-weight: 400;
+                    margin: 0 0 18px;
+                ">
+                    Atendimentos recentes
+                </h2>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Protocolo</th>
+                                <th>Mensagem</th>
+                                <th>Resposta</th>
+                                <th>Pedido</th>
+                                <th>E-mail</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="atendimentosBody"></tbody>
+                    </table>
+
+                    <div
+                        id="emptyAtendimentos"
+                        class="empty"
+                        style="display:none;"
+                    >
+                        Nenhum atendimento encontrado.
+                    </div>
+                </div>
+            </div>
+
         </section>
 
     </main>
@@ -285,6 +322,12 @@
 
             const totalAtendimentos =
                 document.getElementById("totalAtendimentos");
+
+            const atendimentosBody =
+                document.getElementById("atendimentosBody");
+
+            const emptyAtendimentos =
+                document.getElementById("emptyAtendimentos");
 
 
             function dinheiro(centavos) {
@@ -441,6 +484,31 @@
 
                     totalAtendimentos.textContent =
                         atendimentos.length;
+
+                    atendimentosBody.innerHTML = "";
+
+                    if (!atendimentos.length) {
+                        emptyAtendimentos.style.display = "block";
+                    } else {
+                        emptyAtendimentos.style.display = "none";
+                    }
+
+                    atendimentos.forEach(atendimento => {
+
+                        const tr =
+                            document.createElement("tr");
+
+                        tr.innerHTML = `
+                            <td>${escapar(atendimento.atendimento_id || "-")}</td>
+                            <td>${escapar(atendimento.mensagem || "-")}</td>
+                            <td>${escapar(atendimento.resposta || "-")}</td>
+                            <td>${escapar(atendimento.codigo_pedido || "-")}</td>
+                            <td>${escapar(atendimento.cliente_email || "-")}</td>
+                            <td>${dataBrasil(atendimento.criado_em)}</td>
+                        `;
+
+                        atendimentosBody.appendChild(tr);
+                    });
 
                     content.classList.add(
                         "show"
