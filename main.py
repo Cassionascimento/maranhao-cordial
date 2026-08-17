@@ -2963,6 +2963,293 @@ def admin_listar_degustacoes():
         }), 500
 
 
+
+# =====================================================
+# IA EMPRESARIAL — MARANHÃO CORDIAL
+# =====================================================
+
+def obter_resumo_empresarial_postgres():
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    SELECT COUNT(*)
+                    FROM pedidos
+                """)
+                total_pedidos = cur.fetchone()[0]
+
+                cur.execute("""
+                    SELECT COALESCE(
+                        SUM(valor_centavos),
+                        0
+                    )
+                    FROM pedidos
+                """)
+                valor_pedidos_centavos = cur.fetchone()[0]
+
+                cur.execute("""
+                    SELECT COUNT(*)
+                    FROM cadastros_profissionais
+                """)
+                total_b2b = cur.fetchone()[0]
+
+                cur.execute("""
+                    SELECT COUNT(*)
+                    FROM solicitacoes_degustacao
+                """)
+                total_degustacoes = cur.fetchone()[0]
+
+                cur.execute("""
+                    SELECT COUNT(*)
+                    FROM atendimentos_sac
+                """)
+                total_atendimentos = cur.fetchone()[0]
+
+                cur.execute("""
+                    SELECT
+                        codigo,
+                        cliente_nome,
+                        status,
+                        status_entrega,
+                        valor_centavos,
+                        criado_em
+                    FROM pedidos
+                    ORDER BY criado_em DESC
+                    LIMIT 10
+                """)
+                pedidos_recentes = cur.fetchall()
+
+                cur.execute("""
+                    SELECT
+                        empresa,
+                        segmento,
+                        cidade,
+                        interesse,
+                        status,
+                        criado_em
+                    FROM cadastros_profissionais
+                    ORDER BY criado_em DESC
+                    LIMIT 10
+                """)
+                leads_recentes = cur.fetchall()
+
+                cur.execute("""
+                    SELECT
+                        atendimento_id,
+                        mensagem,
+                        tipo,
+                        criado_em
+                    FROM atendimentos_sac
+                    ORDER BY criado_em DESC
+                    LIMIT 10
+                """)
+                atendimentos_recentes = cur.fetchall()
+
+        return {
+            "total_pedidos":
+                total_pedidos,
+
+            "valor_pedidos_centavos":
+                int(valor_pedidos_centavos or 0),
+
+            "total_b2b":
+                total_b2b,
+
+            "total_degustacoes":
+                total_degustacoes,
+
+            "total_atendimentos":
+                total_atendimentos,
+
+            "pedidos_recentes": [
+                {
+                    "codigo": linha[0],
+                    "cliente_nome": linha[1],
+                    "status": linha[2],
+                    "status_entrega": linha[3],
+                    "valor_centavos": linha[4],
+                    "criado_em":
+                        linha[5].isoformat()
+                        if linha[5]
+                        else None
+                }
+                for linha in pedidos_recentes
+            ],
+
+            "leads_recentes": [
+                {
+                    "empresa": linha[0],
+                    "segmento": linha[1],
+                    "cidade": linha[2],
+                    "interesse": linha[3],
+                    "status": linha[4],
+                    "criado_em":
+                        linha[5].isoformat()
+                        if linha[5]
+                        else None
+                }
+                for linha in leads_recentes
+            ],
+
+            "atendimentos_recentes": [
+                {
+                    "atendimento_id": linha[0],
+                    "mensagem": linha[1],
+                    "tipo": linha[2],
+                    "criado_em":
+                        linha[3].isoformat()
+                        if linha[3]
+                        else None
+                }
+                for linha in atendimentos_recentes
+            ]
+        }
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/ia-empresarial",
+    methods=["POST"]
+)
+def ia_empresarial():
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    pergunta = str(
+        dados.get(
+            "pergunta",
+            ""
+        )
+    ).strip()
+
+    if not pergunta:
+        return jsonify({
+            "success": False,
+            "error": "Pergunta obrigatória."
+        }), 400
+
+    if not openai_client:
+        return jsonify({
+            "success": False,
+            "error":
+                "IA empresarial indisponível."
+        }), 503
+
+    try:
+        resumo = (
+            obter_resumo_empresarial_postgres()
+        )
+
+        contexto_operacional = (
+            "\n\nDADOS ATUAIS DO SISTEMA:\n"
+            + str(resumo)
+        )
+
+        resposta = openai_client.responses.create(
+            model="gpt-5-mini",
+
+            instructions=(
+                "Você é a inteligência empresarial privada "
+                "da Maranhão Cordial. "
+
+                "Seu usuário é a direção da empresa, não o consumidor final. "
+
+                + CONTEXTO_MARANHAO
+                + CONTEXTO_EMPRESARIAL_INTERNO
+                + contexto_operacional +
+
+                "\nAnalise negócios com rigor. "
+                "Separe fatos, hipóteses, riscos e oportunidades. "
+                "Use os dados atuais do sistema quando forem relevantes. "
+                "Não invente números ou fatos ausentes. "
+                "Quando faltar informação, diga exatamente o que falta. "
+
+                "Você pode recomendar prioridades comerciais, "
+                "identificar padrões, analisar leads, sugerir próximos passos, "
+                "examinar oportunidades B2B e interpretar sinais do negócio. "
+
+                "Você NÃO possui autorização para assumir compromissos, "
+                "alterar preços, aceitar contratos, conceder descontos, "
+                "enviar mensagens, fazer pagamentos ou executar negociações "
+                "sem ferramenta e autorização específicas. "
+
+                "Responda de forma executiva, clara e objetiva. "
+                "Quando útil, apresente uma recomendação concreta."
+            ),
+
+            input=pergunta,
+
+            reasoning={
+                "effort": "medium"
+            },
+
+            max_output_tokens=1200
+        )
+
+        texto = (
+            resposta.output_text
+            or ""
+        ).strip()
+
+        if not texto:
+            texto = (
+                "Não consegui produzir uma análise "
+                "empresarial conclusiva nesta tentativa."
+            )
+
+        return jsonify({
+            "success": True,
+            "agent":
+                "maranhao-empresarial-v1",
+            "resposta":
+                texto,
+            "dados_consultados": {
+                "pedidos":
+                    resumo["total_pedidos"],
+                "b2b":
+                    resumo["total_b2b"],
+                "degustacoes":
+                    resumo["total_degustacoes"],
+                "atendimentos":
+                    resumo["total_atendimentos"]
+            }
+        }), 200
+
+    except Exception as erro:
+
+        print(
+            "ERRO IA EMPRESARIAL:",
+            erro
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Não foi possível executar "
+                "a análise empresarial."
+        }), 500
+
+
 # =====================================================
 # ADMIN — LISTAR PEDIDOS
 # =====================================================
