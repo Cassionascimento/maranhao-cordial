@@ -122,6 +122,21 @@ def normalizar_texto_publico(texto):
     return texto.lower()
 
 
+def limpar_resposta_publica(texto):
+    texto = str(texto or "").strip()
+
+    # Corrige espaços depois de pontuação
+    texto = re.sub(r",(?=\S)", ", ", texto)
+    texto = re.sub(r"\.(?=\S)", ". ", texto)
+    texto = re.sub(r";(?=\S)", "; ", texto)
+
+    # Remove excesso de espaços e quebras
+    texto = re.sub(r"[ \t]+", " ", texto)
+    texto = re.sub(r"\n\s*\n+", "\n", texto)
+
+    return texto.strip()
+
+
 def validar_resposta_publica(mensagem, resposta):
     texto = normalizar_texto_publico(resposta)
     pergunta = normalizar_texto_publico(mensagem)
@@ -1271,6 +1286,10 @@ def sac_maranhao():
 
             texto_resposta = validar_resposta_publica(
                 mensagem,
+                texto_resposta
+            )
+
+            texto_resposta = limpar_resposta_publica(
                 texto_resposta
             )
 
