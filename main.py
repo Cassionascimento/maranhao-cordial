@@ -2417,6 +2417,87 @@ def admin_listar_atendimentos():
         }), 500
 
 
+def listar_b2b_postgres(limite=100):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        empresa,
+                        cnpj,
+                        segmento,
+                        responsavel,
+                        whatsapp,
+                        email,
+                        cidade,
+                        interesse,
+                        mensagem,
+                        status,
+                        criado_em
+                    FROM cadastros_profissionais
+                    ORDER BY criado_em DESC
+                    LIMIT %s
+                """, (limite,))
+
+                linhas = cur.fetchall()
+
+                return [
+                    {
+                        "empresa": linha[0],
+                        "cnpj": linha[1],
+                        "segmento": linha[2],
+                        "responsavel": linha[3],
+                        "whatsapp": linha[4],
+                        "email": linha[5],
+                        "cidade": linha[6],
+                        "interesse": linha[7],
+                        "mensagem": linha[8],
+                        "status": linha[9],
+                        "criado_em": linha[10].isoformat() if linha[10] else None
+                    }
+                    for linha in linhas
+                ]
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/b2b",
+    methods=["GET"]
+)
+def admin_listar_b2b():
+
+    chave_recebida = request.headers.get("X-Admin-Key")
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        cadastros = listar_b2b_postgres()
+
+        return jsonify({
+            "success": True,
+            "total": len(cadastros),
+            "cadastros": cadastros
+        }), 200
+
+    except Exception as erro:
+        print("ERRO ADMIN LISTAR B2B:", erro)
+
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível listar os cadastros B2B."
+        }), 500
+
+
 # =====================================================
 # ADMIN — LISTAR PEDIDOS
 # =====================================================
