@@ -18,6 +18,29 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
+CONTEXTO_MARANHAO = """
+Maranhão Cordial é um concentrado premium não alcoólico de guaraná e gengibre,
+apresentado em garrafa de 200 mL.
+
+É utilizado em pequenas doses para preparo de bebidas e outras aplicações
+gastronômicas.
+
+Pode ser combinado com água com gás, água tônica, vodka, cachaça, café e
+outras preparações.
+
+O produto foi desenvolvido com foco em padronização, praticidade de bancada
+e experiência sensorial.
+
+A Maranhão Cordial atende consumidores pelo site oficial
+maranhaocordial.com.br e possui atendimento profissional B2B para bares,
+restaurantes, hotéis, bartenders, mixologistas e distribuidores.
+
+A empresa não possui lojas físicas próprias.
+
+Quando não houver informação oficial suficiente para responder uma pergunta,
+não invente. Informe que o atendimento pode orientar o cliente.
+"""
+
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 
 # =====================================================
@@ -892,7 +915,8 @@ def sac_maranhao():
                 model="gpt-5-mini",
                 instructions=(
                     "Você é o atendimento digital oficial do Maranhão Cordial. "
-                    "Responda em português do Brasil com no máximo 2 frases curtas. "
+                    + CONTEXTO_MARANHAO +
+                    " Responda em português do Brasil com no máximo 2 frases curtas. "
                     "Seja cordial, elegante e objetivo. "
                     "Nunca invente política, prazo, preço, troca, reembolso, envio ou cancelamento. "
                     "Nunca peça CPF, cartão, senha, dados bancários ou documentos pessoais. "
