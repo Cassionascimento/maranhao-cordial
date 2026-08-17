@@ -1322,7 +1322,8 @@ def sac_maranhao():
         "atendimento_id": atendimento_id,
         "resposta": texto_resposta,
         "origem": origem,
-        "tipo": tipo
+        "tipo": tipo,
+        "validator_version": "v1-rigido"
     }), 200
 
 
