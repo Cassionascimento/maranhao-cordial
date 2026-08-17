@@ -220,6 +220,11 @@
                     <strong id="totalAtendimentos">0</strong>
                 </div>
 
+                <div class="card">
+                    <small>Leads B2B</small>
+                    <strong id="totalB2B">0</strong>
+                </div>
+
             </div>
 
             <div class="table-wrap">
@@ -322,6 +327,9 @@
 
             const totalAtendimentos =
                 document.getElementById("totalAtendimentos");
+
+            const totalB2B =
+                document.getElementById("totalB2B");
 
             const atendimentosBody =
                 document.getElementById("atendimentosBody");
@@ -484,6 +492,31 @@
 
                     totalAtendimentos.textContent =
                         atendimentos.length;
+
+                    const responseB2B = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/b2b",
+                        {
+                            headers: {
+                                "X-Admin-Key": chave
+                            }
+                        }
+                    );
+
+                    const dataB2B =
+                        await responseB2B.json();
+
+                    if (!responseB2B.ok) {
+                        throw new Error(
+                            dataB2B.error ||
+                            "Não foi possível carregar os leads B2B."
+                        );
+                    }
+
+                    const cadastrosB2B =
+                        dataB2B.cadastros || [];
+
+                    totalB2B.textContent =
+                        cadastrosB2B.length;
 
                     atendimentosBody.innerHTML = "";
 
