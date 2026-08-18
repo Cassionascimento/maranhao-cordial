@@ -495,6 +495,26 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # DECISÕES EMPRESARIAIS
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS decisoes_empresariais (
+                        id UUID PRIMARY KEY,
+                        titulo VARCHAR(220) NOT NULL,
+                        descricao TEXT NOT NULL,
+                        area VARCHAR(80) NOT NULL,
+                        horizonte VARCHAR(30) NOT NULL,
+                        status VARCHAR(30) NOT NULL DEFAULT 'ativa',
+                        responsavel VARCHAR(180),
+                        data_decisao DATE NOT NULL DEFAULT CURRENT_DATE,
+                        documento_id UUID,
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                # ==========================================
                 # PEDIDOS
                 # ==========================================
 
@@ -3710,6 +3730,366 @@ def admin_download_documento(documento_id):
         conn.close()
 
 
+
+# =====================================================
+# DECISÕES EMPRESARIAIS — ADMIN
+# =====================================================
+
+HORIZONTES_DECISOES = {
+    "estrategico",
+    "tatico",
+    "operacional"
+}
+
+STATUS_DECISOES = {
+    "ativa",
+    "concluida",
+    "cancelada",
+    "substituida"
+}
+
+
+@app.route(
+    "/api/admin/decisoes",
+    methods=["GET"]
+)
+def admin_listar_decisoes():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        horizonte,
+                        status,
+                        responsavel,
+                        data_decisao,
+                        documento_id,
+                        criado_em,
+                        atualizado_em
+                    FROM decisoes_empresariais
+                    ORDER BY
+                        data_decisao DESC,
+                        criado_em DESC
+                """)
+
+                decisoes = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total": len(decisoes),
+            "decisoes": decisoes
+        }), 200
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/decisoes",
+    methods=["POST"]
+)
+def admin_criar_decisao():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    titulo = str(
+        dados.get("titulo", "")
+    ).strip()
+
+    descricao = str(
+        dados.get("descricao", "")
+    ).strip()
+
+    area = str(
+        dados.get("area", "")
+    ).strip()
+
+    horizonte = str(
+        dados.get("horizonte", "")
+    ).strip()
+
+    status = str(
+        dados.get("status", "ativa")
+    ).strip()
+
+    responsavel = str(
+        dados.get("responsavel", "")
+    ).strip() or None
+
+    data_decisao = str(
+        dados.get("data_decisao", "")
+    ).strip() or None
+
+    documento_id = str(
+        dados.get("documento_id", "")
+    ).strip() or None
+
+    if not titulo:
+        return jsonify({
+            "success": False,
+            "error": "Título obrigatório."
+        }), 400
+
+    if not descricao:
+        return jsonify({
+            "success": False,
+            "error": "Descrição obrigatória."
+        }), 400
+
+    if not area:
+        return jsonify({
+            "success": False,
+            "error": "Área obrigatória."
+        }), 400
+
+    if horizonte not in HORIZONTES_DECISOES:
+        return jsonify({
+            "success": False,
+            "error": "Horizonte inválido."
+        }), 400
+
+    if status not in STATUS_DECISOES:
+        return jsonify({
+            "success": False,
+            "error": "Status inválido."
+        }), 400
+
+    decisao_id = str(uuid.uuid4())
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    INSERT INTO decisoes_empresariais (
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        horizonte,
+                        status,
+                        responsavel,
+                        data_decisao,
+                        documento_id
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s,
+                        COALESCE(%s::date, CURRENT_DATE),
+                        %s
+                    )
+                """, (
+                    decisao_id,
+                    titulo,
+                    descricao,
+                    area,
+                    horizonte,
+                    status,
+                    responsavel,
+                    data_decisao,
+                    documento_id
+                ))
+
+        return jsonify({
+            "success": True,
+            "decisao_id": decisao_id,
+            "titulo": titulo
+        }), 201
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/decisoes/<decisao_id>",
+    methods=["PATCH"]
+)
+def admin_atualizar_decisao(decisao_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    campos = []
+    valores = []
+
+    if "titulo" in dados:
+        titulo = str(
+            dados.get("titulo", "")
+        ).strip()
+
+        if not titulo:
+            return jsonify({
+                "success": False,
+                "error": "Título inválido."
+            }), 400
+
+        campos.append("titulo = %s")
+        valores.append(titulo)
+
+    if "descricao" in dados:
+        descricao = str(
+            dados.get("descricao", "")
+        ).strip()
+
+        if not descricao:
+            return jsonify({
+                "success": False,
+                "error": "Descrição inválida."
+            }), 400
+
+        campos.append("descricao = %s")
+        valores.append(descricao)
+
+    if "area" in dados:
+        area = str(
+            dados.get("area", "")
+        ).strip()
+
+        if not area:
+            return jsonify({
+                "success": False,
+                "error": "Área inválida."
+            }), 400
+
+        campos.append("area = %s")
+        valores.append(area)
+
+    if "horizonte" in dados:
+        horizonte = str(
+            dados.get("horizonte", "")
+        ).strip()
+
+        if horizonte not in HORIZONTES_DECISOES:
+            return jsonify({
+                "success": False,
+                "error": "Horizonte inválido."
+            }), 400
+
+        campos.append("horizonte = %s")
+        valores.append(horizonte)
+
+    if "status" in dados:
+        status = str(
+            dados.get("status", "")
+        ).strip()
+
+        if status not in STATUS_DECISOES:
+            return jsonify({
+                "success": False,
+                "error": "Status inválido."
+            }), 400
+
+        campos.append("status = %s")
+        valores.append(status)
+
+    if "responsavel" in dados:
+        responsavel = str(
+            dados.get("responsavel", "")
+        ).strip() or None
+
+        campos.append("responsavel = %s")
+        valores.append(responsavel)
+
+    if "data_decisao" in dados:
+        data_decisao = str(
+            dados.get("data_decisao", "")
+        ).strip()
+
+        if not data_decisao:
+            return jsonify({
+                "success": False,
+                "error": "Data inválida."
+            }), 400
+
+        campos.append("data_decisao = %s")
+        valores.append(data_decisao)
+
+    if "documento_id" in dados:
+        documento_id = str(
+            dados.get("documento_id", "")
+        ).strip() or None
+
+        campos.append("documento_id = %s")
+        valores.append(documento_id)
+
+    if not campos:
+        return jsonify({
+            "success": False,
+            "error": "Nenhuma alteração informada."
+        }), 400
+
+    campos.append("atualizado_em = NOW()")
+
+    valores.append(decisao_id)
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                query = (
+                    "UPDATE decisoes_empresariais SET "
+                    + ", ".join(campos)
+                    + " WHERE id = %s "
+                    + "RETURNING id"
+                )
+
+                cur.execute(
+                    query,
+                    tuple(valores)
+                )
+
+                atualizado = cur.fetchone()
+
+        if not atualizado:
+            return jsonify({
+                "success": False,
+                "error": "Decisão não encontrada."
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "decisao_id": decisao_id
+        }), 200
+
+    finally:
+        conn.close()
+
+
 # =====================================================
 # IA EMPRESARIAL — MARANHÃO CORDIAL
 # =====================================================
@@ -3823,6 +4203,82 @@ def carregar_documentos_para_ia(limite_documentos=20, limite_caracteres=50000):
             "documentos_usados": usados,
             "total_documentos": len(usados),
             "total_caracteres": total_caracteres
+        }
+
+    finally:
+        conn.close()
+
+
+
+def carregar_decisoes_para_ia(limite=30):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        horizonte,
+                        status,
+                        responsavel,
+                        data_decisao,
+                        documento_id,
+                        atualizado_em
+                    FROM decisoes_empresariais
+                    WHERE status = 'ativa'
+                    ORDER BY
+                        data_decisao DESC,
+                        atualizado_em DESC
+                    LIMIT %s
+                """, (limite,))
+
+                decisoes = cur.fetchall()
+
+        partes = []
+        usadas = []
+
+        for decisao in decisoes:
+
+            partes.append(
+                "\n=== DECISÃO EMPRESARIAL ATIVA ===\n"
+                f"Título: {decisao['titulo']}\n"
+                f"Área: {decisao['area']}\n"
+                f"Horizonte: {decisao['horizonte']}\n"
+                f"Data: {decisao['data_decisao']}\n"
+                f"Responsável: {decisao['responsavel'] or 'não informado'}\n"
+                f"Descrição: {decisao['descricao']}\n"
+            )
+
+            usadas.append({
+                "id": str(decisao["id"]),
+                "titulo": decisao["titulo"],
+                "area": decisao["area"],
+                "horizonte": decisao["horizonte"]
+            })
+
+        contexto = ""
+
+        if partes:
+            contexto = (
+                "\n\nMEMÓRIA DE DECISÕES EMPRESARIAIS ATIVAS:\n"
+                "As decisões abaixo são escolhas internas já tomadas. "
+                "Considere-as como orientação institucional enquanto "
+                "permanecerem ativas. Se uma recomendação entrar em "
+                "conflito com uma decisão ativa, indique o conflito.\n"
+                + "".join(partes)
+            )
+
+        return {
+            "contexto": contexto,
+            "total_decisoes": len(usadas),
+            "decisoes_usadas": usadas
         }
 
     finally:
@@ -4030,6 +4486,15 @@ def ia_empresarial():
             or ""
         )
 
+        decisoes_ia = (
+            carregar_decisoes_para_ia()
+        )
+
+        contexto_decisoes = (
+            decisoes_ia["contexto"]
+            or ""
+        )
+
         contexto_operacional = (
             "\n\nDADOS ATUAIS DO SISTEMA:\n"
             + str(resumo)
@@ -4048,6 +4513,7 @@ def ia_empresarial():
                 + CONTEXTO_EMPRESARIAL_INTERNO
                 + HIERARQUIA_DECISAO_EMPRESARIAL
                 + contexto_documental
+                + contexto_decisoes
                 + contexto_operacional +
 
                 "\nAnalise negócios com rigor. "
@@ -4098,6 +4564,7 @@ def ia_empresarial():
                     + CONTEXTO_EMPRESARIAL_INTERNO
                     + HIERARQUIA_DECISAO_EMPRESARIAL
                     + contexto_documental
+                    + contexto_decisoes
                     + contexto_operacional
                 ),
 
@@ -4137,10 +4604,14 @@ def ia_empresarial():
                 "atendimentos":
                     resumo["total_atendimentos"],
                 "documentos":
-                    documentos_ia["total_documentos"]
+                    documentos_ia["total_documentos"],
+                "decisoes":
+                    decisoes_ia["total_decisoes"]
             },
             "documentos_usados":
-                documentos_ia["documentos_usados"]
+                documentos_ia["documentos_usados"],
+            "decisoes_usadas":
+                decisoes_ia["decisoes_usadas"]
         }), 200
 
     except Exception as erro:
