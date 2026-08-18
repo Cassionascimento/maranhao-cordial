@@ -3379,6 +3379,76 @@ def admin_upload_documento():
 
 
 
+
+@app.route(
+    "/api/admin/documentos/<documento_id>/status",
+    methods=["PATCH"]
+)
+def admin_alterar_status_documento(documento_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    status_documento = str(
+        dados.get(
+            "status_documento",
+            ""
+        )
+    ).strip()
+
+    if status_documento not in {
+        "vigente",
+        "rascunho",
+        "historico"
+    }:
+        return jsonify({
+            "success": False,
+            "error": "Status documental inválido."
+        }), 400
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    UPDATE documentos_empresariais
+                    SET
+                        status_documento = %s,
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING id
+                """, (
+                    status_documento,
+                    documento_id
+                ))
+
+                atualizado = cur.fetchone()
+
+        if not atualizado:
+            return jsonify({
+                "success": False,
+                "error": "Documento não encontrado."
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "documento_id": documento_id,
+            "status_documento": status_documento
+        }), 200
+
+    finally:
+        conn.close()
+
+
 @app.route(
     "/api/admin/documentos/reprocessar",
     methods=["POST"]

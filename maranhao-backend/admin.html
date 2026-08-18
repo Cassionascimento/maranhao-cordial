@@ -1250,7 +1250,22 @@
                             <td>${doc.categoria || ""}</td>
                             <td>${doc.versao || "-"}</td>
                             <td>${doc.nivel_acesso || ""}</td>
-                            <td>${doc.status_documento || "vigente"}</td>
+                            <td>
+                                <select
+                                    class="doc-status-select"
+                                    data-id="${doc.id}"
+                                >
+                                    <option value="vigente" ${doc.status_documento === "vigente" ? "selected" : ""}>
+                                        Vigente
+                                    </option>
+                                    <option value="rascunho" ${doc.status_documento === "rascunho" ? "selected" : ""}>
+                                        Rascunho
+                                    </option>
+                                    <option value="historico" ${doc.status_documento === "historico" ? "selected" : ""}>
+                                        Histórico
+                                    </option>
+                                </select>
+                            </td>
                             <td>${doc.usar_na_ia ? "Sim" : "Não"}</td>
                             <td>${dataDocumento}</td>
                             <td>
@@ -1266,6 +1281,90 @@
 
                         documentosBody.appendChild(tr);
                     });
+
+                    document.querySelectorAll(
+                        ".doc-status-select"
+                    ).forEach(select => {
+
+                        select.addEventListener(
+                            "change",
+                            async () => {
+
+                                const id =
+                                    select.dataset.id;
+
+                                const novoStatus =
+                                    select.value;
+
+                                const statusAnterior =
+                                    select.dataset.anterior
+                                    || "";
+
+                                select.disabled = true;
+
+                                try {
+
+                                    const resposta =
+                                        await fetch(
+                                            "https://maranhao-cordial-api.onrender.com/api/admin/documentos/"
+                                            + id
+                                            + "/status",
+                                            {
+                                                method: "PATCH",
+
+                                                headers: {
+                                                    "Content-Type":
+                                                        "application/json",
+
+                                                    "X-Admin-Key":
+                                                        adminKeyAtual
+                                                },
+
+                                                body: JSON.stringify({
+                                                    status_documento:
+                                                        novoStatus
+                                                })
+                                            }
+                                        );
+
+                                    const data =
+                                        await resposta.json();
+
+                                    if (!resposta.ok) {
+                                        throw new Error(
+                                            data.error
+                                            || "Erro ao alterar status."
+                                        );
+                                    }
+
+                                    select.dataset.anterior =
+                                        novoStatus;
+
+                                    docStatus.textContent =
+                                        "Status documental atualizado.";
+
+                                } catch (erro) {
+
+                                    if (statusAnterior) {
+                                        select.value =
+                                            statusAnterior;
+                                    }
+
+                                    docStatus.textContent =
+                                        erro.message
+                                        || "Erro ao alterar status.";
+
+                                } finally {
+
+                                    select.disabled = false;
+                                }
+                            }
+                        );
+
+                        select.dataset.anterior =
+                            select.value;
+                    });
+
 
                     document.querySelectorAll(
                         ".doc-download"
