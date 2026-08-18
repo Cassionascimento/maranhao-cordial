@@ -1,6 +1,7 @@
-from flask import Flask, send_from_directory, request, jsonify
+from flask import Flask, send_from_directory, request, jsonify, send_file
 from flask_socketio import SocketIO, emit
 import os
+import io
 import uuid
 import re
 import unicodedata
@@ -448,6 +449,29 @@ def inicializar_banco():
                         mensagem TEXT,
                         status VARCHAR(40) NOT NULL DEFAULT 'nova_solicitacao',
                         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                # ==========================================
+                # DOCUMENTOS EMPRESARIAIS
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS documentos_empresariais (
+                        id UUID PRIMARY KEY,
+                        nome VARCHAR(255) NOT NULL,
+                        nome_original VARCHAR(255) NOT NULL,
+                        categoria VARCHAR(80) NOT NULL,
+                        descricao TEXT,
+                        versao VARCHAR(60),
+                        data_documento DATE,
+                        nivel_acesso VARCHAR(40) NOT NULL DEFAULT 'direcao',
+                        usar_na_ia BOOLEAN NOT NULL DEFAULT FALSE,
+                        mime_type VARCHAR(120),
+                        tamanho_bytes BIGINT,
+                        conteudo BYTEA NOT NULL,
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
                 """)
 
@@ -3052,6 +3076,274 @@ def admin_listar_degustacoes():
             "error": "Não foi possível listar as degustações."
         }), 500
 
+
+
+
+# =====================================================
+# DOCUMENTOS EMPRESARIAIS — ADMIN
+# =====================================================
+
+CATEGORIAS_DOCUMENTOS = {
+    "societario",
+    "produto",
+    "regulatorio",
+    "comercial",
+    "financeiro",
+    "estrategia",
+    "eventos_parcerias",
+    "investidores",
+    "outros"
+}
+
+NIVEIS_ACESSO_DOCUMENTOS = {
+    "direcao",
+    "socios",
+    "investidor"
+}
+
+
+def validar_admin_request():
+    chave = request.headers.get("X-Admin-Key")
+
+    return bool(
+        ADMIN_API_KEY
+        and chave == ADMIN_API_KEY
+    )
+
+
+@app.route(
+    "/api/admin/documentos",
+    methods=["GET"]
+)
+def admin_listar_documentos():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        nome_original,
+                        categoria,
+                        descricao,
+                        versao,
+                        data_documento,
+                        nivel_acesso,
+                        usar_na_ia,
+                        mime_type,
+                        tamanho_bytes,
+                        criado_em,
+                        atualizado_em
+                    FROM documentos_empresariais
+                    ORDER BY criado_em DESC
+                """)
+
+                documentos = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total": len(documentos),
+            "documentos": documentos
+        }), 200
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/documentos/upload",
+    methods=["POST"]
+)
+def admin_upload_documento():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    arquivo = request.files.get("arquivo")
+
+    if not arquivo or not arquivo.filename:
+        return jsonify({
+            "success": False,
+            "error": "Arquivo obrigatório."
+        }), 400
+
+    nome = str(
+        request.form.get("nome", "")
+    ).strip() or arquivo.filename
+
+    categoria = str(
+        request.form.get("categoria", "outros")
+    ).strip()
+
+    descricao = str(
+        request.form.get("descricao", "")
+    ).strip()
+
+    versao = str(
+        request.form.get("versao", "")
+    ).strip() or None
+
+    data_documento = str(
+        request.form.get("data_documento", "")
+    ).strip() or None
+
+    nivel_acesso = str(
+        request.form.get("nivel_acesso", "direcao")
+    ).strip()
+
+    usar_na_ia = str(
+        request.form.get("usar_na_ia", "false")
+    ).lower() in {
+        "1",
+        "true",
+        "sim",
+        "on"
+    }
+
+    if categoria not in CATEGORIAS_DOCUMENTOS:
+        return jsonify({
+            "success": False,
+            "error": "Categoria inválida."
+        }), 400
+
+    if nivel_acesso not in NIVEIS_ACESSO_DOCUMENTOS:
+        return jsonify({
+            "success": False,
+            "error": "Nível de acesso inválido."
+        }), 400
+
+    conteudo = arquivo.read()
+
+    # V1: limite de 15 MB por documento
+    limite = 15 * 1024 * 1024
+
+    if len(conteudo) > limite:
+        return jsonify({
+            "success": False,
+            "error": "Arquivo excede o limite de 15 MB."
+        }), 413
+
+    documento_id = str(uuid.uuid4())
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    INSERT INTO documentos_empresariais (
+                        id,
+                        nome,
+                        nome_original,
+                        categoria,
+                        descricao,
+                        versao,
+                        data_documento,
+                        nivel_acesso,
+                        usar_na_ia,
+                        mime_type,
+                        tamanho_bytes,
+                        conteudo
+                    )
+                    VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s
+                    )
+                """, (
+                    documento_id,
+                    nome,
+                    arquivo.filename,
+                    categoria,
+                    descricao,
+                    versao,
+                    data_documento,
+                    nivel_acesso,
+                    usar_na_ia,
+                    arquivo.mimetype,
+                    len(conteudo),
+                    psycopg2.Binary(conteudo)
+                ))
+
+        return jsonify({
+            "success": True,
+            "documento_id": documento_id,
+            "nome": nome
+        }), 201
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/documentos/<documento_id>/download",
+    methods=["GET"]
+)
+def admin_download_documento(documento_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        nome_original,
+                        mime_type,
+                        conteudo
+                    FROM documentos_empresariais
+                    WHERE id = %s
+                """, (
+                    documento_id,
+                ))
+
+                documento = cur.fetchone()
+
+        if not documento:
+            return jsonify({
+                "success": False,
+                "error": "Documento não encontrado."
+            }), 404
+
+        return send_file(
+            io.BytesIO(
+                bytes(documento["conteudo"])
+            ),
+            mimetype=(
+                documento["mime_type"]
+                or "application/octet-stream"
+            ),
+            as_attachment=True,
+            download_name=documento["nome_original"]
+        )
+
+    finally:
+        conn.close()
 
 
 # =====================================================
