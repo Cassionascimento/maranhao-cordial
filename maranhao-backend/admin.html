@@ -940,9 +940,11 @@
                 try {
 
                     const response = await fetch(
-                        "/api/admin/ia-empresarial",
+                        "https://maranhao-cordial-api.onrender.com/api/admin/ia-empresarial",
                         {
                             method: "POST",
+                            mode: "cors",
+                            cache: "no-store",
 
                             headers: {
                                 "Content-Type": "application/json",
@@ -977,9 +979,16 @@
 
                 } catch (erro) {
 
+                    console.error(
+                        "ERRO IA EMPRESARIAL:",
+                        erro
+                    );
+
                     iaEmpresarialStatus.textContent =
-                        erro.message ||
-                        "Erro ao consultar a IA Empresarial.";
+                        "Erro: "
+                        + (erro.name || "desconhecido")
+                        + " — "
+                        + (erro.message || "sem mensagem");
 
                 } finally {
 
