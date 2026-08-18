@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from openai import OpenAI
+from pypdf import PdfReader
 
 # =====================================================
 # CONFIGURAÇÃO
@@ -470,9 +471,16 @@ def inicializar_banco():
                         mime_type VARCHAR(120),
                         tamanho_bytes BIGINT,
                         conteudo BYTEA NOT NULL,
+                        texto_extraido TEXT,
                         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
+                """)
+
+
+                cur.execute("""
+                    ALTER TABLE documentos_empresariais
+                    ADD COLUMN IF NOT EXISTS texto_extraido TEXT
                 """)
 
                 # ==========================================
@@ -3083,6 +3091,53 @@ def admin_listar_degustacoes():
 # DOCUMENTOS EMPRESARIAIS — ADMIN
 # =====================================================
 
+def extrair_texto_documento(conteudo, mime_type, nome_arquivo):
+    mime_type = str(mime_type or "").lower()
+    nome_arquivo = str(nome_arquivo or "").lower()
+
+    if (
+        mime_type == "application/pdf"
+        or nome_arquivo.endswith(".pdf")
+    ):
+        try:
+            leitor = PdfReader(io.BytesIO(conteudo))
+
+            partes = []
+
+            for pagina in leitor.pages:
+                texto_pagina = (
+                    pagina.extract_text()
+                    or ""
+                ).strip()
+
+                if texto_pagina:
+                    partes.append(texto_pagina)
+
+            return "\n\n".join(partes).strip()
+
+        except Exception as erro:
+            print(
+                "ERRO EXTRAIR TEXTO PDF:",
+                erro
+            )
+            return ""
+
+    if (
+        mime_type.startswith("text/")
+        or nome_arquivo.endswith(".txt")
+        or nome_arquivo.endswith(".md")
+    ):
+        try:
+            return conteudo.decode(
+                "utf-8",
+                errors="replace"
+            ).strip()
+        except Exception:
+            return ""
+
+    return ""
+
+
 CATEGORIAS_DOCUMENTOS = {
     "societario",
     "produto",
@@ -3229,6 +3284,12 @@ def admin_upload_documento():
 
     conteudo = arquivo.read()
 
+    texto_extraido = extrair_texto_documento(
+        conteudo,
+        arquivo.mimetype,
+        arquivo.filename
+    )
+
     # V1: limite de 15 MB por documento
     limite = 15 * 1024 * 1024
 
@@ -3259,12 +3320,14 @@ def admin_upload_documento():
                         usar_na_ia,
                         mime_type,
                         tamanho_bytes,
-                        conteudo
+                        conteudo,
+                        texto_extraido
                     )
                     VALUES (
                         %s, %s, %s, %s,
                         %s, %s, %s, %s,
-                        %s, %s, %s, %s
+                        %s, %s, %s, %s,
+                        %s
                     )
                 """, (
                     documento_id,
@@ -3278,7 +3341,8 @@ def admin_upload_documento():
                     usar_na_ia,
                     arquivo.mimetype,
                     len(conteudo),
-                    psycopg2.Binary(conteudo)
+                    psycopg2.Binary(conteudo),
+                    texto_extraido
                 ))
 
         return jsonify({
