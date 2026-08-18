@@ -549,6 +549,29 @@
                             </select>
                         </div>
 
+                        <div>
+                            <label for="docStatusDocumento">
+                                Status
+                            </label>
+
+                            <select
+                                id="docStatusDocumento"
+                                style="width:100%;box-sizing:border-box;"
+                            >
+                                <option value="vigente">
+                                    Vigente
+                                </option>
+
+                                <option value="rascunho">
+                                    Rascunho
+                                </option>
+
+                                <option value="historico">
+                                    Histórico
+                                </option>
+                            </select>
+                        </div>
+
                     </div>
 
                     <div style="margin-top:14px;">
@@ -623,6 +646,7 @@
                                     <th>Categoria</th>
                                     <th>Versão</th>
                                     <th>Acesso</th>
+                                    <th>Status</th>
                                     <th>IA</th>
                                     <th>Data</th>
                                     <th></th>
@@ -803,6 +827,9 @@
 
             const docNivel =
                 document.getElementById("docNivel");
+
+            const docStatusDocumento =
+                document.getElementById("docStatusDocumento");
 
             const docDescricao =
                 document.getElementById("docDescricao");
@@ -1223,6 +1250,7 @@
                             <td>${doc.categoria || ""}</td>
                             <td>${doc.versao || "-"}</td>
                             <td>${doc.nivel_acesso || ""}</td>
+                            <td>${doc.status_documento || "vigente"}</td>
                             <td>${doc.usar_na_ia ? "Sim" : "Não"}</td>
                             <td>${dataDocumento}</td>
                             <td>
@@ -1377,6 +1405,11 @@
                 form.append(
                     "nivel_acesso",
                     docNivel.value
+                );
+
+                form.append(
+                    "status_documento",
+                    docStatusDocumento.value
                 );
 
                 form.append(

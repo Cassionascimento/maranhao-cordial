@@ -3203,6 +3203,7 @@ def admin_listar_documentos():
                         data_documento,
                         nivel_acesso,
                         usar_na_ia,
+                        status_documento,
                         mime_type,
                         tamanho_bytes,
                         criado_em,
@@ -3267,6 +3268,10 @@ def admin_upload_documento():
         request.form.get("nivel_acesso", "direcao")
     ).strip()
 
+    status_documento = str(
+        request.form.get("status_documento", "vigente")
+    ).strip()
+
     usar_na_ia = str(
         request.form.get("usar_na_ia", "false")
     ).lower() in {
@@ -3286,6 +3291,16 @@ def admin_upload_documento():
         return jsonify({
             "success": False,
             "error": "Nível de acesso inválido."
+        }), 400
+
+    if status_documento not in {
+        "vigente",
+        "rascunho",
+        "historico"
+    }:
+        return jsonify({
+            "success": False,
+            "error": "Status documental inválido."
         }), 400
 
     conteudo = arquivo.read()
@@ -3324,6 +3339,7 @@ def admin_upload_documento():
                         data_documento,
                         nivel_acesso,
                         usar_na_ia,
+                        status_documento,
                         mime_type,
                         tamanho_bytes,
                         conteudo,
@@ -3333,7 +3349,7 @@ def admin_upload_documento():
                         %s, %s, %s, %s,
                         %s, %s, %s, %s,
                         %s, %s, %s, %s,
-                        %s
+                        %s, %s
                     )
                 """, (
                     documento_id,
@@ -3345,6 +3361,7 @@ def admin_upload_documento():
                     data_documento,
                     nivel_acesso,
                     usar_na_ia,
+                    status_documento,
                     arquivo.mimetype,
                     len(conteudo),
                     psycopg2.Binary(conteudo),
