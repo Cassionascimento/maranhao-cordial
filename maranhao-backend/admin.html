@@ -572,6 +572,21 @@
                             </select>
                         </div>
 
+                        <div>
+                            <label for="docSubstitui">
+                                Substitui documento
+                            </label>
+
+                            <select
+                                id="docSubstitui"
+                                style="width:100%;box-sizing:border-box;"
+                            >
+                                <option value="">
+                                    Não substitui outro documento
+                                </option>
+                            </select>
+                        </div>
+
                     </div>
 
                     <div style="margin-top:14px;">
@@ -830,6 +845,9 @@
 
             const docStatusDocumento =
                 document.getElementById("docStatusDocumento");
+
+            const docSubstitui =
+                document.getElementById("docSubstitui");
 
             const docDescricao =
                 document.getElementById("docDescricao");
@@ -1226,6 +1244,27 @@
 
                     documentosBody.innerHTML = "";
 
+                    docSubstitui.innerHTML = `
+                        <option value="">
+                            Não substitui outro documento
+                        </option>
+                    `;
+
+                    documentos.forEach(doc => {
+                        const option =
+                            document.createElement("option");
+
+                        option.value = doc.id;
+                        option.textContent =
+                            (doc.nome || "Documento")
+                            + (doc.versao ? " — " + doc.versao : "")
+                            + (doc.status_documento
+                                ? " [" + doc.status_documento + "]"
+                                : "");
+
+                        docSubstitui.appendChild(option);
+                    });
+
                     if (!documentos.length) {
                         documentosEmpty.style.display =
                             "block";
@@ -1509,6 +1548,11 @@
                 form.append(
                     "status_documento",
                     docStatusDocumento.value
+                );
+
+                form.append(
+                    "substitui_documento_id",
+                    docSubstitui.value
                 );
 
                 form.append(

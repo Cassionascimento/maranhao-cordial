@@ -489,6 +489,11 @@ def inicializar_banco():
                     NOT NULL DEFAULT 'vigente'
                 """)
 
+                cur.execute("""
+                    ALTER TABLE documentos_empresariais
+                    ADD COLUMN IF NOT EXISTS substitui_documento_id UUID
+                """)
+
                 # ==========================================
                 # PEDIDOS
                 # ==========================================
@@ -3204,6 +3209,7 @@ def admin_listar_documentos():
                         nivel_acesso,
                         usar_na_ia,
                         status_documento,
+                        substitui_documento_id,
                         mime_type,
                         tamanho_bytes,
                         criado_em,
@@ -3272,6 +3278,10 @@ def admin_upload_documento():
         request.form.get("status_documento", "vigente")
     ).strip()
 
+    substitui_documento_id = str(
+        request.form.get("substitui_documento_id", "")
+    ).strip() or None
+
     usar_na_ia = str(
         request.form.get("usar_na_ia", "false")
     ).lower() in {
@@ -3328,6 +3338,17 @@ def admin_upload_documento():
         with conn:
             with conn.cursor() as cur:
 
+                if substitui_documento_id:
+                    cur.execute("""
+                        UPDATE documentos_empresariais
+                        SET
+                            status_documento = 'historico',
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        substitui_documento_id,
+                    ))
+
                 cur.execute("""
                     INSERT INTO documentos_empresariais (
                         id,
@@ -3349,7 +3370,7 @@ def admin_upload_documento():
                         %s, %s, %s, %s,
                         %s, %s, %s, %s,
                         %s, %s, %s, %s,
-                        %s, %s
+                        %s, %s, %s
                     )
                 """, (
                     documento_id,
@@ -3362,6 +3383,7 @@ def admin_upload_documento():
                     nivel_acesso,
                     usar_na_ia,
                     status_documento,
+                    substitui_documento_id,
                     arquivo.mimetype,
                     len(conteudo),
                     psycopg2.Binary(conteudo),
