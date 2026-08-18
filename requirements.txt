@@ -4,4 +4,5 @@ python-dotenv
 requests
 gunicorn
 psycopg2-binary>=2.9,<3
-openaipypdf>=5,<6
+openai
+pypdf>=5,<6
