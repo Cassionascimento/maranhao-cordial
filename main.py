@@ -483,6 +483,12 @@ def inicializar_banco():
                     ADD COLUMN IF NOT EXISTS texto_extraido TEXT
                 """)
 
+                cur.execute("""
+                    ALTER TABLE documentos_empresariais
+                    ADD COLUMN IF NOT EXISTS status_documento VARCHAR(30)
+                    NOT NULL DEFAULT 'vigente'
+                """)
+
                 # ==========================================
                 # PEDIDOS
                 # ==========================================
@@ -3623,6 +3629,7 @@ def carregar_documentos_para_ia(limite_documentos=20, limite_caracteres=50000):
                     FROM documentos_empresariais
                     WHERE
                         usar_na_ia = TRUE
+                        AND status_documento = 'vigente'
                         AND texto_extraido IS NOT NULL
                         AND TRIM(texto_extraido) <> ''
                     ORDER BY
