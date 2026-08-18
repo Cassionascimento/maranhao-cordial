@@ -443,9 +443,66 @@
                 </h2>
 
                 <p class="subtitle">
-                    Área reservada para análise estratégica, prioridades,
-                    oportunidades e decisões empresariais.
+                    Analise prioridades, oportunidades, riscos,
+                    leads e decisões empresariais.
                 </p>
+
+                <div class="card" style="margin-top: 24px;">
+                    <label
+                        for="iaEmpresarialPergunta"
+                        style="
+                            display:block;
+                            margin-bottom:10px;
+                            font-size:11px;
+                            letter-spacing:1px;
+                            text-transform:uppercase;
+                        "
+                    >
+                        Pergunte à IA Empresarial
+                    </label>
+
+                    <textarea
+                        id="iaEmpresarialPergunta"
+                        rows="5"
+                        placeholder="Ex.: O que merece minha atenção hoje?"
+                        style="
+                            width:100%;
+                            box-sizing:border-box;
+                            background:rgba(255,255,255,.03);
+                            color:inherit;
+                            border:1px solid rgba(255,255,255,.12);
+                            border-radius:8px;
+                            padding:14px;
+                            resize:vertical;
+                            font:inherit;
+                        "
+                    ></textarea>
+
+                    <button
+                        id="iaEmpresarialEnviar"
+                        type="button"
+                        style="margin-top:14px;"
+                    >
+                        Analisar
+                    </button>
+
+                    <div
+                        id="iaEmpresarialStatus"
+                        class="subtitle"
+                        style="margin-top:14px;"
+                    ></div>
+                </div>
+
+                <div
+                    id="iaEmpresarialResposta"
+                    class="card"
+                    style="
+                        margin-top:20px;
+                        display:none;
+                        white-space:pre-wrap;
+                        line-height:1.65;
+                    "
+                ></div>
             </section>
 
         </section>
@@ -499,6 +556,20 @@
 
             const emptyDegustacoes =
                 document.getElementById("emptyDegustacoes");
+
+            const iaEmpresarialPergunta =
+                document.getElementById("iaEmpresarialPergunta");
+
+            const iaEmpresarialEnviar =
+                document.getElementById("iaEmpresarialEnviar");
+
+            const iaEmpresarialStatus =
+                document.getElementById("iaEmpresarialStatus");
+
+            const iaEmpresarialResposta =
+                document.getElementById("iaEmpresarialResposta");
+
+            let adminKeyAtual = "";
 
             const atendimentosBody =
                 document.getElementById("atendimentosBody");
@@ -797,6 +868,8 @@
                         "show"
                     );
 
+                    adminKeyAtual = chave;
+
                     status.textContent =
                         "Acesso autorizado.";
 
@@ -836,6 +909,104 @@
                     }
                 }
             );
+
+            async function consultarIAEmpresarial() {
+
+                const pergunta =
+                    iaEmpresarialPergunta.value.trim();
+
+                if (!pergunta) {
+                    iaEmpresarialStatus.textContent =
+                        "Digite uma pergunta.";
+                    return;
+                }
+
+                if (!adminKeyAtual) {
+                    iaEmpresarialStatus.textContent =
+                        "Autentique-se novamente no painel.";
+                    return;
+                }
+
+                iaEmpresarialEnviar.disabled = true;
+                iaEmpresarialEnviar.textContent =
+                    "Analisando...";
+
+                iaEmpresarialStatus.textContent =
+                    "Consultando dados e analisando o negócio...";
+
+                iaEmpresarialResposta.style.display =
+                    "none";
+
+                try {
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/ia-empresarial",
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Admin-Key": adminKeyAtual
+                            },
+
+                            body: JSON.stringify({
+                                pergunta: pergunta
+                            })
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Não foi possível executar a análise."
+                        );
+                    }
+
+                    iaEmpresarialResposta.textContent =
+                        data.resposta ||
+                        "Nenhuma análise retornada.";
+
+                    iaEmpresarialResposta.style.display =
+                        "block";
+
+                    iaEmpresarialStatus.textContent =
+                        "Análise concluída.";
+
+                } catch (erro) {
+
+                    iaEmpresarialStatus.textContent =
+                        erro.message ||
+                        "Erro ao consultar a IA Empresarial.";
+
+                } finally {
+
+                    iaEmpresarialEnviar.disabled = false;
+                    iaEmpresarialEnviar.textContent =
+                        "Analisar";
+                }
+            }
+
+            iaEmpresarialEnviar.addEventListener(
+                "click",
+                consultarIAEmpresarial
+            );
+
+            iaEmpresarialPergunta.addEventListener(
+                "keydown",
+                event => {
+
+                    if (
+                        event.key === "Enter"
+                        && (event.metaKey || event.ctrlKey)
+                    ) {
+                        consultarIAEmpresarial();
+                    }
+                }
+            );
+
 
             const tabs =
                  document.querySelectorAll(".admin-tab");
