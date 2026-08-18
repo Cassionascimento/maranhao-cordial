@@ -161,6 +161,34 @@
             color: var(--muted);
             text-align: center;
         }
+        .admin-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 28px 0 24px;
+        }
+
+        .admin-tab {
+            width: auto;
+            padding: 10px 16px;
+            font-size: 10px;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+        }
+
+        .admin-tab.active {
+            background: rgba(212, 175, 55, .10);
+            border-color: var(--gold);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
     </style>
 </head>
 
@@ -174,6 +202,15 @@
         <p class="subtitle">
             Área reservada para acompanhamento operacional.
         </p>
+
+        <nav class="admin-tabs" id="adminTabs">
+            <button class="admin-tab active" data-tab="visao-geral">Visão Geral</button>
+            <button class="admin-tab" data-tab="pedidos">Pedidos</button>
+            <button class="admin-tab" data-tab="sac">SAC</button>
+            <button class="admin-tab" data-tab="b2b">B2B</button>
+            <button class="admin-tab" data-tab="degustacoes">Degustações</button>
+            <button class="admin-tab" data-tab="ia-empresarial">IA Empresarial</button>
+        </nav>
 
         <section class="login-panel" id="loginPanel">
 
@@ -203,6 +240,7 @@
             class="admin-content"
         >
 
+            <section class="tab-panel active" data-panel="visao-geral">
             <div class="summary">
 
                 <div class="card">
@@ -231,6 +269,10 @@
                 </div>
 
             </div>
+
+            </section>
+
+            <section class="tab-panel" data-panel="pedidos">
 
             <div class="table-wrap">
 
@@ -262,7 +304,10 @@
 
             </div>
 
-            <div style="margin-top: 42px;">
+            </section>
+
+            <section class="tab-panel" data-panel="b2b">
+            <div>
                 <div class="eyebrow">B2B</div>
 
                 <h2 style="
@@ -302,7 +347,10 @@
                 </div>
             </div>
 
-            <div style="margin-top: 42px;">
+            </section>
+
+            <section class="tab-panel" data-panel="degustacoes">
+            <div>
                 <div class="eyebrow">DEGUSTAÇÕES</div>
 
                 <h2 style="
@@ -342,7 +390,10 @@
                 </div>
             </div>
 
-            <div style="margin-top: 42px;">
+            </section>
+
+            <section class="tab-panel" data-panel="sac">
+            <div>
                 <div class="eyebrow">SAC</div>
 
                 <h2 style="
@@ -378,6 +429,24 @@
                     </div>
                 </div>
             </div>
+            </section>
+
+            <section class="tab-panel" data-panel="ia-empresarial">
+                <div class="eyebrow">IA EMPRESARIAL</div>
+
+                <h2 style="
+                    font-family: Georgia, 'Times New Roman', serif;
+                    font-weight: 400;
+                    margin: 0 0 18px;
+                ">
+                    Inteligência privada Maranhão Cordial
+                </h2>
+
+                <p class="subtitle">
+                    Área reservada para análise estratégica, prioridades,
+                    oportunidades e decisões empresariais.
+                </p>
+            </section>
 
         </section>
 
@@ -767,6 +836,32 @@
                     }
                 }
             );
+
+            const tabs =
+                 document.querySelectorAll(".admin-tab");
+
+            tabs.forEach(tab => {
+                tab.addEventListener("click", () => {
+
+                    tabs.forEach(item =>
+                        item.classList.remove("active")
+                    );
+
+                    tab.classList.add("active");
+
+                    const destino =
+                        tab.dataset.tab;
+
+                    document.querySelectorAll(
+                        ".tab-panel"
+                    ).forEach(panel => {
+                        panel.classList.toggle(
+                            "active",
+                            panel.dataset.panel === destino
+                        );
+                    });
+                });
+            });
 
         })();
     </script>
