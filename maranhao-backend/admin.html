@@ -210,6 +210,7 @@
             <button class="admin-tab" data-tab="b2b">B2B</button>
             <button class="admin-tab" data-tab="degustacoes">Degustações</button>
             <button class="admin-tab" data-tab="ia-empresarial">IA Empresarial</button>
+            <button class="admin-tab" data-tab="documentos">Documentos</button>
         </nav>
 
         <section class="login-panel" id="loginPanel">
@@ -431,6 +432,223 @@
             </div>
             </section>
 
+            <section class="tab-panel" data-panel="documentos">
+
+                <div class="eyebrow">
+                    DOCUMENTOS
+                </div>
+
+                <h2 style="
+                    font-family: Georgia, 'Times New Roman', serif;
+                    font-weight: 400;
+                    margin: 0 0 12px;
+                ">
+                    Biblioteca Empresarial
+                </h2>
+
+                <p class="subtitle">
+                    Documentos da empresa, base de conhecimento da IA
+                    e futuro Data Room para sócios e investidores.
+                </p>
+
+                <div class="card" style="margin-top:24px;">
+
+                    <h3 style="
+                        font-weight:400;
+                        margin-top:0;
+                    ">
+                        Adicionar documento
+                    </h3>
+
+                    <div style="
+                        display:grid;
+                        grid-template-columns:
+                            repeat(auto-fit,minmax(210px,1fr));
+                        gap:14px;
+                    ">
+
+                        <div>
+                            <label for="docNome">
+                                Nome
+                            </label>
+
+                            <input
+                                id="docNome"
+                                type="text"
+                                placeholder="Ex.: Ficha Técnica REV6"
+                                style="width:100%;box-sizing:border-box;"
+                            >
+                        </div>
+
+                        <div>
+                            <label for="docCategoria">
+                                Categoria
+                            </label>
+
+                            <select
+                                id="docCategoria"
+                                style="width:100%;box-sizing:border-box;"
+                            >
+                                <option value="estrategia">Estratégia</option>
+                                <option value="produto">Produto</option>
+                                <option value="regulatorio">Regulatório</option>
+                                <option value="societario">Societário</option>
+                                <option value="comercial">Comercial</option>
+                                <option value="financeiro">Financeiro</option>
+                                <option value="eventos_parcerias">Eventos / Parcerias</option>
+                                <option value="investidores">Investidores</option>
+                                <option value="outros">Outros</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="docVersao">
+                                Versão
+                            </label>
+
+                            <input
+                                id="docVersao"
+                                type="text"
+                                placeholder="Ex.: REV6"
+                                style="width:100%;box-sizing:border-box;"
+                            >
+                        </div>
+
+                        <div>
+                            <label for="docData">
+                                Data do documento
+                            </label>
+
+                            <input
+                                id="docData"
+                                type="date"
+                                style="width:100%;box-sizing:border-box;"
+                            >
+                        </div>
+
+                        <div>
+                            <label for="docNivel">
+                                Nível de acesso
+                            </label>
+
+                            <select
+                                id="docNivel"
+                                style="width:100%;box-sizing:border-box;"
+                            >
+                                <option value="direcao">
+                                    Direção
+                                </option>
+
+                                <option value="socios">
+                                    Sócios
+                                </option>
+
+                                <option value="investidor">
+                                    Investidor
+                                </option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <div style="margin-top:14px;">
+
+                        <label for="docDescricao">
+                            Descrição
+                        </label>
+
+                        <textarea
+                            id="docDescricao"
+                            rows="3"
+                            placeholder="Explique a finalidade e o conteúdo do documento."
+                            style="
+                                width:100%;
+                                box-sizing:border-box;
+                                resize:vertical;
+                            "
+                        ></textarea>
+
+                    </div>
+
+                    <div style="margin-top:14px;">
+
+                        <label>
+                            <input
+                                id="docUsarIA"
+                                type="checkbox"
+                            >
+                            Disponibilizar este documento para a IA Empresarial
+                        </label>
+
+                    </div>
+
+                    <div style="margin-top:16px;">
+
+                        <input
+                            id="docArquivo"
+                            type="file"
+                        >
+
+                    </div>
+
+                    <button
+                        id="docEnviar"
+                        type="button"
+                        style="margin-top:16px;"
+                    >
+                        Enviar documento
+                    </button>
+
+                    <div
+                        id="docStatus"
+                        class="status"
+                        style="margin-top:12px;"
+                    ></div>
+
+                </div>
+
+
+                <div style="margin-top:36px;">
+
+                    <div class="eyebrow">
+                        BIBLIOTECA
+                    </div>
+
+                    <div class="table-wrap">
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Documento</th>
+                                    <th>Categoria</th>
+                                    <th>Versão</th>
+                                    <th>Acesso</th>
+                                    <th>IA</th>
+                                    <th>Data</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+
+                            <tbody
+                                id="documentosBody"
+                            ></tbody>
+                        </table>
+
+                    </div>
+
+                    <div
+                        id="documentosEmpty"
+                        class="empty"
+                        style="display:none;"
+                    >
+                        Nenhum documento cadastrado.
+                    </div>
+
+                </div>
+
+            </section>
+
+
             <section class="tab-panel" data-panel="ia-empresarial">
                 <div class="eyebrow">IA EMPRESARIAL</div>
 
@@ -570,6 +788,42 @@
                 document.getElementById("iaEmpresarialResposta");
 
             let adminKeyAtual = "";
+
+            const docNome =
+                document.getElementById("docNome");
+
+            const docCategoria =
+                document.getElementById("docCategoria");
+
+            const docVersao =
+                document.getElementById("docVersao");
+
+            const docData =
+                document.getElementById("docData");
+
+            const docNivel =
+                document.getElementById("docNivel");
+
+            const docDescricao =
+                document.getElementById("docDescricao");
+
+            const docUsarIA =
+                document.getElementById("docUsarIA");
+
+            const docArquivo =
+                document.getElementById("docArquivo");
+
+            const docEnviar =
+                document.getElementById("docEnviar");
+
+            const docStatus =
+                document.getElementById("docStatus");
+
+            const documentosBody =
+                document.getElementById("documentosBody");
+
+            const documentosEmpty =
+                document.getElementById("documentosEmpty");
 
             const atendimentosBody =
                 document.getElementById("atendimentosBody");
@@ -873,6 +1127,8 @@
                     status.textContent =
                         "Acesso autorizado.";
 
+                    carregarDocumentos();
+
                     keyInput.value = "";
 
                 } catch (error) {
@@ -909,6 +1165,290 @@
                     }
                 }
             );
+
+            async function carregarDocumentos() {
+
+                if (!adminKeyAtual) {
+                    return;
+                }
+
+                try {
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/documentos",
+                        {
+                            headers: {
+                                "X-Admin-Key": adminKeyAtual
+                            },
+                            cache: "no-store"
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao carregar documentos."
+                        );
+                    }
+
+                    const documentos =
+                        data.documentos || [];
+
+                    documentosBody.innerHTML = "";
+
+                    if (!documentos.length) {
+                        documentosEmpty.style.display =
+                            "block";
+                        return;
+                    }
+
+                    documentosEmpty.style.display =
+                        "none";
+
+                    documentos.forEach(doc => {
+
+                        const tr =
+                            document.createElement("tr");
+
+                        const dataDocumento =
+                            doc.data_documento ||
+                            doc.criado_em ||
+                            "";
+
+                        tr.innerHTML = `
+                            <td>${doc.nome || ""}</td>
+                            <td>${doc.categoria || ""}</td>
+                            <td>${doc.versao || "-"}</td>
+                            <td>${doc.nivel_acesso || ""}</td>
+                            <td>${doc.usar_na_ia ? "Sim" : "Não"}</td>
+                            <td>${dataDocumento}</td>
+                            <td>
+                                <button
+                                    type="button"
+                                    class="doc-download"
+                                    data-id="${doc.id}"
+                                >
+                                    Baixar
+                                </button>
+                            </td>
+                        `;
+
+                        documentosBody.appendChild(tr);
+                    });
+
+                    document.querySelectorAll(
+                        ".doc-download"
+                    ).forEach(botao => {
+
+                        botao.addEventListener(
+                            "click",
+                            async () => {
+
+                                const id =
+                                    botao.dataset.id;
+
+                                try {
+
+                                    const resposta =
+                                        await fetch(
+                                            "https://maranhao-cordial-api.onrender.com/api/admin/documentos/"
+                                            + id
+                                            + "/download",
+                                            {
+                                                headers: {
+                                                    "X-Admin-Key":
+                                                        adminKeyAtual
+                                                }
+                                            }
+                                        );
+
+                                    if (!resposta.ok) {
+                                        throw new Error(
+                                            "Erro ao baixar documento."
+                                        );
+                                    }
+
+                                    const blob =
+                                        await resposta.blob();
+
+                                    const disposition =
+                                        resposta.headers.get(
+                                            "Content-Disposition"
+                                        );
+
+                                    let nomeArquivo =
+                                        "documento";
+
+                                    if (disposition) {
+                                        const match =
+                                            disposition.match(
+                                                /filename="?([^"]+)"?/
+                                            );
+
+                                        if (match) {
+                                            nomeArquivo =
+                                                match[1];
+                                        }
+                                    }
+
+                                    const url =
+                                        URL.createObjectURL(blob);
+
+                                    const a =
+                                        document.createElement("a");
+
+                                    a.href = url;
+                                    a.download = nomeArquivo;
+
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    a.remove();
+
+                                    URL.revokeObjectURL(url);
+
+                                } catch (erro) {
+
+                                    docStatus.textContent =
+                                        erro.message;
+                                }
+                            }
+                        );
+                    });
+
+                } catch (erro) {
+
+                    docStatus.textContent =
+                        erro.message ||
+                        "Erro ao carregar biblioteca.";
+                }
+            }
+
+
+            async function enviarDocumento() {
+
+                if (!adminKeyAtual) {
+                    docStatus.textContent =
+                        "Autentique-se novamente.";
+                    return;
+                }
+
+                if (!docArquivo.files.length) {
+                    docStatus.textContent =
+                        "Selecione um arquivo.";
+                    return;
+                }
+
+                const form =
+                    new FormData();
+
+                form.append(
+                    "arquivo",
+                    docArquivo.files[0]
+                );
+
+                form.append(
+                    "nome",
+                    docNome.value.trim()
+                );
+
+                form.append(
+                    "categoria",
+                    docCategoria.value
+                );
+
+                form.append(
+                    "descricao",
+                    docDescricao.value.trim()
+                );
+
+                form.append(
+                    "versao",
+                    docVersao.value.trim()
+                );
+
+                form.append(
+                    "data_documento",
+                    docData.value
+                );
+
+                form.append(
+                    "nivel_acesso",
+                    docNivel.value
+                );
+
+                form.append(
+                    "usar_na_ia",
+                    docUsarIA.checked
+                        ? "true"
+                        : "false"
+                );
+
+                docEnviar.disabled = true;
+                docEnviar.textContent =
+                    "Enviando...";
+
+                docStatus.textContent =
+                    "Enviando documento...";
+
+                try {
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/documentos/upload",
+                        {
+                            method: "POST",
+                            headers: {
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            },
+                            body: form
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao enviar documento."
+                        );
+                    }
+
+                    docStatus.textContent =
+                        "Documento enviado com sucesso.";
+
+                    docNome.value = "";
+                    docVersao.value = "";
+                    docData.value = "";
+                    docDescricao.value = "";
+                    docUsarIA.checked = false;
+                    docArquivo.value = "";
+
+                    await carregarDocumentos();
+
+                } catch (erro) {
+
+                    docStatus.textContent =
+                        erro.message ||
+                        "Erro no upload.";
+
+                } finally {
+
+                    docEnviar.disabled = false;
+                    docEnviar.textContent =
+                        "Enviar documento";
+                }
+            }
+
+
+            docEnviar.addEventListener(
+                "click",
+                enviarDocumento
+            );
+
 
             async function consultarIAEmpresarial() {
 
