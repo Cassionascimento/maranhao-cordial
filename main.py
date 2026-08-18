@@ -3599,6 +3599,120 @@ def admin_download_documento(documento_id):
 # IA EMPRESARIAL — MARANHÃO CORDIAL
 # =====================================================
 
+
+def carregar_documentos_para_ia(limite_documentos=20, limite_caracteres=50000):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        categoria,
+                        descricao,
+                        versao,
+                        data_documento,
+                        nivel_acesso,
+                        texto_extraido,
+                        atualizado_em
+                    FROM documentos_empresariais
+                    WHERE
+                        usar_na_ia = TRUE
+                        AND texto_extraido IS NOT NULL
+                        AND TRIM(texto_extraido) <> ''
+                    ORDER BY
+                        atualizado_em DESC,
+                        criado_em DESC
+                    LIMIT %s
+                """, (
+                    limite_documentos,
+                ))
+
+                documentos = cur.fetchall()
+
+        partes = []
+        total_caracteres = 0
+        usados = []
+
+        for documento in documentos:
+
+            texto_documento = (
+                documento["texto_extraido"]
+                or ""
+            ).strip()
+
+            if not texto_documento:
+                continue
+
+            cabecalho = (
+                "\n\n=== DOCUMENTO EMPRESARIAL ===\n"
+                f"Nome: {documento['nome']}\n"
+                f"Categoria: {documento['categoria']}\n"
+                f"Versão: {documento['versao'] or 'não informada'}\n"
+                f"Data: {documento['data_documento'] or 'não informada'}\n"
+                f"Nível de acesso: {documento['nivel_acesso']}\n"
+                f"Descrição: {documento['descricao'] or 'não informada'}\n"
+                "Conteúdo:\n"
+            )
+
+            restante = (
+                limite_caracteres
+                - total_caracteres
+                - len(cabecalho)
+            )
+
+            if restante <= 0:
+                break
+
+            trecho = texto_documento[:restante]
+
+            partes.append(
+                cabecalho + trecho
+            )
+
+            total_caracteres += (
+                len(cabecalho)
+                + len(trecho)
+            )
+
+            usados.append({
+                "id": str(documento["id"]),
+                "nome": documento["nome"],
+                "categoria": documento["categoria"],
+                "versao": documento["versao"]
+            })
+
+            if total_caracteres >= limite_caracteres:
+                break
+
+        contexto = "".join(partes)
+
+        if contexto:
+            contexto = (
+                "\n\nBASE DOCUMENTAL EMPRESARIAL AUTORIZADA:\n"
+                "Use os documentos abaixo como fonte interna. "
+                "Não trate hipótese, proposta ou documento de desenvolvimento "
+                "como fato definitivo. Respeite categoria, versão, descrição "
+                "e eventuais ressalvas presentes no próprio documento."
+                + contexto
+            )
+
+        return {
+            "contexto": contexto,
+            "documentos_usados": usados,
+            "total_documentos": len(usados),
+            "total_caracteres": total_caracteres
+        }
+
+    finally:
+        conn.close()
+
+
 def obter_resumo_empresarial_postgres():
     conn = get_db_connection()
 
@@ -3791,6 +3905,15 @@ def ia_empresarial():
             obter_resumo_empresarial_postgres()
         )
 
+        documentos_ia = (
+            carregar_documentos_para_ia()
+        )
+
+        contexto_documental = (
+            documentos_ia["contexto"]
+            or ""
+        )
+
         contexto_operacional = (
             "\n\nDADOS ATUAIS DO SISTEMA:\n"
             + str(resumo)
@@ -3808,6 +3931,7 @@ def ia_empresarial():
                 + CONTEXTO_MARANHAO
                 + CONTEXTO_EMPRESARIAL_INTERNO
                 + HIERARQUIA_DECISAO_EMPRESARIAL
+                + contexto_documental
                 + contexto_operacional +
 
                 "\nAnalise negócios com rigor. "
@@ -3857,6 +3981,7 @@ def ia_empresarial():
                     + CONTEXTO_MARANHAO
                     + CONTEXTO_EMPRESARIAL_INTERNO
                     + HIERARQUIA_DECISAO_EMPRESARIAL
+                    + contexto_documental
                     + contexto_operacional
                 ),
 
@@ -3894,8 +4019,12 @@ def ia_empresarial():
                 "degustacoes":
                     resumo["total_degustacoes"],
                 "atendimentos":
-                    resumo["total_atendimentos"]
-            }
+                    resumo["total_atendimentos"],
+                "documentos":
+                    documentos_ia["total_documentos"]
+            },
+            "documentos_usados":
+                documentos_ia["documentos_usados"]
         }), 200
 
     except Exception as erro:
