@@ -3381,6 +3381,7 @@ def admin_upload_documento():
                         nivel_acesso,
                         usar_na_ia,
                         status_documento,
+                        substitui_documento_id,
                         mime_type,
                         tamanho_bytes,
                         conteudo,
