@@ -3355,6 +3355,191 @@ def admin_upload_documento():
         conn.close()
 
 
+
+@app.route(
+    "/api/admin/documentos/reprocessar",
+    methods=["POST"]
+)
+def admin_reprocessar_documentos():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    documento_id = str(
+        dados.get(
+            "documento_id",
+            ""
+        )
+    ).strip()
+
+    somente_sem_texto = bool(
+        dados.get(
+            "somente_sem_texto",
+            True
+        )
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                if documento_id:
+
+                    cur.execute("""
+                        SELECT
+                            id,
+                            nome,
+                            nome_original,
+                            mime_type,
+                            conteudo,
+                            texto_extraido
+                        FROM documentos_empresariais
+                        WHERE id = %s
+                    """, (
+                        documento_id,
+                    ))
+
+                    documentos = cur.fetchall()
+
+                else:
+
+                    if somente_sem_texto:
+
+                        cur.execute("""
+                            SELECT
+                                id,
+                                nome,
+                                nome_original,
+                                mime_type,
+                                conteudo,
+                                texto_extraido
+                            FROM documentos_empresariais
+                            WHERE
+                                texto_extraido IS NULL
+                                OR TRIM(texto_extraido) = ''
+                            ORDER BY criado_em ASC
+                        """)
+
+                    else:
+
+                        cur.execute("""
+                            SELECT
+                                id,
+                                nome,
+                                nome_original,
+                                mime_type,
+                                conteudo,
+                                texto_extraido
+                            FROM documentos_empresariais
+                            ORDER BY criado_em ASC
+                        """)
+
+                    documentos = cur.fetchall()
+
+                processados = []
+                falhas = []
+
+                for documento in documentos:
+
+                    try:
+
+                        conteudo = bytes(
+                            documento["conteudo"]
+                        )
+
+                        texto_extraido = (
+                            extrair_texto_documento(
+                                conteudo,
+                                documento["mime_type"],
+                                documento["nome_original"]
+                            )
+                        )
+
+                        cur.execute("""
+                            UPDATE documentos_empresariais
+                            SET
+                                texto_extraido = %s,
+                                atualizado_em = NOW()
+                            WHERE id = %s
+                        """, (
+                            texto_extraido,
+                            documento["id"]
+                        ))
+
+                        processados.append({
+                            "id":
+                                str(documento["id"]),
+
+                            "nome":
+                                documento["nome"],
+
+                            "caracteres_extraidos":
+                                len(
+                                    texto_extraido
+                                    or ""
+                                ),
+
+                            "texto_extraido":
+                                bool(
+                                    texto_extraido
+                                    and texto_extraido.strip()
+                                )
+                        })
+
+                    except Exception as erro_documento:
+
+                        print(
+                            "ERRO REPROCESSAR DOCUMENTO:",
+                            documento["id"],
+                            erro_documento
+                        )
+
+                        falhas.append({
+                            "id":
+                                str(documento["id"]),
+
+                            "nome":
+                                documento["nome"],
+
+                            "erro":
+                                str(
+                                    erro_documento
+                                )
+                        })
+
+        return jsonify({
+            "success": True,
+            "total_encontrados":
+                len(documentos),
+
+            "total_processados":
+                len(processados),
+
+            "total_falhas":
+                len(falhas),
+
+            "processados":
+                processados,
+
+            "falhas":
+                falhas
+        }), 200
+
+    finally:
+        conn.close()
+
+
 @app.route(
     "/api/admin/documentos/<documento_id>/download",
     methods=["GET"]
