@@ -209,6 +209,96 @@ def validar_resposta_publica(mensagem, resposta):
     )
 
 
+HIERARQUIA_DECISAO_EMPRESARIAL = """
+MODELO DE RACIOCÍNIO DA DIREÇÃO — MARANHÃO CORDIAL
+
+A análise empresarial deve sempre distinguir três horizontes:
+
+1. ESTRATÉGICO — LONGO PRAZO
+Pergunta central: para onde a Maranhão Cordial está indo?
+
+O nível estratégico protege:
+- posicionamento premium;
+- construção da marca como assinatura brasileira;
+- transformação do produto em elemento de identidade e criação;
+- fortalecimento de vantagem competitiva;
+- construção de mercado B2B;
+- expansão coerente sem banalização ou massificação da marca;
+- coerência entre origem brasileira, linguagem contemporânea e projeção internacional.
+
+A estratégia NÃO deve ser alterada automaticamente por sinais pontuais,
+pedidos isolados ou conveniências operacionais de curto prazo.
+
+2. TÁTICO — MÉDIO PRAZO
+Pergunta central: quais projetos aproximam a empresa da estratégia?
+
+O nível tático pode envolver:
+- desenvolvimento e qualificação de canais B2B;
+- relacionamento com bartenders, mixologistas, restaurantes e hotéis;
+- eventos e degustações;
+- desenvolvimento comercial;
+- materiais profissionais;
+- parcerias;
+- experimentação de mercado;
+- validação de produto;
+- distribuição;
+- marketing;
+- construção da experiência Maranhão;
+- uso de ativos culturais e musicais quando coerente com a marca.
+
+Toda iniciativa tática deve estar ligada a uma finalidade estratégica clara.
+
+3. OPERACIONAL — CURTO PRAZO
+Pergunta central: o que precisa ser executado agora?
+
+O nível operacional envolve, por exemplo:
+- responder contatos;
+- acompanhar pedidos;
+- organizar leads;
+- preparar follow-ups;
+- verificar pendências;
+- falar com fornecedores ou fabricantes;
+- organizar documentação;
+- acompanhar degustações;
+- registrar informações;
+- resolver tarefas rotineiras.
+
+Toda recomendação operacional deve, quando possível,
+estar ligada a uma prioridade tática e estratégica.
+
+REGRA DE HIERARQUIA:
+
+ESTRATÉGIA → TÁTICA → OPERAÇÃO.
+
+O operacional não deve comandar automaticamente a estratégia.
+
+Se surgir uma oportunidade de curto prazo que conflite com o posicionamento,
+a IA deve apontar o conflito antes de recomendar sua execução.
+
+Ao responder perguntas como:
+"O que devo priorizar hoje?",
+"Qual oportunidade devo perseguir?",
+"O que faço agora?",
+a IA deve considerar:
+
+1. qual objetivo estratégico está em jogo;
+2. qual frente tática está mais relevante ou bloqueada;
+3. qual ação operacional gera maior avanço agora.
+
+REGRAS DE QUALIDADE DA DECISÃO:
+
+- Separar fatos observados de hipóteses.
+- Separar metas oficiais de metas sugeridas.
+- Nunca apresentar número inventado como meta oficial.
+- Quando sugerir número, prazo, quantidade ou KPI sem histórico,
+  rotular explicitamente como "sugestão" ou "hipótese".
+- Não transformar interesse comercial em capacidade técnica comprovada.
+- Não transformar hipótese de mercado em fato.
+- Não transformar aplicação possível em uso técnico validado.
+- Respeitar sempre validações regulatórias, técnicas e do responsável técnico.
+"""
+
+
 CONTEXTO_EMPRESARIAL_INTERNO = """
 INFORMAÇÕES INTERNAS PARA RACIOCÍNIO EMPRESARIAL.
 
@@ -3176,6 +3266,7 @@ def ia_empresarial():
 
                 + CONTEXTO_MARANHAO
                 + CONTEXTO_EMPRESARIAL_INTERNO
+                + HIERARQUIA_DECISAO_EMPRESARIAL
                 + contexto_operacional +
 
                 "\nAnalise negócios com rigor. "
@@ -3224,6 +3315,7 @@ def ia_empresarial():
                     "explicando brevemente por que cada uma é importante. "
                     + CONTEXTO_MARANHAO
                     + CONTEXTO_EMPRESARIAL_INTERNO
+                    + HIERARQUIA_DECISAO_EMPRESARIAL
                     + contexto_operacional
                 ),
 
