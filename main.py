@@ -5015,6 +5015,7 @@ def ia_empresarial():
                             },
                             "acoes_sugeridas": {
                                 "type": "array",
+                                "maxItems": 3,
                                 "items": {
                                     "type": "object",
                                     "properties": {
