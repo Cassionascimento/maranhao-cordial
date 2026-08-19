@@ -854,6 +854,14 @@
                 </div>
 
                 <div
+                    id="iaAcoesSugeridas"
+                    style="
+                        display:none;
+                        margin-top:20px;
+                    "
+                ></div>
+
+                <div
                     id="iaEmpresarialResposta"
                     class="card"
                     style="
@@ -928,6 +936,9 @@
 
             const iaEmpresarialResposta =
                 document.getElementById("iaEmpresarialResposta");
+
+            const iaAcoesSugeridas =
+                document.getElementById("iaAcoesSugeridas");
 
             let adminKeyAtual = "";
 
@@ -2279,6 +2290,95 @@
                     iaEmpresarialResposta.style.display =
                         "block";
 
+                    const sugestoes =
+                        data.acoes_sugeridas || [];
+
+                    ultimasAcoesSugeridas =
+                        sugestoes;
+
+                    if (sugestoes.length) {
+
+                        iaAcoesSugeridas.innerHTML =
+                            `
+                                <div
+                                    style="
+                                        font-size:12px;
+                                        text-transform:uppercase;
+                                        letter-spacing:1px;
+                                        margin-bottom:12px;
+                                    "
+                                >
+                                    Ações sugeridas pela IA
+                                </div>
+                            `
+                            + sugestoes.map(
+                                (acao, indice) => `
+                                    <div
+                                        class="admin-card ia-acao-sugerida"
+                                        data-indice="${indice}"
+                                        style="
+                                            margin-bottom:14px;
+                                        "
+                                    >
+                                        <strong>
+                                            ${escapar(acao.titulo)}
+                                        </strong>
+
+                                        <div
+                                            style="
+                                                margin-top:6px;
+                                                font-size:12px;
+                                                opacity:.8;
+                                            "
+                                        >
+                                            ${escapar(acao.area)}
+                                            ·
+                                            ${escapar(acao.prioridade)}
+                                        </div>
+
+                                        <p
+                                            style="
+                                                margin-top:10px;
+                                                white-space:pre-wrap;
+                                            "
+                                        >
+                                            ${escapar(acao.descricao)}
+                                        </p>
+
+                                        <div
+                                            style="
+                                                margin-top:10px;
+                                                font-size:12px;
+                                                opacity:.85;
+                                            "
+                                        >
+                                            <strong>Justificativa:</strong>
+                                            ${escapar(acao.justificativa)}
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="admin-button ia-aprovar-acao"
+                                            data-indice="${indice}"
+                                            style="margin-top:12px;"
+                                        >
+                                            Aprovar como ação
+                                        </button>
+                                    </div>
+                                `
+                            ).join("");
+
+                        iaAcoesSugeridas.style.display =
+                            "block";
+
+                    } else {
+
+                        iaAcoesSugeridas.innerHTML = "";
+
+                        iaAcoesSugeridas.style.display =
+                            "none";
+                    }
+
                     iaEmpresarialStatus.textContent =
                         "Análise concluída.";
 
@@ -2302,6 +2402,119 @@
                         "Analisar";
                 }
             }
+
+
+            let ultimasAcoesSugeridas = [];
+
+
+            iaAcoesSugeridas.addEventListener(
+                "click",
+                async event => {
+
+                    const botao =
+                        event.target.closest(
+                            ".ia-aprovar-acao"
+                        );
+
+                    if (!botao) {
+                        return;
+                    }
+
+                    const indice =
+                        Number(
+                            botao.dataset.indice
+                        );
+
+                    const acao =
+                        ultimasAcoesSugeridas[
+                            indice
+                        ];
+
+                    if (!acao) {
+                        iaEmpresarialStatus.textContent =
+                            "Ação sugerida não encontrada.";
+                        return;
+                    }
+
+                    if (!adminKeyAtual) {
+                        iaEmpresarialStatus.textContent =
+                            "Autentique-se novamente.";
+                        return;
+                    }
+
+                    const textoOriginal =
+                        botao.textContent;
+
+                    botao.disabled = true;
+                    botao.textContent =
+                        "Aprovando...";
+
+                    try {
+
+                        const response = await fetch(
+                            "https://maranhao-cordial-api.onrender.com/api/admin/acoes",
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type":
+                                        "application/json",
+                                    "X-Admin-Key":
+                                        adminKeyAtual
+                                },
+                                body: JSON.stringify({
+                                    titulo:
+                                        acao.titulo,
+                                    descricao:
+                                        acao.descricao
+                                        + "\n\nJustificativa da IA: "
+                                        + acao.justificativa,
+                                    area:
+                                        acao.area,
+                                    prioridade:
+                                        acao.prioridade,
+                                    status:
+                                        "pendente",
+                                    responsavel:
+                                        "",
+                                    data_limite:
+                                        null
+                                })
+                            }
+                        );
+
+                        const data =
+                            await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(
+                                data.error ||
+                                "Erro ao aprovar ação."
+                            );
+                        }
+
+                        botao.textContent =
+                            "Ação aprovada";
+
+                        botao.disabled = true;
+
+                        iaEmpresarialStatus.textContent =
+                            "Sugestão transformada em ação empresarial.";
+
+                        await carregarAcoesEmpresariais();
+
+                    } catch (erro) {
+
+                        iaEmpresarialStatus.textContent =
+                            erro.message ||
+                            "Erro ao aprovar ação.";
+
+                        botao.disabled = false;
+                        botao.textContent =
+                            textoOriginal;
+                    }
+                }
+            );
+
 
             iaEmpresarialEnviar.addEventListener(
                 "click",
