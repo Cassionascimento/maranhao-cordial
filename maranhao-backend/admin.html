@@ -211,6 +211,7 @@
             <button class="admin-tab" data-tab="degustacoes">Degustações</button>
             <button class="admin-tab" data-tab="ia-empresarial">IA Empresarial</button>
             <button class="admin-tab" data-tab="documentos">Documentos</button>
+            <button class="admin-tab" data-tab="acoes">Ações</button>
         </nav>
 
         <section class="login-panel" id="loginPanel">
@@ -431,6 +432,108 @@
                 </div>
             </div>
             </section>
+
+            <section class="tab-panel" data-panel="acoes">
+                <div class="admin-section">
+                    <div class="section-header">
+                        <div>
+                            <h2>Ações Empresariais</h2>
+                            <p>
+                                Gestão de prioridades, responsáveis,
+                                prazos, status e resultados.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="admin-form-grid">
+
+                        <div class="form-field">
+                            <label for="acaoTitulo">Título</label>
+                            <input
+                                id="acaoTitulo"
+                                type="text"
+                                placeholder="Ex.: Finalizar lote piloto"
+                            >
+                        </div>
+
+                        <div class="form-field">
+                            <label for="acaoArea">Área</label>
+                            <select id="acaoArea">
+                                <option value="comercial">Comercial</option>
+                                <option value="financeiro">Financeiro</option>
+                                <option value="operacional">Operacional</option>
+                                <option value="produto">Produto</option>
+                                <option value="regulatorio">Regulatório</option>
+                                <option value="marketing">Marketing</option>
+                                <option value="tecnologia">Tecnologia</option>
+                                <option value="estrategia">Estratégia</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="acaoPrioridade">Prioridade</label>
+                            <select id="acaoPrioridade">
+                                <option value="baixa">Baixa</option>
+                                <option value="media" selected>Média</option>
+                                <option value="alta">Alta</option>
+                                <option value="critica">Crítica</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="acaoStatus">Status</label>
+                            <select id="acaoStatus">
+                                <option value="pendente">Pendente</option>
+                                <option value="em_andamento">Em andamento</option>
+                                <option value="concluida">Concluída</option>
+                                <option value="cancelada">Cancelada</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="acaoResponsavel">Responsável</label>
+                            <input
+                                id="acaoResponsavel"
+                                type="text"
+                                placeholder="Nome do responsável"
+                            >
+                        </div>
+
+                        <div class="form-field">
+                            <label for="acaoDataLimite">Data limite</label>
+                            <input
+                                id="acaoDataLimite"
+                                type="date"
+                            >
+                        </div>
+
+                        <div class="form-field form-field-full">
+                            <label for="acaoDescricao">Descrição</label>
+                            <textarea
+                                id="acaoDescricao"
+                                rows="4"
+                                placeholder="Descreva a ação empresarial..."
+                            ></textarea>
+                        </div>
+
+                    </div>
+
+                    <button
+                        id="acaoCriar"
+                        class="admin-button"
+                        type="button"
+                    >
+                        Criar ação
+                    </button>
+
+                    <div id="acoesStatus"></div>
+
+                    <div id="acoesLista">
+                        <p>Nenhuma ação carregada.</p>
+                    </div>
+                </div>
+            </section>
+
 
             <section class="tab-panel" data-panel="documentos">
 
@@ -1626,6 +1729,492 @@
             );
 
 
+
+            const acaoTitulo =
+                document.getElementById("acaoTitulo");
+
+            const acaoArea =
+                document.getElementById("acaoArea");
+
+            const acaoPrioridade =
+                document.getElementById("acaoPrioridade");
+
+            const acaoStatus =
+                document.getElementById("acaoStatus");
+
+            const acaoResponsavel =
+                document.getElementById("acaoResponsavel");
+
+            const acaoDataLimite =
+                document.getElementById("acaoDataLimite");
+
+            const acaoDescricao =
+                document.getElementById("acaoDescricao");
+
+            const acaoCriar =
+                document.getElementById("acaoCriar");
+
+            const acoesStatus =
+                document.getElementById("acoesStatus");
+
+            const acoesLista =
+                document.getElementById("acoesLista");
+
+
+
+            async function carregarAcoesEmpresariais() {
+
+                if (!adminKeyAtual) {
+                    acoesLista.innerHTML =
+                        "<p>Autentique-se novamente.</p>";
+                    return;
+                }
+
+                acoesStatus.textContent =
+                    "Carregando ações...";
+
+                try {
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/acoes",
+                        {
+                            method: "GET",
+                            headers: {
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            }
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao carregar ações."
+                        );
+                    }
+
+                    const acoes =
+                        data.acoes || [];
+
+                    if (!acoes.length) {
+
+                        acoesLista.innerHTML =
+                            "<p>Nenhuma ação cadastrada.</p>";
+
+                        acoesStatus.textContent =
+                            "Nenhuma ação encontrada.";
+
+                        return;
+                    }
+
+                    acoesLista.innerHTML =
+                        acoes.map((acao) => {
+
+                            const dataLimite =
+                                acao.data_limite
+                                    ? new Date(
+                                        acao.data_limite
+                                    ).toLocaleDateString(
+                                        "pt-BR"
+                                    )
+                                    : "Sem prazo";
+
+                            const responsavel =
+                                acao.responsavel ||
+                                "Não definido";
+
+                            const resultado =
+                                acao.resultado ||
+                                "Ainda não registrado";
+
+                            return `
+                                <div class="admin-card acao-card">
+
+                                    <div class="acao-card-header">
+                                        <div>
+                                            <strong>
+                                                ${acao.titulo}
+                                            </strong>
+
+                                            <div class="acao-meta">
+                                                ${acao.area}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <p>
+                                        ${acao.descricao}
+                                    </p>
+
+                                    <div class="acao-info">
+                                        <span>
+                                            <strong>Responsável:</strong>
+                                            ${responsavel}
+                                        </span>
+
+                                        <span>
+                                            <strong>Prazo:</strong>
+                                            ${dataLimite}
+                                        </span>
+                                    </div>
+
+                                    <div
+                                        style="
+                                            display:grid;
+                                            grid-template-columns:1fr 1fr;
+                                            gap:12px;
+                                            margin-top:14px;
+                                        "
+                                    >
+                                        <div>
+                                            <label>
+                                                Prioridade
+                                            </label>
+
+                                            <select
+                                                class="acao-editar-prioridade"
+                                                data-acao-id="${acao.id}"
+                                            >
+                                                <option value="baixa"
+                                                    ${acao.prioridade === "baixa" ? "selected" : ""}>
+                                                    Baixa
+                                                </option>
+
+                                                <option value="media"
+                                                    ${acao.prioridade === "media" ? "selected" : ""}>
+                                                    Média
+                                                </option>
+
+                                                <option value="alta"
+                                                    ${acao.prioridade === "alta" ? "selected" : ""}>
+                                                    Alta
+                                                </option>
+
+                                                <option value="critica"
+                                                    ${acao.prioridade === "critica" ? "selected" : ""}>
+                                                    Crítica
+                                                </option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label>
+                                                Status
+                                            </label>
+
+                                            <select
+                                                class="acao-editar-status"
+                                                data-acao-id="${acao.id}"
+                                            >
+                                                <option value="pendente"
+                                                    ${acao.status === "pendente" ? "selected" : ""}>
+                                                    Pendente
+                                                </option>
+
+                                                <option value="em_andamento"
+                                                    ${acao.status === "em_andamento" ? "selected" : ""}>
+                                                    Em andamento
+                                                </option>
+
+                                                <option value="concluida"
+                                                    ${acao.status === "concluida" ? "selected" : ""}>
+                                                    Concluída
+                                                </option>
+
+                                                <option value="cancelada"
+                                                    ${acao.status === "cancelada" ? "selected" : ""}>
+                                                    Cancelada
+                                                </option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="acao-resultado"
+                                        style="margin-top:14px;"
+                                    >
+                                        <label>
+                                            Resultado
+                                        </label>
+
+                                        <textarea
+                                            class="acao-editar-resultado"
+                                            data-acao-id="${acao.id}"
+                                            rows="3"
+                                            style="
+                                                width:100%;
+                                                box-sizing:border-box;
+                                            "
+                                        >${acao.resultado || ""}</textarea>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        class="admin-button acao-salvar"
+                                        data-acao-id="${acao.id}"
+                                        style="margin-top:12px;"
+                                    >
+                                        Salvar
+                                    </button>
+
+                                </div>
+                            `;
+                        }).join("");
+
+                    acoesStatus.textContent =
+                        `${acoes.length} ação(ões) carregada(s).`;
+
+                } catch (erro) {
+
+                    acoesStatus.textContent =
+                        erro.message ||
+                        "Erro ao carregar ações.";
+
+                    acoesLista.innerHTML =
+                        "<p>Não foi possível carregar as ações.</p>";
+                }
+            }
+
+
+
+            async function salvarAcaoEmpresarial(
+                acaoId,
+                botao
+            ) {
+
+                if (!adminKeyAtual) {
+                    acoesStatus.textContent =
+                        "Autentique-se novamente.";
+                    return;
+                }
+
+                const prioridade =
+                    document.querySelector(
+                        `.acao-editar-prioridade[data-acao-id="${acaoId}"]`
+                    );
+
+                const status =
+                    document.querySelector(
+                        `.acao-editar-status[data-acao-id="${acaoId}"]`
+                    );
+
+                const resultado =
+                    document.querySelector(
+                        `.acao-editar-resultado[data-acao-id="${acaoId}"]`
+                    );
+
+                if (
+                    !prioridade
+                    || !status
+                    || !resultado
+                ) {
+                    acoesStatus.textContent =
+                        "Não foi possível localizar os campos da ação.";
+                    return;
+                }
+
+                const textoOriginal =
+                    botao.textContent;
+
+                botao.disabled = true;
+                botao.textContent =
+                    "Salvando...";
+
+                acoesStatus.textContent =
+                    "Atualizando ação...";
+
+                try {
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/acoes/"
+                        + encodeURIComponent(acaoId),
+                        {
+                            method: "PATCH",
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            },
+                            body: JSON.stringify({
+                                prioridade:
+                                    prioridade.value,
+                                status:
+                                    status.value,
+                                resultado:
+                                    resultado.value.trim()
+                            })
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao atualizar ação."
+                        );
+                    }
+
+                    acoesStatus.textContent =
+                        "Ação atualizada com sucesso.";
+
+                    await carregarAcoesEmpresariais();
+
+                } catch (erro) {
+
+                    acoesStatus.textContent =
+                        erro.message ||
+                        "Erro ao atualizar ação.";
+
+                } finally {
+
+                    botao.disabled = false;
+                    botao.textContent =
+                        textoOriginal;
+                }
+            }
+
+
+            acoesLista.addEventListener(
+                "click",
+                event => {
+
+                    const botao =
+                        event.target.closest(
+                            ".acao-salvar"
+                        );
+
+                    if (!botao) {
+                        return;
+                    }
+
+                    const acaoId =
+                        botao.dataset.acaoId;
+
+                    if (!acaoId) {
+                        return;
+                    }
+
+                    salvarAcaoEmpresarial(
+                        acaoId,
+                        botao
+                    );
+                }
+            );
+
+
+            async function criarAcaoEmpresarial() {
+
+                if (!adminKeyAtual) {
+                    acoesStatus.textContent =
+                        "Autentique-se novamente.";
+                    return;
+                }
+
+                const titulo =
+                    acaoTitulo.value.trim();
+
+                const descricao =
+                    acaoDescricao.value.trim();
+
+                if (!titulo) {
+                    acoesStatus.textContent =
+                        "Informe o título da ação.";
+                    return;
+                }
+
+                if (!descricao) {
+                    acoesStatus.textContent =
+                        "Informe a descrição da ação.";
+                    return;
+                }
+
+                acaoCriar.disabled = true;
+                acaoCriar.textContent =
+                    "Criando...";
+
+                acoesStatus.textContent =
+                    "Criando ação empresarial...";
+
+                try {
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/acoes",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            },
+                            body: JSON.stringify({
+                                titulo:
+                                    titulo,
+                                descricao:
+                                    descricao,
+                                area:
+                                    acaoArea.value,
+                                prioridade:
+                                    acaoPrioridade.value,
+                                status:
+                                    acaoStatus.value,
+                                responsavel:
+                                    acaoResponsavel.value.trim(),
+                                data_limite:
+                                    acaoDataLimite.value || null
+                            })
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao criar ação."
+                        );
+                    }
+
+                    acoesStatus.textContent =
+                        "Ação criada com sucesso.";
+
+                    await carregarAcoesEmpresariais();
+
+                    acaoTitulo.value = "";
+                    acaoDescricao.value = "";
+                    acaoResponsavel.value = "";
+                    acaoDataLimite.value = "";
+                    acaoPrioridade.value = "media";
+                    acaoStatus.value = "pendente";
+
+                } catch (erro) {
+
+                    acoesStatus.textContent =
+                        erro.message ||
+                        "Erro ao criar ação.";
+
+                } finally {
+
+                    acaoCriar.disabled = false;
+                    acaoCriar.textContent =
+                        "Criar ação";
+                }
+            }
+
+
+            acaoCriar.addEventListener(
+                "click",
+                criarAcaoEmpresarial
+            );
+
+
             async function consultarIAEmpresarial() {
 
                 const pergunta =
@@ -1747,6 +2336,10 @@
 
                     const destino =
                         tab.dataset.tab;
+
+                    if (destino === "acoes") {
+                        carregarAcoesEmpresariais();
+                    }
 
                     document.querySelectorAll(
                         ".tab-panel"
