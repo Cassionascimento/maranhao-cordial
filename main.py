@@ -6433,8 +6433,7 @@ def admin_criar_fabrica():
 
         return jsonify({
             "success": False,
-            "error": "Erro ao cadastrar fábrica.",
-            "detalhe": str(erro)
+            "error": "Erro ao cadastrar fábrica."
         }), 500
 
     finally:
@@ -6604,6 +6603,163 @@ def admin_atualizar_fabrica(fabrica_id):
             "success": True,
             "fabrica": fabrica
         }), 200
+
+    finally:
+        conn.close()
+
+
+def carregar_fabricas_para_ia(limite=50):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        razao_social,
+                        cnpj,
+                        cidade,
+                        estado,
+                        regiao,
+                        status_comercial,
+                        status_regulatorio,
+                        mapa_status,
+                        lote_minimo_unidades,
+                        lote_minimo_litros,
+                        capacidade_maxima_unidades,
+                        capacidade_maxima_litros,
+                        custo_unitario_centavos,
+                        custo_litro_centavos,
+                        prazo_producao_dias,
+                        embalagem_vidro,
+                        embalagem_pet,
+                        envase_200ml,
+                        rotulagem,
+                        responsabilidade_tecnica,
+                        analises_laboratoriais,
+                        pode_copack,
+                        ncm_informado,
+                        observacoes,
+                        fonte_dados,
+                        verificado_por,
+                        verificado_em,
+                        atualizado_em
+                    FROM fabricas_parceiras
+                    ORDER BY
+                        CASE status_regulatorio
+                            WHEN 'regular' THEN 1
+                            WHEN 'em_analise' THEN 2
+                            WHEN 'pendente' THEN 3
+                            WHEN 'nao_verificado' THEN 4
+                            WHEN 'incompativel' THEN 5
+                            ELSE 6
+                        END,
+                        CASE status_comercial
+                            WHEN 'homologada' THEN 1
+                            WHEN 'negociacao' THEN 2
+                            WHEN 'qualificada' THEN 3
+                            WHEN 'prospectada' THEN 4
+                            ELSE 5
+                        END,
+                        atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                fabricas = cur.fetchall()
+
+        linhas = []
+
+        for fabrica in fabricas:
+
+            custo_unitario = (
+                (fabrica["custo_unitario_centavos"] or 0)
+                / 100
+            )
+
+            custo_litro = (
+                (fabrica["custo_litro_centavos"] or 0)
+                / 100
+            )
+
+            linhas.append(
+                (
+                    f"- {fabrica['nome']} "
+                    f"| Local: "
+                    f"{fabrica['cidade'] or 'não informada'}/"
+                    f"{fabrica['estado'] or 'não informado'} "
+                    f"| Região: "
+                    f"{fabrica['regiao'] or 'não informada'} "
+                    f"| Comercial: "
+                    f"{fabrica['status_comercial']} "
+                    f"| Regulatório: "
+                    f"{fabrica['status_regulatorio']} "
+                    f"| MAPA: "
+                    f"{fabrica['mapa_status'] or 'não informado'} "
+                    f"| Lote mínimo unidades: "
+                    f"{fabrica['lote_minimo_unidades'] or 'não informado'} "
+                    f"| Lote mínimo litros: "
+                    f"{fabrica['lote_minimo_litros'] or 'não informado'} "
+                    f"| Capacidade máxima unidades: "
+                    f"{fabrica['capacidade_maxima_unidades'] or 'não informada'} "
+                    f"| Capacidade máxima litros: "
+                    f"{fabrica['capacidade_maxima_litros'] or 'não informada'} "
+                    f"| Custo unitário: "
+                    f"R$ {custo_unitario:.2f} "
+                    f"| Custo por litro: "
+                    f"R$ {custo_litro:.2f} "
+                    f"| Prazo produção: "
+                    f"{fabrica['prazo_producao_dias'] or 'não informado'} dias "
+                    f"| Copack: "
+                    f"{'sim' if fabrica['pode_copack'] else 'não'} "
+                    f"| Envase 200ml: "
+                    f"{'sim' if fabrica['envase_200ml'] else 'não'} "
+                    f"| Vidro: "
+                    f"{'sim' if fabrica['embalagem_vidro'] else 'não'} "
+                    f"| Rotulagem: "
+                    f"{'sim' if fabrica['rotulagem'] else 'não'} "
+                    f"| RT: "
+                    f"{'sim' if fabrica['responsabilidade_tecnica'] else 'não'} "
+                    f"| Análises: "
+                    f"{'sim' if fabrica['analises_laboratoriais'] else 'não'} "
+                    f"| NCM informado: "
+                    f"{fabrica['ncm_informado'] or 'não informado'} "
+                    f"| Fonte: "
+                    f"{fabrica['fonte_dados'] or 'não informada'} "
+                    f"| Verificado por: "
+                    f"{fabrica['verificado_por'] or 'não verificado'} "
+                    f"| Observações: "
+                    f"{fabrica['observacoes'] or 'sem observações'}"
+                )
+            )
+
+        contexto = ""
+
+        if linhas:
+            contexto = (
+                "\n\n"
+                "MATRIZ INDUSTRIAL / FÁBRICAS PARCEIRAS\n"
+                "Use estes dados para avaliar capacidade produtiva, "
+                "localização, lote mínimo, custos, prazo e situação "
+                "regulatória. Não trate fábrica com status regulatório "
+                "'pendente', 'nao_verificado' ou 'incompativel' como "
+                "liberada para produção comercial. Diferencie informação "
+                "cadastrada de informação efetivamente verificada.\n"
+                + "\n".join(linhas)
+                + "\n"
+            )
+
+        return {
+            "fabricas": fabricas,
+            "contexto": contexto
+        }
 
     finally:
         conn.close()
@@ -7289,6 +7445,15 @@ def ia_empresarial():
             or ""
         )
 
+        fabricas_ia = (
+            carregar_fabricas_para_ia()
+        )
+
+        contexto_fabricas = (
+            fabricas_ia["contexto"]
+            or ""
+        )
+
         contexto_operacional = (
             "\n\nDADOS ATUAIS DO SISTEMA:\n"
             + str(resumo)
@@ -7379,6 +7544,7 @@ def ia_empresarial():
                 + contexto_decisoes
                 + contexto_acoes
                 + contexto_crm
+                + contexto_fabricas
                 + contexto_operacional +
 
                 "\nAnalise negócios com rigor. "
@@ -7548,7 +7714,9 @@ def ia_empresarial():
                 "acoes":
                     len(acoes_ia["acoes"]),
                 "leads_crm":
-                    len(crm_ia["leads"])
+                    len(crm_ia["leads"]),
+                "fabricas":
+                    len(fabricas_ia["fabricas"])
             },
             "documentos_usados":
                 documentos_ia["documentos_usados"],
