@@ -820,6 +820,89 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # CENARIOS FISCAIS / CUSTO TRIBUTARIO
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS cenarios_fiscais (
+                        id UUID PRIMARY KEY,
+
+                        nome VARCHAR(220) NOT NULL,
+
+                        fabrica_id UUID,
+
+                        uf_origem VARCHAR(2) NOT NULL,
+                        uf_destino VARCHAR(2) NOT NULL,
+
+                        finalidade VARCHAR(40)
+                            NOT NULL DEFAULT 'revenda',
+
+                        tipo_destinatario VARCHAR(40),
+                        contribuinte_icms BOOLEAN,
+
+                        ncm VARCHAR(20),
+
+                        cfop VARCHAR(10),
+                        csosn VARCHAR(10),
+
+                        icms_st_aplicavel BOOLEAN,
+                        icms_st_retido_origem BOOLEAN,
+                        antecipacao_aplicavel BOOLEAN,
+                        difal_aplicavel BOOLEAN,
+
+                        aliquota_icms_origem NUMERIC(8,4),
+                        aliquota_icms_destino NUMERIC(8,4),
+
+                        aliquota_simples NUMERIC(8,4),
+
+                        valor_compra_centavos BIGINT,
+                        valor_venda_centavos BIGINT,
+
+                        icms_st_centavos BIGINT,
+                        antecipacao_centavos BIGINT,
+                        difal_centavos BIGINT,
+                        das_estimado_centavos BIGINT,
+
+                        carga_tributaria_total_centavos BIGINT,
+
+                        status_calculo VARCHAR(40)
+                            NOT NULL DEFAULT 'aguardando_dados',
+
+                        fonte_regra TEXT,
+                        observacoes TEXT,
+
+                        verificado_por VARCHAR(180),
+                        verificado_em TIMESTAMPTZ,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT fk_cenario_fabrica
+                            FOREIGN KEY (fabrica_id)
+                            REFERENCES fabricas_parceiras(id)
+                            ON DELETE SET NULL
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_cenarios_fiscais_rota
+                    ON cenarios_fiscais (
+                        uf_origem,
+                        uf_destino
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_cenarios_fiscais_ncm
+                    ON cenarios_fiscais (ncm)
+                """)
+
+                # ==========================================
                 # PEDIDOS
                 # ==========================================
 
