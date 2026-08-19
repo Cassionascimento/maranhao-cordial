@@ -212,6 +212,7 @@
             <button class="admin-tab" data-tab="ia-empresarial">IA Empresarial</button>
             <button class="admin-tab" data-tab="documentos">Documentos</button>
             <button class="admin-tab" data-tab="acoes">Ações</button>
+            <button class="admin-tab" data-tab="crm">CRM</button>
         </nav>
 
         <section class="login-panel" id="loginPanel">
@@ -432,6 +433,158 @@
                 </div>
             </div>
             </section>
+
+            <section class="tab-panel" data-panel="crm">
+                <div class="admin-section">
+                    <div class="section-header">
+                        <div>
+                            <h2>CRM e Funil Comercial</h2>
+                            <p>
+                                Leads, origem, estágio, CAC,
+                                valor potencial e receita acumulada.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div id="crmStatus"></div>
+
+                    <div class="card" style="margin-top:20px;">
+                        <h3>Novo lead</h3>
+
+                        <div class="admin-grid">
+
+                            <div>
+                                <label for="crmNome">Nome</label>
+                                <input
+                                    id="crmNome"
+                                    type="text"
+                                    placeholder="Nome do contato"
+                                >
+                            </div>
+
+                            <div>
+                                <label for="crmEmpresa">Empresa</label>
+                                <input
+                                    id="crmEmpresa"
+                                    type="text"
+                                    placeholder="Bar, restaurante, hotel..."
+                                >
+                            </div>
+
+                            <div>
+                                <label for="crmTipo">Tipo</label>
+                                <select id="crmTipo">
+                                    <option value="b2b">B2B</option>
+                                    <option value="b2c">B2C</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="crmOrigem">Origem</label>
+                                <select id="crmOrigem">
+                                    <option value="instagram">Instagram</option>
+                                    <option value="site">Site</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="evento">Evento</option>
+                                    <option value="indicacao">Indicação</option>
+                                    <option value="prospeccao">Prospecção</option>
+                                    <option value="outro">Outro</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="crmCanal">Canal</label>
+                                <input
+                                    id="crmCanal"
+                                    type="text"
+                                    placeholder="Direct, formulário, presencial..."
+                                >
+                            </div>
+
+                            <div>
+                                <label for="crmContato">Contato</label>
+                                <input
+                                    id="crmContato"
+                                    type="text"
+                                    placeholder="E-mail, telefone ou @"
+                                >
+                            </div>
+
+                            <div>
+                                <label for="crmCidade">Cidade</label>
+                                <input
+                                    id="crmCidade"
+                                    type="text"
+                                >
+                            </div>
+
+                            <div>
+                                <label for="crmEstado">Estado</label>
+                                <input
+                                    id="crmEstado"
+                                    type="text"
+                                    maxlength="2"
+                                    placeholder="SP"
+                                >
+                            </div>
+
+                            <div>
+                                <label for="crmEstagio">Estágio</label>
+                                <select id="crmEstagio">
+                                    <option value="novo">Novo</option>
+                                    <option value="qualificacao">Qualificação</option>
+                                    <option value="degustacao">Degustação</option>
+                                    <option value="proposta">Proposta</option>
+                                    <option value="negociacao">Negociação</option>
+                                    <option value="cliente">Cliente</option>
+                                    <option value="perdido">Perdido</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="crmResponsavel">Responsável</label>
+                                <input
+                                    id="crmResponsavel"
+                                    type="text"
+                                    placeholder="Responsável comercial"
+                                >
+                            </div>
+
+                        </div>
+
+                        <div style="margin-top:16px;">
+                            <label for="crmInteresse">Interesse</label>
+                            <textarea
+                                id="crmInteresse"
+                                rows="3"
+                                placeholder="O que este lead procura?"
+                            ></textarea>
+                        </div>
+
+                        <div style="margin-top:16px;">
+                            <label for="crmObservacoes">Observações</label>
+                            <textarea
+                                id="crmObservacoes"
+                                rows="3"
+                            ></textarea>
+                        </div>
+
+                        <button
+                            id="crmCriar"
+                            class="admin-button"
+                            type="button"
+                            style="margin-top:16px;"
+                        >
+                            Criar lead
+                        </button>
+                    </div>
+
+                    <div id="crmLista" style="margin-top:24px;">
+                        <p>Nenhum lead carregado.</p>
+                    </div>
+                </div>
+            </section>
+
 
             <section class="tab-panel" data-panel="acoes">
                 <div class="admin-section">
@@ -1773,6 +1926,538 @@
 
 
 
+
+            const crmNome =
+                document.getElementById("crmNome");
+
+            const crmEmpresa =
+                document.getElementById("crmEmpresa");
+
+            const crmTipo =
+                document.getElementById("crmTipo");
+
+            const crmOrigem =
+                document.getElementById("crmOrigem");
+
+            const crmCanal =
+                document.getElementById("crmCanal");
+
+            const crmContato =
+                document.getElementById("crmContato");
+
+            const crmCidade =
+                document.getElementById("crmCidade");
+
+            const crmEstado =
+                document.getElementById("crmEstado");
+
+            const crmEstagio =
+                document.getElementById("crmEstagio");
+
+            const crmResponsavel =
+                document.getElementById("crmResponsavel");
+
+            const crmInteresse =
+                document.getElementById("crmInteresse");
+
+            const crmObservacoes =
+                document.getElementById("crmObservacoes");
+
+            const crmCriar =
+                document.getElementById("crmCriar");
+
+            const crmStatus =
+                document.getElementById("crmStatus");
+
+            const crmLista =
+                document.getElementById("crmLista");
+
+
+
+            async function carregarLeadsCRM() {
+
+                if (!adminKeyAtual) {
+                    crmLista.innerHTML =
+                        "<p>Autentique-se novamente.</p>";
+                    return;
+                }
+
+                crmStatus.textContent =
+                    "Carregando leads...";
+
+                try {
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/crm/leads",
+                        {
+                            method: "GET",
+                            headers: {
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            }
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao carregar leads."
+                        );
+                    }
+
+                    const leads =
+                        data.leads || [];
+
+                    if (!leads.length) {
+
+                        crmLista.innerHTML =
+                            "<p>Nenhum lead cadastrado.</p>";
+
+                        crmStatus.textContent =
+                            "Nenhum lead encontrado.";
+
+                        return;
+                    }
+
+                    crmLista.innerHTML =
+                        leads.map((lead) => {
+
+                            const valorPotencial =
+                                dinheiro(
+                                    lead.valor_potencial_centavos || 0
+                                );
+
+                            const cac =
+                                dinheiro(
+                                    lead.cac_centavos || 0
+                                );
+
+                            const receita =
+                                dinheiro(
+                                    lead.receita_acumulada_centavos || 0
+                                );
+
+                            const empresa =
+                                lead.empresa ||
+                                "Empresa não informada";
+
+                            const nome =
+                                lead.nome ||
+                                "Contato sem nome";
+
+                            const local =
+                                [
+                                    lead.cidade,
+                                    lead.estado
+                                ]
+                                .filter(Boolean)
+                                .join(" / ")
+                                || "Local não informado";
+
+                            return `
+                                <div
+                                    class="admin-card crm-lead-card"
+                                    data-lead-id="${lead.id}"
+                                    style="
+                                        margin-bottom:14px;
+                                    "
+                                >
+                                    <div
+                                        style="
+                                            display:flex;
+                                            justify-content:space-between;
+                                            gap:16px;
+                                            align-items:flex-start;
+                                        "
+                                    >
+                                        <div>
+                                            <strong>
+                                                ${escapar(empresa)}
+                                            </strong>
+
+                                            <div
+                                                style="
+                                                    margin-top:4px;
+                                                    opacity:.8;
+                                                    font-size:12px;
+                                                "
+                                            >
+                                                ${escapar(nome)}
+                                                ·
+                                                ${escapar(local)}
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            style="
+                                                font-size:12px;
+                                                text-align:right;
+                                            "
+                                        >
+                                            <div>
+                                                ${escapar(lead.tipo_lead)}
+                                            </div>
+
+                                            <select
+                                                class="crm-editar-estagio"
+                                                data-lead-id="${lead.id}"
+                                                style="margin-top:6px;"
+                                            >
+                                                <option value="novo"
+                                                    ${lead.estagio === "novo" ? "selected" : ""}>
+                                                    Novo
+                                                </option>
+
+                                                <option value="qualificacao"
+                                                    ${lead.estagio === "qualificacao" ? "selected" : ""}>
+                                                    Qualificação
+                                                </option>
+
+                                                <option value="degustacao"
+                                                    ${lead.estagio === "degustacao" ? "selected" : ""}>
+                                                    Degustação
+                                                </option>
+
+                                                <option value="proposta"
+                                                    ${lead.estagio === "proposta" ? "selected" : ""}>
+                                                    Proposta
+                                                </option>
+
+                                                <option value="negociacao"
+                                                    ${lead.estagio === "negociacao" ? "selected" : ""}>
+                                                    Negociação
+                                                </option>
+
+                                                <option value="cliente"
+                                                    ${lead.estagio === "cliente" ? "selected" : ""}>
+                                                    Cliente
+                                                </option>
+
+                                                <option value="perdido"
+                                                    ${lead.estagio === "perdido" ? "selected" : ""}>
+                                                    Perdido
+                                                </option>
+                                            </select>
+
+                                            <button
+                                                type="button"
+                                                class="admin-button crm-salvar-estagio"
+                                                data-lead-id="${lead.id}"
+                                                style="margin-top:6px;"
+                                            >
+                                                Salvar estágio
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        style="
+                                            margin-top:12px;
+                                            font-size:12px;
+                                            opacity:.85;
+                                        "
+                                    >
+                                        <strong>Origem:</strong>
+                                        ${escapar(lead.origem)}
+                                        ${lead.canal
+                                            ? " · " + escapar(lead.canal)
+                                            : ""}
+                                    </div>
+
+                                    <div
+                                        style="
+                                            margin-top:8px;
+                                        "
+                                    >
+                                        ${escapar(
+                                            lead.interesse ||
+                                            "Interesse não informado"
+                                        )}
+                                    </div>
+
+                                    <div
+                                        style="
+                                            display:grid;
+                                            grid-template-columns:
+                                                repeat(3, minmax(0, 1fr));
+                                            gap:12px;
+                                            margin-top:14px;
+                                        "
+                                    >
+                                        <div>
+                                            <strong>Valor potencial</strong>
+                                            <div>${valorPotencial}</div>
+                                        </div>
+
+                                        <div>
+                                            <strong>CAC</strong>
+                                            <div>${cac}</div>
+                                        </div>
+
+                                        <div>
+                                            <strong>Receita</strong>
+                                            <div>${receita}</div>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        style="
+                                            margin-top:12px;
+                                            font-size:12px;
+                                        "
+                                    >
+                                        <strong>Responsável:</strong>
+                                        ${escapar(
+                                            lead.responsavel ||
+                                            "Não definido"
+                                        )}
+                                    </div>
+                                </div>
+                            `;
+                        }).join("");
+
+                    crmStatus.textContent =
+                        `${leads.length} lead(s) carregado(s).`;
+
+                } catch (erro) {
+
+                    crmStatus.textContent =
+                        erro.message ||
+                        "Erro ao carregar leads.";
+
+                    crmLista.innerHTML =
+                        "<p>Não foi possível carregar os leads.</p>";
+                }
+            }
+
+
+
+            async function salvarEstagioLeadCRM(
+                leadId,
+                botao
+            ) {
+
+                if (!adminKeyAtual) {
+                    crmStatus.textContent =
+                        "Autentique-se novamente.";
+                    return;
+                }
+
+                const card =
+                    botao.closest(".crm-lead-card");
+
+                if (!card) {
+                    crmStatus.textContent =
+                        "Card do lead não encontrado.";
+                    return;
+                }
+
+                const select =
+                    card.querySelector(
+                        ".crm-editar-estagio"
+                    );
+
+                if (!select) {
+                    crmStatus.textContent =
+                        "Estágio do lead não encontrado.";
+                    return;
+                }
+
+                const novoEstagio =
+                    select.value;
+
+                botao.disabled = true;
+                botao.textContent =
+                    "Salvando...";
+
+                crmStatus.textContent =
+                    "Atualizando estágio do lead...";
+
+                try {
+
+                    const response = await fetch(
+                        `https://maranhao-cordial-api.onrender.com/api/admin/crm/leads/${leadId}`,
+                        {
+                            method: "PATCH",
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            },
+                            body: JSON.stringify({
+                                estagio:
+                                    novoEstagio
+                            })
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao atualizar lead."
+                        );
+                    }
+
+                    crmStatus.textContent =
+                        "Estágio atualizado com sucesso.";
+
+                    await carregarLeadsCRM();
+
+                } catch (erro) {
+
+                    crmStatus.textContent =
+                        erro.message ||
+                        "Erro ao atualizar estágio.";
+
+                    botao.disabled = false;
+                    botao.textContent =
+                        "Salvar estágio";
+                }
+            }
+
+
+            crmLista.addEventListener(
+                "click",
+                event => {
+
+                    const botao =
+                        event.target.closest(
+                            ".crm-salvar-estagio"
+                        );
+
+                    if (!botao) {
+                        return;
+                    }
+
+                    const leadId =
+                        botao.dataset.leadId;
+
+                    if (!leadId) {
+                        crmStatus.textContent =
+                            "ID do lead não encontrado.";
+                        return;
+                    }
+
+                    salvarEstagioLeadCRM(
+                        leadId,
+                        botao
+                    );
+                }
+            );
+
+
+            async function criarLeadCRM() {
+
+                if (!adminKeyAtual) {
+                    crmStatus.textContent =
+                        "Autentique-se novamente.";
+                    return;
+                }
+
+                crmCriar.disabled = true;
+                crmCriar.textContent =
+                    "Criando...";
+
+                crmStatus.textContent =
+                    "Criando lead...";
+
+                try {
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/crm/leads",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            },
+                            body: JSON.stringify({
+                                nome:
+                                    crmNome.value.trim(),
+                                empresa:
+                                    crmEmpresa.value.trim(),
+                                tipo_lead:
+                                    crmTipo.value,
+                                origem:
+                                    crmOrigem.value,
+                                canal:
+                                    crmCanal.value.trim(),
+                                cidade:
+                                    crmCidade.value.trim(),
+                                estado:
+                                    crmEstado.value.trim(),
+                                contato:
+                                    crmContato.value.trim(),
+                                interesse:
+                                    crmInteresse.value.trim(),
+                                estagio:
+                                    crmEstagio.value,
+                                responsavel:
+                                    crmResponsavel.value.trim(),
+                                observacoes:
+                                    crmObservacoes.value.trim(),
+                                receita_acumulada_centavos:
+                                    0
+                            })
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao criar lead."
+                        );
+                    }
+
+                    crmStatus.textContent =
+                        "Lead criado com sucesso.";
+
+                    await carregarLeadsCRM();
+
+                    crmNome.value = "";
+                    crmEmpresa.value = "";
+                    crmCanal.value = "";
+                    crmContato.value = "";
+                    crmCidade.value = "";
+                    crmEstado.value = "";
+                    crmInteresse.value = "";
+                    crmResponsavel.value = "";
+                    crmObservacoes.value = "";
+                    crmEstagio.value = "novo";
+
+                } catch (erro) {
+
+                    crmStatus.textContent =
+                        erro.message ||
+                        "Erro ao criar lead.";
+
+                } finally {
+
+                    crmCriar.disabled = false;
+                    crmCriar.textContent =
+                        "Criar lead";
+                }
+            }
+
+
+            crmCriar.addEventListener(
+                "click",
+                criarLeadCRM
+            );
+
+
             async function carregarAcoesEmpresariais() {
 
                 if (!adminKeyAtual) {
@@ -2552,6 +3237,10 @@
 
                     if (destino === "acoes") {
                         carregarAcoesEmpresariais();
+                    }
+
+                    if (destino === "crm") {
+                        carregarLeadsCRM();
                     }
 
                     document.querySelectorAll(
