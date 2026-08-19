@@ -6706,13 +6706,27 @@ def carregar_fabricas_para_ia(limite=50):
         for fabrica in fabricas:
 
             custo_unitario = (
-                (fabrica["custo_unitario_centavos"] or 0)
-                / 100
+                fabrica["custo_unitario_centavos"] / 100
+                if fabrica["custo_unitario_centavos"] is not None
+                else None
             )
 
             custo_litro = (
-                (fabrica["custo_litro_centavos"] or 0)
-                / 100
+                fabrica["custo_litro_centavos"] / 100
+                if fabrica["custo_litro_centavos"] is not None
+                else None
+            )
+
+            texto_custo_unitario = (
+                f"R$ {custo_unitario:.2f}"
+                if custo_unitario is not None
+                else "não informado"
+            )
+
+            texto_custo_litro = (
+                f"R$ {custo_litro:.2f}"
+                if custo_litro is not None
+                else "não informado"
             )
 
             linhas.append(
@@ -6738,9 +6752,9 @@ def carregar_fabricas_para_ia(limite=50):
                     f"| Capacidade máxima litros: "
                     f"{fabrica['capacidade_maxima_litros'] or 'não informada'} "
                     f"| Custo unitário: "
-                    f"R$ {custo_unitario:.2f} "
+                    f"{texto_custo_unitario} "
                     f"| Custo por litro: "
-                    f"R$ {custo_litro:.2f} "
+                    f"{texto_custo_litro} "
                     f"| Prazo produção: "
                     f"{fabrica['prazo_producao_dias'] or 'não informado'} dias "
                     f"| Copack: "
