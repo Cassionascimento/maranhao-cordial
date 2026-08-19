@@ -537,6 +537,60 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # AUDITORIA CENTRAL
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS auditoria_eventos (
+                        id UUID PRIMARY KEY,
+                        categoria VARCHAR(60) NOT NULL,
+                        acao VARCHAR(120) NOT NULL,
+
+                        ator_tipo VARCHAR(40) NOT NULL,
+                        ator_id VARCHAR(180),
+
+                        origem VARCHAR(80),
+
+                        entidade_tipo VARCHAR(80),
+                        entidade_id VARCHAR(180),
+
+                        status VARCHAR(40) NOT NULL DEFAULT 'registrado',
+
+                        requer_aprovacao BOOLEAN NOT NULL DEFAULT FALSE,
+                        aprovado_por VARCHAR(180),
+
+                        correlation_id VARCHAR(180),
+
+                        dados_entrada TEXT,
+                        dados_saida TEXT,
+                        erro TEXT,
+
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_auditoria_eventos_criado_em
+                    ON auditoria_eventos (criado_em DESC)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_auditoria_eventos_categoria
+                    ON auditoria_eventos (categoria)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_auditoria_eventos_entidade
+                    ON auditoria_eventos (
+                        entidade_tipo,
+                        entidade_id
+                    )
+                """)
+
+                # ==========================================
                 # CRM / FUNIL DE LEADS
                 # ==========================================
 
@@ -858,6 +912,105 @@ def salvar_pedido_postgres(pedido):
 
     finally:
         conn.close()
+
+
+def registrar_auditoria(
+    categoria,
+    acao,
+    ator_tipo="sistema",
+    ator_id=None,
+    origem=None,
+    entidade_tipo=None,
+    entidade_id=None,
+    status="registrado",
+    requer_aprovacao=False,
+    aprovado_por=None,
+    correlation_id=None,
+    dados_entrada=None,
+    dados_saida=None,
+    erro=None
+):
+    """
+    Registra eventos relevantes da operação empresarial.
+
+    A auditoria nunca deve interromper a operação principal.
+    Se houver erro ao registrar o evento, retorna None.
+    """
+
+    evento_id = str(uuid.uuid4())
+
+    def serializar(valor):
+        if valor is None:
+            return None
+
+        try:
+            return json.dumps(
+                valor,
+                ensure_ascii=False,
+                default=str
+            )
+        except Exception:
+            return str(valor)
+
+    try:
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO auditoria_eventos (
+                            id,
+                            categoria,
+                            acao,
+                            ator_tipo,
+                            ator_id,
+                            origem,
+                            entidade_tipo,
+                            entidade_id,
+                            status,
+                            requer_aprovacao,
+                            aprovado_por,
+                            correlation_id,
+                            dados_entrada,
+                            dados_saida,
+                            erro
+                        )
+                        VALUES (
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s
+                        )
+                    """, (
+                        evento_id,
+                        str(categoria),
+                        str(acao),
+                        str(ator_tipo),
+                        str(ator_id) if ator_id else None,
+                        str(origem) if origem else None,
+                        str(entidade_tipo) if entidade_tipo else None,
+                        str(entidade_id) if entidade_id else None,
+                        str(status),
+                        bool(requer_aprovacao),
+                        str(aprovado_por) if aprovado_por else None,
+                        str(correlation_id) if correlation_id else None,
+                        serializar(dados_entrada),
+                        serializar(dados_saida),
+                        str(erro) if erro else None
+                    ))
+
+            return evento_id
+
+        finally:
+            conn.close()
+
+    except Exception as erro_auditoria:
+        print(
+            "ERRO AUDITORIA CENTRAL:",
+            erro_auditoria
+        )
+
+        return None
 
 
 def salvar_atendimento_sac(
@@ -5751,6 +5904,32 @@ def ia_empresarial():
             )
 
             acoes_sugeridas = []
+
+        registrar_auditoria(
+            categoria="ia",
+            acao="analise_empresarial",
+            ator_tipo="ia",
+            ator_id="maranhao-empresarial-v1",
+            origem="admin",
+            entidade_tipo="empresa",
+            entidade_id="maranhao-cordial",
+            status="concluido",
+            dados_entrada={
+                "pergunta": pergunta
+            },
+            dados_saida={
+                "acoes_sugeridas":
+                    acoes_sugeridas,
+                "documentos_consultados":
+                    documentos_ia["total_documentos"],
+                "decisoes_consultadas":
+                    decisoes_ia["total_decisoes"],
+                "acoes_consultadas":
+                    len(acoes_ia["acoes"]),
+                "leads_crm_consultados":
+                    len(crm_ia["leads"])
+            }
+        )
 
         return jsonify({
             "success": True,
