@@ -515,6 +515,27 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # ACOES EMPRESARIAIS
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS acoes_empresariais (
+                        id UUID PRIMARY KEY,
+                        titulo VARCHAR(220) NOT NULL,
+                        descricao TEXT NOT NULL,
+                        area VARCHAR(80) NOT NULL,
+                        prioridade VARCHAR(30) NOT NULL DEFAULT 'media',
+                        status VARCHAR(30) NOT NULL DEFAULT 'pendente',
+                        responsavel VARCHAR(180),
+                        data_limite DATE,
+                        decisao_id UUID,
+                        resultado TEXT,
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                # ==========================================
                 # PEDIDOS
                 # ==========================================
 
@@ -4205,6 +4226,383 @@ def carregar_documentos_para_ia(limite_documentos=20, limite_caracteres=50000):
             "total_documentos": len(usados),
             "total_caracteres": total_caracteres
         }
+
+    finally:
+        conn.close()
+
+
+
+
+@app.route(
+    "/api/admin/acoes",
+    methods=["GET"]
+)
+def admin_listar_acoes():
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        status,
+                        responsavel,
+                        data_limite,
+                        decisao_id,
+                        resultado,
+                        criado_em,
+                        atualizado_em
+                    FROM acoes_empresariais
+                    ORDER BY
+                        CASE prioridade
+                            WHEN 'critica' THEN 1
+                            WHEN 'alta' THEN 2
+                            WHEN 'media' THEN 3
+                            WHEN 'baixa' THEN 4
+                            ELSE 5
+                        END,
+                        criado_em DESC
+                """)
+
+                acoes = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total": len(acoes),
+            "acoes": acoes
+        })
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/acoes",
+    methods=["POST"]
+)
+def admin_criar_acao():
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    titulo = str(
+        dados.get("titulo", "")
+    ).strip()
+
+    descricao = str(
+        dados.get("descricao", "")
+    ).strip()
+
+    area = str(
+        dados.get("area", "")
+    ).strip().lower()
+
+    prioridade = str(
+        dados.get("prioridade", "media")
+    ).strip().lower()
+
+    status = str(
+        dados.get("status", "pendente")
+    ).strip().lower()
+
+    responsavel = str(
+        dados.get("responsavel", "")
+    ).strip() or None
+
+    data_limite = (
+        dados.get("data_limite")
+        or None
+    )
+
+    decisao_id = (
+        dados.get("decisao_id")
+        or None
+    )
+
+    resultado = str(
+        dados.get("resultado", "")
+    ).strip() or None
+
+    if not titulo:
+        return jsonify({
+            "success": False,
+            "error": "Título obrigatório."
+        }), 400
+
+    if not descricao:
+        return jsonify({
+            "success": False,
+            "error": "Descrição obrigatória."
+        }), 400
+
+    if not area:
+        return jsonify({
+            "success": False,
+            "error": "Área obrigatória."
+        }), 400
+
+    if prioridade not in {
+        "baixa",
+        "media",
+        "alta",
+        "critica"
+    }:
+        return jsonify({
+            "success": False,
+            "error": "Prioridade inválida."
+        }), 400
+
+    if status not in {
+        "pendente",
+        "em_andamento",
+        "concluida",
+        "cancelada"
+    }:
+        return jsonify({
+            "success": False,
+            "error": "Status inválido."
+        }), 400
+
+    acao_id = str(uuid.uuid4())
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO acoes_empresariais (
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        status,
+                        responsavel,
+                        data_limite,
+                        decisao_id,
+                        resultado
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s
+                    )
+                    RETURNING
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        status,
+                        responsavel,
+                        data_limite,
+                        decisao_id,
+                        resultado,
+                        criado_em,
+                        atualizado_em
+                """, (
+                    acao_id,
+                    titulo,
+                    descricao,
+                    area,
+                    prioridade,
+                    status,
+                    responsavel,
+                    data_limite,
+                    decisao_id,
+                    resultado
+                ))
+
+                acao = cur.fetchone()
+
+        return jsonify({
+            "success": True,
+            "acao": acao
+        }), 201
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/acoes/<acao_id>",
+    methods=["PATCH"]
+)
+def admin_atualizar_acao(acao_id):
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    campos_permitidos = {
+        "titulo",
+        "descricao",
+        "area",
+        "prioridade",
+        "status",
+        "responsavel",
+        "data_limite",
+        "decisao_id",
+        "resultado"
+    }
+
+    atualizacoes = []
+    valores = []
+
+    for campo, valor in dados.items():
+
+        if campo not in campos_permitidos:
+            continue
+
+        if campo == "prioridade":
+            valor = str(valor).strip().lower()
+
+            if valor not in {
+                "baixa",
+                "media",
+                "alta",
+                "critica"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Prioridade inválida."
+                }), 400
+
+        if campo == "status":
+            valor = str(valor).strip().lower()
+
+            if valor not in {
+                "pendente",
+                "em_andamento",
+                "concluida",
+                "cancelada"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Status inválido."
+                }), 400
+
+        if campo in {
+            "responsavel",
+            "data_limite",
+            "decisao_id",
+            "resultado"
+        } and valor == "":
+            valor = None
+
+        atualizacoes.append(
+            f"{campo} = %s"
+        )
+        valores.append(valor)
+
+    if not atualizacoes:
+        return jsonify({
+            "success": False,
+            "error": "Nenhum campo válido informado."
+        }), 400
+
+    atualizacoes.append(
+        "atualizado_em = NOW()"
+    )
+
+    valores.append(acao_id)
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                query = f"""
+                    UPDATE acoes_empresariais
+                    SET {", ".join(atualizacoes)}
+                    WHERE id = %s
+                    RETURNING
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        status,
+                        responsavel,
+                        data_limite,
+                        decisao_id,
+                        resultado,
+                        criado_em,
+                        atualizado_em
+                """
+
+                cur.execute(
+                    query,
+                    tuple(valores)
+                )
+
+                acao = cur.fetchone()
+
+                if not acao:
+                    return jsonify({
+                        "success": False,
+                        "error": "Ação não encontrada."
+                    }), 404
+
+        return jsonify({
+            "success": True,
+            "acao": acao
+        })
 
     finally:
         conn.close()
