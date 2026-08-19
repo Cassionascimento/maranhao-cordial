@@ -6419,6 +6419,18 @@ def admin_criar_fabrica():
             "fabrica": fabrica
         }), 201
 
+    except Exception as erro:
+        print(
+            "ERRO CRIAR FABRICA:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error": "Erro ao cadastrar fábrica.",
+            "detalhe": str(erro)
+        }), 500
+
     finally:
         conn.close()
 
