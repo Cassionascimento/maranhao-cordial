@@ -448,6 +448,62 @@
 
                     <div id="crmStatus"></div>
 
+                    <div
+                        id="crmMetricas"
+                        style="
+                            display:grid;
+                            grid-template-columns:
+                                repeat(auto-fit, minmax(140px, 1fr));
+                            gap:12px;
+                            margin-top:20px;
+                        "
+                    >
+                        <div class="card">
+                            <div class="subtitle">Leads</div>
+                            <strong id="crmMetricaTotal">0</strong>
+                        </div>
+
+                        <div class="card">
+                            <div class="subtitle">Qualificação</div>
+                            <strong id="crmMetricaQualificacao">0</strong>
+                        </div>
+
+                        <div class="card">
+                            <div class="subtitle">Degustação</div>
+                            <strong id="crmMetricaDegustacao">0</strong>
+                        </div>
+
+                        <div class="card">
+                            <div class="subtitle">Propostas</div>
+                            <strong id="crmMetricaProposta">0</strong>
+                        </div>
+
+                        <div class="card">
+                            <div class="subtitle">Negociação</div>
+                            <strong id="crmMetricaNegociacao">0</strong>
+                        </div>
+
+                        <div class="card">
+                            <div class="subtitle">Clientes</div>
+                            <strong id="crmMetricaClientes">0</strong>
+                        </div>
+
+                        <div class="card">
+                            <div class="subtitle">Valor potencial</div>
+                            <strong id="crmMetricaPotencial">R$ 0,00</strong>
+                        </div>
+
+                        <div class="card">
+                            <div class="subtitle">CAC registrado</div>
+                            <strong id="crmMetricaCAC">R$ 0,00</strong>
+                        </div>
+
+                        <div class="card">
+                            <div class="subtitle">Receita</div>
+                            <strong id="crmMetricaReceita">R$ 0,00</strong>
+                        </div>
+                    </div>
+
                     <div class="card" style="margin-top:20px;">
                         <h3>Novo lead</h3>
 
@@ -2010,6 +2066,77 @@
 
                     const leads =
                         data.leads || [];
+
+                    const contarEstagio = (estagio) =>
+                        leads.filter(
+                            lead => lead.estagio === estagio
+                        ).length;
+
+                    const somaCampo = (campo) =>
+                        leads.reduce(
+                            (total, lead) =>
+                                total + Number(
+                                    lead[campo] || 0
+                                ),
+                            0
+                        );
+
+                    document.getElementById(
+                        "crmMetricaTotal"
+                    ).textContent =
+                        leads.length;
+
+                    document.getElementById(
+                        "crmMetricaQualificacao"
+                    ).textContent =
+                        contarEstagio("qualificacao");
+
+                    document.getElementById(
+                        "crmMetricaDegustacao"
+                    ).textContent =
+                        contarEstagio("degustacao");
+
+                    document.getElementById(
+                        "crmMetricaProposta"
+                    ).textContent =
+                        contarEstagio("proposta");
+
+                    document.getElementById(
+                        "crmMetricaNegociacao"
+                    ).textContent =
+                        contarEstagio("negociacao");
+
+                    document.getElementById(
+                        "crmMetricaClientes"
+                    ).textContent =
+                        contarEstagio("cliente");
+
+                    document.getElementById(
+                        "crmMetricaPotencial"
+                    ).textContent =
+                        dinheiro(
+                            somaCampo(
+                                "valor_potencial_centavos"
+                            )
+                        );
+
+                    document.getElementById(
+                        "crmMetricaCAC"
+                    ).textContent =
+                        dinheiro(
+                            somaCampo(
+                                "cac_centavos"
+                            )
+                        );
+
+                    document.getElementById(
+                        "crmMetricaReceita"
+                    ).textContent =
+                        dinheiro(
+                            somaCampo(
+                                "receita_acumulada_centavos"
+                            )
+                        );
 
                     if (!leads.length) {
 
