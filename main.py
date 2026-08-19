@@ -531,10 +531,82 @@ def inicializar_banco():
                         data_limite DATE,
                         decisao_id UUID,
                         resultado TEXT,
+
+                        modo_execucao VARCHAR(30)
+                            NOT NULL DEFAULT 'requer_aprovacao',
+
+                        estado_execucao VARCHAR(40)
+                            NOT NULL DEFAULT 'nao_iniciada',
+
+                        executor VARCHAR(180),
+
+                        tentativas_execucao INTEGER
+                            NOT NULL DEFAULT 0,
+
+                        autorizado_por VARCHAR(180),
+                        autorizado_em TIMESTAMPTZ,
+
+                        ultimo_erro TEXT,
+                        executado_em TIMESTAMPTZ,
+
                         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
                 """)
+
+                # Migração segura para bancos já existentes.
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    modo_execucao VARCHAR(30)
+                    NOT NULL DEFAULT 'requer_aprovacao'
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    estado_execucao VARCHAR(40)
+                    NOT NULL DEFAULT 'nao_iniciada'
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    executor VARCHAR(180)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    tentativas_execucao INTEGER
+                    NOT NULL DEFAULT 0
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    autorizado_por VARCHAR(180)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    autorizado_em TIMESTAMPTZ
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    ultimo_erro TEXT
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    executado_em TIMESTAMPTZ
+                """)
+
 
                 # ==========================================
                 # AUDITORIA CENTRAL
@@ -912,6 +984,117 @@ def salvar_pedido_postgres(pedido):
 
     finally:
         conn.close()
+
+
+def avaliar_politica_execucao(
+    area,
+    titulo="",
+    descricao=""
+):
+    """
+    Define o nível de autonomia permitido para uma ação empresarial.
+
+    Retorna:
+    - automatico
+    - requer_aprovacao
+    - somente_humano
+    """
+
+    texto = (
+        f"{area} {titulo} {descricao}"
+    ).lower()
+
+    # -------------------------------------------------
+    # VERMELHO — SEM EXECUÇÃO AUTÔNOMA
+    # -------------------------------------------------
+
+    termos_somente_humano = (
+        "pagamento",
+        "pagar",
+        "transferência",
+        "transferencia",
+        "pix",
+        "contrato",
+        "assinar",
+        "assinatura",
+        "jurídico",
+        "juridico",
+        "preço",
+        "preco",
+        "desconto",
+        "negociação",
+        "negociacao",
+        "empréstimo",
+        "emprestimo",
+        "investimento",
+        "societário",
+        "societario",
+        "alterar estratégia",
+        "alterar estrategia"
+    )
+
+    if any(
+        termo in texto
+        for termo in termos_somente_humano
+    ):
+        return "somente_humano"
+
+    # -------------------------------------------------
+    # AMARELO — EXIGE APROVAÇÃO
+    # -------------------------------------------------
+
+    termos_requer_aprovacao = (
+        "enviar mensagem",
+        "enviar email",
+        "enviar e-mail",
+        "whatsapp",
+        "instagram",
+        "facebook",
+        "cliente",
+        "fornecedor",
+        "distribuidor",
+        "proposta",
+        "follow-up",
+        "followup",
+        "contato comercial"
+    )
+
+    if any(
+        termo in texto
+        for termo in termos_requer_aprovacao
+    ):
+        return "requer_aprovacao"
+
+    # -------------------------------------------------
+    # VERDE — AUTOMAÇÃO INTERNA DE BAIXO RISCO
+    # -------------------------------------------------
+
+    termos_automaticos = (
+        "classificar lead",
+        "priorizar lead",
+        "organizar lead",
+        "resumir",
+        "analisar",
+        "monitorar",
+        "atualizar métrica",
+        "atualizar metrica",
+        "registrar",
+        "criar alerta",
+        "identificar",
+        "comparar"
+    )
+
+    if any(
+        termo in texto
+        for termo in termos_automaticos
+    ):
+        return "automatico"
+
+    # -------------------------------------------------
+    # PADRÃO CONSERVADOR
+    # -------------------------------------------------
+
+    return "requer_aprovacao"
 
 
 def registrar_auditoria(
@@ -4454,6 +4637,8 @@ def admin_listar_acoes():
                         data_limite,
                         decisao_id,
                         resultado,
+                        modo_execucao,
+                        estado_execucao,
                         criado_em,
                         atualizado_em
                     FROM acoes_empresariais
@@ -4541,6 +4726,21 @@ def admin_criar_acao():
         dados.get("resultado", "")
     ).strip() or None
 
+    modo_execucao = avaliar_politica_execucao(
+        area=area,
+        titulo=titulo,
+        descricao=descricao
+    )
+
+    if modo_execucao == "automatico":
+        estado_execucao = "autorizada"
+
+    elif modo_execucao == "requer_aprovacao":
+        estado_execucao = "aguardando_aprovacao"
+
+    else:
+        estado_execucao = "bloqueada_humano"
+
     if not titulo:
         return jsonify({
             "success": False,
@@ -4602,11 +4802,14 @@ def admin_criar_acao():
                         responsavel,
                         data_limite,
                         decisao_id,
-                        resultado
+                        resultado,
+                        modo_execucao,
+                        estado_execucao
                     )
                     VALUES (
                         %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s,
+                        %s, %s
                     )
                     RETURNING
                         id,
@@ -4631,7 +4834,9 @@ def admin_criar_acao():
                     responsavel,
                     data_limite,
                     decisao_id,
-                    resultado
+                    resultado,
+                    modo_execucao,
+                    estado_execucao
                 ))
 
                 acao = cur.fetchone()
