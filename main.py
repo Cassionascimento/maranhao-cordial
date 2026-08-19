@@ -7085,6 +7085,162 @@ def admin_atualizar_cenario_fiscal(cenario_id):
         conn.close()
 
 
+def carregar_cenarios_fiscais_para_ia(limite=100):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        fabrica_id,
+                        uf_origem,
+                        uf_destino,
+                        finalidade,
+                        tipo_destinatario,
+                        contribuinte_icms,
+                        ncm,
+                        cfop,
+                        csosn,
+                        icms_st_aplicavel,
+                        icms_st_retido_origem,
+                        antecipacao_aplicavel,
+                        difal_aplicavel,
+                        aliquota_icms_origem,
+                        aliquota_icms_destino,
+                        aliquota_simples,
+                        valor_compra_centavos,
+                        valor_venda_centavos,
+                        icms_st_centavos,
+                        antecipacao_centavos,
+                        difal_centavos,
+                        das_estimado_centavos,
+                        carga_tributaria_total_centavos,
+                        status_calculo,
+                        fonte_regra,
+                        observacoes,
+                        verificado_por,
+                        verificado_em,
+                        atualizado_em
+                    FROM cenarios_fiscais
+                    ORDER BY
+                        uf_origem,
+                        uf_destino,
+                        atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                cenarios = cur.fetchall()
+
+        def texto_bool(valor):
+            if valor is True:
+                return "sim"
+
+            if valor is False:
+                return "não"
+
+            return "não definido"
+
+        def texto_dinheiro(valor):
+            if valor is None:
+                return "não informado"
+
+            return f"R$ {valor / 100:.2f}"
+
+        def texto_percentual(valor):
+            if valor is None:
+                return "não informado"
+
+            return f"{float(valor):.4f}%"
+
+        linhas = []
+
+        for cenario in cenarios:
+
+            linhas.append(
+                (
+                    f"- {cenario['nome']} "
+                    f"| Origem: {cenario['uf_origem']} "
+                    f"| Destino: {cenario['uf_destino']} "
+                    f"| Finalidade: {cenario['finalidade']} "
+                    f"| Destinatário: "
+                    f"{cenario['tipo_destinatario'] or 'não informado'} "
+                    f"| Contribuinte ICMS: "
+                    f"{texto_bool(cenario['contribuinte_icms'])} "
+                    f"| NCM: {cenario['ncm'] or 'não informado'} "
+                    f"| CFOP: {cenario['cfop'] or 'não informado'} "
+                    f"| CSOSN: {cenario['csosn'] or 'não informado'} "
+                    f"| ICMS-ST aplicável: "
+                    f"{texto_bool(cenario['icms_st_aplicavel'])} "
+                    f"| ICMS-ST retido na origem: "
+                    f"{texto_bool(cenario['icms_st_retido_origem'])} "
+                    f"| Antecipação: "
+                    f"{texto_bool(cenario['antecipacao_aplicavel'])} "
+                    f"| DIFAL: "
+                    f"{texto_bool(cenario['difal_aplicavel'])} "
+                    f"| Alíquota ICMS origem: "
+                    f"{texto_percentual(cenario['aliquota_icms_origem'])} "
+                    f"| Alíquota ICMS destino: "
+                    f"{texto_percentual(cenario['aliquota_icms_destino'])} "
+                    f"| Alíquota Simples: "
+                    f"{texto_percentual(cenario['aliquota_simples'])} "
+                    f"| Valor compra: "
+                    f"{texto_dinheiro(cenario['valor_compra_centavos'])} "
+                    f"| Valor venda: "
+                    f"{texto_dinheiro(cenario['valor_venda_centavos'])} "
+                    f"| ICMS-ST: "
+                    f"{texto_dinheiro(cenario['icms_st_centavos'])} "
+                    f"| Antecipação: "
+                    f"{texto_dinheiro(cenario['antecipacao_centavos'])} "
+                    f"| DIFAL: "
+                    f"{texto_dinheiro(cenario['difal_centavos'])} "
+                    f"| DAS estimado: "
+                    f"{texto_dinheiro(cenario['das_estimado_centavos'])} "
+                    f"| Carga tributária total: "
+                    f"{texto_dinheiro(cenario['carga_tributaria_total_centavos'])} "
+                    f"| Status cálculo: {cenario['status_calculo']} "
+                    f"| Fonte: "
+                    f"{cenario['fonte_regra'] or 'não informada'} "
+                    f"| Verificado por: "
+                    f"{cenario['verificado_por'] or 'não verificado'} "
+                    f"| Observações: "
+                    f"{cenario['observacoes'] or 'sem observações'}"
+                )
+            )
+
+        contexto = ""
+
+        if linhas:
+            contexto = (
+                "\n\n"
+                "CENÁRIOS FISCAIS / TRIBUTÁRIOS\n"
+                "Use estes cenários como estrutura para comparar operações. "
+                "Não invente NCM, alíquota, ST, antecipação, DIFAL ou carga "
+                "tributária quando estiverem ausentes. Campo nulo significa "
+                "dado ainda não confirmado, e não zero. Diferencie regra "
+                "informada pelo contador de regra efetivamente validada para "
+                "o produto e a operação específica.\n"
+                + "\n".join(linhas)
+                + "\n"
+            )
+
+        return {
+            "cenarios": cenarios,
+            "contexto": contexto
+        }
+
+    finally:
+        conn.close()
+
+
 def carregar_fabricas_para_ia(limite=50):
 
     conn = get_db_connection()
@@ -7945,6 +8101,15 @@ def ia_empresarial():
             or ""
         )
 
+        cenarios_fiscais_ia = (
+            carregar_cenarios_fiscais_para_ia()
+        )
+
+        contexto_fiscal = (
+            cenarios_fiscais_ia["contexto"]
+            or ""
+        )
+
         contexto_operacional = (
             "\n\nDADOS ATUAIS DO SISTEMA:\n"
             + str(resumo)
@@ -8036,6 +8201,7 @@ def ia_empresarial():
                 + contexto_acoes
                 + contexto_crm
                 + contexto_fabricas
+                + contexto_fiscal
                 + contexto_operacional +
 
                 "\nAnalise negócios com rigor. "
@@ -8207,7 +8373,9 @@ def ia_empresarial():
                 "leads_crm":
                     len(crm_ia["leads"]),
                 "fabricas":
-                    len(fabricas_ia["fabricas"])
+                    len(fabricas_ia["fabricas"]),
+                "cenarios_fiscais":
+                    len(cenarios_fiscais_ia["cenarios"])
             },
             "documentos_usados":
                 documentos_ia["documentos_usados"],
