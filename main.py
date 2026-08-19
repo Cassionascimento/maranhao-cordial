@@ -608,6 +608,21 @@ def inicializar_banco():
                 """)
 
 
+                # Campos estruturados do motor de execução.
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    tipo_execucao VARCHAR(80)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    payload_execucao TEXT
+                """)
+
+
                 # ==========================================
                 # AUDITORIA CENTRAL
                 # ==========================================
@@ -1095,6 +1110,212 @@ def avaliar_politica_execucao(
     # -------------------------------------------------
 
     return "requer_aprovacao"
+
+
+def executar_acao_controlada(acao):
+    """
+    Motor central de execução governada.
+
+    Nenhuma ação é executada apenas porque a IA a sugeriu.
+    É necessário:
+    1. modo_execucao compatível;
+    2. estado_execucao autorizado;
+    3. tipo_execucao presente na whitelist.
+    """
+
+    if not acao:
+        return {
+            "success": False,
+            "erro": "Ação inexistente."
+        }
+
+    modo = str(
+        acao.get("modo_execucao")
+        or "requer_aprovacao"
+    ).strip()
+
+    estado = str(
+        acao.get("estado_execucao")
+        or "nao_iniciada"
+    ).strip()
+
+    tipo = str(
+        acao.get("tipo_execucao")
+        or ""
+    ).strip()
+
+    # Nunca permitir execução autônoma
+    # para ações classificadas como humanas.
+    if modo == "somente_humano":
+        return {
+            "success": False,
+            "erro":
+                "Ação reservada à execução humana."
+        }
+
+    if modo == "requer_aprovacao" and estado != "autorizada":
+        return {
+            "success": False,
+            "erro":
+                "Ação ainda não autorizada."
+        }
+
+    if modo == "automatico" and estado not in {
+        "autorizada",
+        "nao_iniciada"
+    }:
+        return {
+            "success": False,
+            "erro":
+                "Estado incompatível com execução automática."
+        }
+
+    # ---------------------------------------------
+    # EXECUTORES AUTORIZADOS
+    # ---------------------------------------------
+
+    executores = {
+        "registrar_analise_interna":
+            executar_registro_analise_interna
+    }
+
+    executor = executores.get(tipo)
+
+    if not executor:
+        return {
+            "success": False,
+            "erro":
+                "Tipo de execução não autorizado."
+        }
+
+    return executor(acao)
+
+
+def executar_registro_analise_interna(acao):
+    """
+    Primeiro executor automático seguro.
+
+    Não envia mensagem, não movimenta dinheiro,
+    não altera contrato e não representa a empresa
+    perante terceiros.
+
+    Apenas registra a conclusão de uma tarefa
+    analítica interna.
+    """
+
+    acao_id = str(
+        acao.get("id")
+        or ""
+    )
+
+    if not acao_id:
+        return {
+            "success": False,
+            "erro": "Ação sem ID."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    UPDATE acoes_empresariais
+                    SET
+                        estado_execucao = 'executada',
+                        status = 'concluida',
+                        executor = 'ia_empresarial',
+                        tentativas_execucao =
+                            tentativas_execucao + 1,
+                        executado_em = NOW(),
+                        resultado = COALESCE(
+                            resultado,
+                            'Execução interna concluída automaticamente.'
+                        ),
+                        ultimo_erro = NULL,
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING *
+                """, (
+                    acao_id,
+                ))
+
+                atualizada = cur.fetchone()
+
+        registrar_auditoria(
+            categoria="execucao",
+            acao="acao_executada",
+            ator_tipo="ia",
+            ator_id="maranhao-empresarial-v1",
+            origem="motor_execucao",
+            entidade_tipo="acao_empresarial",
+            entidade_id=acao_id,
+            status="executada",
+            dados_saida={
+                "tipo_execucao":
+                    acao.get("tipo_execucao"),
+                "resultado":
+                    atualizada.get("resultado")
+                    if atualizada else None
+            }
+        )
+
+        return {
+            "success": True,
+            "acao": atualizada
+        }
+
+    except Exception as erro:
+
+        try:
+            conn2 = get_db_connection()
+
+            with conn2:
+                with conn2.cursor() as cur:
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET
+                            estado_execucao = 'falhou',
+                            tentativas_execucao =
+                                tentativas_execucao + 1,
+                            ultimo_erro = %s,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        str(erro),
+                        acao_id
+                    ))
+
+            conn2.close()
+
+        except Exception as erro_registro:
+            print(
+                "ERRO REGISTRAR FALHA EXECUÇÃO:",
+                erro_registro
+            )
+
+        registrar_auditoria(
+            categoria="execucao",
+            acao="acao_falhou",
+            ator_tipo="ia",
+            ator_id="maranhao-empresarial-v1",
+            origem="motor_execucao",
+            entidade_tipo="acao_empresarial",
+            entidade_id=acao_id,
+            status="falhou",
+            erro=str(erro)
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
 
 
 def registrar_auditoria(
@@ -5906,6 +6127,106 @@ def obter_resumo_empresarial_postgres():
                 for linha in atendimentos_recentes
             ]
         }
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/acoes/<acao_id>/executar",
+    methods=["POST"]
+)
+def admin_executar_acao_controlada(acao_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM acoes_empresariais
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    acao_id,
+                ))
+
+                acao = cur.fetchone()
+
+        if not acao:
+            return jsonify({
+                "success": False,
+                "error": "Ação não encontrada."
+            }), 404
+
+        registrar_auditoria(
+            categoria="execucao",
+            acao="execucao_solicitada",
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="painel_admin",
+            entidade_tipo="acao_empresarial",
+            entidade_id=acao_id,
+            status="solicitada",
+            requer_aprovacao=(
+                acao.get("modo_execucao")
+                == "requer_aprovacao"
+            ),
+            dados_entrada={
+                "modo_execucao":
+                    acao.get("modo_execucao"),
+                "estado_execucao":
+                    acao.get("estado_execucao"),
+                "tipo_execucao":
+                    acao.get("tipo_execucao")
+            }
+        )
+
+        resultado = executar_acao_controlada(
+            acao
+        )
+
+        status_http = (
+            200
+            if resultado.get("success")
+            else 409
+        )
+
+        return jsonify(resultado), status_http
+
+    except Exception as erro:
+        print(
+            "ERRO EXECUÇÃO CONTROLADA:",
+            erro
+        )
+
+        registrar_auditoria(
+            categoria="execucao",
+            acao="erro_executor_controlado",
+            ator_tipo="sistema",
+            ator_id="backend",
+            origem="api_admin",
+            entidade_tipo="acao_empresarial",
+            entidade_id=acao_id,
+            status="falhou",
+            erro=str(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Não foi possível executar a ação."
+        }), 500
 
     finally:
         conn.close()
