@@ -4636,6 +4636,45 @@ def admin_criar_acao():
 
                 acao = cur.fetchone()
 
+        origem_acao = str(
+            dados.get("origem", "manual")
+        ).strip() or "manual"
+
+        aprovado_por = str(
+            dados.get("aprovado_por", "")
+        ).strip() or None
+
+        if origem_acao == "ia_empresarial":
+            acao_auditoria = "sugestao_ia_aprovada"
+            status_auditoria = "aprovado"
+            requer_aprovacao = True
+        else:
+            acao_auditoria = "acao_empresarial_criada"
+            status_auditoria = "criado"
+            requer_aprovacao = False
+
+        registrar_auditoria(
+            categoria="acao_empresarial",
+            acao=acao_auditoria,
+            ator_tipo="admin",
+            ator_id="admin",
+            origem=origem_acao,
+            entidade_tipo="acao_empresarial",
+            entidade_id=acao_id,
+            status=status_auditoria,
+            requer_aprovacao=requer_aprovacao,
+            aprovado_por=aprovado_por,
+            dados_entrada={
+                "titulo": titulo,
+                "area": area,
+                "prioridade": prioridade,
+                "status": status
+            },
+            dados_saida={
+                "acao_id": acao_id
+            }
+        )
+
         return jsonify({
             "success": True,
             "acao": acao
