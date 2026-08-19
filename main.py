@@ -5041,6 +5041,114 @@ def admin_atualizar_lead_crm(lead_id):
 
 
 
+
+def carregar_leads_crm_para_ia(limite=50):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        empresa,
+                        tipo_lead,
+                        origem,
+                        canal,
+                        cidade,
+                        estado,
+                        interesse,
+                        estagio,
+                        valor_potencial_centavos,
+                        cac_centavos,
+                        receita_acumulada_centavos,
+                        responsavel,
+                        proximo_followup,
+                        atualizado_em
+                    FROM leads_crm
+                    ORDER BY
+                        CASE estagio
+                            WHEN 'negociacao' THEN 1
+                            WHEN 'proposta' THEN 2
+                            WHEN 'degustacao' THEN 3
+                            WHEN 'qualificacao' THEN 4
+                            WHEN 'novo' THEN 5
+                            WHEN 'cliente' THEN 6
+                            WHEN 'perdido' THEN 7
+                            ELSE 8
+                        END,
+                        atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                leads = cur.fetchall()
+
+        linhas = []
+
+        for lead in leads:
+
+            valor_potencial = (
+                (lead["valor_potencial_centavos"] or 0)
+                / 100
+            )
+
+            cac = (
+                (lead["cac_centavos"] or 0)
+                / 100
+            )
+
+            receita = (
+                (lead["receita_acumulada_centavos"] or 0)
+                / 100
+            )
+
+            linhas.append(
+                (
+                    f"- {lead['nome'] or 'Sem nome'}"
+                    f" | Empresa: {lead['empresa'] or 'não informada'}"
+                    f" | Tipo: {lead['tipo_lead']}"
+                    f" | Origem: {lead['origem']}"
+                    f" | Canal: {lead['canal'] or 'não informado'}"
+                    f" | Estágio: {lead['estagio']}"
+                    f" | Valor potencial: R$ {valor_potencial:.2f}"
+                    f" | CAC: R$ {cac:.2f}"
+                    f" | Receita acumulada: R$ {receita:.2f}"
+                    f" | Interesse: {lead['interesse'] or 'não informado'}"
+                    f" | Responsável: {lead['responsavel'] or 'não definido'}"
+                    f" | Próximo follow-up: "
+                    f"{lead['proximo_followup'] or 'não definido'}"
+                )
+            )
+
+        contexto = ""
+
+        if linhas:
+            contexto = (
+                "\n\nCRM / FUNIL DE LEADS\n"
+                "Use estes dados para analisar qualidade do pipeline, "
+                "origem dos leads, estágio, CAC, valor potencial, "
+                "receita acumulada e necessidade de follow-up. "
+                "Não trate valor potencial como receita realizada.\n"
+                + "\n".join(linhas)
+                + "\n"
+            )
+
+        return {
+            "leads": leads,
+            "contexto": contexto
+        }
+
+    finally:
+        conn.close()
+
+
 def carregar_acoes_para_ia(limite=30):
 
     conn = get_db_connection()
@@ -5424,6 +5532,15 @@ def ia_empresarial():
             or ""
         )
 
+        crm_ia = (
+            carregar_leads_crm_para_ia()
+        )
+
+        contexto_crm = (
+            crm_ia["contexto"]
+            or ""
+        )
+
         contexto_operacional = (
             "\n\nDADOS ATUAIS DO SISTEMA:\n"
             + str(resumo)
@@ -5513,6 +5630,7 @@ def ia_empresarial():
                 + contexto_documental
                 + contexto_decisoes
                 + contexto_acoes
+                + contexto_crm
                 + contexto_operacional +
 
                 "\nAnalise negócios com rigor. "
@@ -5606,6 +5724,7 @@ def ia_empresarial():
                     + contexto_documental
                     + contexto_decisoes
                     + contexto_acoes
+                    + contexto_crm
                     + contexto_operacional
                 ),
 
@@ -5653,7 +5772,9 @@ def ia_empresarial():
                 "decisoes":
                     decisoes_ia["total_decisoes"],
                 "acoes":
-                    len(acoes_ia["acoes"])
+                    len(acoes_ia["acoes"]),
+                "leads_crm":
+                    len(crm_ia["leads"])
             },
             "documentos_usados":
                 documentos_ia["documentos_usados"],
