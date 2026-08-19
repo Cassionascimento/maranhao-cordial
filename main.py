@@ -745,26 +745,19 @@ def inicializar_banco():
 
                         prazo_producao_dias INTEGER,
 
-                        embalagem_vidro BOOLEAN
-                            NOT NULL DEFAULT FALSE,
+                        embalagem_vidro BOOLEAN,
 
-                        embalagem_pet BOOLEAN
-                            NOT NULL DEFAULT FALSE,
+                        embalagem_pet BOOLEAN,
 
-                        envase_200ml BOOLEAN
-                            NOT NULL DEFAULT FALSE,
+                        envase_200ml BOOLEAN,
 
-                        rotulagem BOOLEAN
-                            NOT NULL DEFAULT FALSE,
+                        rotulagem BOOLEAN,
 
-                        responsabilidade_tecnica BOOLEAN
-                            NOT NULL DEFAULT FALSE,
+                        responsabilidade_tecnica BOOLEAN,
 
-                        analises_laboratoriais BOOLEAN
-                            NOT NULL DEFAULT FALSE,
+                        analises_laboratoriais BOOLEAN,
 
-                        pode_copack BOOLEAN
-                            NOT NULL DEFAULT FALSE,
+                        pode_copack BOOLEAN,
 
                         ncm_informado VARCHAR(20),
 
@@ -801,6 +794,29 @@ def inicializar_banco():
                 cur.execute("""
                     ALTER TABLE fabricas_parceiras
                     ALTER COLUMN mapa_status TYPE TEXT
+                """)
+
+
+                # Permite distinguir:
+                # TRUE = confirmado sim
+                # FALSE = confirmado não
+                # NULL = ainda não verificado
+                cur.execute("""
+                    ALTER TABLE fabricas_parceiras
+                    ALTER COLUMN embalagem_vidro DROP NOT NULL,
+                    ALTER COLUMN embalagem_vidro DROP DEFAULT,
+                    ALTER COLUMN embalagem_pet DROP NOT NULL,
+                    ALTER COLUMN embalagem_pet DROP DEFAULT,
+                    ALTER COLUMN envase_200ml DROP NOT NULL,
+                    ALTER COLUMN envase_200ml DROP DEFAULT,
+                    ALTER COLUMN rotulagem DROP NOT NULL,
+                    ALTER COLUMN rotulagem DROP DEFAULT,
+                    ALTER COLUMN responsabilidade_tecnica DROP NOT NULL,
+                    ALTER COLUMN responsabilidade_tecnica DROP DEFAULT,
+                    ALTER COLUMN analises_laboratoriais DROP NOT NULL,
+                    ALTER COLUMN analises_laboratoriais DROP DEFAULT,
+                    ALTER COLUMN pode_copack DROP NOT NULL,
+                    ALTER COLUMN pode_copack DROP DEFAULT
                 """)
 
                 # ==========================================
@@ -6293,13 +6309,13 @@ def admin_criar_fabrica():
         "custo_unitario_centavos": dados.get("custo_unitario_centavos"),
         "custo_litro_centavos": dados.get("custo_litro_centavos"),
         "prazo_producao_dias": dados.get("prazo_producao_dias"),
-        "embalagem_vidro": bool(dados.get("embalagem_vidro", False)),
-        "embalagem_pet": bool(dados.get("embalagem_pet", False)),
-        "envase_200ml": bool(dados.get("envase_200ml", False)),
-        "rotulagem": bool(dados.get("rotulagem", False)),
-        "responsabilidade_tecnica": bool(dados.get("responsabilidade_tecnica", False)),
-        "analises_laboratoriais": bool(dados.get("analises_laboratoriais", False)),
-        "pode_copack": bool(dados.get("pode_copack", False)),
+        "embalagem_vidro": dados.get("embalagem_vidro") if "embalagem_vidro" in dados else None,
+        "embalagem_pet": dados.get("embalagem_pet") if "embalagem_pet" in dados else None,
+        "envase_200ml": dados.get("envase_200ml") if "envase_200ml" in dados else None,
+        "rotulagem": dados.get("rotulagem") if "rotulagem" in dados else None,
+        "responsabilidade_tecnica": dados.get("responsabilidade_tecnica") if "responsabilidade_tecnica" in dados else None,
+        "analises_laboratoriais": dados.get("analises_laboratoriais") if "analises_laboratoriais" in dados else None,
+        "pode_copack": dados.get("pode_copack") if "pode_copack" in dados else None,
         "ncm_informado": dados.get("ncm_informado"),
         "observacoes": dados.get("observacoes"),
         "fonte_dados": dados.get("fonte_dados"),
@@ -6608,6 +6624,16 @@ def admin_atualizar_fabrica(fabrica_id):
         conn.close()
 
 
+def texto_booleano_verificado(valor):
+    if valor is True:
+        return "sim"
+
+    if valor is False:
+        return "não"
+
+    return "não verificado"
+
+
 def carregar_fabricas_para_ia(limite=50):
 
     conn = get_db_connection()
@@ -6718,17 +6744,17 @@ def carregar_fabricas_para_ia(limite=50):
                     f"| Prazo produção: "
                     f"{fabrica['prazo_producao_dias'] or 'não informado'} dias "
                     f"| Copack: "
-                    f"{'sim' if fabrica['pode_copack'] else 'não'} "
+                    f"{texto_booleano_verificado(fabrica['pode_copack'])} "
                     f"| Envase 200ml: "
-                    f"{'sim' if fabrica['envase_200ml'] else 'não'} "
+                    f"{texto_booleano_verificado(fabrica['envase_200ml'])} "
                     f"| Vidro: "
-                    f"{'sim' if fabrica['embalagem_vidro'] else 'não'} "
+                    f"{texto_booleano_verificado(fabrica['embalagem_vidro'])} "
                     f"| Rotulagem: "
-                    f"{'sim' if fabrica['rotulagem'] else 'não'} "
+                    f"{texto_booleano_verificado(fabrica['rotulagem'])} "
                     f"| RT: "
-                    f"{'sim' if fabrica['responsabilidade_tecnica'] else 'não'} "
+                    f"{texto_booleano_verificado(fabrica['responsabilidade_tecnica'])} "
                     f"| Análises: "
-                    f"{'sim' if fabrica['analises_laboratoriais'] else 'não'} "
+                    f"{texto_booleano_verificado(fabrica['analises_laboratoriais'])} "
                     f"| NCM informado: "
                     f"{fabrica['ncm_informado'] or 'não informado'} "
                     f"| Fonte: "
