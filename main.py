@@ -1176,7 +1176,10 @@ def executar_acao_controlada(acao):
 
     executores = {
         "registrar_analise_interna":
-            executar_registro_analise_interna
+            executar_registro_analise_interna,
+
+        "atualizar_lead_crm":
+            executar_atualizacao_lead_crm
     }
 
     executor = executores.get(tipo)
@@ -1189,6 +1192,294 @@ def executar_acao_controlada(acao):
         }
 
     return executor(acao)
+
+
+def executar_atualizacao_lead_crm(acao):
+    """
+    Executor real e controlado do CRM.
+
+    Pode alterar somente:
+    - estagio
+    - responsavel
+    - proximo_followup
+    - observacoes
+
+    Não envia mensagens, não altera preços,
+    não faz pagamentos e não negocia com terceiros.
+    """
+
+    acao_id = str(
+        acao.get("id") or ""
+    ).strip()
+
+    if not acao_id:
+        return {
+            "success": False,
+            "erro": "Ação sem ID."
+        }
+
+    payload = acao.get(
+        "payload_execucao"
+    )
+
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except Exception:
+            return {
+                "success": False,
+                "erro":
+                    "payload_execucao não contém JSON válido."
+            }
+
+    if not isinstance(payload, dict):
+        return {
+            "success": False,
+            "erro":
+                "payload_execucao deve ser um objeto JSON."
+        }
+
+    lead_id = str(
+        payload.get("lead_id") or ""
+    ).strip()
+
+    if not lead_id:
+        return {
+            "success": False,
+            "erro": "lead_id obrigatório."
+        }
+
+    alteracoes = payload.get(
+        "alteracoes"
+    )
+
+    if not isinstance(alteracoes, dict):
+        return {
+            "success": False,
+            "erro":
+                "alteracoes deve ser um objeto JSON."
+        }
+
+    campos_permitidos = {
+        "estagio",
+        "responsavel",
+        "proximo_followup",
+        "observacoes"
+    }
+
+    estagios_validos = {
+        "novo",
+        "qualificacao",
+        "degustacao",
+        "proposta",
+        "negociacao",
+        "cliente",
+        "perdido"
+    }
+
+    atualizacoes = []
+    valores = []
+    alteracoes_validas = {}
+
+    for campo, valor in alteracoes.items():
+
+        if campo not in campos_permitidos:
+            return {
+                "success": False,
+                "erro":
+                    f"Campo não autorizado: {campo}"
+            }
+
+        if campo == "estagio":
+            valor = str(
+                valor
+            ).strip().lower()
+
+            if valor not in estagios_validos:
+                return {
+                    "success": False,
+                    "erro":
+                        "Estágio de CRM inválido."
+                }
+
+        if campo in {
+            "responsavel",
+            "proximo_followup",
+            "observacoes"
+        } and valor == "":
+            valor = None
+
+        atualizacoes.append(
+            f"{campo} = %s"
+        )
+
+        valores.append(
+            valor
+        )
+
+        alteracoes_validas[
+            campo
+        ] = valor
+
+    if not atualizacoes:
+        return {
+            "success": False,
+            "erro":
+                "Nenhuma alteração de CRM informada."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                valores_lead = list(
+                    valores
+                )
+
+                valores_lead.append(
+                    lead_id
+                )
+
+                query = f"""
+                    UPDATE leads_crm
+                    SET
+                        {", ".join(atualizacoes)},
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING *
+                """
+
+                cur.execute(
+                    query,
+                    tuple(valores_lead)
+                )
+
+                lead = cur.fetchone()
+
+                if not lead:
+                    raise ValueError(
+                        "Lead não encontrado."
+                    )
+
+                resultado_texto = (
+                    "CRM atualizado automaticamente: "
+                    + ", ".join(
+                        alteracoes_validas.keys()
+                    )
+                )
+
+                cur.execute("""
+                    UPDATE acoes_empresariais
+                    SET
+                        estado_execucao = 'executada',
+                        status = 'concluida',
+                        executor = 'ia_empresarial',
+                        tentativas_execucao =
+                            tentativas_execucao + 1,
+                        executado_em = NOW(),
+                        resultado = %s,
+                        ultimo_erro = NULL,
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING *
+                """, (
+                    resultado_texto,
+                    acao_id
+                ))
+
+                acao_atualizada = (
+                    cur.fetchone()
+                )
+
+        registrar_auditoria(
+            categoria="execucao",
+            acao="lead_crm_atualizado",
+            ator_tipo="ia",
+            ator_id="maranhao-empresarial-v1",
+            origem="motor_execucao",
+            entidade_tipo="lead_crm",
+            entidade_id=lead_id,
+            status="executada",
+            dados_entrada={
+                "acao_id":
+                    acao_id,
+                "alteracoes":
+                    alteracoes_validas
+            },
+            dados_saida={
+                "lead_id":
+                    lead_id,
+                "estagio":
+                    lead.get("estagio"),
+                "responsavel":
+                    lead.get("responsavel"),
+                "proximo_followup":
+                    lead.get(
+                        "proximo_followup"
+                    )
+            }
+        )
+
+        return {
+            "success": True,
+            "acao":
+                acao_atualizada,
+            "lead":
+                lead
+        }
+
+    except Exception as erro:
+
+        try:
+            conn2 = get_db_connection()
+
+            with conn2:
+                with conn2.cursor() as cur:
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET
+                            estado_execucao = 'falhou',
+                            tentativas_execucao =
+                                tentativas_execucao + 1,
+                            ultimo_erro = %s,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        str(erro),
+                        acao_id
+                    ))
+
+            conn2.close()
+
+        except Exception as erro_registro:
+            print(
+                "ERRO REGISTRAR FALHA CRM:",
+                erro_registro
+            )
+
+        registrar_auditoria(
+            categoria="execucao",
+            acao="atualizacao_lead_crm_falhou",
+            ator_tipo="ia",
+            ator_id="maranhao-empresarial-v1",
+            origem="motor_execucao",
+            entidade_tipo="lead_crm",
+            entidade_id=lead_id,
+            status="falhou",
+            erro=str(erro)
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
 
 
 def executar_registro_analise_interna(acao):
@@ -5192,7 +5483,8 @@ def admin_atualizar_acao(acao_id):
 
             if valor not in {
                 "",
-                "registrar_analise_interna"
+                "registrar_analise_interna",
+                "atualizar_lead_crm"
             }:
                 return jsonify({
                     "success": False,
