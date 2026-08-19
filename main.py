@@ -1,6 +1,7 @@
 from flask import Flask, send_from_directory, request, jsonify, send_file
 from flask_socketio import SocketIO, emit
 import os
+import json
 import io
 import uuid
 import re
@@ -5001,6 +5002,74 @@ def ia_empresarial():
         resposta = openai_client.responses.create(
             model="gpt-5-mini",
 
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "analise_empresarial",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "resposta": {
+                                "type": "string"
+                            },
+                            "acoes_sugeridas": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "titulo": {
+                                            "type": "string"
+                                        },
+                                        "descricao": {
+                                            "type": "string"
+                                        },
+                                        "area": {
+                                            "type": "string",
+                                            "enum": [
+                                                "comercial",
+                                                "financeiro",
+                                                "operacional",
+                                                "produto",
+                                                "regulatorio",
+                                                "marketing",
+                                                "tecnologia",
+                                                "estrategia"
+                                            ]
+                                        },
+                                        "prioridade": {
+                                            "type": "string",
+                                            "enum": [
+                                                "baixa",
+                                                "media",
+                                                "alta",
+                                                "critica"
+                                            ]
+                                        },
+                                        "justificativa": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "titulo",
+                                        "descricao",
+                                        "area",
+                                        "prioridade",
+                                        "justificativa"
+                                    ],
+                                    "additionalProperties": False
+                                }
+                            }
+                        },
+                        "required": [
+                            "resposta",
+                            "acoes_sugeridas"
+                        ],
+                        "additionalProperties": False
+                    }
+                }
+            },
+
             instructions=(
                 "Você é a inteligência empresarial privada "
                 "da Maranhão Cordial. "
@@ -5051,10 +5120,43 @@ def ia_empresarial():
             max_output_tokens=1600
         )
 
-        texto = (
+        texto_bruto = (
             resposta.output_text
             or ""
         ).strip()
+
+        texto = ""
+        acoes_sugeridas = []
+
+        if texto_bruto:
+            try:
+                dados_ia = json.loads(
+                    texto_bruto
+                )
+
+                texto = str(
+                    dados_ia.get(
+                        "resposta",
+                        ""
+                    )
+                ).strip()
+
+                acoes_sugeridas = (
+                    dados_ia.get(
+                        "acoes_sugeridas",
+                        []
+                    )
+                    or []
+                )
+
+            except Exception as erro_json:
+                print(
+                    "AVISO JSON IA EMPRESARIAL:",
+                    erro_json
+                )
+
+                texto = texto_bruto
+                acoes_sugeridas = []
 
         if not texto:
             resposta_retry = openai_client.responses.create(
@@ -5072,6 +5174,7 @@ def ia_empresarial():
                     + HIERARQUIA_DECISAO_EMPRESARIAL
                     + contexto_documental
                     + contexto_decisoes
+                    + contexto_acoes
                     + contexto_operacional
                 ),
 
@@ -5089,11 +5192,15 @@ def ia_empresarial():
                 or ""
             ).strip()
 
+            acoes_sugeridas = []
+
         if not texto:
             texto = (
                 "Os dados foram consultados, mas a análise não pôde ser "
                 "gerada nesta tentativa. Tente novamente."
             )
+
+            acoes_sugeridas = []
 
         return jsonify({
             "success": True,
@@ -5131,7 +5238,9 @@ def ia_empresarial():
                         "status": acao["status"]
                     }
                     for acao in acoes_ia["acoes"]
-                ]
+                ],
+            "acoes_sugeridas":
+                acoes_sugeridas
         }), 200
 
     except Exception as erro:
