@@ -537,6 +537,34 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # CRM / FUNIL DE LEADS
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS leads_crm (
+                        id UUID PRIMARY KEY,
+                        nome VARCHAR(180),
+                        empresa VARCHAR(220),
+                        tipo_lead VARCHAR(30) NOT NULL,
+                        origem VARCHAR(80) NOT NULL,
+                        canal VARCHAR(80),
+                        cidade VARCHAR(120),
+                        estado VARCHAR(80),
+                        contato VARCHAR(220),
+                        interesse TEXT,
+                        estagio VARCHAR(40) NOT NULL DEFAULT 'novo',
+                        valor_potencial_centavos BIGINT,
+                        cac_centavos BIGINT,
+                        receita_acumulada_centavos BIGINT NOT NULL DEFAULT 0,
+                        responsavel VARCHAR(180),
+                        proximo_followup TIMESTAMPTZ,
+                        observacoes TEXT,
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                # ==========================================
                 # PEDIDOS
                 # ==========================================
 
@@ -4608,6 +4636,408 @@ def admin_atualizar_acao(acao_id):
     finally:
         conn.close()
 
+
+
+
+
+@app.route(
+    "/api/admin/crm/leads",
+    methods=["GET"]
+)
+def admin_listar_leads_crm():
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        empresa,
+                        tipo_lead,
+                        origem,
+                        canal,
+                        cidade,
+                        estado,
+                        contato,
+                        interesse,
+                        estagio,
+                        valor_potencial_centavos,
+                        cac_centavos,
+                        receita_acumulada_centavos,
+                        responsavel,
+                        proximo_followup,
+                        observacoes,
+                        criado_em,
+                        atualizado_em
+                    FROM leads_crm
+                    ORDER BY
+                        atualizado_em DESC,
+                        criado_em DESC
+                """)
+
+                leads = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total": len(leads),
+            "leads": leads
+        })
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/crm/leads",
+    methods=["POST"]
+)
+def admin_criar_lead_crm():
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    nome = str(
+        dados.get("nome", "")
+    ).strip() or None
+
+    empresa = str(
+        dados.get("empresa", "")
+    ).strip() or None
+
+    tipo_lead = str(
+        dados.get("tipo_lead", "")
+    ).strip().lower()
+
+    origem = str(
+        dados.get("origem", "")
+    ).strip().lower()
+
+    canal = str(
+        dados.get("canal", "")
+    ).strip().lower() or None
+
+    cidade = str(
+        dados.get("cidade", "")
+    ).strip() or None
+
+    estado = str(
+        dados.get("estado", "")
+    ).strip() or None
+
+    contato = str(
+        dados.get("contato", "")
+    ).strip() or None
+
+    interesse = str(
+        dados.get("interesse", "")
+    ).strip() or None
+
+    estagio = str(
+        dados.get("estagio", "novo")
+    ).strip().lower()
+
+    valor_potencial_centavos = (
+        dados.get("valor_potencial_centavos")
+    )
+
+    cac_centavos = (
+        dados.get("cac_centavos")
+    )
+
+    receita_acumulada_centavos = (
+        dados.get(
+            "receita_acumulada_centavos",
+            0
+        )
+        or 0
+    )
+
+    responsavel = str(
+        dados.get("responsavel", "")
+    ).strip() or None
+
+    proximo_followup = (
+        dados.get("proximo_followup")
+        or None
+    )
+
+    observacoes = str(
+        dados.get("observacoes", "")
+    ).strip() or None
+
+    tipos_validos = {
+        "b2b",
+        "b2c",
+        "parceiro",
+        "influenciador",
+        "fornecedor",
+        "outro"
+    }
+
+    estagios_validos = {
+        "novo",
+        "qualificacao",
+        "degustacao",
+        "proposta",
+        "negociacao",
+        "cliente",
+        "perdido"
+    }
+
+    if tipo_lead not in tipos_validos:
+        return jsonify({
+            "success": False,
+            "error": "Tipo de lead inválido."
+        }), 400
+
+    if not origem:
+        return jsonify({
+            "success": False,
+            "error": "Origem obrigatória."
+        }), 400
+
+    if estagio not in estagios_validos:
+        return jsonify({
+            "success": False,
+            "error": "Estágio inválido."
+        }), 400
+
+    lead_id = str(uuid.uuid4())
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO leads_crm (
+                        id,
+                        nome,
+                        empresa,
+                        tipo_lead,
+                        origem,
+                        canal,
+                        cidade,
+                        estado,
+                        contato,
+                        interesse,
+                        estagio,
+                        valor_potencial_centavos,
+                        cac_centavos,
+                        receita_acumulada_centavos,
+                        responsavel,
+                        proximo_followup,
+                        observacoes
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s
+                    )
+                    RETURNING *
+                """, (
+                    lead_id,
+                    nome,
+                    empresa,
+                    tipo_lead,
+                    origem,
+                    canal,
+                    cidade,
+                    estado,
+                    contato,
+                    interesse,
+                    estagio,
+                    valor_potencial_centavos,
+                    cac_centavos,
+                    receita_acumulada_centavos,
+                    responsavel,
+                    proximo_followup,
+                    observacoes
+                ))
+
+                lead = cur.fetchone()
+
+        return jsonify({
+            "success": True,
+            "lead": lead
+        }), 201
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/crm/leads/<lead_id>",
+    methods=["PATCH"]
+)
+def admin_atualizar_lead_crm(lead_id):
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    campos_permitidos = {
+        "nome",
+        "empresa",
+        "tipo_lead",
+        "origem",
+        "canal",
+        "cidade",
+        "estado",
+        "contato",
+        "interesse",
+        "estagio",
+        "valor_potencial_centavos",
+        "cac_centavos",
+        "receita_acumulada_centavos",
+        "responsavel",
+        "proximo_followup",
+        "observacoes"
+    }
+
+    estagios_validos = {
+        "novo",
+        "qualificacao",
+        "degustacao",
+        "proposta",
+        "negociacao",
+        "cliente",
+        "perdido"
+    }
+
+    atualizacoes = []
+    valores = []
+
+    for campo, valor in dados.items():
+
+        if campo not in campos_permitidos:
+            continue
+
+        if campo == "estagio":
+            valor = str(valor).strip().lower()
+
+            if valor not in estagios_validos:
+                return jsonify({
+                    "success": False,
+                    "error": "Estágio inválido."
+                }), 400
+
+        if campo in {
+            "nome",
+            "empresa",
+            "canal",
+            "cidade",
+            "estado",
+            "contato",
+            "interesse",
+            "responsavel",
+            "proximo_followup",
+            "observacoes"
+        } and valor == "":
+            valor = None
+
+        atualizacoes.append(
+            f"{campo} = %s"
+        )
+        valores.append(valor)
+
+    if not atualizacoes:
+        return jsonify({
+            "success": False,
+            "error": "Nenhum campo válido informado."
+        }), 400
+
+    atualizacoes.append(
+        "atualizado_em = NOW()"
+    )
+
+    valores.append(lead_id)
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                query = f"""
+                    UPDATE leads_crm
+                    SET {", ".join(atualizacoes)}
+                    WHERE id = %s
+                    RETURNING *
+                """
+
+                cur.execute(
+                    query,
+                    tuple(valores)
+                )
+
+                lead = cur.fetchone()
+
+                if not lead:
+                    return jsonify({
+                        "success": False,
+                        "error": "Lead não encontrado."
+                    }), 404
+
+        return jsonify({
+            "success": True,
+            "lead": lead
+        })
+
+    finally:
+        conn.close()
 
 
 
