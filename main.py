@@ -5611,6 +5611,87 @@ def obter_resumo_empresarial_postgres():
 
 
 @app.route(
+    "/api/admin/auditoria",
+    methods=["GET"]
+)
+def admin_listar_auditoria():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        limite = request.args.get(
+            "limite",
+            default=100,
+            type=int
+        )
+
+        limite = max(
+            1,
+            min(limite, 500)
+        )
+
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor(
+                    cursor_factory=RealDictCursor
+                ) as cur:
+
+                    cur.execute("""
+                        SELECT
+                            id,
+                            categoria,
+                            acao,
+                            ator_tipo,
+                            ator_id,
+                            origem,
+                            entidade_tipo,
+                            entidade_id,
+                            status,
+                            requer_aprovacao,
+                            aprovado_por,
+                            correlation_id,
+                            dados_entrada,
+                            dados_saida,
+                            erro,
+                            criado_em
+                        FROM auditoria_eventos
+                        ORDER BY criado_em DESC
+                        LIMIT %s
+                    """, (
+                        limite,
+                    ))
+
+                    eventos = cur.fetchall()
+
+        finally:
+            conn.close()
+
+        return jsonify({
+            "success": True,
+            "total": len(eventos),
+            "eventos": eventos
+        }), 200
+
+    except Exception as erro:
+        print(
+            "ERRO LISTAR AUDITORIA:",
+            erro
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Não foi possível consultar a auditoria."
+        }), 500
+
+
+@app.route(
     "/api/admin/ia-empresarial",
     methods=["POST"]
 )
