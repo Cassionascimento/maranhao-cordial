@@ -5142,7 +5142,11 @@ def admin_atualizar_acao(acao_id):
         "responsavel",
         "data_limite",
         "decisao_id",
-        "resultado"
+        "resultado",
+        "modo_execucao",
+        "estado_execucao",
+        "tipo_execucao",
+        "payload_execucao"
     }
 
     atualizacoes = []
@@ -5152,6 +5156,51 @@ def admin_atualizar_acao(acao_id):
 
         if campo not in campos_permitidos:
             continue
+
+        if campo == "modo_execucao":
+            valor = str(valor).strip().lower()
+
+            if valor not in {
+                "automatico",
+                "requer_aprovacao",
+                "somente_humano"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Modo de execução inválido."
+                }), 400
+
+        if campo == "estado_execucao":
+            valor = str(valor).strip().lower()
+
+            if valor not in {
+                "nao_iniciada",
+                "aguardando_aprovacao",
+                "autorizada",
+                "executando",
+                "executada",
+                "falhou",
+                "bloqueada_humano"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Estado de execução inválido."
+                }), 400
+
+        if campo == "tipo_execucao":
+            valor = str(valor).strip()
+
+            if valor not in {
+                "",
+                "registrar_analise_interna"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Tipo de execução não autorizado."
+                }), 400
+
+            if valor == "":
+                valor = None
 
         if campo == "prioridade":
             valor = str(valor).strip().lower()
