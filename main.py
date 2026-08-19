@@ -6717,6 +6717,374 @@ def texto_booleano_verificado(valor):
     return "não verificado"
 
 
+@app.route(
+    "/api/admin/cenarios-fiscais",
+    methods=["GET"]
+)
+def admin_listar_cenarios_fiscais():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM cenarios_fiscais
+                    ORDER BY
+                        uf_origem,
+                        uf_destino,
+                        criado_em DESC
+                """)
+
+                cenarios = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total": len(cenarios),
+            "cenarios": cenarios
+        }), 200
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/cenarios-fiscais",
+    methods=["POST"]
+)
+def admin_criar_cenario_fiscal():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    nome = str(
+        dados.get("nome", "")
+    ).strip()
+
+    uf_origem = str(
+        dados.get("uf_origem", "")
+    ).strip().upper()
+
+    uf_destino = str(
+        dados.get("uf_destino", "")
+    ).strip().upper()
+
+    if not nome:
+        return jsonify({
+            "success": False,
+            "error": "Nome obrigatório."
+        }), 400
+
+    if len(uf_origem) != 2 or len(uf_destino) != 2:
+        return jsonify({
+            "success": False,
+            "error": "UF de origem e destino obrigatórias."
+        }), 400
+
+    cenario_id = str(uuid.uuid4())
+
+    campos = {
+        "fabrica_id": dados.get("fabrica_id"),
+        "finalidade": dados.get("finalidade", "revenda"),
+        "tipo_destinatario": dados.get("tipo_destinatario"),
+        "contribuinte_icms": dados.get("contribuinte_icms"),
+        "ncm": dados.get("ncm"),
+        "cfop": dados.get("cfop"),
+        "csosn": dados.get("csosn"),
+        "icms_st_aplicavel": dados.get("icms_st_aplicavel"),
+        "icms_st_retido_origem": dados.get("icms_st_retido_origem"),
+        "antecipacao_aplicavel": dados.get("antecipacao_aplicavel"),
+        "difal_aplicavel": dados.get("difal_aplicavel"),
+        "aliquota_icms_origem": dados.get("aliquota_icms_origem"),
+        "aliquota_icms_destino": dados.get("aliquota_icms_destino"),
+        "aliquota_simples": dados.get("aliquota_simples"),
+        "valor_compra_centavos": dados.get("valor_compra_centavos"),
+        "valor_venda_centavos": dados.get("valor_venda_centavos"),
+        "icms_st_centavos": dados.get("icms_st_centavos"),
+        "antecipacao_centavos": dados.get("antecipacao_centavos"),
+        "difal_centavos": dados.get("difal_centavos"),
+        "das_estimado_centavos": dados.get("das_estimado_centavos"),
+        "carga_tributaria_total_centavos":
+            dados.get("carga_tributaria_total_centavos"),
+        "status_calculo":
+            dados.get("status_calculo", "aguardando_dados"),
+        "fonte_regra": dados.get("fonte_regra"),
+        "observacoes": dados.get("observacoes"),
+        "verificado_por": dados.get("verificado_por")
+    }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO cenarios_fiscais (
+                        id,
+                        nome,
+                        fabrica_id,
+                        uf_origem,
+                        uf_destino,
+                        finalidade,
+                        tipo_destinatario,
+                        contribuinte_icms,
+                        ncm,
+                        cfop,
+                        csosn,
+                        icms_st_aplicavel,
+                        icms_st_retido_origem,
+                        antecipacao_aplicavel,
+                        difal_aplicavel,
+                        aliquota_icms_origem,
+                        aliquota_icms_destino,
+                        aliquota_simples,
+                        valor_compra_centavos,
+                        valor_venda_centavos,
+                        icms_st_centavos,
+                        antecipacao_centavos,
+                        difal_centavos,
+                        das_estimado_centavos,
+                        carga_tributaria_total_centavos,
+                        status_calculo,
+                        fonte_regra,
+                        observacoes,
+                        verificado_por,
+                        verificado_em
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        CASE
+                            WHEN %s IS NOT NULL
+                            THEN NOW()
+                            ELSE NULL
+                        END
+                    )
+                    RETURNING *
+                """, (
+                    cenario_id,
+                    nome,
+                    campos["fabrica_id"],
+                    uf_origem,
+                    uf_destino,
+                    campos["finalidade"],
+                    campos["tipo_destinatario"],
+                    campos["contribuinte_icms"],
+                    campos["ncm"],
+                    campos["cfop"],
+                    campos["csosn"],
+                    campos["icms_st_aplicavel"],
+                    campos["icms_st_retido_origem"],
+                    campos["antecipacao_aplicavel"],
+                    campos["difal_aplicavel"],
+                    campos["aliquota_icms_origem"],
+                    campos["aliquota_icms_destino"],
+                    campos["aliquota_simples"],
+                    campos["valor_compra_centavos"],
+                    campos["valor_venda_centavos"],
+                    campos["icms_st_centavos"],
+                    campos["antecipacao_centavos"],
+                    campos["difal_centavos"],
+                    campos["das_estimado_centavos"],
+                    campos["carga_tributaria_total_centavos"],
+                    campos["status_calculo"],
+                    campos["fonte_regra"],
+                    campos["observacoes"],
+                    campos["verificado_por"],
+                    campos["verificado_por"]
+                ))
+
+                cenario = cur.fetchone()
+
+        registrar_auditoria(
+            categoria="fiscal",
+            acao="cenario_fiscal_criado",
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="painel_admin",
+            entidade_tipo="cenario_fiscal",
+            entidade_id=cenario_id,
+            status="criado",
+            dados_entrada={
+                "nome": nome,
+                "uf_origem": uf_origem,
+                "uf_destino": uf_destino,
+                "ncm": campos["ncm"],
+                "status_calculo":
+                    campos["status_calculo"]
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "cenario": cenario
+        }), 201
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/cenarios-fiscais/<cenario_id>",
+    methods=["PATCH"]
+)
+def admin_atualizar_cenario_fiscal(cenario_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    campos_permitidos = {
+        "nome",
+        "fabrica_id",
+        "uf_origem",
+        "uf_destino",
+        "finalidade",
+        "tipo_destinatario",
+        "contribuinte_icms",
+        "ncm",
+        "cfop",
+        "csosn",
+        "icms_st_aplicavel",
+        "icms_st_retido_origem",
+        "antecipacao_aplicavel",
+        "difal_aplicavel",
+        "aliquota_icms_origem",
+        "aliquota_icms_destino",
+        "aliquota_simples",
+        "valor_compra_centavos",
+        "valor_venda_centavos",
+        "icms_st_centavos",
+        "antecipacao_centavos",
+        "difal_centavos",
+        "das_estimado_centavos",
+        "carga_tributaria_total_centavos",
+        "status_calculo",
+        "fonte_regra",
+        "observacoes",
+        "verificado_por"
+    }
+
+    atualizacoes = []
+    valores = []
+
+    for campo, valor in dados.items():
+
+        if campo not in campos_permitidos:
+            continue
+
+        if campo in {
+            "uf_origem",
+            "uf_destino"
+        } and valor is not None:
+            valor = str(valor).strip().upper()
+
+        atualizacoes.append(
+            f"{campo} = %s"
+        )
+        valores.append(valor)
+
+    if not atualizacoes:
+        return jsonify({
+            "success": False,
+            "error": "Nenhum campo válido informado."
+        }), 400
+
+    if "verificado_por" in dados:
+        atualizacoes.append(
+            "verificado_em = NOW()"
+        )
+
+    atualizacoes.append(
+        "atualizado_em = NOW()"
+    )
+
+    valores.append(
+        cenario_id
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                query = f"""
+                    UPDATE cenarios_fiscais
+                    SET {", ".join(atualizacoes)}
+                    WHERE id = %s
+                    RETURNING *
+                """
+
+                cur.execute(
+                    query,
+                    tuple(valores)
+                )
+
+                cenario = cur.fetchone()
+
+                if not cenario:
+                    return jsonify({
+                        "success": False,
+                        "error": "Cenário fiscal não encontrado."
+                    }), 404
+
+        registrar_auditoria(
+            categoria="fiscal",
+            acao="cenario_fiscal_atualizado",
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="painel_admin",
+            entidade_tipo="cenario_fiscal",
+            entidade_id=cenario_id,
+            status="atualizado",
+            dados_entrada={
+                "campos_alterados":
+                    list(dados.keys())
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "cenario": cenario
+        }), 200
+
+    finally:
+        conn.close()
+
+
 def carregar_fabricas_para_ia(limite=50):
 
     conn = get_db_connection()
