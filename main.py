@@ -732,7 +732,7 @@ def inicializar_banco():
                         status_regulatorio VARCHAR(40)
                             NOT NULL DEFAULT 'nao_verificado',
 
-                        mapa_status VARCHAR(80),
+                        mapa_status TEXT,
 
                         lote_minimo_unidades INTEGER,
                         lote_minimo_litros NUMERIC(12,2),
@@ -795,6 +795,12 @@ def inicializar_banco():
                         status_comercial,
                         status_regulatorio
                     )
+                """)
+
+                # Ajuste seguro para bancos já existentes.
+                cur.execute("""
+                    ALTER TABLE fabricas_parceiras
+                    ALTER COLUMN mapa_status TYPE TEXT
                 """)
 
                 # ==========================================
