@@ -706,6 +706,98 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # MATRIZ DE FABRICAS PARCEIRAS
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS fabricas_parceiras (
+                        id UUID PRIMARY KEY,
+
+                        nome VARCHAR(220) NOT NULL,
+                        razao_social VARCHAR(220),
+                        cnpj VARCHAR(30),
+
+                        cidade VARCHAR(120),
+                        estado VARCHAR(80),
+                        regiao VARCHAR(80),
+
+                        contato_nome VARCHAR(180),
+                        contato_email VARCHAR(220),
+                        contato_whatsapp VARCHAR(40),
+                        site TEXT,
+
+                        status_comercial VARCHAR(40)
+                            NOT NULL DEFAULT 'prospectada',
+
+                        status_regulatorio VARCHAR(40)
+                            NOT NULL DEFAULT 'nao_verificado',
+
+                        mapa_status VARCHAR(80),
+
+                        lote_minimo_unidades INTEGER,
+                        lote_minimo_litros NUMERIC(12,2),
+
+                        capacidade_maxima_unidades INTEGER,
+                        capacidade_maxima_litros NUMERIC(12,2),
+
+                        custo_unitario_centavos BIGINT,
+                        custo_litro_centavos BIGINT,
+
+                        prazo_producao_dias INTEGER,
+
+                        embalagem_vidro BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        embalagem_pet BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        envase_200ml BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        rotulagem BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        responsabilidade_tecnica BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        analises_laboratoriais BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        pode_copack BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        ncm_informado VARCHAR(20),
+
+                        observacoes TEXT,
+
+                        fonte_dados VARCHAR(180),
+                        verificado_por VARCHAR(180),
+                        verificado_em TIMESTAMPTZ,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_fabricas_parceiras_estado
+                    ON fabricas_parceiras (estado)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_fabricas_parceiras_status
+                    ON fabricas_parceiras (
+                        status_comercial,
+                        status_regulatorio
+                    )
+                """)
+
+                # ==========================================
                 # PEDIDOS
                 # ==========================================
 
@@ -6056,6 +6148,447 @@ def admin_atualizar_lead_crm(lead_id):
         conn.close()
 
 
+
+
+@app.route(
+    "/api/admin/fabricas",
+    methods=["GET"]
+)
+def admin_listar_fabricas():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM fabricas_parceiras
+                    ORDER BY
+                        CASE status_comercial
+                            WHEN 'homologada' THEN 1
+                            WHEN 'negociacao' THEN 2
+                            WHEN 'qualificada' THEN 3
+                            WHEN 'prospectada' THEN 4
+                            ELSE 5
+                        END,
+                        atualizado_em DESC
+                """)
+
+                fabricas = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total": len(fabricas),
+            "fabricas": fabricas
+        }), 200
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/fabricas",
+    methods=["POST"]
+)
+def admin_criar_fabrica():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    nome = str(
+        dados.get("nome", "")
+    ).strip()
+
+    if not nome:
+        return jsonify({
+            "success": False,
+            "error": "Nome da fábrica obrigatório."
+        }), 400
+
+    status_comercial = str(
+        dados.get(
+            "status_comercial",
+            "prospectada"
+        )
+    ).strip().lower()
+
+    status_regulatorio = str(
+        dados.get(
+            "status_regulatorio",
+            "nao_verificado"
+        )
+    ).strip().lower()
+
+    status_comerciais_validos = {
+        "prospectada",
+        "qualificada",
+        "negociacao",
+        "homologada",
+        "inativa",
+        "descartada"
+    }
+
+    status_regulatorios_validos = {
+        "nao_verificado",
+        "em_analise",
+        "regular",
+        "pendente",
+        "incompativel"
+    }
+
+    if status_comercial not in status_comerciais_validos:
+        return jsonify({
+            "success": False,
+            "error": "Status comercial inválido."
+        }), 400
+
+    if status_regulatorio not in status_regulatorios_validos:
+        return jsonify({
+            "success": False,
+            "error": "Status regulatório inválido."
+        }), 400
+
+    fabrica_id = str(
+        uuid.uuid4()
+    )
+
+    campos = {
+        "razao_social": dados.get("razao_social"),
+        "cnpj": dados.get("cnpj"),
+        "cidade": dados.get("cidade"),
+        "estado": dados.get("estado"),
+        "regiao": dados.get("regiao"),
+        "contato_nome": dados.get("contato_nome"),
+        "contato_email": dados.get("contato_email"),
+        "contato_whatsapp": dados.get("contato_whatsapp"),
+        "site": dados.get("site"),
+        "mapa_status": dados.get("mapa_status"),
+        "lote_minimo_unidades": dados.get("lote_minimo_unidades"),
+        "lote_minimo_litros": dados.get("lote_minimo_litros"),
+        "capacidade_maxima_unidades": dados.get("capacidade_maxima_unidades"),
+        "capacidade_maxima_litros": dados.get("capacidade_maxima_litros"),
+        "custo_unitario_centavos": dados.get("custo_unitario_centavos"),
+        "custo_litro_centavos": dados.get("custo_litro_centavos"),
+        "prazo_producao_dias": dados.get("prazo_producao_dias"),
+        "embalagem_vidro": bool(dados.get("embalagem_vidro", False)),
+        "embalagem_pet": bool(dados.get("embalagem_pet", False)),
+        "envase_200ml": bool(dados.get("envase_200ml", False)),
+        "rotulagem": bool(dados.get("rotulagem", False)),
+        "responsabilidade_tecnica": bool(dados.get("responsabilidade_tecnica", False)),
+        "analises_laboratoriais": bool(dados.get("analises_laboratoriais", False)),
+        "pode_copack": bool(dados.get("pode_copack", False)),
+        "ncm_informado": dados.get("ncm_informado"),
+        "observacoes": dados.get("observacoes"),
+        "fonte_dados": dados.get("fonte_dados"),
+        "verificado_por": dados.get("verificado_por")
+    }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO fabricas_parceiras (
+                        id,
+                        nome,
+                        razao_social,
+                        cnpj,
+                        cidade,
+                        estado,
+                        regiao,
+                        contato_nome,
+                        contato_email,
+                        contato_whatsapp,
+                        site,
+                        status_comercial,
+                        status_regulatorio,
+                        mapa_status,
+                        lote_minimo_unidades,
+                        lote_minimo_litros,
+                        capacidade_maxima_unidades,
+                        capacidade_maxima_litros,
+                        custo_unitario_centavos,
+                        custo_litro_centavos,
+                        prazo_producao_dias,
+                        embalagem_vidro,
+                        embalagem_pet,
+                        envase_200ml,
+                        rotulagem,
+                        responsabilidade_tecnica,
+                        analises_laboratoriais,
+                        pode_copack,
+                        ncm_informado,
+                        observacoes,
+                        fonte_dados,
+                        verificado_por,
+                        verificado_em
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s,
+                        CASE
+                            WHEN %s IS NOT NULL
+                            THEN NOW()
+                            ELSE NULL
+                        END
+                    )
+                    RETURNING *
+                """, (
+                    fabrica_id,
+                    nome,
+                    campos["razao_social"],
+                    campos["cnpj"],
+                    campos["cidade"],
+                    campos["estado"],
+                    campos["regiao"],
+                    campos["contato_nome"],
+                    campos["contato_email"],
+                    campos["contato_whatsapp"],
+                    campos["site"],
+                    status_comercial,
+                    status_regulatorio,
+                    campos["mapa_status"],
+                    campos["lote_minimo_unidades"],
+                    campos["lote_minimo_litros"],
+                    campos["capacidade_maxima_unidades"],
+                    campos["capacidade_maxima_litros"],
+                    campos["custo_unitario_centavos"],
+                    campos["custo_litro_centavos"],
+                    campos["prazo_producao_dias"],
+                    campos["embalagem_vidro"],
+                    campos["embalagem_pet"],
+                    campos["envase_200ml"],
+                    campos["rotulagem"],
+                    campos["responsabilidade_tecnica"],
+                    campos["analises_laboratoriais"],
+                    campos["pode_copack"],
+                    campos["ncm_informado"],
+                    campos["observacoes"],
+                    campos["fonte_dados"],
+                    campos["verificado_por"],
+                    campos["verificado_por"]
+                ))
+
+                fabrica = cur.fetchone()
+
+        registrar_auditoria(
+            categoria="industrial",
+            acao="fabrica_cadastrada",
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="painel_admin",
+            entidade_tipo="fabrica_parceira",
+            entidade_id=fabrica_id,
+            status="criado",
+            dados_entrada={
+                "nome": nome,
+                "estado": campos["estado"],
+                "status_comercial": status_comercial,
+                "status_regulatorio": status_regulatorio
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "fabrica": fabrica
+        }), 201
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/fabricas/<fabrica_id>",
+    methods=["PATCH"]
+)
+def admin_atualizar_fabrica(fabrica_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    campos_permitidos = {
+        "nome",
+        "razao_social",
+        "cnpj",
+        "cidade",
+        "estado",
+        "regiao",
+        "contato_nome",
+        "contato_email",
+        "contato_whatsapp",
+        "site",
+        "status_comercial",
+        "status_regulatorio",
+        "mapa_status",
+        "lote_minimo_unidades",
+        "lote_minimo_litros",
+        "capacidade_maxima_unidades",
+        "capacidade_maxima_litros",
+        "custo_unitario_centavos",
+        "custo_litro_centavos",
+        "prazo_producao_dias",
+        "embalagem_vidro",
+        "embalagem_pet",
+        "envase_200ml",
+        "rotulagem",
+        "responsabilidade_tecnica",
+        "analises_laboratoriais",
+        "pode_copack",
+        "ncm_informado",
+        "observacoes",
+        "fonte_dados",
+        "verificado_por"
+    }
+
+    atualizacoes = []
+    valores = []
+
+    for campo, valor in dados.items():
+
+        if campo not in campos_permitidos:
+            continue
+
+        if campo == "status_comercial":
+            valor = str(valor).strip().lower()
+
+            if valor not in {
+                "prospectada",
+                "qualificada",
+                "negociacao",
+                "homologada",
+                "inativa",
+                "descartada"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Status comercial inválido."
+                }), 400
+
+        if campo == "status_regulatorio":
+            valor = str(valor).strip().lower()
+
+            if valor not in {
+                "nao_verificado",
+                "em_analise",
+                "regular",
+                "pendente",
+                "incompativel"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Status regulatório inválido."
+                }), 400
+
+        atualizacoes.append(
+            f"{campo} = %s"
+        )
+
+        valores.append(
+            valor
+        )
+
+    if not atualizacoes:
+        return jsonify({
+            "success": False,
+            "error": "Nenhum campo válido informado."
+        }), 400
+
+    if "verificado_por" in dados:
+        atualizacoes.append(
+            "verificado_em = NOW()"
+        )
+
+    atualizacoes.append(
+        "atualizado_em = NOW()"
+    )
+
+    valores.append(
+        fabrica_id
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                query = f"""
+                    UPDATE fabricas_parceiras
+                    SET {", ".join(atualizacoes)}
+                    WHERE id = %s
+                    RETURNING *
+                """
+
+                cur.execute(
+                    query,
+                    tuple(valores)
+                )
+
+                fabrica = cur.fetchone()
+
+                if not fabrica:
+                    return jsonify({
+                        "success": False,
+                        "error": "Fábrica não encontrada."
+                    }), 404
+
+        registrar_auditoria(
+            categoria="industrial",
+            acao="fabrica_atualizada",
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="painel_admin",
+            entidade_tipo="fabrica_parceira",
+            entidade_id=fabrica_id,
+            status="atualizado",
+            dados_entrada={
+                "campos_alterados":
+                    list(dados.keys())
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "fabrica": fabrica
+        }), 200
+
+    finally:
+        conn.close()
 
 
 def carregar_leads_crm_para_ia(limite=50):
