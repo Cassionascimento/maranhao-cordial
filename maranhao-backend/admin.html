@@ -504,6 +504,11 @@
                         </div>
                     </div>
 
+                    <div
+                        id="crmPainelOrigem"
+                        style="margin-top:20px;"
+                    ></div>
+
                     <div class="card" style="margin-top:20px;">
                         <h3>Novo lead</h3>
 
@@ -2137,6 +2142,111 @@
                                 "receita_acumulada_centavos"
                             )
                         );
+
+                    const resumoPorOrigem = {};
+
+                    leads.forEach((lead) => {
+
+                        const origem =
+                            lead.origem || "outro";
+
+                        if (!resumoPorOrigem[origem]) {
+                            resumoPorOrigem[origem] = {
+                                leads: 0,
+                                potencial: 0,
+                                cac: 0,
+                                receita: 0,
+                                clientes: 0
+                            };
+                        }
+
+                        resumoPorOrigem[origem].leads += 1;
+
+                        resumoPorOrigem[origem].potencial +=
+                            Number(
+                                lead.valor_potencial_centavos || 0
+                            );
+
+                        resumoPorOrigem[origem].cac +=
+                            Number(
+                                lead.cac_centavos || 0
+                            );
+
+                        resumoPorOrigem[origem].receita +=
+                            Number(
+                                lead.receita_acumulada_centavos || 0
+                            );
+
+                        if (lead.estagio === "cliente") {
+                            resumoPorOrigem[origem].clientes += 1;
+                        }
+                    });
+
+                    const linhasOrigem =
+                        Object.entries(resumoPorOrigem)
+                            .sort(
+                                (a, b) =>
+                                    b[1].potencial -
+                                    a[1].potencial
+                            )
+                            .map(([origem, dados]) => {
+
+                                const conversao =
+                                    dados.leads
+                                        ? (
+                                            dados.clientes
+                                            / dados.leads
+                                            * 100
+                                        )
+                                        : 0;
+
+                                return `
+                                    <tr>
+                                        <td>${escapar(origem)}</td>
+                                        <td>${dados.leads}</td>
+                                        <td>${dados.clientes}</td>
+                                        <td>${conversao.toFixed(1)}%</td>
+                                        <td>${dinheiro(dados.potencial)}</td>
+                                        <td>${dinheiro(dados.cac)}</td>
+                                        <td>${dinheiro(dados.receita)}</td>
+                                    </tr>
+                                `;
+                            })
+                            .join("");
+
+                    const painelOrigem =
+                        document.getElementById(
+                            "crmPainelOrigem"
+                        );
+
+                    if (painelOrigem) {
+
+                        painelOrigem.innerHTML = `
+                            <div class="card">
+                                <h3>Desempenho por origem</h3>
+
+                                <div style="overflow-x:auto;">
+                                    <table style="width:100%;">
+                                        <thead>
+                                            <tr>
+                                                <th>Origem</th>
+                                                <th>Leads</th>
+                                                <th>Clientes</th>
+                                                <th>Conversão</th>
+                                                <th>Potencial</th>
+                                                <th>CAC</th>
+                                                <th>Receita</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody>
+                                            ${linhasOrigem}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    }
 
                     if (!leads.length) {
 
