@@ -4820,6 +4820,63 @@ def admin_atualizar_acao(acao_id):
                         "error": "Ação não encontrada."
                     }), 404
 
+        status_novo = str(
+            acao.get("status") or ""
+        ).strip().lower()
+
+        if status_novo == "concluida":
+            acao_auditoria = "acao_concluida"
+            status_auditoria = "concluida"
+
+        elif status_novo == "cancelada":
+            acao_auditoria = "acao_cancelada"
+            status_auditoria = "cancelada"
+
+        else:
+            acao_auditoria = "acao_empresarial_atualizada"
+            status_auditoria = status_novo or "atualizada"
+
+        campos_alterados = {
+            chave: valor
+            for chave, valor in dados.items()
+            if chave in campos_permitidos
+        }
+
+        registrar_auditoria(
+            categoria="acao_empresarial",
+            acao=acao_auditoria,
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="painel_admin",
+            entidade_tipo="acao_empresarial",
+            entidade_id=acao_id,
+            status=status_auditoria,
+            dados_entrada={
+                "campos_alterados":
+                    list(campos_alterados.keys()),
+                "prioridade":
+                    campos_alterados.get("prioridade"),
+                "status":
+                    campos_alterados.get("status"),
+                "resultado_informado":
+                    bool(
+                        campos_alterados.get("resultado")
+                    )
+            },
+            dados_saida={
+                "status_atual":
+                    acao.get("status"),
+                "prioridade_atual":
+                    acao.get("prioridade"),
+                "responsavel":
+                    acao.get("responsavel"),
+                "tem_resultado":
+                    bool(
+                        acao.get("resultado")
+                    )
+            }
+        )
+
         return jsonify({
             "success": True,
             "acao": acao
