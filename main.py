@@ -903,6 +903,89 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # ROTAS LOGISTICAS / FRETE
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS rotas_logisticas (
+                        id UUID PRIMARY KEY,
+
+                        nome VARCHAR(220) NOT NULL,
+
+                        fabrica_id UUID,
+                        cenario_fiscal_id UUID,
+
+                        transportadora VARCHAR(220),
+
+                        cidade_origem VARCHAR(120),
+                        uf_origem VARCHAR(2) NOT NULL,
+
+                        cidade_destino VARCHAR(120),
+                        uf_destino VARCHAR(2) NOT NULL,
+
+                        quantidade_unidades INTEGER,
+                        peso_total_kg NUMERIC(12,3),
+                        volume_total_m3 NUMERIC(12,4),
+
+                        modalidade VARCHAR(80),
+                        condicao_frete VARCHAR(20),
+
+                        valor_frete_centavos BIGINT,
+                        seguro_centavos BIGINT,
+                        pedagio_centavos BIGINT,
+                        outras_despesas_centavos BIGINT,
+
+                        prazo_minimo_dias INTEGER,
+                        prazo_maximo_dias INTEGER,
+
+                        custo_total_logistico_centavos BIGINT,
+                        custo_logistico_unitario_centavos BIGINT,
+
+                        status_cotacao VARCHAR(40)
+                            NOT NULL DEFAULT 'aguardando_cotacao',
+
+                        validade_cotacao DATE,
+
+                        fonte_dados TEXT,
+                        observacoes TEXT,
+
+                        verificado_por VARCHAR(180),
+                        verificado_em TIMESTAMPTZ,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT fk_rota_fabrica
+                            FOREIGN KEY (fabrica_id)
+                            REFERENCES fabricas_parceiras(id)
+                            ON DELETE SET NULL,
+
+                        CONSTRAINT fk_rota_cenario_fiscal
+                            FOREIGN KEY (cenario_fiscal_id)
+                            REFERENCES cenarios_fiscais(id)
+                            ON DELETE SET NULL
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_rotas_logisticas_ufs
+                    ON rotas_logisticas (
+                        uf_origem,
+                        uf_destino
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_rotas_logisticas_fabrica
+                    ON rotas_logisticas (fabrica_id)
+                """)
+
+                # ==========================================
                 # PEDIDOS
                 # ==========================================
 
