@@ -4609,6 +4609,96 @@ def admin_atualizar_acao(acao_id):
 
 
 
+
+def carregar_acoes_para_ia(limite=30):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        status,
+                        responsavel,
+                        data_limite,
+                        decisao_id,
+                        resultado,
+                        criado_em,
+                        atualizado_em
+                    FROM acoes_empresariais
+                    WHERE status <> 'cancelada'
+                    ORDER BY
+                        CASE prioridade
+                            WHEN 'critica' THEN 1
+                            WHEN 'alta' THEN 2
+                            WHEN 'media' THEN 3
+                            WHEN 'baixa' THEN 4
+                            ELSE 5
+                        END,
+                        COALESCE(
+                            data_limite,
+                            CURRENT_DATE + INTERVAL '100 years'
+                        ),
+                        criado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                acoes = cur.fetchall()
+
+        linhas = []
+
+        for acao in acoes:
+
+            linhas.append(
+                (
+                    f"- [{acao['status']}] "
+                    f"{acao['titulo']} | "
+                    f"Área: {acao['area']} | "
+                    f"Prioridade: {acao['prioridade']} | "
+                    f"Responsável: "
+                    f"{acao['responsavel'] or 'não definido'} | "
+                    f"Data limite: "
+                    f"{acao['data_limite'] or 'não definida'} | "
+                    f"Descrição: {acao['descricao']} | "
+                    f"Resultado: "
+                    f"{acao['resultado'] or 'ainda não registrado'}"
+                )
+            )
+
+        contexto = ""
+
+        if linhas:
+            contexto = (
+                "\n\n"
+                "AÇÕES EMPRESARIAIS ATUAIS\n"
+                "Considere estas ações como memória operacional "
+                "da empresa. Não trate ação pendente ou em andamento "
+                "como concluída. Quando houver resultado registrado, "
+                "use-o como aprendizado operacional.\n"
+                + "\n".join(linhas)
+                + "\n"
+            )
+
+        return {
+            "acoes": acoes,
+            "contexto": contexto
+        }
+
+    finally:
+        conn.close()
+
+
 def carregar_decisoes_para_ia(limite=30):
     conn = get_db_connection()
 
@@ -4894,6 +4984,15 @@ def ia_empresarial():
             or ""
         )
 
+        acoes_ia = (
+            carregar_acoes_para_ia()
+        )
+
+        contexto_acoes = (
+            acoes_ia["contexto"]
+            or ""
+        )
+
         contexto_operacional = (
             "\n\nDADOS ATUAIS DO SISTEMA:\n"
             + str(resumo)
@@ -4913,6 +5012,7 @@ def ia_empresarial():
                 + HIERARQUIA_DECISAO_EMPRESARIAL
                 + contexto_documental
                 + contexto_decisoes
+                + contexto_acoes
                 + contexto_operacional +
 
                 "\nAnalise negócios com rigor. "
@@ -5013,12 +5113,25 @@ def ia_empresarial():
                 "documentos":
                     documentos_ia["total_documentos"],
                 "decisoes":
-                    decisoes_ia["total_decisoes"]
+                    decisoes_ia["total_decisoes"],
+                "acoes":
+                    len(acoes_ia["acoes"])
             },
             "documentos_usados":
                 documentos_ia["documentos_usados"],
             "decisoes_usadas":
-                decisoes_ia["decisoes_usadas"]
+                decisoes_ia["decisoes_usadas"],
+            "acoes_usadas":
+                [
+                    {
+                        "id": str(acao["id"]),
+                        "titulo": acao["titulo"],
+                        "area": acao["area"],
+                        "prioridade": acao["prioridade"],
+                        "status": acao["status"]
+                    }
+                    for acao in acoes_ia["acoes"]
+                ]
         }), 200
 
     except Exception as erro:
