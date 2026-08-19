@@ -9,3 +9,8 @@ C6_sandbox.key
 
 teste_pix.py
 main.py.broken_backup
+
+# Backups locais do desenvolvimento
+*.backup-*
+main.py.backup-*
+maranhao-backend/admin.html.backup-*
