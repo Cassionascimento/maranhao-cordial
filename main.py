@@ -5612,6 +5612,205 @@ def admin_atualizar_decisao(decisao_id):
 
 
 
+
+# =====================================================
+# ADMIN — EVIDÊNCIAS EMPRESARIAIS
+# =====================================================
+
+@app.route(
+    "/api/admin/evidencias",
+    methods=["GET", "POST"]
+)
+def admin_evidencias_empresariais():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+
+        # ---------------------------------------------
+        # GET — LISTAR EVIDÊNCIAS
+        # ---------------------------------------------
+
+        if request.method == "GET":
+
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM evidencias_empresariais
+                    ORDER BY
+                        data_evidencia DESC NULLS LAST,
+                        criado_em DESC
+                """)
+
+                evidencias = cur.fetchall()
+
+            return jsonify({
+                "success": True,
+                "total": len(evidencias),
+                "evidencias": evidencias
+            }), 200
+
+        # ---------------------------------------------
+        # POST — CRIAR EVIDÊNCIA
+        # ---------------------------------------------
+
+        dados = request.get_json(
+            silent=True
+        ) or {}
+
+        titulo = str(
+            dados.get("titulo") or ""
+        ).strip()
+
+        categoria = str(
+            dados.get("categoria") or ""
+        ).strip().lower()
+
+        area = str(
+            dados.get("area") or ""
+        ).strip().lower()
+
+        resumo = str(
+            dados.get("resumo") or ""
+        ).strip()
+
+        if not titulo:
+            return jsonify({
+                "success": False,
+                "error": "titulo obrigatório."
+            }), 400
+
+        if not categoria:
+            return jsonify({
+                "success": False,
+                "error": "categoria obrigatória."
+            }), 400
+
+        if not area:
+            return jsonify({
+                "success": False,
+                "error": "area obrigatória."
+            }), 400
+
+        if not resumo:
+            return jsonify({
+                "success": False,
+                "error": "resumo obrigatório."
+            }), 400
+
+        evidencia_id = str(
+            uuid.uuid4()
+        )
+
+        dados_estruturados = (
+            dados.get("dados_estruturados")
+        )
+
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO evidencias_empresariais (
+                        id,
+                        titulo,
+                        categoria,
+                        area,
+                        entidade,
+                        tipo_evidencia,
+                        status,
+                        data_evidencia,
+                        resumo,
+                        dados_estruturados,
+                        fonte,
+                        fonte_tipo,
+                        confiabilidade,
+                        substitui_id,
+                        observacoes
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s::jsonb,
+                        %s, %s, %s, %s, %s
+                    )
+                    RETURNING *
+                """, (
+                    evidencia_id,
+                    titulo,
+                    categoria,
+                    area,
+                    dados.get("entidade"),
+                    dados.get(
+                        "tipo_evidencia",
+                        "documental"
+                    ),
+                    dados.get(
+                        "status",
+                        "vigente"
+                    ),
+                    dados.get("data_evidencia"),
+                    resumo,
+                    (
+                        json.dumps(
+                            dados_estruturados,
+                            ensure_ascii=False,
+                            default=str
+                        )
+                        if dados_estruturados is not None
+                        else None
+                    ),
+                    dados.get("fonte"),
+                    dados.get("fonte_tipo"),
+                    dados.get(
+                        "confiabilidade",
+                        "documental"
+                    ),
+                    dados.get("substitui_id"),
+                    dados.get("observacoes")
+                ))
+
+                evidencia = cur.fetchone()
+
+        registrar_auditoria(
+            categoria="evidencia_empresarial",
+            acao="evidencia_registrada",
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="api_admin",
+            entidade_tipo="evidencia_empresarial",
+            entidade_id=evidencia_id,
+            status="criado",
+            dados_entrada={
+                "titulo": titulo,
+                "categoria": categoria,
+                "area": area,
+                "status":
+                    dados.get(
+                        "status",
+                        "vigente"
+                    )
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "evidencia": evidencia
+        }), 201
+
+    finally:
+        conn.close()
+
+
 def carregar_evidencias_para_ia(limite=150):
 
     conn = get_db_connection()
