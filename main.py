@@ -9303,6 +9303,12 @@ Entre duas soluções com resultado esperado semelhante,
 prefira a que exigir menor desembolso adicional,
 menor custo recorrente e menor dependência de terceiros.
 
+Antes de recomendar criar nova página, formulário, módulo,
+integração ou fluxo operacional, verifique se já existe
+funcionalidade equivalente na infraestrutura atual.
+Prefira adaptar, reutilizar, conectar ou ampliar ativos existentes
+antes de criar novos componentes.
+
 3. MAXIMIZE RESULTADO ECONÔMICO
 Priorize:
 - margem de contribuição;
