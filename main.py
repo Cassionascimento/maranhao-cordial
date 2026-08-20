@@ -986,6 +986,68 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # CONTATOS ESTRATEGICOS / REDE EMPRESARIAL
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS contatos_estrategicos (
+                        id UUID PRIMARY KEY,
+
+                        nome VARCHAR(180),
+                        empresa VARCHAR(220),
+
+                        tipo VARCHAR(50) NOT NULL,
+                        cargo VARCHAR(180),
+
+                        telefone VARCHAR(50),
+                        email VARCHAR(220),
+
+                        cidade VARCHAR(120),
+                        estado VARCHAR(2),
+
+                        fabrica_id UUID,
+
+                        status_relacao VARCHAR(50)
+                            NOT NULL DEFAULT 'prospectado',
+
+                        origem_contato VARCHAR(120),
+
+                        resumo TEXT,
+                        capacidades TEXT,
+                        restricoes TEXT,
+                        proximo_passo TEXT,
+
+                        fonte_dados TEXT,
+
+                        verificado_por VARCHAR(180),
+                        verificado_em TIMESTAMPTZ,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT fk_contato_fabrica
+                            FOREIGN KEY (fabrica_id)
+                            REFERENCES fabricas_parceiras(id)
+                            ON DELETE SET NULL
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_contatos_estrategicos_tipo
+                    ON contatos_estrategicos (tipo)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_contatos_estrategicos_empresa
+                    ON contatos_estrategicos (empresa)
+                """)
+
+                # ==========================================
                 # PEDIDOS
                 # ==========================================
 
@@ -8033,6 +8095,174 @@ def carregar_fabricas_para_ia(limite=50):
     finally:
         conn.close()
 
+
+
+@app.route(
+    "/api/admin/contatos-estrategicos",
+    methods=["GET"]
+)
+def admin_listar_contatos_estrategicos():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        ce.*,
+                        fp.nome AS fabrica_nome
+                    FROM contatos_estrategicos ce
+                    LEFT JOIN fabricas_parceiras fp
+                        ON fp.id = ce.fabrica_id
+                    ORDER BY
+                        ce.atualizado_em DESC
+                """)
+
+                contatos = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total": len(contatos),
+            "contatos": contatos
+        }), 200
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/contatos-estrategicos",
+    methods=["POST"]
+)
+def admin_criar_contato_estrategico():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    tipo = str(
+        dados.get("tipo", "")
+    ).strip().lower()
+
+    if not tipo:
+        return jsonify({
+            "success": False,
+            "error": "Tipo obrigatório."
+        }), 400
+
+    contato_id = str(
+        uuid.uuid4()
+    )
+
+    campos = {
+        "nome": dados.get("nome"),
+        "empresa": dados.get("empresa"),
+        "cargo": dados.get("cargo"),
+        "telefone": dados.get("telefone"),
+        "email": dados.get("email"),
+        "cidade": dados.get("cidade"),
+        "estado": dados.get("estado"),
+        "fabrica_id": dados.get("fabrica_id"),
+        "status_relacao":
+            dados.get("status_relacao", "prospectado"),
+        "origem_contato": dados.get("origem_contato"),
+        "resumo": dados.get("resumo"),
+        "capacidades": dados.get("capacidades"),
+        "restricoes": dados.get("restricoes"),
+        "proximo_passo": dados.get("proximo_passo"),
+        "fonte_dados": dados.get("fonte_dados"),
+        "verificado_por": dados.get("verificado_por")
+    }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO contatos_estrategicos (
+                        id,
+                        nome,
+                        empresa,
+                        tipo,
+                        cargo,
+                        telefone,
+                        email,
+                        cidade,
+                        estado,
+                        fabrica_id,
+                        status_relacao,
+                        origem_contato,
+                        resumo,
+                        capacidades,
+                        restricoes,
+                        proximo_passo,
+                        fonte_dados,
+                        verificado_por,
+                        verificado_em
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s,
+                        CASE
+                            WHEN %s IS NOT NULL
+                            THEN NOW()
+                            ELSE NULL
+                        END
+                    )
+                    RETURNING *
+                """, (
+                    contato_id,
+                    campos["nome"],
+                    campos["empresa"],
+                    tipo,
+                    campos["cargo"],
+                    campos["telefone"],
+                    campos["email"],
+                    campos["cidade"],
+                    campos["estado"],
+                    campos["fabrica_id"],
+                    campos["status_relacao"],
+                    campos["origem_contato"],
+                    campos["resumo"],
+                    campos["capacidades"],
+                    campos["restricoes"],
+                    campos["proximo_passo"],
+                    campos["fonte_dados"],
+                    campos["verificado_por"],
+                    campos["verificado_por"]
+                ))
+
+                contato = cur.fetchone()
+
+        return jsonify({
+            "success": True,
+            "contato": contato
+        }), 201
+
+    finally:
+        conn.close()
 
 
 def carregar_rotas_logisticas_para_ia(limite=100):
