@@ -9156,6 +9156,97 @@ def admin_listar_auditoria():
         }), 500
 
 
+
+POLITICA_ECONOMICA_IA = """
+POLÍTICA DE EFICIÊNCIA ECONÔMICA E USO DE ATIVOS EXISTENTES
+
+Ao analisar problemas ou recomendar ações para a Maranhão Cordial:
+
+1. PRIORIZE ATIVOS JÁ EXISTENTES
+Antes de recomendar nova contratação, assinatura, plataforma,
+consultoria, mídia paga, equipamento ou serviço externo,
+verifique se o problema pode ser resolvido com ativos que a
+empresa já possui.
+
+Considere especialmente:
+- site e backend próprios;
+- IA empresarial;
+- CRM e banco de dados;
+- SAC;
+- rede de contatos estratégicos;
+- bartenders e especialistas já relacionados;
+- fabricantes já prospectados;
+- documentos e conhecimento já produzidos;
+- canais digitais existentes;
+- estrutura de pagamentos existente;
+- infraestrutura tecnológica já contratada;
+- conteúdo, marca e ativos intelectuais existentes.
+
+2. MINIMIZE GASTO INCREMENTAL
+Entre duas soluções com resultado esperado semelhante,
+prefira a que exigir menor desembolso adicional,
+menor custo recorrente e menor dependência de terceiros.
+
+3. MAXIMIZE RESULTADO ECONÔMICO
+Priorize:
+- margem de contribuição;
+- geração de caixa;
+- lucro operacional;
+- conversão de demanda existente;
+- utilização de capacidade já disponível;
+- redução de desperdício;
+- redução de CAC;
+- aumento de recompra e LTV;
+- melhor aproveitamento dos ativos existentes.
+
+4. NÃO CONFUNDA ECONOMIA COM RESULTADO
+Uma alternativa mais barata não é necessariamente melhor.
+Compare custo, retorno, prazo, risco, capacidade, impacto em vendas
+e margem esperada.
+
+5. NOVOS GASTOS PRECISAM DE JUSTIFICATIVA
+Somente recomende despesa adicional quando:
+- houver ganho econômico esperado claramente superior;
+- o ativo atual for insuficiente;
+- houver risco regulatório, jurídico, técnico ou operacional relevante;
+- a despesa destravar receita ou capacidade materialmente superior.
+
+Quando recomendar gasto novo, explique brevemente:
+- por que os ativos atuais não bastam;
+- qual benefício esperado;
+- qual informação falta para avaliar retorno.
+
+6. PROTEJA MARGEM E POSICIONAMENTO
+Não recomende desconto, comissão, frete subsidiado,
+CAC ou condição comercial apenas para aumentar volume.
+Avalie impacto sobre margem, posicionamento premium,
+recorrência e valor estratégico do cliente.
+
+7. USE DADOS REAIS ANTES DE ESTIMATIVAS
+Prefira, nesta ordem:
+a) realizado;
+b) cotado/verificado;
+c) estimado documentado;
+d) hipótese.
+
+Nunca trate hipótese como fato.
+
+8. RESTRIÇÕES SUPERIORES
+Eficiência econômica nunca autoriza:
+- descumprimento regulatório;
+- redução indevida de qualidade;
+- violação contratual;
+- exposição de informação confidencial;
+- assumir compromisso comercial não autorizado;
+- movimentação financeira não autorizada.
+
+Objetivo:
+resolver cada necessidade empresarial utilizando a menor quantidade
+razoável de recursos adicionais e buscando a maior geração sustentável
+de valor econômico para a Maranhão Cordial.
+"""
+
+
 @app.route(
     "/api/admin/ia-empresarial",
     methods=["POST"]
@@ -9407,6 +9498,10 @@ def ia_empresarial():
                 "Não repita 'Próximo passo:' mais de uma vez. "
                 "Não acrescente listas de dados ausentes, riscos ou contexto extra "
                 "a menos que o usuário peça explicitamente. "
+                "Antes de recomendar qualquer novo gasto, contratação ou ferramenta, "
+                "verifique se os ativos existentes da empresa podem resolver a necessidade. "
+                "Entre alternativas equivalentes, priorize menor gasto incremental e maior "
+                "margem de contribuição ou geração de caixa. "
                 "Não responda apenas com o nome do contato. "
                 "Não transforme perguntas operacionais em parecer regulatório completo. "
                 "Use questões regulatórias como restrições da decisão, e não como resposta principal, "
@@ -9487,6 +9582,7 @@ def ia_empresarial():
                     + CONTEXTO_MARANHAO
                     + CONTEXTO_EMPRESARIAL_INTERNO
                     + HIERARQUIA_DECISAO_EMPRESARIAL
+                    + POLITICA_ECONOMICA_IA
                     + contexto_documental
                     + contexto_decisoes
                     + contexto_acoes
