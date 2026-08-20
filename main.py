@@ -1140,6 +1140,73 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # EVIDENCIAS EMPRESARIAIS
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS evidencias_empresariais (
+                        id UUID PRIMARY KEY,
+
+                        titulo VARCHAR(250) NOT NULL,
+
+                        categoria VARCHAR(80) NOT NULL,
+                        area VARCHAR(80) NOT NULL,
+
+                        entidade VARCHAR(180),
+
+                        tipo_evidencia VARCHAR(60)
+                            NOT NULL DEFAULT 'documental',
+
+                        status VARCHAR(60)
+                            NOT NULL DEFAULT 'vigente',
+
+                        data_evidencia DATE,
+
+                        resumo TEXT NOT NULL,
+                        dados_estruturados JSONB,
+
+                        fonte VARCHAR(250),
+                        fonte_tipo VARCHAR(60),
+
+                        confiabilidade VARCHAR(40)
+                            NOT NULL DEFAULT 'documental',
+
+                        substitui_id UUID,
+
+                        observacoes TEXT,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT fk_evidencia_substituida
+                            FOREIGN KEY (substitui_id)
+                            REFERENCES evidencias_empresariais(id)
+                            ON DELETE SET NULL
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_evidencias_area
+                    ON evidencias_empresariais (area)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_evidencias_categoria
+                    ON evidencias_empresariais (categoria)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_evidencias_status
+                    ON evidencias_empresariais (status)
+                """)
+
+                # ==========================================
                 # PEDIDOS
                 # ==========================================
 
@@ -5544,6 +5611,83 @@ def admin_atualizar_decisao(decisao_id):
 # =====================================================
 
 
+
+def carregar_evidencias_para_ia(limite=150):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM evidencias_empresariais
+                    WHERE status NOT IN (
+                        'cancelada',
+                        'descartada'
+                    )
+                    ORDER BY
+                        data_evidencia DESC NULLS LAST,
+                        atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                evidencias = cur.fetchall()
+
+        linhas = []
+
+        for ev in evidencias:
+
+            linhas.append(
+                (
+                    f"- {ev['titulo']} "
+                    f"| Área: {ev['area']} "
+                    f"| Categoria: {ev['categoria']} "
+                    f"| Entidade: "
+                    f"{ev['entidade'] or 'não informada'} "
+                    f"| Tipo: {ev['tipo_evidencia']} "
+                    f"| Status: {ev['status']} "
+                    f"| Data: "
+                    f"{ev['data_evidencia'] or 'não informada'} "
+                    f"| Confiabilidade: "
+                    f"{ev['confiabilidade']} "
+                    f"| Fato: {ev['resumo']} "
+                    f"| Fonte: "
+                    f"{ev['fonte'] or 'não informada'}"
+                )
+            )
+
+        contexto = ""
+
+        if linhas:
+            contexto = (
+                "\n\n"
+                "EVIDÊNCIAS EMPRESARIAIS VERIFICADAS\n"
+                "Estas evidências representam fatos documentais, "
+                "interações ou registros empresariais. "
+                "Diferencie pedido de concessão, negociação de contrato, "
+                "cotação de preço e operação efetivamente concluída. "
+                "Não transforme status pendente em concluído. "
+                "Quando houver versões substituídas, priorize a evidência "
+                "mais recente e vigente.\n"
+                + "\n".join(linhas)
+                + "\n"
+            )
+
+        return {
+            "evidencias": evidencias,
+            "contexto": contexto
+        }
+
+    finally:
+        conn.close()
+
+
 def carregar_documentos_para_ia(limite_documentos=20, limite_caracteres=50000):
     conn = get_db_connection()
 
@@ -9417,6 +9561,15 @@ def ia_empresarial():
             obter_resumo_empresarial_postgres()
         )
 
+        evidencias_ia = (
+            carregar_evidencias_para_ia()
+        )
+
+        contexto_evidencias = (
+            evidencias_ia["contexto"]
+            or ""
+        )
+
         documentos_ia = (
             carregar_documentos_para_ia()
         )
@@ -9687,6 +9840,7 @@ def ia_empresarial():
                     + HIERARQUIA_DECISAO_EMPRESARIAL
                     + POLITICA_ECONOMICA_IA
                     + contexto_documental
+                    + contexto_evidencias
                     + contexto_decisoes
                     + contexto_acoes
                     + contexto_crm
