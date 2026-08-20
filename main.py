@@ -9956,3 +9956,167 @@ if __name__ == "__main__":
         debug=True
 
     )
+
+# =====================================================
+# ADMIN — RELACIONAMENTOS B2B
+# =====================================================
+
+@app.route(
+    "/api/admin/relacionamentos-b2b",
+    methods=["GET", "POST"]
+)
+def admin_relacionamentos_b2b():
+
+    if request.headers.get("X-Admin-Key") != ADMIN_KEY:
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+
+        if request.method == "GET":
+
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM relacionamentos_b2b
+                    ORDER BY
+                        nivel_relacionamento DESC,
+                        ultimo_contato DESC NULLS LAST,
+                        criado_em DESC
+                """)
+
+                registros = cur.fetchall()
+
+            return jsonify({
+                "success": True,
+                "total": len(registros),
+                "relacionamentos": registros
+            }), 200
+
+        dados = request.get_json(
+            silent=True
+        ) or {}
+
+        nome = str(
+            dados.get("nome") or ""
+        ).strip()
+
+        if not nome:
+            return jsonify({
+                "success": False,
+                "error": "nome é obrigatório."
+            }), 400
+
+        registro_id = str(uuid.uuid4())
+
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO relacionamentos_b2b (
+                        id,
+                        nome,
+                        empresa,
+                        cargo_funcao,
+                        segmento,
+                        tipo_relacao,
+                        telefone,
+                        email,
+                        instagram,
+                        cidade,
+                        estado,
+                        status_relacionamento,
+                        primeiro_contato,
+                        ultimo_contato,
+                        respondeu,
+                        interesse_demonstrado,
+                        pediu_informacoes,
+                        conversa_tecnica,
+                        amostra_solicitada,
+                        amostra_enviada,
+                        amostra_provada,
+                        feedback_sensorial_recebido,
+                        oportunidade_comercial,
+                        compra_confirmada,
+                        evento_relacionado,
+                        potencial_validacao_sensorial,
+                        potencial_networking,
+                        potencial_eventos,
+                        potencial_comercial,
+                        nivel_relacionamento,
+                        proximo_passo,
+                        evidencia,
+                        fonte_dados,
+                        observacoes
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s
+                    )
+                    RETURNING *
+                """, (
+                    registro_id,
+                    nome,
+                    dados.get("empresa"),
+                    dados.get("cargo_funcao"),
+                    dados.get("segmento"),
+                    dados.get("tipo_relacao"),
+                    dados.get("telefone"),
+                    dados.get("email"),
+                    dados.get("instagram"),
+                    dados.get("cidade"),
+                    dados.get("estado"),
+                    dados.get(
+                        "status_relacionamento",
+                        "prospectado"
+                    ),
+                    dados.get("primeiro_contato"),
+                    dados.get("ultimo_contato"),
+                    dados.get("respondeu"),
+                    dados.get("interesse_demonstrado"),
+                    dados.get("pediu_informacoes"),
+                    dados.get("conversa_tecnica"),
+                    dados.get("amostra_solicitada"),
+                    dados.get("amostra_enviada"),
+                    dados.get("amostra_provada"),
+                    dados.get(
+                        "feedback_sensorial_recebido"
+                    ),
+                    dados.get("oportunidade_comercial"),
+                    dados.get("compra_confirmada"),
+                    dados.get("evento_relacionado"),
+                    dados.get(
+                        "potencial_validacao_sensorial"
+                    ),
+                    dados.get("potencial_networking"),
+                    dados.get("potencial_eventos"),
+                    dados.get("potencial_comercial"),
+                    dados.get("nivel_relacionamento", 0),
+                    dados.get("proximo_passo"),
+                    dados.get("evidencia"),
+                    dados.get("fonte_dados"),
+                    dados.get("observacoes")
+                ))
+
+                registro = cur.fetchone()
+
+        return jsonify({
+            "success": True,
+            "relacionamento": registro
+        }), 201
+
+    finally:
+        conn.close()
