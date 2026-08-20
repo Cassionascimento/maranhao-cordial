@@ -10091,6 +10091,8 @@ def ia_empresarial():
                     acoes_sugeridas,
                 "documentos_consultados":
                     documentos_ia["total_documentos"],
+                "evidencias_consultadas":
+                    len(evidencias_ia["evidencias"]),
                 "decisoes_consultadas":
                     decisoes_ia["total_decisoes"],
                 "acoes_consultadas":
@@ -10125,6 +10127,8 @@ def ia_empresarial():
                     resumo["total_atendimentos"],
                 "documentos":
                     documentos_ia["total_documentos"],
+                "evidencias":
+                    len(evidencias_ia["evidencias"]),
                 "decisoes":
                     decisoes_ia["total_decisoes"],
                 "acoes":
