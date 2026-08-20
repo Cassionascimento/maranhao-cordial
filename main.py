@@ -5856,6 +5856,8 @@ def carregar_evidencias_para_ia(limite=150):
                     f"| Confiabilidade: "
                     f"{ev['confiabilidade']} "
                     f"| Fato: {ev['resumo']} "
+                    f"| Dados estruturados: "
+                    f"{json.dumps(ev['dados_estruturados'], ensure_ascii=False, default=str) if ev['dados_estruturados'] is not None else 'não informados'} "
                     f"| Fonte: "
                     f"{ev['fonte'] or 'não informada'}"
                 )
