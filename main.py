@@ -5811,6 +5811,261 @@ def admin_evidencias_empresariais():
         conn.close()
 
 
+
+def detectar_comando_memoria_empresarial(texto):
+    """
+    Retorna True somente quando a direção dá uma ordem explícita
+    para registrar uma informação empresarial.
+    """
+
+    texto = str(texto or "").strip()
+
+    if not texto:
+        return False
+
+    normalizado = unicodedata.normalize(
+        "NFKD",
+        texto.lower()
+    )
+
+    normalizado = "".join(
+        c for c in normalizado
+        if not unicodedata.combining(c)
+    )
+
+    comandos = [
+        r"\bregistre\b",
+        r"\bregistrar\b",
+        r"\banote\b",
+        r"\bguarde\b",
+        r"\bsalve\b",
+        r"\badicione\b",
+        r"\bacrescente\b",
+        r"\binclua\b"
+    ]
+
+    return any(
+        re.search(padrao, normalizado)
+        for padrao in comandos
+    )
+
+
+def estruturar_memoria_empresarial(texto):
+    """
+    Usa a IA para transformar uma declaração da direção
+    em registro estruturado, sem inventar informações.
+    """
+
+    if not openai_client:
+        raise RuntimeError(
+            "OpenAI indisponível."
+        )
+
+    resposta = openai_client.responses.create(
+        model="gpt-5-mini",
+
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "memoria_empresarial",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "registrar": {
+                            "type": "boolean"
+                        },
+                        "titulo": {
+                            "type": "string"
+                        },
+                        "categoria": {
+                            "type": "string"
+                        },
+                        "area": {
+                            "type": "string",
+                            "enum": [
+                                "comercial",
+                                "financeiro",
+                                "operacional",
+                                "produto",
+                                "regulatorio",
+                                "marketing",
+                                "tecnologia",
+                                "estrategia",
+                                "juridico"
+                            ]
+                        },
+                        "entidade": {
+                            "type": "string"
+                        },
+                        "status": {
+                            "type": "string"
+                        },
+                        "resumo": {
+                            "type": "string"
+                        },
+                        "fato_principal": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "registrar",
+                        "titulo",
+                        "categoria",
+                        "area",
+                        "entidade",
+                        "status",
+                        "resumo",
+                        "fato_principal"
+                    ],
+                    "additionalProperties": False
+                }
+            }
+        },
+
+        instructions=(
+            "Você estrutura memória empresarial privada "
+            "da Maranhão Cordial. "
+
+            "Extraia SOMENTE fatos explicitamente declarados "
+            "pela direção. Não complete informações ausentes. "
+
+            "Não invente datas, valores, contratos, pagamentos, "
+            "parcerias, aprovações ou documentos. "
+
+            "Uma declaração da direção é uma fonte interna, "
+            "não uma prova documental externa. "
+
+            "Não transforme negociação em contrato. "
+            "Não transforme pedido de marca em concessão. "
+            "Não transforme intenção em fato realizado. "
+            "Não transforme participação em evento em parceria. "
+
+            "Se houver dúvida ou hipótese na declaração, "
+            "preserve essa incerteza no status e no resumo."
+        ),
+
+        input=texto,
+
+        reasoning={
+            "effort": "low"
+        },
+
+        max_output_tokens=600
+    )
+
+    bruto = (
+        resposta.output_text
+        or ""
+    ).strip()
+
+    if not bruto:
+        raise RuntimeError(
+            "Não foi possível estruturar a memória."
+        )
+
+    return json.loads(bruto)
+
+
+def registrar_memoria_natural_empresarial(texto):
+
+    memoria = estruturar_memoria_empresarial(
+        texto
+    )
+
+    if not memoria.get("registrar"):
+        return None
+
+    evidencia_id = str(
+        uuid.uuid4()
+    )
+
+    dados_estruturados = {
+        "fato_principal":
+            memoria["fato_principal"],
+        "origem_declaracao":
+            "declaracao_direcao"
+    }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO evidencias_empresariais (
+                        id,
+                        titulo,
+                        categoria,
+                        area,
+                        entidade,
+                        tipo_evidencia,
+                        status,
+                        resumo,
+                        dados_estruturados,
+                        fonte,
+                        fonte_tipo,
+                        confiabilidade,
+                        observacoes
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s::jsonb,
+                        %s, %s, %s, %s
+                    )
+                    RETURNING *
+                """, (
+                    evidencia_id,
+                    memoria["titulo"],
+                    memoria["categoria"],
+                    memoria["area"],
+                    memoria["entidade"] or None,
+                    "declaracao_direcao",
+                    memoria["status"],
+                    memoria["resumo"],
+                    json.dumps(
+                        dados_estruturados,
+                        ensure_ascii=False
+                    ),
+                    "Direção da Maranhão Cordial",
+                    "declaracao_interna",
+                    "declarada",
+                    (
+                        "Criado por comando explícito da direção "
+                        "na IA Empresarial. Não constitui, sozinho, "
+                        "prova documental externa."
+                    )
+                ))
+
+                evidencia = cur.fetchone()
+
+        registrar_auditoria(
+            categoria="memoria_empresarial",
+            acao="memoria_natural_registrada",
+            ator_tipo="admin",
+            ator_id="direcao",
+            origem="ia_empresarial",
+            entidade_tipo="evidencia_empresarial",
+            entidade_id=evidencia_id,
+            status="criado",
+            dados_entrada={
+                "texto_original": texto
+            },
+            dados_saida={
+                "evidencia_id": evidencia_id,
+                "titulo": memoria["titulo"]
+            }
+        )
+
+        return evidencia
+
+    finally:
+        conn.close()
+
+
 def carregar_evidencias_para_ia(limite=150):
 
     conn = get_db_connection()
@@ -9912,6 +10167,61 @@ def ia_empresarial():
             "success": False,
             "error": "Pergunta obrigatória."
         }), 400
+
+    # =================================================
+    # MEMÓRIA EMPRESARIAL POR LINGUAGEM NATURAL
+    # =================================================
+
+    if detectar_comando_memoria_empresarial(pergunta):
+
+        try:
+            memoria_registrada = (
+                registrar_memoria_natural_empresarial(
+                    pergunta
+                )
+            )
+
+            if memoria_registrada:
+                return jsonify({
+                    "success": True,
+                    "agent": "maranhao-empresarial-v1",
+                    "modo": "registro_memoria",
+                    "resposta":
+                        "Informação registrada na memória empresarial.",
+                    "memoria_registrada": {
+                        "id": str(
+                            memoria_registrada["id"]
+                        ),
+                        "titulo":
+                            memoria_registrada["titulo"],
+                        "area":
+                            memoria_registrada["area"],
+                        "categoria":
+                            memoria_registrada["categoria"],
+                        "status":
+                            memoria_registrada["status"],
+                        "resumo":
+                            memoria_registrada["resumo"],
+                        "confiabilidade":
+                            memoria_registrada[
+                                "confiabilidade"
+                            ]
+                    }
+                }), 201
+
+        except Exception as erro_memoria:
+
+            print(
+                "ERRO MEMÓRIA EMPRESARIAL:",
+                repr(erro_memoria)
+            )
+
+            return jsonify({
+                "success": False,
+                "modo": "registro_memoria",
+                "error":
+                    "Não foi possível registrar a informação."
+            }), 500
 
     if not openai_client:
         return jsonify({
