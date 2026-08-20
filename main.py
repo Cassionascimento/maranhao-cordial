@@ -7493,6 +7493,67 @@ def admin_criar_rota_logistica():
 
 @app.route(
     "/api/admin/rotas-logisticas/<rota_id>",
+    methods=["DELETE"]
+)
+def admin_excluir_rota_logistica(rota_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    DELETE FROM rotas_logisticas
+                    WHERE id = %s
+                    RETURNING *
+                """, (
+                    rota_id,
+                ))
+
+                rota = cur.fetchone()
+
+                if not rota:
+                    return jsonify({
+                        "success": False,
+                        "error": "Rota logística não encontrada."
+                    }), 404
+
+        registrar_auditoria(
+            categoria="logistica",
+            acao="rota_logistica_excluida",
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="painel_admin",
+            entidade_tipo="rota_logistica",
+            entidade_id=rota_id,
+            status="excluido",
+            dados_entrada={
+                "nome": rota.get("nome"),
+                "uf_origem": rota.get("uf_origem"),
+                "uf_destino": rota.get("uf_destino")
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "rota_excluida": rota
+        }), 200
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/rotas-logisticas/<rota_id>",
     methods=["PATCH"]
 )
 def admin_atualizar_rota_logistica(rota_id):
