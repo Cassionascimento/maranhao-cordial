@@ -7168,6 +7168,484 @@ def admin_atualizar_cenario_fiscal(cenario_id):
         conn.close()
 
 
+@app.route(
+    "/api/admin/rotas-logisticas",
+    methods=["GET"]
+)
+def admin_listar_rotas_logisticas():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        r.*,
+                        f.nome AS fabrica_nome,
+                        c.nome AS cenario_fiscal_nome
+                    FROM rotas_logisticas r
+                    LEFT JOIN fabricas_parceiras f
+                        ON f.id = r.fabrica_id
+                    LEFT JOIN cenarios_fiscais c
+                        ON c.id = r.cenario_fiscal_id
+                    ORDER BY
+                        CASE r.status_cotacao
+                            WHEN 'contratada' THEN 1
+                            WHEN 'cotada' THEN 2
+                            WHEN 'aguardando_cotacao' THEN 3
+                            WHEN 'expirada' THEN 4
+                            ELSE 5
+                        END,
+                        r.atualizado_em DESC
+                """)
+
+                rotas = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total": len(rotas),
+            "rotas": rotas
+        }), 200
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/rotas-logisticas",
+    methods=["POST"]
+)
+def admin_criar_rota_logistica():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    nome = str(
+        dados.get("nome", "")
+    ).strip()
+
+    uf_origem = str(
+        dados.get("uf_origem", "")
+    ).strip().upper()
+
+    uf_destino = str(
+        dados.get("uf_destino", "")
+    ).strip().upper()
+
+    if not nome:
+        return jsonify({
+            "success": False,
+            "error": "Nome da rota obrigatório."
+        }), 400
+
+    if len(uf_origem) != 2 or len(uf_destino) != 2:
+        return jsonify({
+            "success": False,
+            "error": "UF de origem e destino obrigatórias."
+        }), 400
+
+    status_cotacao = str(
+        dados.get(
+            "status_cotacao",
+            "aguardando_cotacao"
+        )
+    ).strip().lower()
+
+    if status_cotacao not in {
+        "aguardando_cotacao",
+        "cotada",
+        "contratada",
+        "expirada",
+        "cancelada"
+    }:
+        return jsonify({
+            "success": False,
+            "error": "Status de cotação inválido."
+        }), 400
+
+    rota_id = str(
+        uuid.uuid4()
+    )
+
+    campos = {
+        "fabrica_id":
+            dados.get("fabrica_id"),
+
+        "cenario_fiscal_id":
+            dados.get("cenario_fiscal_id"),
+
+        "transportadora":
+            dados.get("transportadora"),
+
+        "cidade_origem":
+            dados.get("cidade_origem"),
+
+        "cidade_destino":
+            dados.get("cidade_destino"),
+
+        "quantidade_unidades":
+            dados.get("quantidade_unidades"),
+
+        "peso_total_kg":
+            dados.get("peso_total_kg"),
+
+        "volume_total_m3":
+            dados.get("volume_total_m3"),
+
+        "modalidade":
+            dados.get("modalidade"),
+
+        "condicao_frete":
+            dados.get("condicao_frete"),
+
+        "valor_frete_centavos":
+            dados.get("valor_frete_centavos"),
+
+        "seguro_centavos":
+            dados.get("seguro_centavos"),
+
+        "pedagio_centavos":
+            dados.get("pedagio_centavos"),
+
+        "outras_despesas_centavos":
+            dados.get("outras_despesas_centavos"),
+
+        "prazo_minimo_dias":
+            dados.get("prazo_minimo_dias"),
+
+        "prazo_maximo_dias":
+            dados.get("prazo_maximo_dias"),
+
+        "validade_cotacao":
+            dados.get("validade_cotacao"),
+
+        "fonte_dados":
+            dados.get("fonte_dados"),
+
+        "observacoes":
+            dados.get("observacoes"),
+
+        "verificado_por":
+            dados.get("verificado_por")
+    }
+
+    componentes = [
+        campos["valor_frete_centavos"],
+        campos["seguro_centavos"],
+        campos["pedagio_centavos"],
+        campos["outras_despesas_centavos"]
+    ]
+
+    custo_total = None
+
+    if any(
+        valor is not None
+        for valor in componentes
+    ):
+        custo_total = sum(
+            int(valor or 0)
+            for valor in componentes
+        )
+
+    custo_unitario = None
+
+    if (
+        custo_total is not None
+        and campos["quantidade_unidades"]
+        and int(campos["quantidade_unidades"]) > 0
+    ):
+        custo_unitario = round(
+            custo_total
+            / int(campos["quantidade_unidades"])
+        )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO rotas_logisticas (
+                        id,
+                        nome,
+                        fabrica_id,
+                        cenario_fiscal_id,
+                        transportadora,
+                        cidade_origem,
+                        uf_origem,
+                        cidade_destino,
+                        uf_destino,
+                        quantidade_unidades,
+                        peso_total_kg,
+                        volume_total_m3,
+                        modalidade,
+                        condicao_frete,
+                        valor_frete_centavos,
+                        seguro_centavos,
+                        pedagio_centavos,
+                        outras_despesas_centavos,
+                        prazo_minimo_dias,
+                        prazo_maximo_dias,
+                        custo_total_logistico_centavos,
+                        custo_logistico_unitario_centavos,
+                        status_cotacao,
+                        validade_cotacao,
+                        fonte_dados,
+                        observacoes,
+                        verificado_por,
+                        verificado_em
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s,
+                        CASE
+                            WHEN %s IS NOT NULL
+                            THEN NOW()
+                            ELSE NULL
+                        END
+                    )
+                    RETURNING *
+                """, (
+                    rota_id,
+                    nome,
+                    campos["fabrica_id"],
+                    campos["cenario_fiscal_id"],
+                    campos["transportadora"],
+                    campos["cidade_origem"],
+                    uf_origem,
+                    campos["cidade_destino"],
+                    uf_destino,
+                    campos["quantidade_unidades"],
+                    campos["peso_total_kg"],
+                    campos["volume_total_m3"],
+                    campos["modalidade"],
+                    campos["condicao_frete"],
+                    campos["valor_frete_centavos"],
+                    campos["seguro_centavos"],
+                    campos["pedagio_centavos"],
+                    campos["outras_despesas_centavos"],
+                    campos["prazo_minimo_dias"],
+                    campos["prazo_maximo_dias"],
+                    custo_total,
+                    custo_unitario,
+                    status_cotacao,
+                    campos["validade_cotacao"],
+                    campos["fonte_dados"],
+                    campos["observacoes"],
+                    campos["verificado_por"],
+                    campos["verificado_por"]
+                ))
+
+                rota = cur.fetchone()
+
+        registrar_auditoria(
+            categoria="logistica",
+            acao="rota_logistica_criada",
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="painel_admin",
+            entidade_tipo="rota_logistica",
+            entidade_id=rota_id,
+            status="criado",
+            dados_entrada={
+                "nome": nome,
+                "uf_origem": uf_origem,
+                "uf_destino": uf_destino,
+                "transportadora":
+                    campos["transportadora"],
+                "status_cotacao":
+                    status_cotacao
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "rota": rota
+        }), 201
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/rotas-logisticas/<rota_id>",
+    methods=["PATCH"]
+)
+def admin_atualizar_rota_logistica(rota_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    campos_permitidos = {
+        "nome",
+        "fabrica_id",
+        "cenario_fiscal_id",
+        "transportadora",
+        "cidade_origem",
+        "uf_origem",
+        "cidade_destino",
+        "uf_destino",
+        "quantidade_unidades",
+        "peso_total_kg",
+        "volume_total_m3",
+        "modalidade",
+        "condicao_frete",
+        "valor_frete_centavos",
+        "seguro_centavos",
+        "pedagio_centavos",
+        "outras_despesas_centavos",
+        "prazo_minimo_dias",
+        "prazo_maximo_dias",
+        "status_cotacao",
+        "validade_cotacao",
+        "fonte_dados",
+        "observacoes",
+        "verificado_por"
+    }
+
+    atualizacoes = []
+    valores = []
+
+    for campo, valor in dados.items():
+
+        if campo not in campos_permitidos:
+            continue
+
+        if campo in {
+            "uf_origem",
+            "uf_destino"
+        } and valor is not None:
+            valor = str(
+                valor
+            ).strip().upper()
+
+        if campo == "status_cotacao":
+            valor = str(
+                valor
+            ).strip().lower()
+
+            if valor not in {
+                "aguardando_cotacao",
+                "cotada",
+                "contratada",
+                "expirada",
+                "cancelada"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Status de cotação inválido."
+                }), 400
+
+        atualizacoes.append(
+            f"{campo} = %s"
+        )
+
+        valores.append(
+            valor
+        )
+
+    if not atualizacoes:
+        return jsonify({
+            "success": False,
+            "error": "Nenhum campo válido informado."
+        }), 400
+
+    if "verificado_por" in dados:
+        atualizacoes.append(
+            "verificado_em = NOW()"
+        )
+
+    atualizacoes.append(
+        "atualizado_em = NOW()"
+    )
+
+    valores.append(
+        rota_id
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                query = f"""
+                    UPDATE rotas_logisticas
+                    SET {", ".join(atualizacoes)}
+                    WHERE id = %s
+                    RETURNING *
+                """
+
+                cur.execute(
+                    query,
+                    tuple(valores)
+                )
+
+                rota = cur.fetchone()
+
+                if not rota:
+                    return jsonify({
+                        "success": False,
+                        "error": "Rota logística não encontrada."
+                    }), 404
+
+        registrar_auditoria(
+            categoria="logistica",
+            acao="rota_logistica_atualizada",
+            ator_tipo="admin",
+            ator_id="admin",
+            origem="painel_admin",
+            entidade_tipo="rota_logistica",
+            entidade_id=rota_id,
+            status="atualizado",
+            dados_entrada={
+                "campos_alterados":
+                    list(dados.keys())
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "rota": rota
+        }), 200
+
+    finally:
+        conn.close()
+
+
 def carregar_cenarios_fiscais_para_ia(limite=100):
 
     conn = get_db_connection()
