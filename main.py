@@ -10091,6 +10091,7 @@ def ia_empresarial():
                 + CONTEXTO_EMPRESARIAL_INTERNO
                 + HIERARQUIA_DECISAO_EMPRESARIAL
                 + contexto_documental
+                + contexto_evidencias
                 + contexto_decisoes
                 + contexto_acoes
                 + contexto_crm
