@@ -9111,10 +9111,14 @@ def ia_empresarial():
 
     except Exception as erro:
 
+        import traceback
+
         print(
             "ERRO IA EMPRESARIAL:",
-            erro
+            repr(erro)
         )
+
+        traceback.print_exc()
 
         return jsonify({
             "success": False,
