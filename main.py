@@ -1048,6 +1048,98 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # INTELIGENCIA COMERCIAL / RELACIONAMENTOS B2B
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS relacionamentos_b2b (
+                        id UUID PRIMARY KEY,
+
+                        nome VARCHAR(180) NOT NULL,
+                        empresa VARCHAR(180),
+                        cargo_funcao VARCHAR(180),
+
+                        segmento VARCHAR(80),
+                        tipo_relacao VARCHAR(80),
+
+                        telefone VARCHAR(50),
+                        email VARCHAR(180),
+                        instagram VARCHAR(180),
+
+                        cidade VARCHAR(120),
+                        estado VARCHAR(2),
+
+                        status_relacionamento VARCHAR(50)
+                            NOT NULL DEFAULT 'prospectado',
+
+                        primeiro_contato DATE,
+                        ultimo_contato DATE,
+
+                        respondeu BOOLEAN,
+                        interesse_demonstrado BOOLEAN,
+                        pediu_informacoes BOOLEAN,
+                        conversa_tecnica BOOLEAN,
+
+                        amostra_solicitada BOOLEAN,
+                        amostra_enviada BOOLEAN,
+                        amostra_provada BOOLEAN,
+                        feedback_sensorial_recebido BOOLEAN,
+
+                        oportunidade_comercial BOOLEAN,
+                        compra_confirmada BOOLEAN,
+
+                        evento_relacionado VARCHAR(220),
+
+                        potencial_validacao_sensorial BOOLEAN,
+                        potencial_networking BOOLEAN,
+                        potencial_eventos BOOLEAN,
+                        potencial_comercial BOOLEAN,
+
+                        nivel_relacionamento INTEGER
+                            NOT NULL DEFAULT 0,
+
+                        proximo_passo TEXT,
+
+                        evidencia TEXT,
+                        fonte_dados TEXT,
+                        observacoes TEXT,
+
+                        verificado_por VARCHAR(180),
+                        verificado_em TIMESTAMPTZ,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_relacionamentos_b2b_status
+                    ON relacionamentos_b2b (
+                        status_relacionamento
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_relacionamentos_b2b_segmento
+                    ON relacionamentos_b2b (
+                        segmento
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_relacionamentos_b2b_nome
+                    ON relacionamentos_b2b (
+                        nome
+                    )
+                """)
+
+                # ==========================================
                 # PEDIDOS
                 # ==========================================
 
