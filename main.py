@@ -2043,6 +2043,122 @@ def executar_registro_analise_interna(acao):
         conn.close()
 
 
+def interpretar_saida_ia_empresarial(texto_bruto):
+    """
+    Interpreta a saída da IA empresarial.
+
+    Aceita:
+    - JSON correto;
+    - JSON dentro de ```json;
+    - pequeno erro comum de chave sem aspas;
+    - texto puro como fallback.
+
+    Nunca interrompe a operação por erro de formatação do modelo.
+    """
+
+    texto_bruto = str(
+        texto_bruto or ""
+    ).strip()
+
+    if not texto_bruto:
+        return {
+            "resposta": "",
+            "acoes_sugeridas": []
+        }
+
+    candidato = texto_bruto
+
+    # Remove cercas Markdown.
+    if candidato.startswith("```"):
+        linhas = candidato.splitlines()
+
+        if linhas:
+            linhas = linhas[1:]
+
+        if linhas and linhas[-1].strip() == "```":
+            linhas = linhas[:-1]
+
+        candidato = "\n".join(
+            linhas
+        ).strip()
+
+    tentativas = [
+        candidato
+    ]
+
+    # Correções conservadoras para erros comuns.
+    corrigido = candidato.replace(
+        "\nacoes_sugeridas:",
+        '\n"acoes_sugeridas":'
+    ).replace(
+        ",acoes_sugeridas:",
+        ',"acoes_sugeridas":'
+    ).replace(
+        " acoes_sugeridas:",
+        ' "acoes_sugeridas":'
+    )
+
+    if corrigido != candidato:
+        tentativas.append(
+            corrigido
+        )
+
+    for tentativa in tentativas:
+
+        try:
+            dados = json.loads(
+                tentativa
+            )
+
+            # Às vezes o JSON chega duplamente serializado.
+            if isinstance(dados, str):
+                try:
+                    dados = json.loads(
+                        dados
+                    )
+                except Exception:
+                    return {
+                        "resposta": dados.strip(),
+                        "acoes_sugeridas": []
+                    }
+
+            if isinstance(dados, dict):
+
+                resposta = str(
+                    dados.get(
+                        "resposta",
+                        ""
+                    )
+                    or ""
+                ).strip()
+
+                acoes = dados.get(
+                    "acoes_sugeridas",
+                    []
+                )
+
+                if not isinstance(
+                    acoes,
+                    list
+                ):
+                    acoes = []
+
+                return {
+                    "resposta": resposta,
+                    "acoes_sugeridas": acoes
+                }
+
+        except Exception:
+            continue
+
+    # Último fallback:
+    # mantém a resposta utilizável sem derrubar a API.
+    return {
+        "resposta": texto_bruto,
+        "acoes_sugeridas": []
+    }
+
+
 def registrar_auditoria(
     categoria,
     acao,
@@ -9534,38 +9650,19 @@ def ia_empresarial():
             or ""
         ).strip()
 
-        texto = ""
-        acoes_sugeridas = []
+        interpretada = (
+            interpretar_saida_ia_empresarial(
+                texto_bruto
+            )
+        )
 
-        if texto_bruto:
-            try:
-                dados_ia = json.loads(
-                    texto_bruto
-                )
+        texto = interpretada[
+            "resposta"
+        ]
 
-                texto = str(
-                    dados_ia.get(
-                        "resposta",
-                        ""
-                    )
-                ).strip()
-
-                acoes_sugeridas = (
-                    dados_ia.get(
-                        "acoes_sugeridas",
-                        []
-                    )
-                    or []
-                )
-
-            except Exception as erro_json:
-                print(
-                    "AVISO JSON IA EMPRESARIAL:",
-                    erro_json
-                )
-
-                texto = texto_bruto
-                acoes_sugeridas = []
+        acoes_sugeridas = interpretada[
+            "acoes_sugeridas"
+        ]
 
         if not texto:
             resposta_retry = openai_client.responses.create(
