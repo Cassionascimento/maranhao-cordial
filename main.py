@@ -8265,6 +8265,79 @@ def admin_criar_contato_estrategico():
         conn.close()
 
 
+def carregar_contatos_estrategicos_para_ia(limite=100):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM contatos_estrategicos
+                    ORDER BY atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                contatos = cur.fetchall()
+
+        linhas = []
+
+        for contato in contatos:
+
+            linhas.append(
+                (
+                    f"- {contato['nome'] or 'Contato sem nome'} "
+                    f"| Empresa: "
+                    f"{contato['empresa'] or 'não informada'} "
+                    f"| Tipo: {contato['tipo']} "
+                    f"| Cargo: "
+                    f"{contato['cargo'] or 'não informado'} "
+                    f"| Telefone: "
+                    f"{contato['telefone'] or 'não informado'} "
+                    f"| E-mail: "
+                    f"{contato['email'] or 'não informado'} "
+                    f"| Status: {contato['status_relacao']} "
+                    f"| Resumo: "
+                    f"{contato['resumo'] or 'não informado'} "
+                    f"| Capacidades: "
+                    f"{contato['capacidades'] or 'não verificadas'} "
+                    f"| Restrições: "
+                    f"{contato['restricoes'] or 'não verificadas'} "
+                    f"| Próximo passo: "
+                    f"{contato['proximo_passo'] or 'não definido'}"
+                )
+            )
+
+        contexto = ""
+
+        if linhas:
+            contexto = (
+                "\n\n"
+                "REDE DE CONTATOS ESTRATÉGICOS\n"
+                "Use estes contatos como memória de relacionamento "
+                "da empresa. Diferencie fabricante, consultor, associação "
+                "e indicador. Não trate indicação como fábrica homologada. "
+                "Não invente capacidades não confirmadas. "
+                "Considere sempre o próximo passo registrado.\n"
+                + "\n".join(linhas)
+                + "\n"
+            )
+
+        return {
+            "contatos": contatos,
+            "contexto": contexto
+        }
+
+    finally:
+        conn.close()
+
+
 def carregar_rotas_logisticas_para_ia(limite=100):
 
     conn = get_db_connection()
@@ -9102,6 +9175,15 @@ def ia_empresarial():
             or ""
         )
 
+        contatos_estrategicos_ia = (
+            carregar_contatos_estrategicos_para_ia()
+        )
+
+        contexto_contatos = (
+            contatos_estrategicos_ia["contexto"]
+            or ""
+        )
+
         contexto_operacional = (
             "\n\nDADOS ATUAIS DO SISTEMA:\n"
             + str(resumo)
@@ -9195,6 +9277,7 @@ def ia_empresarial():
                 + contexto_fabricas
                 + contexto_fiscal
                 + contexto_logistica
+                + contexto_contatos
                 + contexto_operacional +
 
                 "\nAnalise negócios com rigor. "
@@ -9220,7 +9303,17 @@ def ia_empresarial():
                 "enviar mensagens, fazer pagamentos ou executar negociações "
                 "sem ferramenta e autorização específicas. "
 
-                "Responda de forma executiva, clara e objetiva. "
+                "Responda de forma executiva, clara, curta e sequencial. "
+                "Priorize responder exatamente à pergunta feita antes de trazer contexto adicional. "
+                "Por padrão, use no máximo 3 a 5 parágrafos curtos. "
+                "Não repita toda a situação da empresa em cada resposta. "
+                "Quando houver informação suficiente, dê uma conclusão direta. "
+                "Quando faltar informação, cite no máximo os 3 dados mais importantes que faltam. "
+                "Finalize com exatamente um próximo passo concreto quando houver ação útil. "
+                "Preserve continuidade entre as perguntas: trate a resposta atual como parte de uma conversa, "
+                "não como um relatório independente. "
+                "Só produza análise longa quando o usuário pedir explicitamente relatório, detalhes, "
+                "análise completa ou comparação extensa. "
                 "Quando útil, apresente uma recomendação concreta."
             ),
 
@@ -9277,11 +9370,12 @@ def ia_empresarial():
 
                 instructions=(
                     "Você é a inteligência empresarial privada da Maranhão Cordial. "
-                    "Faça uma análise executiva direta. "
+                    "Faça uma análise executiva direta e curta. "
                     "Use somente fatos presentes no contexto e nos dados fornecidos. "
                     "Não invente números. "
-                    "Indique exatamente três prioridades empresariais, "
-                    "explicando brevemente por que cada uma é importante. "
+                    "Responda primeiro exatamente ao que foi perguntado. "
+                    "Evite repetir contexto já conhecido. "
+                    "Use poucos parágrafos e termine com um único próximo passo concreto. "
                     + CONTEXTO_MARANHAO
                     + CONTEXTO_EMPRESARIAL_INTERNO
                     + HIERARQUIA_DECISAO_EMPRESARIAL
@@ -9292,6 +9386,7 @@ def ia_empresarial():
                     + contexto_fabricas
                     + contexto_fiscal
                     + contexto_logistica
+                    + contexto_contatos
                     + contexto_operacional
                 ),
 
@@ -9347,7 +9442,9 @@ def ia_empresarial():
                 "cenarios_fiscais_consultados":
                     len(cenarios_fiscais_ia["cenarios"]),
                 "rotas_logisticas_consultadas":
-                    len(rotas_logisticas_ia["rotas"])
+                    len(rotas_logisticas_ia["rotas"]),
+                "contatos_estrategicos_consultados":
+                    len(contatos_estrategicos_ia["contatos"])
             }
         )
 
@@ -9379,7 +9476,9 @@ def ia_empresarial():
                 "cenarios_fiscais":
                     len(cenarios_fiscais_ia["cenarios"]),
                 "rotas_logisticas":
-                    len(rotas_logisticas_ia["rotas"])
+                    len(rotas_logisticas_ia["rotas"]),
+                "contatos_estrategicos":
+                    len(contatos_estrategicos_ia["contatos"])
             },
             "documentos_usados":
                 documentos_ia["documentos_usados"],
