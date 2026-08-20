@@ -10126,6 +10126,10 @@ def ia_empresarial():
 
                 "Responda de forma executiva, clara, curta e sequencial. "
                 "Priorize responder exatamente à pergunta feita antes de trazer contexto adicional. "
+                "Quando a pergunta pedir lista, inventário, comparação, evidências, ativos, documentos, "
+                "fatos conhecidos ou itens existentes, responda todos os itens relevantes encontrados "
+                "no contexto, de forma objetiva. Não reduza uma pergunta de inventário a apenas um resumo. "
+                "Nesses casos, não é obrigatório usar o formato Prioridade/Por quê/Próximo passo. "
                 "Quando a pergunta pedir prioridade, ordem de contato ou próximo passo, "
                 "compare os contatos estratégicos disponíveis e escolha UMA pessoa primeiro. "
                 "A resposta visível deve obrigatoriamente conter exatamente três blocos curtos: "
