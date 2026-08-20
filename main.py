@@ -7973,6 +7973,137 @@ def carregar_fabricas_para_ia(limite=50):
         conn.close()
 
 
+
+def carregar_rotas_logisticas_para_ia(limite=100):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        r.*,
+                        f.nome AS fabrica_nome,
+                        c.nome AS cenario_fiscal_nome
+                    FROM rotas_logisticas r
+                    LEFT JOIN fabricas_parceiras f
+                        ON f.id = r.fabrica_id
+                    LEFT JOIN cenarios_fiscais c
+                        ON c.id = r.cenario_fiscal_id
+                    ORDER BY r.atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                rotas = cur.fetchall()
+
+        linhas = []
+
+        for rota in rotas:
+
+            custo_total = (
+                rota["custo_total_logistico_centavos"]
+                / 100
+                if rota["custo_total_logistico_centavos"]
+                is not None
+                else None
+            )
+
+            custo_unitario = (
+                rota["custo_logistico_unitario_centavos"]
+                / 100
+                if rota["custo_logistico_unitario_centavos"]
+                is not None
+                else None
+            )
+
+            valor_frete = (
+                rota["valor_frete_centavos"]
+                / 100
+                if rota["valor_frete_centavos"]
+                is not None
+                else None
+            )
+
+            linhas.append(
+                (
+                    f"- Rota: {rota['nome']} "
+                    f"| Fábrica: "
+                    f"{rota['fabrica_nome'] or 'não vinculada'} "
+                    f"| Cenário fiscal: "
+                    f"{rota['cenario_fiscal_nome'] or 'não vinculado'} "
+                    f"| Transportadora: "
+                    f"{rota['transportadora'] or 'não informada'} "
+                    f"| Origem: "
+                    f"{rota['cidade_origem'] or 'não informada'}/"
+                    f"{rota['uf_origem']} "
+                    f"| Destino: "
+                    f"{rota['cidade_destino'] or 'não informada'}/"
+                    f"{rota['uf_destino']} "
+                    f"| Quantidade: "
+                    f"{rota['quantidade_unidades'] or 'não informada'} "
+                    f"unidades "
+                    f"| Peso: "
+                    f"{rota['peso_total_kg'] if rota['peso_total_kg'] is not None else 'não informado'} kg "
+                    f"| Volume: "
+                    f"{rota['volume_total_m3'] if rota['volume_total_m3'] is not None else 'não informado'} m3 "
+                    f"| Modalidade: "
+                    f"{rota['modalidade'] or 'não informada'} "
+                    f"| Condição: "
+                    f"{rota['condicao_frete'] or 'não informada'} "
+                    f"| Frete: "
+                    f"{'R$ %.2f' % valor_frete if valor_frete is not None else 'não cotado'} "
+                    f"| Custo logístico total: "
+                    f"{'R$ %.2f' % custo_total if custo_total is not None else 'não calculado'} "
+                    f"| Custo logístico unitário: "
+                    f"{'R$ %.2f' % custo_unitario if custo_unitario is not None else 'não calculado'} "
+                    f"| Prazo: "
+                    f"{rota['prazo_minimo_dias'] if rota['prazo_minimo_dias'] is not None else '?'}"
+                    f"–"
+                    f"{rota['prazo_maximo_dias'] if rota['prazo_maximo_dias'] is not None else '?'} dias "
+                    f"| Status: "
+                    f"{rota['status_cotacao']} "
+                    f"| Validade da cotação: "
+                    f"{rota['validade_cotacao'] or 'não informada'} "
+                    f"| Fonte: "
+                    f"{rota['fonte_dados'] or 'não informada'} "
+                    f"| Verificado por: "
+                    f"{rota['verificado_por'] or 'não verificado'} "
+                    f"| Observações: "
+                    f"{rota['observacoes'] or 'sem observações'}"
+                )
+            )
+
+        contexto = ""
+
+        if linhas:
+            contexto = (
+                "\n\n"
+                "MATRIZ LOGÍSTICA / ROTAS E FRETES\n"
+                "Use estes dados para avaliar frete, prazo, origem, "
+                "destino e custo logístico por unidade. "
+                "Uma rota com status 'aguardando_cotacao' não possui "
+                "preço de frete confirmado. Valores ausentes não devem "
+                "ser tratados como zero. Diferencie cotação, contrato, "
+                "estimativa e informação ainda não verificada.\n"
+                + "\n".join(linhas)
+                + "\n"
+            )
+
+        return {
+            "rotas": rotas,
+            "contexto": contexto
+        }
+
+    finally:
+        conn.close()
+
+
 def carregar_leads_crm_para_ia(limite=50):
 
     conn = get_db_connection()
@@ -8671,6 +8802,15 @@ def ia_empresarial():
             or ""
         )
 
+        rotas_logisticas_ia = (
+            carregar_rotas_logisticas_para_ia()
+        )
+
+        contexto_logistica = (
+            rotas_logisticas_ia["contexto"]
+            or ""
+        )
+
         contexto_operacional = (
             "\n\nDADOS ATUAIS DO SISTEMA:\n"
             + str(resumo)
@@ -8763,6 +8903,7 @@ def ia_empresarial():
                 + contexto_crm
                 + contexto_fabricas
                 + contexto_fiscal
+                + contexto_logistica
                 + contexto_operacional +
 
                 "\nAnalise negócios com rigor. "
@@ -8857,6 +8998,9 @@ def ia_empresarial():
                     + contexto_decisoes
                     + contexto_acoes
                     + contexto_crm
+                    + contexto_fabricas
+                    + contexto_fiscal
+                    + contexto_logistica
                     + contexto_operacional
                 ),
 
@@ -8906,7 +9050,13 @@ def ia_empresarial():
                 "acoes_consultadas":
                     len(acoes_ia["acoes"]),
                 "leads_crm_consultados":
-                    len(crm_ia["leads"])
+                    len(crm_ia["leads"]),
+                "fabricas_consultadas":
+                    len(fabricas_ia["fabricas"]),
+                "cenarios_fiscais_consultados":
+                    len(cenarios_fiscais_ia["cenarios"]),
+                "rotas_logisticas_consultadas":
+                    len(rotas_logisticas_ia["rotas"])
             }
         )
 
@@ -8936,7 +9086,9 @@ def ia_empresarial():
                 "fabricas":
                     len(fabricas_ia["fabricas"]),
                 "cenarios_fiscais":
-                    len(cenarios_fiscais_ia["cenarios"])
+                    len(cenarios_fiscais_ia["cenarios"]),
+                "rotas_logisticas":
+                    len(rotas_logisticas_ia["rotas"])
             },
             "documentos_usados":
                 documentos_ia["documentos_usados"],
