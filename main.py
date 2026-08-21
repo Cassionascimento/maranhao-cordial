@@ -8657,6 +8657,354 @@ def parceiro_cadastrar_profissional():
         conn.close()
 
 
+
+# =====================================================
+# REDE PROFISSIONAL — ADMIN / LISTAGEM
+# =====================================================
+
+@app.route(
+    "/api/admin/profissionais",
+    methods=["GET"]
+)
+def admin_listar_profissionais():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM profissionais_rede
+
+                    ORDER BY
+                        CASE status_fluxo
+                            WHEN 'ativo' THEN 1
+                            WHEN 'relacionamento' THEN 2
+                            WHEN 'qualificado' THEN 3
+                            WHEN 'em_validacao' THEN 4
+                            WHEN 'mapeado' THEN 5
+                            WHEN 'inativo' THEN 6
+                            WHEN 'rejeitado' THEN 7
+                            ELSE 8
+                        END,
+                        atualizado_em DESC
+                """)
+
+                profissionais = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total": len(profissionais),
+            "profissionais": profissionais
+        }), 200
+
+    except Exception as erro:
+
+        print(
+            "ERRO LISTAGEM REDE PROFISSIONAL:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Erro ao listar profissionais."
+        }), 500
+
+    finally:
+        conn.close()
+
+
+# =====================================================
+# REDE PROFISSIONAL — WORKFLOW
+# =====================================================
+
+@app.route(
+    "/api/admin/profissionais/<profissional_id>/workflow",
+    methods=["PATCH"]
+)
+def admin_workflow_profissional(
+    profissional_id
+):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    novo_status = str(
+        dados.get("status", "")
+    ).strip().lower()
+
+    responsavel = str(
+        dados.get("responsavel", "")
+    ).strip()
+
+    motivo = str(
+        dados.get("motivo", "")
+    ).strip()
+
+    if not novo_status:
+        return jsonify({
+            "success": False,
+            "error": "Novo status obrigatório."
+        }), 400
+
+    if not responsavel:
+        return jsonify({
+            "success": False,
+            "error": "Responsável obrigatório."
+        }), 400
+
+    transicoes_permitidas = {
+
+        "mapeado": {
+            "em_validacao",
+            "rejeitado"
+        },
+
+        "em_validacao": {
+            "mapeado",
+            "qualificado",
+            "rejeitado"
+        },
+
+        "qualificado": {
+            "em_validacao",
+            "relacionamento",
+            "rejeitado"
+        },
+
+        "relacionamento": {
+            "qualificado",
+            "ativo",
+            "inativo"
+        },
+
+        "ativo": {
+            "relacionamento",
+            "inativo"
+        },
+
+        "inativo": {
+            "relacionamento",
+            "ativo"
+        },
+
+        "rejeitado": {
+            "mapeado",
+            "em_validacao"
+        }
+    }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM profissionais_rede
+                    WHERE id = %s
+                    FOR UPDATE
+                """, (
+                    profissional_id,
+                ))
+
+                profissional = cur.fetchone()
+
+                if not profissional:
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Profissional não encontrado."
+                    }), 404
+
+                status_atual = (
+                    profissional.get(
+                        "status_fluxo"
+                    )
+                    or "mapeado"
+                )
+
+                permitidas = (
+                    transicoes_permitidas.get(
+                        status_atual,
+                        set()
+                    )
+                )
+
+                if novo_status not in permitidas:
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Transição de status não permitida.",
+                        "status_atual":
+                            status_atual,
+                        "transicoes_permitidas":
+                            sorted(permitidas)
+                    }), 400
+
+                # Somente profissionais já qualificados
+                # podem alimentar consultas estratégicas.
+                disponivel_ia = (
+                    novo_status in {
+                        "qualificado",
+                        "relacionamento",
+                        "ativo"
+                    }
+                )
+
+                cur.execute("""
+                    UPDATE profissionais_rede
+
+                    SET
+                        status_fluxo = %s,
+                        disponivel_ia = %s,
+
+                        validado_por =
+                            CASE
+                                WHEN %s = 'em_validacao'
+                                THEN %s
+                                ELSE validado_por
+                            END,
+
+                        validado_em =
+                            CASE
+                                WHEN %s = 'em_validacao'
+                                THEN NOW()
+                                ELSE validado_em
+                            END,
+
+                        qualificado_por =
+                            CASE
+                                WHEN %s = 'qualificado'
+                                THEN %s
+                                ELSE qualificado_por
+                            END,
+
+                        qualificado_em =
+                            CASE
+                                WHEN %s = 'qualificado'
+                                THEN NOW()
+                                ELSE qualificado_em
+                            END,
+
+                        ativo_por =
+                            CASE
+                                WHEN %s = 'ativo'
+                                THEN %s
+                                ELSE ativo_por
+                            END,
+
+                        ativo_em =
+                            CASE
+                                WHEN %s = 'ativo'
+                                THEN NOW()
+                                ELSE ativo_em
+                            END,
+
+                        observacoes =
+                            CASE
+                                WHEN %s <> ''
+                                THEN CONCAT(
+                                    COALESCE(
+                                        observacoes,
+                                        ''
+                                    ),
+                                    CASE
+                                        WHEN COALESCE(
+                                            observacoes,
+                                            ''
+                                        ) <> ''
+                                        THEN E'\\n'
+                                        ELSE ''
+                                    END,
+                                    '[Workflow] ',
+                                    %s
+                                )
+                                ELSE observacoes
+                            END,
+
+                        atualizado_em = NOW()
+
+                    WHERE id = %s
+
+                    RETURNING *
+                """, (
+                    novo_status,
+                    disponivel_ia,
+
+                    novo_status,
+                    responsavel,
+
+                    novo_status,
+
+                    novo_status,
+                    responsavel,
+
+                    novo_status,
+
+                    novo_status,
+                    responsavel,
+
+                    novo_status,
+
+                    motivo,
+                    motivo,
+
+                    profissional_id
+                ))
+
+                atualizado = cur.fetchone()
+
+        return jsonify({
+            "success": True,
+            "status_anterior":
+                status_atual,
+            "status_atual":
+                novo_status,
+            "disponivel_ia":
+                disponivel_ia,
+            "profissional":
+                atualizado
+        }), 200
+
+    except Exception as erro:
+
+        print(
+            "ERRO WORKFLOW REDE PROFISSIONAL:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Erro ao atualizar workflow profissional."
+        }), 500
+
+    finally:
+        conn.close()
+
+
 @app.route(
     "/api/admin/fabricas",
     methods=["POST"]
