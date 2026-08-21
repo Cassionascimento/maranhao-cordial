@@ -8309,6 +8309,354 @@ def admin_workflow_fabrica(fabrica_id):
         conn.close()
 
 
+
+# =====================================================
+# REDE PROFISSIONAL — CADASTRO EXTERNO
+# =====================================================
+
+@app.route(
+    "/api/parceiros/profissionais/cadastro",
+    methods=["POST"]
+)
+def parceiro_cadastrar_profissional():
+
+    chave = request.headers.get(
+        "X-Cadastro-Key"
+    )
+
+    if (
+        not FABRICAS_CADASTRO_KEY
+        or chave != FABRICAS_CADASTRO_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    nome = str(
+        dados.get("nome", "")
+    ).strip()
+
+    estado = str(
+        dados.get("estado", "")
+    ).strip().upper()
+
+    if not nome:
+        return jsonify({
+            "success": False,
+            "error":
+                "Nome do profissional obrigatório."
+        }), 400
+
+    if estado and len(estado) != 2:
+        return jsonify({
+            "success": False,
+            "error": "UF inválida."
+        }), 400
+
+    responsavel_nome = str(
+        dados.get(
+            "responsavel_dados_nome",
+            ""
+        )
+    ).strip()
+
+    responsavel_empresa = str(
+        dados.get(
+            "responsavel_dados_empresa",
+            ""
+        )
+    ).strip()
+
+    responsavel_cargo = str(
+        dados.get(
+            "responsavel_dados_cargo",
+            ""
+        )
+    ).strip()
+
+    responsavel_email = str(
+        dados.get(
+            "responsavel_dados_email",
+            ""
+        )
+    ).strip()
+
+    responsavel_whatsapp = str(
+        dados.get(
+            "responsavel_dados_whatsapp",
+            ""
+        )
+    ).strip()
+
+    fonte_dados = str(
+        dados.get(
+            "fonte_dados",
+            ""
+        )
+    ).strip()
+
+    obrigatorios = {
+        "responsável pelos dados":
+            responsavel_nome,
+        "empresa/organização":
+            responsavel_empresa,
+        "cargo/função":
+            responsavel_cargo,
+        "e-mail do responsável":
+            responsavel_email,
+        "WhatsApp do responsável":
+            responsavel_whatsapp,
+        "fonte dos dados":
+            fonte_dados
+    }
+
+    faltantes = [
+        campo
+        for campo, valor
+        in obrigatorios.items()
+        if not valor
+    ]
+
+    if faltantes:
+        return jsonify({
+            "success": False,
+            "error":
+                "Campos obrigatórios ausentes: "
+                + ", ".join(faltantes)
+        }), 400
+
+    profissional_id = str(
+        uuid.uuid4()
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                instagram = str(
+                    dados.get("instagram") or ""
+                ).strip().lower()
+
+                existente = None
+
+                # -----------------------------------------
+                # PREVENÇÃO DE DUPLICIDADE
+                # -----------------------------------------
+                # Com Instagram: usa Instagram.
+                # Sem Instagram: nome + UF + estabelecimento.
+
+                if instagram:
+
+                    cur.execute("""
+                        SELECT
+                            id,
+                            nome,
+                            instagram,
+                            estado,
+                            status_fluxo
+                        FROM profissionais_rede
+                        WHERE LOWER(
+                            TRIM(
+                                COALESCE(
+                                    instagram,
+                                    ''
+                                )
+                            )
+                        ) = LOWER(TRIM(%s))
+                        ORDER BY criado_em DESC
+                        LIMIT 1
+                    """, (
+                        instagram,
+                    ))
+
+                    existente = cur.fetchone()
+
+                else:
+
+                    estabelecimento = str(
+                        dados.get(
+                            "estabelecimento_nome"
+                        ) or ""
+                    ).strip()
+
+                    cur.execute("""
+                        SELECT
+                            id,
+                            nome,
+                            instagram,
+                            estado,
+                            status_fluxo
+                        FROM profissionais_rede
+                        WHERE LOWER(TRIM(nome))
+                              = LOWER(TRIM(%s))
+                          AND UPPER(
+                              TRIM(
+                                  COALESCE(
+                                      estado,
+                                      ''
+                                  )
+                              )
+                          ) = UPPER(TRIM(%s))
+                          AND LOWER(
+                              TRIM(
+                                  COALESCE(
+                                      estabelecimento_nome,
+                                      ''
+                                  )
+                              )
+                          ) = LOWER(TRIM(%s))
+                        ORDER BY criado_em DESC
+                        LIMIT 1
+                    """, (
+                        nome,
+                        estado,
+                        estabelecimento
+                    ))
+
+                    existente = cur.fetchone()
+
+                if existente:
+                    return jsonify({
+                        "success": False,
+                        "duplicado": True,
+                        "error":
+                            "Este profissional já possui cadastro.",
+                        "profissional_existente":
+                            existente
+                    }), 409
+
+                cur.execute("""
+                    INSERT INTO profissionais_rede (
+                        id,
+                        nome,
+                        nome_profissional,
+                        cidade,
+                        estado,
+                        regiao,
+                        estabelecimento_nome,
+                        estabelecimento_tipo,
+                        cargo_funcao,
+                        instagram,
+                        whatsapp,
+                        email,
+                        especialidade,
+                        experiencia_anos,
+                        eventos,
+                        areas_atuacao,
+                        origem_cadastro,
+                        status_fluxo,
+                        status_relacionamento,
+                        recebeu_amostra,
+                        degustou,
+                        feedback_recebido,
+                        oportunidade_gerada,
+                        responsavel_dados_nome,
+                        responsavel_dados_empresa,
+                        responsavel_dados_cargo,
+                        responsavel_dados_email,
+                        responsavel_dados_whatsapp,
+                        fonte_dados,
+                        observacoes,
+                        disponivel_ia
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s,
+                        'externo',
+                        'mapeado',
+                        'sem_contato',
+                        FALSE,
+                        FALSE,
+                        FALSE,
+                        FALSE,
+                        %s, %s, %s, %s, %s,
+                        %s, %s,
+                        FALSE
+                    )
+                    RETURNING *
+                """, (
+                    profissional_id,
+                    nome,
+                    dados.get(
+                        "nome_profissional"
+                    ),
+                    dados.get("cidade"),
+                    estado or None,
+                    dados.get("regiao"),
+                    dados.get(
+                        "estabelecimento_nome"
+                    ),
+                    dados.get(
+                        "estabelecimento_tipo"
+                    ),
+                    dados.get(
+                        "cargo_funcao"
+                    ),
+                    dados.get("instagram"),
+                    dados.get("whatsapp"),
+                    dados.get("email"),
+                    dados.get(
+                        "especialidade"
+                    ),
+                    dados.get(
+                        "experiencia_anos"
+                    ),
+                    dados.get("eventos") or [],
+                    dados.get(
+                        "areas_atuacao"
+                    ) or [],
+                    responsavel_nome,
+                    responsavel_empresa,
+                    responsavel_cargo,
+                    responsavel_email,
+                    responsavel_whatsapp,
+                    fonte_dados,
+                    dados.get("observacoes")
+                ))
+
+                profissional = cur.fetchone()
+
+        return jsonify({
+            "success": True,
+            "mensagem":
+                "Profissional cadastrado e enviado "
+                "para validação.",
+            "profissional_id":
+                profissional_id,
+            "status": "mapeado",
+            "disponivel_ia": False,
+            "profissional":
+                profissional
+        }), 201
+
+    except Exception as erro:
+
+        print(
+            "ERRO CADASTRO EXTERNO PROFISSIONAL:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Erro ao cadastrar profissional."
+        }), 500
+
+    finally:
+        conn.close()
+
+
 @app.route(
     "/api/admin/fabricas",
     methods=["POST"]
