@@ -9699,10 +9699,40 @@ def carregar_fabricas_para_ia(limite=50):
                     f"{texto_booleano_verificado(fabrica['analises_laboratoriais'])} "
                     f"| NCM informado: "
                     f"{fabrica['ncm_informado'] or 'não informado'} "
+
+                    f"| Workflow: "
+                    f"{fabrica['status_fluxo'] or 'pendente'} "
+
+                    f"| Origem cadastro: "
+                    f"{fabrica['origem_cadastro'] or 'não informada'} "
+
+                    f"| Disponível para cálculo IA: "
+                    f"{'SIM' if fabrica['disponivel_calculo_ia'] else 'NÃO'} "
+
+                    f"| Responsável original pelos dados: "
+                    f"{fabrica['responsavel_dados_nome'] or 'não informado'} "
+
+                    f"| Empresa do responsável: "
+                    f"{fabrica['responsavel_dados_empresa'] or 'não informada'} "
+
+                    f"| Cargo do responsável: "
+                    f"{fabrica['responsavel_dados_cargo'] or 'não informado'} "
+
+                    f"| Validado por: "
+                    f"{fabrica['validado_por'] or 'não validado'} "
+
+                    f"| Qualificado por: "
+                    f"{fabrica['qualificado_por'] or 'não qualificado'} "
+
+                    f"| Homologado por: "
+                    f"{fabrica['homologado_por'] or 'não homologado'} "
+
                     f"| Fonte: "
                     f"{fabrica['fonte_dados'] or 'não informada'} "
-                    f"| Verificado por: "
+
+                    f"| Verificado por legado: "
                     f"{fabrica['verificado_por'] or 'não verificado'} "
+
                     f"| Observações: "
                     f"{fabrica['observacoes'] or 'sem observações'}"
                 )
@@ -9714,12 +9744,46 @@ def carregar_fabricas_para_ia(limite=50):
             contexto = (
                 "\n\n"
                 "MATRIZ INDUSTRIAL / FÁBRICAS PARCEIRAS\n"
-                "Use estes dados para avaliar capacidade produtiva, "
-                "localização, lote mínimo, custos, prazo e situação "
-                "regulatória. Não trate fábrica com status regulatório "
-                "'pendente', 'nao_verificado' ou 'incompativel' como "
-                "liberada para produção comercial. Diferencie informação "
-                "cadastrada de informação efetivamente verificada.\n"
+
+                "REGRAS OBRIGATÓRIAS DE GOVERNANÇA INDUSTRIAL:\n"
+
+                "- Cadastro com status_fluxo 'pendente' representa apenas "
+                "informação recebida. Pode ser citado como prospecção, "
+                "mas NÃO como fábrica validada.\n"
+
+                "- Status 'em_validacao' significa que a direção está "
+                "checando as informações. Ainda NÃO use a fábrica para "
+                "cálculo final de custo, margem ou decisão operacional.\n"
+
+                "- Status 'qualificada' significa que a fábrica passou "
+                "por qualificação empresarial/técnica preliminar, mas "
+                "ainda NÃO equivale a homologação.\n"
+
+                "- SOMENTE fábrica com status_fluxo='homologada' E "
+                "disponivel_calculo_ia=TRUE pode ser usada como fábrica "
+                "aprovada em cálculo definitivo de custo industrial, "
+                "margem, capacidade, logística ou recomendação operacional.\n"
+
+                "- Fábrica suspensa ou rejeitada NÃO pode ser utilizada "
+                "em recomendação operacional.\n"
+
+                "- Nunca transforme informação fornecida por terceiro "
+                "em informação validada pela direção.\n"
+
+                "- Quando houver dúvida sobre a confiabilidade de um dado, "
+                "informe quem foi o responsável original pelos dados, "
+                "a fonte e o estágio do workflow.\n"
+
+                "- Diferencie sempre: responsável pelos dados, validador, "
+                "qualificador e homologador.\n"
+
+                "- O status regulatório continua sendo uma trava adicional: "
+                "não trate fábrica com status regulatório 'pendente', "
+                "'nao_verificado' ou 'incompativel' como liberada para "
+                "produção comercial, mesmo que outros dados sejam favoráveis.\n"
+
+                "Use os demais dados para avaliar localização, lote mínimo, "
+                "capacidade, custos, prazo, processo e situação regulatória.\n"
                 + "\n".join(linhas)
                 + "\n"
             )
