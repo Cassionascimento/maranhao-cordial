@@ -1502,6 +1502,8 @@
 
                     carregarDocumentos();
 
+                    carregarFabricasWorkflow();
+
                     keyInput.value = "";
 
                 } catch (error) {
@@ -3497,5 +3499,845 @@
 
         })();
     </script>
+
+<!-- FABRICAS_WORKFLOW_ADMIN_V1 -->
+
+<section
+    id="fabricasWorkflowSection"
+    style="
+        margin-top:32px;
+        padding:24px;
+        border:1px solid rgba(255,255,255,.10);
+        border-radius:18px;
+        background:rgba(8,18,26,.92);
+    "
+>
+    <div
+        style="
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:16px;
+            flex-wrap:wrap;
+            margin-bottom:20px;
+        "
+    >
+        <div>
+            <div
+                style="
+                    font-size:11px;
+                    letter-spacing:.16em;
+                    text-transform:uppercase;
+                    opacity:.60;
+                    margin-bottom:6px;
+                "
+            >
+                Matriz Industrial
+            </div>
+
+            <h2
+                style="
+                    margin:0;
+                    font-size:22px;
+                    font-weight:600;
+                "
+            >
+                Validação de fábricas
+            </h2>
+
+            <p
+                style="
+                    margin:8px 0 0;
+                    max-width:760px;
+                    opacity:.70;
+                    line-height:1.5;
+                    font-size:13px;
+                "
+            >
+                Cadastros externos permanecem pendentes até validação
+                da direção. Somente fábricas homologadas são liberadas
+                para cálculos definitivos da IA Empresarial.
+            </p>
+        </div>
+
+        <button
+            type="button"
+            onclick="carregarFabricasWorkflow()"
+            style="
+                border:1px solid rgba(255,255,255,.16);
+                background:transparent;
+                color:inherit;
+                padding:10px 14px;
+                border-radius:10px;
+                cursor:pointer;
+            "
+        >
+            Atualizar
+        </button>
+    </div>
+
+    <div
+        style="
+            display:flex;
+            gap:12px;
+            flex-wrap:wrap;
+            margin-bottom:20px;
+        "
+    >
+        <div>
+            <label
+                for="wfResponsavel"
+                style="
+                    display:block;
+                    font-size:11px;
+                    opacity:.65;
+                    margin-bottom:5px;
+                "
+            >
+                Responsável pela decisão
+            </label>
+
+            <input
+                id="wfResponsavel"
+                type="text"
+                value="Cassio"
+                placeholder="Nome do responsável"
+                style="
+                    min-width:230px;
+                    padding:10px 12px;
+                    border-radius:10px;
+                    border:1px solid rgba(255,255,255,.14);
+                    background:rgba(255,255,255,.04);
+                    color:inherit;
+                "
+            >
+        </div>
+
+        <div>
+            <label
+                for="wfFiltroStatus"
+                style="
+                    display:block;
+                    font-size:11px;
+                    opacity:.65;
+                    margin-bottom:5px;
+                "
+            >
+                Filtrar workflow
+            </label>
+
+            <select
+                id="wfFiltroStatus"
+                onchange="renderizarFabricasWorkflow()"
+                style="
+                    min-width:190px;
+                    padding:10px 12px;
+                    border-radius:10px;
+                    border:1px solid rgba(255,255,255,.14);
+                    background:#0d1820;
+                    color:inherit;
+                "
+            >
+                <option value="">Todos</option>
+                <option value="pendente">Pendentes</option>
+                <option value="em_validacao">Em validação</option>
+                <option value="qualificada">Qualificadas</option>
+                <option value="homologada">Homologadas</option>
+                <option value="suspensa">Suspensas</option>
+                <option value="rejeitada">Rejeitadas</option>
+            </select>
+        </div>
+    </div>
+
+    <div
+        id="fabricasWorkflowResumo"
+        style="
+            margin-bottom:14px;
+            font-size:12px;
+            opacity:.70;
+        "
+    >
+        Aguardando carregamento.
+    </div>
+
+    <div
+        id="fabricasWorkflowLista"
+        style="
+            display:grid;
+            gap:14px;
+        "
+    ></div>
+</section>
+
+<script>
+    let fabricasWorkflowCache = [];
+
+    function escaparWF(valor) {
+        return String(
+            valor === null || valor === undefined
+                ? ""
+                : valor
+        )
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function textoWF(valor, fallback = "Não informado") {
+        if (
+            valor === null ||
+            valor === undefined ||
+            String(valor).trim() === ""
+        ) {
+            return fallback;
+        }
+
+        return String(valor);
+    }
+
+    function statusWF(fabrica) {
+        return (
+            fabrica.status_fluxo ||
+            "pendente"
+        );
+    }
+
+    function labelStatusWF(status) {
+        const labels = {
+            pendente: "Pendente",
+            em_validacao: "Em validação",
+            qualificada: "Qualificada",
+            homologada: "Homologada",
+            suspensa: "Suspensa",
+            rejeitada: "Rejeitada"
+        };
+
+        return labels[status] || status;
+    }
+
+    function acoesPermitidasWF(status) {
+
+        const mapa = {
+            pendente: [
+                ["em_validacao", "Validar"],
+                ["rejeitada", "Rejeitar"]
+            ],
+
+            em_validacao: [
+                ["qualificada", "Qualificar"],
+                ["pendente", "Voltar para pendente"],
+                ["rejeitada", "Rejeitar"]
+            ],
+
+            qualificada: [
+                ["homologada", "Homologar"],
+                ["em_validacao", "Reabrir validação"],
+                ["rejeitada", "Rejeitar"]
+            ],
+
+            homologada: [
+                ["suspensa", "Suspender"]
+            ],
+
+            suspensa: [
+                ["em_validacao", "Revalidar"],
+                ["homologada", "Reativar homologação"],
+                ["rejeitada", "Rejeitar"]
+            ],
+
+            rejeitada: [
+                ["pendente", "Reabrir"],
+                ["em_validacao", "Enviar para validação"]
+            ]
+        };
+
+        return mapa[status] || [];
+    }
+
+    async function carregarFabricasWorkflow() {
+
+        if (!adminKeyAtual) {
+            return;
+        }
+
+        const lista =
+            document.getElementById(
+                "fabricasWorkflowLista"
+            );
+
+        const resumo =
+            document.getElementById(
+                "fabricasWorkflowResumo"
+            );
+
+        if (resumo) {
+            resumo.textContent =
+                "Carregando matriz industrial...";
+        }
+
+        try {
+
+            const response = await fetch(
+                "https://maranhao-cordial-api.onrender.com/api/admin/fabricas",
+                {
+                    headers: {
+                        "X-Admin-Key":
+                            adminKeyAtual
+                    }
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error ||
+                    "Não foi possível carregar as fábricas."
+                );
+            }
+
+            fabricasWorkflowCache =
+                data.fabricas || [];
+
+            renderizarFabricasWorkflow();
+
+        } catch (erro) {
+
+            if (resumo) {
+                resumo.textContent =
+                    "Erro ao carregar fábricas.";
+            }
+
+            if (lista) {
+                lista.innerHTML = `
+                    <div
+                        style="
+                            padding:16px;
+                            border:1px solid rgba(255,255,255,.10);
+                            border-radius:12px;
+                        "
+                    >
+                        ${escaparWF(erro.message)}
+                    </div>
+                `;
+            }
+        }
+    }
+
+    function renderizarFabricasWorkflow() {
+
+        const lista =
+            document.getElementById(
+                "fabricasWorkflowLista"
+            );
+
+        const resumo =
+            document.getElementById(
+                "fabricasWorkflowResumo"
+            );
+
+        const filtro =
+            document.getElementById(
+                "wfFiltroStatus"
+            )?.value || "";
+
+        if (!lista || !resumo) {
+            return;
+        }
+
+        let fabricas =
+            fabricasWorkflowCache.slice();
+
+        if (filtro) {
+            fabricas = fabricas.filter(
+                f => statusWF(f) === filtro
+            );
+        }
+
+        const pendentes =
+            fabricasWorkflowCache.filter(
+                f => statusWF(f) === "pendente"
+            ).length;
+
+        const homologadas =
+            fabricasWorkflowCache.filter(
+                f => (
+                    statusWF(f) === "homologada" &&
+                    f.disponivel_calculo_ia === true
+                )
+            ).length;
+
+        resumo.textContent =
+            `${fabricasWorkflowCache.length} fábrica(s) cadastrada(s) · ` +
+            `${pendentes} pendente(s) · ` +
+            `${homologadas} homologada(s) e liberada(s) para IA`;
+
+        if (!fabricas.length) {
+
+            lista.innerHTML = `
+                <div
+                    style="
+                        padding:18px;
+                        border:1px dashed rgba(255,255,255,.14);
+                        border-radius:12px;
+                        opacity:.65;
+                    "
+                >
+                    Nenhuma fábrica encontrada neste filtro.
+                </div>
+            `;
+
+            return;
+        }
+
+        lista.innerHTML =
+            fabricas.map(
+                fabrica =>
+                    cardFabricaWorkflow(fabrica)
+            ).join("");
+    }
+
+    function cardFabricaWorkflow(fabrica) {
+
+        const status =
+            statusWF(fabrica);
+
+        const acoes =
+            acoesPermitidasWF(status);
+
+        const origem =
+            textoWF(
+                fabrica.origem_cadastro,
+                "não informada"
+            );
+
+        const responsavel =
+            textoWF(
+                fabrica.responsavel_dados_nome,
+                "não informado"
+            );
+
+        const empresaResp =
+            textoWF(
+                fabrica.responsavel_dados_empresa,
+                "não informada"
+            );
+
+        const cargoResp =
+            textoWF(
+                fabrica.responsavel_dados_cargo,
+                "não informado"
+            );
+
+        const fonte =
+            textoWF(
+                fabrica.fonte_dados,
+                "não informada"
+            );
+
+        const mapa =
+            textoWF(
+                fabrica.mapa_status,
+                "não informado"
+            );
+
+        const cidadeUf = [
+            fabrica.cidade,
+            fabrica.estado
+        ]
+        .filter(Boolean)
+        .join(" / ") || "Localização não informada";
+
+        const ia =
+            fabrica.disponivel_calculo_ia === true;
+
+        const botoes =
+            acoes.map(([novoStatus, label]) => {
+
+                const destaque =
+                    novoStatus === "homologada";
+
+                return `
+                    <button
+                        type="button"
+                        onclick="alterarWorkflowFabrica(
+                            '${escaparWF(fabrica.id)}',
+                            '${escaparWF(novoStatus)}',
+                            '${escaparWF(fabrica.nome)}'
+                        )"
+                        style="
+                            padding:9px 12px;
+                            border-radius:9px;
+                            cursor:pointer;
+                            border:1px solid ${
+                                destaque
+                                    ? "rgba(255,255,255,.45)"
+                                    : "rgba(255,255,255,.14)"
+                            };
+                            background:${
+                                destaque
+                                    ? "rgba(255,255,255,.12)"
+                                    : "transparent"
+                            };
+                            color:inherit;
+                            font-size:12px;
+                        "
+                    >
+                        ${escaparWF(label)}
+                    </button>
+                `;
+            }).join("");
+
+        return `
+            <article
+                style="
+                    padding:18px;
+                    border:1px solid rgba(255,255,255,.10);
+                    border-radius:14px;
+                    background:rgba(255,255,255,.025);
+                "
+            >
+                <div
+                    style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:14px;
+                        flex-wrap:wrap;
+                        margin-bottom:15px;
+                    "
+                >
+                    <div>
+                        <div
+                            style="
+                                font-size:18px;
+                                font-weight:600;
+                            "
+                        >
+                            ${escaparWF(fabrica.nome)}
+                        </div>
+
+                        <div
+                            style="
+                                margin-top:4px;
+                                font-size:12px;
+                                opacity:.65;
+                            "
+                        >
+                            ${escaparWF(cidadeUf)}
+                            ·
+                            CNPJ:
+                            ${escaparWF(textoWF(fabrica.cnpj))}
+                        </div>
+                    </div>
+
+                    <div
+                        style="
+                            display:flex;
+                            gap:8px;
+                            flex-wrap:wrap;
+                        "
+                    >
+                        <span
+                            style="
+                                padding:6px 9px;
+                                border-radius:999px;
+                                border:1px solid rgba(255,255,255,.14);
+                                font-size:11px;
+                            "
+                        >
+                            ${escaparWF(labelStatusWF(status))}
+                        </span>
+
+                        <span
+                            style="
+                                padding:6px 9px;
+                                border-radius:999px;
+                                border:1px solid rgba(255,255,255,.14);
+                                font-size:11px;
+                            "
+                        >
+                            IA: ${ia ? "LIBERADA" : "BLOQUEADA"}
+                        </span>
+                    </div>
+                </div>
+
+                <div
+                    style="
+                        display:grid;
+                        grid-template-columns:
+                            repeat(auto-fit, minmax(210px, 1fr));
+                        gap:12px;
+                        font-size:12px;
+                        line-height:1.5;
+                    "
+                >
+                    <div>
+                        <strong>Origem</strong><br>
+                        ${escaparWF(origem)}
+                    </div>
+
+                    <div>
+                        <strong>Responsável pelos dados</strong><br>
+                        ${escaparWF(responsavel)}
+                    </div>
+
+                    <div>
+                        <strong>Empresa / organização</strong><br>
+                        ${escaparWF(empresaResp)}
+                    </div>
+
+                    <div>
+                        <strong>Cargo</strong><br>
+                        ${escaparWF(cargoResp)}
+                    </div>
+
+                    <div>
+                        <strong>Fonte</strong><br>
+                        ${escaparWF(fonte)}
+                    </div>
+
+                    <div>
+                        <strong>MAPA</strong><br>
+                        ${escaparWF(mapa)}
+                    </div>
+
+                    <div>
+                        <strong>Status regulatório</strong><br>
+                        ${escaparWF(
+                            textoWF(
+                                fabrica.status_regulatorio
+                            )
+                        )}
+                    </div>
+
+                    <div>
+                        <strong>Lote mínimo</strong><br>
+                        ${
+                            fabrica.lote_minimo_unidades
+                                ? escaparWF(
+                                    fabrica.lote_minimo_unidades
+                                ) + " un."
+                                : (
+                                    fabrica.lote_minimo_litros
+                                        ? escaparWF(
+                                            fabrica.lote_minimo_litros
+                                        ) + " L"
+                                        : "Não informado"
+                                )
+                        }
+                    </div>
+
+                    <div>
+                        <strong>Validado por</strong><br>
+                        ${escaparWF(
+                            textoWF(
+                                fabrica.validado_por,
+                                "Ainda não validada"
+                            )
+                        )}
+                    </div>
+
+                    <div>
+                        <strong>Qualificado por</strong><br>
+                        ${escaparWF(
+                            textoWF(
+                                fabrica.qualificado_por,
+                                "Ainda não qualificada"
+                            )
+                        )}
+                    </div>
+
+                    <div>
+                        <strong>Homologado por</strong><br>
+                        ${escaparWF(
+                            textoWF(
+                                fabrica.homologado_por,
+                                "Ainda não homologada"
+                            )
+                        )}
+                    </div>
+                </div>
+
+                ${
+                    fabrica.observacoes
+                        ? `
+                            <div
+                                style="
+                                    margin-top:14px;
+                                    padding-top:12px;
+                                    border-top:
+                                        1px solid rgba(255,255,255,.08);
+                                    font-size:12px;
+                                    opacity:.75;
+                                "
+                            >
+                                <strong>Observações:</strong>
+                                ${escaparWF(fabrica.observacoes)}
+                            </div>
+                        `
+                        : ""
+                }
+
+                <div
+                    style="
+                        margin-top:16px;
+                        display:flex;
+                        gap:8px;
+                        flex-wrap:wrap;
+                    "
+                >
+                    ${botoes || `
+                        <span
+                            style="
+                                font-size:12px;
+                                opacity:.55;
+                            "
+                        >
+                            Nenhuma ação disponível.
+                        </span>
+                    `}
+                </div>
+            </article>
+        `;
+    }
+
+    async function alterarWorkflowFabrica(
+        fabricaId,
+        novoStatus,
+        nomeFabrica
+    ) {
+
+        if (!adminKeyAtual) {
+            alert(
+                "Acesso administrativo não autenticado."
+            );
+            return;
+        }
+
+        const responsavel =
+            document.getElementById(
+                "wfResponsavel"
+            )?.value?.trim();
+
+        if (!responsavel) {
+            alert(
+                "Informe o responsável pela decisão."
+            );
+            return;
+        }
+
+        if (novoStatus === "homologada") {
+
+            const confirmar = confirm(
+                `Homologar "${nomeFabrica}"?\n\n` +
+                "A fábrica será liberada para cálculos " +
+                "definitivos da IA Empresarial."
+            );
+
+            if (!confirmar) {
+                return;
+            }
+        }
+
+        if (
+            novoStatus === "suspensa" ||
+            novoStatus === "rejeitada"
+        ) {
+
+            const confirmar = confirm(
+                `Confirmar alteração de "${nomeFabrica}" ` +
+                `para ${labelStatusWF(novoStatus)}?`
+            );
+
+            if (!confirmar) {
+                return;
+            }
+        }
+
+        const motivo = prompt(
+            "Motivo / observação da alteração:"
+        );
+
+        if (motivo === null) {
+            return;
+        }
+
+        try {
+
+            const response = await fetch(
+                "https://maranhao-cordial-api.onrender.com" +
+                `/api/admin/fabricas/${fabricaId}/workflow`,
+                {
+                    method: "PATCH",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "X-Admin-Key":
+                            adminKeyAtual
+                    },
+
+                    body: JSON.stringify({
+                        status:
+                            novoStatus,
+
+                        responsavel:
+                            responsavel,
+
+                        motivo:
+                            motivo.trim()
+                    })
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                let detalhe =
+                    data.error ||
+                    "Não foi possível atualizar a fábrica.";
+
+                if (
+                    data.transicoes_permitidas
+                ) {
+                    detalhe +=
+                        "\nPermitidas: " +
+                        data.transicoes_permitidas.join(
+                            ", "
+                        );
+                }
+
+                throw new Error(detalhe);
+            }
+
+            await carregarFabricasWorkflow();
+
+            alert(
+                `Fábrica atualizada para: ` +
+                `${labelStatusWF(data.status_atual)}`
+            );
+
+        } catch (erro) {
+
+            alert(
+                "Erro ao atualizar workflow:\n" +
+                erro.message
+            );
+        }
+    }
+
+    /*
+     * Quando o painel já tiver autenticado,
+     * a função abaixo pode ser chamada livremente.
+     * Também tentamos carregar ao abrir a seção.
+     */
+</script>
+
 </body>
 </html>
