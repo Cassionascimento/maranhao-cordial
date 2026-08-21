@@ -10720,6 +10720,204 @@ def carregar_fabricas_para_ia(limite=50):
 
 
 
+
+# =====================================================
+# REDE PROFISSIONAL — CONTEXTO PARA IA EMPRESARIAL
+# =====================================================
+
+def carregar_profissionais_para_ia(limite=150):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM profissionais_rede
+                    ORDER BY
+                        CASE status_fluxo
+                            WHEN 'ativo' THEN 1
+                            WHEN 'relacionamento' THEN 2
+                            WHEN 'qualificado' THEN 3
+                            WHEN 'em_validacao' THEN 4
+                            WHEN 'mapeado' THEN 5
+                            WHEN 'inativo' THEN 6
+                            WHEN 'rejeitado' THEN 7
+                            ELSE 8
+                        END,
+                        atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                profissionais = cur.fetchall()
+
+        linhas = []
+
+        for profissional in profissionais:
+
+            eventos = profissional.get("eventos") or []
+            areas = profissional.get("areas_atuacao") or []
+
+            interessado = profissional.get("interessado")
+
+            if interessado is True:
+                texto_interessado = "sim"
+            elif interessado is False:
+                texto_interessado = "não"
+            else:
+                texto_interessado = "não verificado"
+
+            linhas.append(
+                (
+                    f"- {profissional['nome']} "
+
+                    f"| Cidade: "
+                    f"{profissional.get('cidade') or 'não informada'} "
+
+                    f"| UF: "
+                    f"{profissional.get('estado') or 'não informada'} "
+
+                    f"| Região: "
+                    f"{profissional.get('regiao') or 'não informada'} "
+
+                    f"| Estabelecimento: "
+                    f"{profissional.get('estabelecimento_nome') or 'não informado'} "
+
+                    f"| Tipo estabelecimento: "
+                    f"{profissional.get('estabelecimento_tipo') or 'não informado'} "
+
+                    f"| Função: "
+                    f"{profissional.get('cargo_funcao') or 'não informada'} "
+
+                    f"| Instagram: "
+                    f"{profissional.get('instagram') or 'não informado'} "
+
+                    f"| WhatsApp: "
+                    f"{profissional.get('whatsapp') or 'não informado'} "
+
+                    f"| Especialidade: "
+                    f"{profissional.get('especialidade') or 'não informada'} "
+
+                    f"| Eventos: "
+                    f"{', '.join(eventos) if eventos else 'não informados'} "
+
+                    f"| Áreas de atuação: "
+                    f"{', '.join(areas) if areas else 'não informadas'} "
+
+                    f"| Workflow: "
+                    f"{profissional.get('status_fluxo') or 'não informado'} "
+
+                    f"| Relacionamento: "
+                    f"{profissional.get('status_relacionamento') or 'não informado'} "
+
+                    f"| Recebeu amostra: "
+                    f"{'sim' if profissional.get('recebeu_amostra') else 'não'} "
+
+                    f"| Degustou: "
+                    f"{'sim' if profissional.get('degustou') else 'não'} "
+
+                    f"| Feedback: "
+                    f"{'sim' if profissional.get('feedback_recebido') else 'não'} "
+
+                    f"| Interessado: "
+                    f"{texto_interessado} "
+
+                    f"| Oportunidade gerada: "
+                    f"{'sim' if profissional.get('oportunidade_gerada') else 'não'} "
+
+                    f"| Relevância: "
+                    f"{profissional.get('relevancia') or 'não classificada'} "
+
+                    f"| Disponível IA: "
+                    f"{'sim' if profissional.get('disponivel_ia') else 'não'} "
+
+                    f"| Responsável pelos dados: "
+                    f"{profissional.get('responsavel_dados_nome') or 'não informado'} "
+
+                    f"| Empresa responsável: "
+                    f"{profissional.get('responsavel_dados_empresa') or 'não informada'} "
+
+                    f"| Fonte: "
+                    f"{profissional.get('fonte_dados') or 'não informada'} "
+
+                    f"| Validado por: "
+                    f"{profissional.get('validado_por') or 'não validado'} "
+
+                    f"| Qualificado por: "
+                    f"{profissional.get('qualificado_por') or 'não qualificado'} "
+
+                    f"| Ativado por: "
+                    f"{profissional.get('ativo_por') or 'não ativo'} "
+
+                    f"| Observações: "
+                    f"{profissional.get('observacoes') or 'sem observações'}"
+                )
+            )
+
+        contexto = ""
+
+        if linhas:
+            contexto = (
+                "\n\n"
+                "REDE PROFISSIONAL — BARTENDERS E MIXOLOGISTAS\n"
+
+                "REGRAS DE GOVERNANÇA DA REDE PROFISSIONAL:\n"
+
+                "- 'mapeado' é apenas um contato identificado; "
+                "não equivale a profissional validado.\n"
+
+                "- 'em_validacao' está em conferência e não deve "
+                "ser tratado como recomendação definitiva.\n"
+
+                "- 'qualificado' representa profissional já "
+                "validado como relevante para a rede.\n"
+
+                "- 'relacionamento' representa vínculo ativo "
+                "em desenvolvimento com a Maranhão Cordial.\n"
+
+                "- 'ativo' representa integrante atual da rede "
+                "e pode ser priorizado quando pertinente.\n"
+
+                "- 'inativo' pode ser considerado apenas como "
+                "histórico, não como prioridade atual.\n"
+
+                "- 'rejeitado' não deve ser recomendado.\n"
+
+                "- Nunca transforme informação fornecida por "
+                "terceiro em informação validada pela direção.\n"
+
+                "- Antes de recomendar envio de produto, confira "
+                "se recebeu_amostra já é verdadeiro.\n"
+
+                "- Não invente influência, reputação, alcance ou "
+                "poder comercial não registrados no sistema.\n"
+
+                "- Diferencie identificação, qualificação, "
+                "relacionamento e participação ativa.\n"
+
+                "- Quando relevante, informe a fonte e o "
+                "responsável original pelos dados.\n"
+
+                + "\n".join(linhas)
+                + "\n"
+            )
+
+        return {
+            "profissionais": profissionais,
+            "contexto": contexto
+        }
+
+    finally:
+        conn.close()
+
+
+
 @app.route(
     "/api/admin/contatos-estrategicos",
     methods=["GET"]
@@ -12104,6 +12302,15 @@ def ia_empresarial():
             or ""
         )
 
+        profissionais_ia = (
+            carregar_profissionais_para_ia()
+        )
+
+        contexto_profissionais = (
+            profissionais_ia["contexto"]
+            or ""
+        )
+
         cenarios_fiscais_ia = (
             carregar_cenarios_fiscais_para_ia()
         )
@@ -12223,6 +12430,7 @@ def ia_empresarial():
                 + contexto_acoes
                 + contexto_crm
                 + contexto_fabricas
+                + contexto_profissionais
                 + contexto_fiscal
                 + contexto_logistica
                 + contexto_contatos
@@ -12342,6 +12550,7 @@ def ia_empresarial():
                     + contexto_acoes
                     + contexto_crm
                     + contexto_fabricas
+                    + contexto_profissionais
                     + contexto_fiscal
                     + contexto_logistica
                     + contexto_contatos
