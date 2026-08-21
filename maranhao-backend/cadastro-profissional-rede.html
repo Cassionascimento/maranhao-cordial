@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Rede Profissional | Maranhão Cordial
+    </title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #081016;
+            color: #f3efe7;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        .page {
+            width: min(
+                900px,
+                calc(100% - 28px)
+            );
+
+            margin: 0 auto;
+
+            padding:
+                36px 0 70px;
+        }
+
+        .eyebrow {
+            font-size: 11px;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            opacity: .55;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            margin: 0;
+
+            font-size:
+                clamp(
+                    27px,
+                    5vw,
+                    42px
+                );
+
+            font-weight: 500;
+            letter-spacing: -.03em;
+        }
+
+        .intro {
+            max-width: 720px;
+            margin: 12px 0 0;
+
+            color:
+                rgba(
+                    243,
+                    239,
+                    231,
+                    .66
+                );
+
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .notice {
+            margin: 22px 0;
+
+            padding:
+                15px 17px;
+
+            border:
+                1px solid
+                rgba(
+                    243,
+                    239,
+                    231,
+                    .12
+                );
+
+            border-radius: 13px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    .025
+                );
+
+            font-size: 13px;
+            line-height: 1.55;
+
+            color:
+                rgba(
+                    243,
+                    239,
+                    231,
+                    .73
+                );
+        }
+
+        .section {
+            margin-top: 18px;
+
+            padding: 22px;
+
+            border:
+                1px solid
+                rgba(
+                    243,
+                    239,
+                    231,
+                    .10
+                );
+
+            border-radius: 16px;
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    .018
+                );
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 17px;
+        }
+
+        .grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(
+                    2,
+                    minmax(0, 1fr)
+                );
+
+            gap: 14px;
+        }
+
+        .full {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+
+            font-size: 11px;
+            opacity: .65;
+
+            margin-bottom: 6px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+
+            border-radius: 10px;
+
+            border:
+                1px solid
+                rgba(
+                    243,
+                    239,
+                    231,
+                    .13
+                );
+
+            background: #0d171e;
+            color: #f3efe7;
+
+            padding:
+                11px 12px;
+
+            outline: none;
+
+            font-size: 14px;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color:
+                rgba(
+                    243,
+                    239,
+                    231,
+                    .40
+                );
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        button {
+            width: 100%;
+
+            margin-top: 22px;
+
+            padding:
+                14px 18px;
+
+            border:
+                1px solid
+                rgba(
+                    243,
+                    239,
+                    231,
+                    .28
+                );
+
+            border-radius: 12px;
+
+            background: #f3efe7;
+            color: #081016;
+
+            font-weight: 700;
+            font-size: 13px;
+
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: .45;
+            cursor: wait;
+        }
+
+        #resultado {
+            display: none;
+
+            margin-top: 16px;
+
+            padding: 15px;
+
+            border-radius: 12px;
+
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        #resultado.ok {
+            display: block;
+
+            border:
+                1px solid
+                rgba(
+                    130,
+                    220,
+                    160,
+                    .35
+                );
+
+            background:
+                rgba(
+                    70,
+                    150,
+                    100,
+                    .08
+                );
+        }
+
+        #resultado.erro {
+            display: block;
+
+            border:
+                1px solid
+                rgba(
+                    240,
+                    120,
+                    120,
+                    .35
+                );
+
+            background:
+                rgba(
+                    170,
+                    50,
+                    50,
+                    .08
+                );
+        }
+
+        .hint {
+            font-size: 10px;
+            opacity: .48;
+
+            margin-top: 5px;
+
+            line-height: 1.4;
+        }
+
+        @media(
+            max-width: 650px
+        ) {
+            .grid {
+                grid-template-columns:
+                    1fr;
+            }
+
+            .section {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="page">
+
+    <header>
+        <div class="eyebrow">
+            Maranhão Cordial · Rede Profissional
+        </div>
+
+        <h1>
+            Cadastro de bartender
+            ou mixologista
+        </h1>
+
+        <p class="intro">
+            Área destinada ao mapeamento da rede
+            profissional da Maranhão Cordial.
+            Os dados enviados passam por validação
+            interna antes de serem utilizados em
+            recomendações estratégicas da IA Empresarial.
+        </p>
+    </header>
+
+    <div class="notice">
+        <strong>Importante:</strong>
+
+        cadastrar um profissional não significa
+        qualificá-lo ou torná-lo integrante ativo
+        da rede.
+
+        Todo cadastro externo entra inicialmente
+        como <strong>mapeado</strong> e passa
+        posteriormente pela validação da direção.
+    </div>
+
+    <form id="formProfissional">
+
+        <section class="section">
+
+            <div class="section-title">
+                Acesso do colaborador
+            </div>
+
+            <div class="grid">
+
+                <div class="full">
+
+                    <label>
+                        Código de acesso *
+                    </label>
+
+                    <input
+                        id="codigoAcesso"
+                        type="password"
+                        autocomplete="off"
+                        required
+                        placeholder="Código fornecido pela Maranhão Cordial"
+                    >
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <section class="section">
+
+            <div class="section-title">
+                1. Identificação profissional
+            </div>
+
+            <div class="grid">
+
+                <div>
+                    <label>
+                        Nome completo *
+                    </label>
+
+                    <input
+                        name="nome"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>
+                        Nome profissional
+                    </label>
+
+                    <input
+                        name="nome_profissional"
+                        placeholder="Como é conhecido profissionalmente"
+                    >
+                </div>
+
+                <div>
+                    <label>
+                        Cidade
+                    </label>
+
+                    <input
+                        name="cidade"
+                    >
+                </div>
+
+                <div>
+                    <label>
+                        UF
+                    </label>
+
+                    <input
+                        name="estado"
+                        maxlength="2"
+                        placeholder="SP"
+                    >
+                </div>
+
+                <div>
+                    <label>
+                        Região
+                    </label>
+
+                    <select
+                        name="regiao"
+                    >
+                        <option value="">
+                            Não informada
+                        </option>
+
+                        <option>
+                            Norte
+                        </option>
+
+                        <option>
+                            Nordeste
+                        </option>
+
+                        <option>
+                            Centro-Oeste
+                        </option>
+
+                        <option>
+                            Sudeste
+                        </option>
+
+                        <option>
+                            Sul
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>
+                        Especialidade
+                    </label>
+
+                    <input
+                        name="especialidade"
+                        placeholder="Mixologia, coquetelaria autoral..."
+                    >
+                </div>
+
+                <div>
+                    <label>
+                        Experiência — anos
+                    </label>
+
+                    <input
+                        name="experiencia_anos"
+                        type="number"
+                        min="0"
+                        step="0.5"
+                    >
+                </div>
+
+            </div>
+
+        </section>
+
+        <section class="section">
+
+            <div class="section-title">
+                2. Estabelecimento atual
+            </div>
+
+            <div class="grid">
+
+                <div>
+                    <label>
+                        Nome do estabelecimento
+                    </label>
+
+                    <input
+                        name="estabelecimento_nome"
+                        placeholder="Hotel, bar, restaurante..."
+                    >
+                </div>
+
+                <div>
+                    <label>
+                        Tipo
+                    </label>
+
+                    <select
+                        name="estabelecimento_tipo"
+                    >
+                        <option value="">
+                            Não informado
+                        </option>
+
+                        <option value="bar">
+                            Bar
+                        </option>
+
+                        <option value="restaurante">
+                            Restaurante
+                        </option>
+
+                        <option value="hotel">
+                            Hotel
+                        </option>
+
+                        <option value="resort">
+                            Resort
+                        </option>
+
+                        <option value="grupo_hoteleiro">
+                            Grupo hoteleiro
+                        </option>
+
+                        <option value="consultoria">
+                            Consultoria
+                        </option>
+
+                        <option value="autonomo">
+                            Autônomo
+                        </option>
+
+                        <option value="outro">
+                            Outro
+                        </option>
+                    </select>
+                </div>
+
+                <div class="full">
+                    <label>
+                        Cargo / função
+                    </label>
+
+                    <input
+                        name="cargo_funcao"
+                        placeholder="Bartender, head bartender, mixologista, consultor..."
+                    >
+                </div>
+
+            </div>
+
+        </section>
+
+        <section class="section">
+
+            <div class="section-title">
+                3. Contatos
+            </div>
+
+            <div class="grid">
+
+                <div>
+                    <label>
+                        Instagram
+                    </label>
+
+                    <input
+                        name="instagram"
+                        placeholder="@perfil"
+                    >
+
+                    <div class="hint">
+                        O Instagram é utilizado como
+                        um dos identificadores para
+                        evitar cadastro duplicado.
+                    </div>
+                </div>
+
+                <div>
+                    <label>
+                        WhatsApp
+                    </label>
+
+                    <input
+                        name="whatsapp"
+                    >
+                </div>
+
+                <div class="full">
+                    <label>
+                        E-mail
+                    </label>
+
+                    <input
+                        name="email"
+                        type="email"
+                    >
+                </div>
+
+            </div>
+
+        </section>
+
+        <section class="section">
+
+            <div class="section-title">
+                4. Atuação profissional
+            </div>
+
+            <div class="grid">
+
+                <div class="full">
+
+                    <label>
+                        Eventos relacionados
+                    </label>
+
+                    <input
+                        id="eventos"
+                        placeholder="Ilha Drinks, concursos, festivais..."
+                    >
+
+                    <div class="hint">
+                        Separe vários itens por vírgula.
+                    </div>
+
+                </div>
+
+                <div class="full">
+
+                    <label>
+                        Áreas de atuação
+                    </label>
+
+                    <input
+                        id="areasAtuacao"
+                        placeholder="hotelaria, bares, eventos, consultoria..."
+                    >
+
+                    <div class="hint">
+                        Separe vários itens por vírgula.
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <section class="section">
+
+            <div class="section-title">
+                5. Responsável pelo levantamento
+            </div>
+
+            <div class="notice"
+                 style="margin-top:0">
+
+                Estes dados identificam quem
+                forneceu ou levantou as informações.
+
+                Eles permanecem associados ao cadastro
+                para preservar a rastreabilidade
+                da rede profissional.
+
+            </div>
+
+            <div class="grid">
+
+                <div>
+                    <label>
+                        Nome completo *
+                    </label>
+
+                    <input
+                        name="responsavel_dados_nome"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>
+                        Empresa / organização *
+                    </label>
+
+                    <input
+                        name="responsavel_dados_empresa"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>
+                        Cargo / função *
+                    </label>
+
+                    <input
+                        name="responsavel_dados_cargo"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>
+                        WhatsApp *
+                    </label>
+
+                    <input
+                        name="responsavel_dados_whatsapp"
+                        required
+                    >
+                </div>
+
+                <div class="full">
+                    <label>
+                        E-mail *
+                    </label>
+
+                    <input
+                        name="responsavel_dados_email"
+                        type="email"
+                        required
+                    >
+                </div>
+
+                <div class="full">
+                    <label>
+                        Fonte dos dados *
+                    </label>
+
+                    <input
+                        name="fonte_dados"
+                        required
+                        placeholder="Contato direto, indicação, evento, Instagram..."
+                    >
+                </div>
+
+                <div class="full">
+                    <label>
+                        Observações
+                    </label>
+
+                    <textarea
+                        name="observacoes"
+                        placeholder="Registre contexto, relacionamento conhecido, indicações ou informações ainda não verificadas."
+                    ></textarea>
+                </div>
+
+            </div>
+
+        </section>
+
+        <button
+            id="btnEnviar"
+            type="submit"
+        >
+            ENVIAR PARA VALIDAÇÃO
+        </button>
+
+        <div
+            id="resultado"
+        ></div>
+
+    </form>
+
+</div>
+
+<script>
+
+    function valorOuNull(valor) {
+
+        const texto =
+            String(
+                valor || ""
+            ).trim();
+
+        return texto
+            ? texto
+            : null;
+    }
+
+    function numeroOuNull(valor) {
+
+        const texto =
+            String(
+                valor || ""
+            ).trim();
+
+        if (!texto) {
+            return null;
+        }
+
+        const numero =
+            Number(texto);
+
+        return Number.isFinite(numero)
+            ? numero
+            : null;
+    }
+
+    function lista(valor) {
+
+        return String(
+            valor || ""
+        )
+        .split(",")
+        .map(
+            item =>
+                item.trim()
+        )
+        .filter(Boolean);
+    }
+
+    document
+        .getElementById(
+            "formProfissional"
+        )
+        .addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+                const botao =
+                    document.getElementById(
+                        "btnEnviar"
+                    );
+
+                const resultado =
+                    document.getElementById(
+                        "resultado"
+                    );
+
+                const codigo =
+                    document.getElementById(
+                        "codigoAcesso"
+                    ).value.trim();
+
+                if (!codigo) {
+
+                    alert(
+                        "Informe o código de acesso."
+                    );
+
+                    return;
+                }
+
+                const formData =
+                    new FormData(
+                        event.target
+                    );
+
+                const dados = {};
+
+                for (
+                    const [campo, valor]
+                    of formData.entries()
+                ) {
+
+                    dados[campo] =
+                        valorOuNull(
+                            valor
+                        );
+                }
+
+                dados.experiencia_anos =
+                    numeroOuNull(
+                        formData.get(
+                            "experiencia_anos"
+                        )
+                    );
+
+                dados.eventos =
+                    lista(
+                        document.getElementById(
+                            "eventos"
+                        ).value
+                    );
+
+                dados.areas_atuacao =
+                    lista(
+                        document.getElementById(
+                            "areasAtuacao"
+                        ).value
+                    );
+
+                botao.disabled = true;
+
+                botao.textContent =
+                    "ENVIANDO...";
+
+                resultado.className = "";
+                resultado.style.display =
+                    "none";
+
+                try {
+
+                    const response =
+                        await fetch(
+                            "/api/parceiros/profissionais/cadastro",
+                            {
+                                method:
+                                    "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json",
+
+                                    "X-Cadastro-Key":
+                                        codigo
+                                },
+
+                                body:
+                                    JSON.stringify(
+                                        dados
+                                    )
+                            }
+                        );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            data.error ||
+                            "Não foi possível cadastrar o profissional."
+                        );
+                    }
+
+                    resultado.className =
+                        "ok";
+
+                    resultado.style.display =
+                        "block";
+
+                    resultado.innerHTML =
+                        "<strong>Cadastro recebido.</strong><br>" +
+                        "Status: MAPEADO.<br>" +
+                        "O profissional será analisado pela direção " +
+                        "antes de qualquer qualificação ou ativação.";
+
+                    const preservar = {
+
+                        responsavel_dados_nome:
+                            formData.get(
+                                "responsavel_dados_nome"
+                            ),
+
+                        responsavel_dados_empresa:
+                            formData.get(
+                                "responsavel_dados_empresa"
+                            ),
+
+                        responsavel_dados_cargo:
+                            formData.get(
+                                "responsavel_dados_cargo"
+                            ),
+
+                        responsavel_dados_email:
+                            formData.get(
+                                "responsavel_dados_email"
+                            ),
+
+                        responsavel_dados_whatsapp:
+                            formData.get(
+                                "responsavel_dados_whatsapp"
+                            )
+                    };
+
+                    event.target.reset();
+
+                    for (
+                        const [campo, valor]
+                        of Object.entries(
+                            preservar
+                        )
+                    ) {
+
+                        const elemento =
+                            event.target.elements[
+                                campo
+                            ];
+
+                        if (elemento) {
+
+                            elemento.value =
+                                valor || "";
+                        }
+                    }
+
+                } catch (erro) {
+
+                    resultado.className =
+                        "erro";
+
+                    resultado.style.display =
+                        "block";
+
+                    resultado.textContent =
+                        erro.message;
+
+                } finally {
+
+                    botao.disabled =
+                        false;
+
+                    botao.textContent =
+                        "ENVIAR PARA VALIDAÇÃO";
+                }
+            }
+        );
+
+</script>
+
+</body>
+</html>

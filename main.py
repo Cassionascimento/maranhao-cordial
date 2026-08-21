@@ -2617,6 +2617,14 @@ def cadastro_fabrica():
     )
 
 
+@app.route("/cadastro-profissional-rede")
+@app.route("/cadastro-profissional-rede.html")
+def cadastro_profissional_rede():
+    return renderizar_html(
+        "cadastro-profissional-rede.html"
+    )
+
+
 @app.route("/experience")
 def experience():
     return renderizar_html("experience.html")
