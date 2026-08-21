@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Cadastro Industrial | Maranhão Cordial</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #081016;
+            color: #f3efe7;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        .page {
+            width: min(920px, calc(100% - 28px));
+            margin: 0 auto;
+            padding: 36px 0 70px;
+        }
+
+        .top {
+            margin-bottom: 28px;
+        }
+
+        .eyebrow {
+            font-size: 11px;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            opacity: .55;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(27px, 5vw, 42px);
+            font-weight: 500;
+            letter-spacing: -.03em;
+        }
+
+        .intro {
+            max-width: 700px;
+            margin: 12px 0 0;
+            color: rgba(243,239,231,.66);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .notice {
+            margin: 22px 0;
+            padding: 15px 17px;
+            border: 1px solid rgba(243,239,231,.12);
+            border-radius: 13px;
+            background: rgba(255,255,255,.025);
+            font-size: 13px;
+            line-height: 1.55;
+            color: rgba(243,239,231,.73);
+        }
+
+        .section {
+            margin-top: 18px;
+            padding: 22px;
+            border: 1px solid rgba(243,239,231,.10);
+            border-radius: 16px;
+            background: rgba(255,255,255,.018);
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 17px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .full {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            opacity: .65;
+            margin-bottom: 6px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid rgba(243,239,231,.13);
+            background: #0d171e;
+            color: #f3efe7;
+            padding: 11px 12px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: rgba(243,239,231,.40);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 95px;
+        }
+
+        .check-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid rgba(243,239,231,.09);
+            border-radius: 10px;
+        }
+
+        .check-row span {
+            font-size: 12px;
+        }
+
+        .check-row select {
+            width: 120px;
+            padding: 7px 8px;
+            font-size: 12px;
+        }
+
+        .submit-area {
+            margin-top: 22px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px 18px;
+            border: 1px solid rgba(243,239,231,.28);
+            border-radius: 12px;
+            background: #f3efe7;
+            color: #081016;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        button:disabled {
+            opacity: .45;
+            cursor: wait;
+        }
+
+        #resultado {
+            display: none;
+            margin-top: 16px;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        #resultado.ok {
+            display: block;
+            border: 1px solid rgba(130,220,160,.35);
+            background: rgba(70,150,100,.08);
+        }
+
+        #resultado.erro {
+            display: block;
+            border: 1px solid rgba(240,120,120,.35);
+            background: rgba(170,50,50,.08);
+        }
+
+        .required {
+            opacity: .55;
+        }
+
+        @media(max-width: 650px) {
+            .grid,
+            .check-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="page">
+
+    <div class="top">
+        <div class="eyebrow">
+            Maranhão Cordial · Rede Industrial
+        </div>
+
+        <h1>
+            Cadastro de fábrica
+        </h1>
+
+        <p class="intro">
+            Este formulário é destinado a parceiros e colaboradores
+            responsáveis pelo mapeamento industrial da Maranhão Cordial.
+            Os dados enviados passam por validação interna antes de
+            integrarem decisões operacionais ou cálculos da IA Empresarial.
+        </p>
+    </div>
+
+    <div class="notice">
+        <strong>Importante:</strong>
+        o envio deste formulário não representa homologação,
+        contratação ou aprovação da fábrica. Todo cadastro externo
+        entra inicialmente com status <strong>pendente</strong>.
+    </div>
+
+    <form id="formFabrica">
+
+        <section class="section">
+            <div class="section-title">
+                Acesso do colaborador
+            </div>
+
+            <div class="grid">
+                <div class="full">
+                    <label>
+                        Código de acesso *
+                    </label>
+
+                    <input
+                        id="codigoAcesso"
+                        type="password"
+                        autocomplete="off"
+                        required
+                        placeholder="Código fornecido pela Maranhão Cordial"
+                    >
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                1. Identificação da indústria
+            </div>
+
+            <div class="grid">
+
+                <div>
+                    <label>Nome da fábrica *</label>
+                    <input name="nome" required>
+                </div>
+
+                <div>
+                    <label>Razão social</label>
+                    <input name="razao_social">
+                </div>
+
+                <div>
+                    <label>CNPJ</label>
+                    <input name="cnpj">
+                </div>
+
+                <div>
+                    <label>Site</label>
+                    <input name="site">
+                </div>
+
+                <div>
+                    <label>Cidade</label>
+                    <input name="cidade">
+                </div>
+
+                <div>
+                    <label>UF *</label>
+                    <input
+                        name="estado"
+                        maxlength="2"
+                        placeholder="SP"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Região</label>
+                    <select name="regiao">
+                        <option value="">Não informado</option>
+                        <option>Norte</option>
+                        <option>Nordeste</option>
+                        <option>Centro-Oeste</option>
+                        <option>Sudeste</option>
+                        <option>Sul</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>CEP</label>
+                    <input name="cep">
+                </div>
+
+                <div class="full">
+                    <label>Endereço operacional</label>
+                    <input name="endereco_operacional">
+                </div>
+
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                2. Contato na fábrica
+            </div>
+
+            <div class="grid">
+
+                <div>
+                    <label>Responsável comercial/técnico</label>
+                    <input name="contato_nome">
+                </div>
+
+                <div>
+                    <label>WhatsApp / telefone</label>
+                    <input name="contato_whatsapp">
+                </div>
+
+                <div class="full">
+                    <label>E-mail</label>
+                    <input
+                        name="contato_email"
+                        type="email"
+                    >
+                </div>
+
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                3. Produção e capacidade
+            </div>
+
+            <div class="grid">
+
+                <div>
+                    <label>Lote mínimo — unidades</label>
+                    <input
+                        name="lote_minimo_unidades"
+                        type="number"
+                        min="0"
+                    >
+                </div>
+
+                <div>
+                    <label>Lote mínimo — litros</label>
+                    <input
+                        name="lote_minimo_litros"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                    >
+                </div>
+
+                <div>
+                    <label>Capacidade máxima — unidades</label>
+                    <input
+                        name="capacidade_maxima_unidades"
+                        type="number"
+                        min="0"
+                    >
+                </div>
+
+                <div>
+                    <label>Capacidade máxima — litros</label>
+                    <input
+                        name="capacidade_maxima_litros"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                    >
+                </div>
+
+                <div>
+                    <label>Prazo de produção — dias</label>
+                    <input
+                        name="prazo_producao_dias"
+                        type="number"
+                        min="0"
+                    >
+                </div>
+
+                <div>
+                    <label>Custo estimado por unidade — R$</label>
+                    <input
+                        id="custoUnitarioReais"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                    >
+                </div>
+
+                <div>
+                    <label>Custo estimado por litro — R$</label>
+                    <input
+                        id="custoLitroReais"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                    >
+                </div>
+
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                4. Processo e embalagem
+            </div>
+
+            <div class="check-grid">
+
+                <div class="check-row">
+                    <span>Envasa vidro?</span>
+                    <select name="embalagem_vidro">
+                        <option value="">Não verificado</option>
+                        <option value="true">Sim</option>
+                        <option value="false">Não</option>
+                    </select>
+                </div>
+
+                <div class="check-row">
+                    <span>Envasa PET?</span>
+                    <select name="embalagem_pet">
+                        <option value="">Não verificado</option>
+                        <option value="true">Sim</option>
+                        <option value="false">Não</option>
+                    </select>
+                </div>
+
+                <div class="check-row">
+                    <span>Envase 200 mL?</span>
+                    <select name="envase_200ml">
+                        <option value="">Não verificado</option>
+                        <option value="true">Sim</option>
+                        <option value="false">Não</option>
+                    </select>
+                </div>
+
+                <div class="check-row">
+                    <span>Realiza rotulagem?</span>
+                    <select name="rotulagem">
+                        <option value="">Não verificado</option>
+                        <option value="true">Sim</option>
+                        <option value="false">Não</option>
+                    </select>
+                </div>
+
+                <div class="check-row">
+                    <span>Possui RT?</span>
+                    <select name="responsabilidade_tecnica">
+                        <option value="">Não verificado</option>
+                        <option value="true">Sim</option>
+                        <option value="false">Não</option>
+                    </select>
+                </div>
+
+                <div class="check-row">
+                    <span>Realiza análises laboratoriais?</span>
+                    <select name="analises_laboratoriais">
+                        <option value="">Não verificado</option>
+                        <option value="true">Sim</option>
+                        <option value="false">Não</option>
+                    </select>
+                </div>
+
+                <div class="check-row">
+                    <span>Trabalha com copack / private label?</span>
+                    <select name="pode_copack">
+                        <option value="">Não verificado</option>
+                        <option value="true">Sim</option>
+                        <option value="false">Não</option>
+                    </select>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                5. Regulatório e cobertura
+            </div>
+
+            <div class="grid">
+
+                <div>
+                    <label>Situação MAPA informada</label>
+                    <input
+                        name="mapa_status"
+                        placeholder="Ex.: registrado / em análise / desconhecido"
+                    >
+                </div>
+
+                <div>
+                    <label>NCM informado pela fábrica</label>
+                    <input name="ncm_informado">
+                </div>
+
+                <div class="full">
+                    <label>
+                        UFs atendidas
+                        <span class="required">
+                            — separar por vírgula
+                        </span>
+                    </label>
+
+                    <input
+                        id="ufsAtendidas"
+                        placeholder="SP, RJ, MG, PE"
+                    >
+                </div>
+
+                <div class="full">
+                    <label>
+                        Segmentos atendidos
+                        <span class="required">
+                            — separar por vírgula
+                        </span>
+                    </label>
+
+                    <input
+                        id="segmentosAtendidos"
+                        placeholder="xaropes, bebidas, concentrados"
+                    >
+                </div>
+
+                <div class="full">
+                    <label>
+                        Modalidades logísticas
+                        <span class="required">
+                            — separar por vírgula
+                        </span>
+                    </label>
+
+                    <input
+                        id="modalidadesLogisticas"
+                        placeholder="FOB, CIF, retirada"
+                    >
+                </div>
+
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                6. Responsável pelos dados
+            </div>
+
+            <div class="notice" style="margin-top:0">
+                Estes dados identificam quem realizou ou forneceu
+                o levantamento. Eles permanecerão associados ao cadastro
+                para rastreabilidade futura.
+            </div>
+
+            <div class="grid">
+
+                <div>
+                    <label>Nome completo *</label>
+                    <input
+                        name="responsavel_dados_nome"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Empresa / organização *</label>
+                    <input
+                        name="responsavel_dados_empresa"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>Cargo / função *</label>
+                    <input
+                        name="responsavel_dados_cargo"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label>WhatsApp *</label>
+                    <input
+                        name="responsavel_dados_whatsapp"
+                        required
+                    >
+                </div>
+
+                <div class="full">
+                    <label>E-mail *</label>
+                    <input
+                        name="responsavel_dados_email"
+                        type="email"
+                        required
+                    >
+                </div>
+
+                <div class="full">
+                    <label>Fonte dos dados *</label>
+                    <input
+                        name="fonte_dados"
+                        required
+                        placeholder="Ex.: contato direto com proprietário, site institucional, associação..."
+                    >
+                </div>
+
+                <div class="full">
+                    <label>Observações</label>
+                    <textarea
+                        name="observacoes"
+                        placeholder="Registre limitações, dúvidas, condições comerciais ou informações que ainda precisam ser confirmadas."
+                    ></textarea>
+                </div>
+
+            </div>
+        </section>
+
+        <div class="submit-area">
+
+            <button
+                id="btnEnviar"
+                type="submit"
+            >
+                ENVIAR PARA VALIDAÇÃO
+            </button>
+
+            <div id="resultado"></div>
+
+        </div>
+
+    </form>
+
+</div>
+
+<script>
+    function valorOuNull(v) {
+        const texto = String(v || "").trim();
+        return texto === "" ? null : texto;
+    }
+
+    function numeroOuNull(v) {
+        const texto = String(v || "").trim();
+
+        if (!texto) {
+            return null;
+        }
+
+        const numero = Number(texto);
+
+        return Number.isFinite(numero)
+            ? numero
+            : null;
+    }
+
+    function booleanoOuNull(v) {
+        if (v === "true") return true;
+        if (v === "false") return false;
+        return null;
+    }
+
+    function lista(v) {
+        return String(v || "")
+            .split(",")
+            .map(item => item.trim())
+            .filter(Boolean);
+    }
+
+    function reaisParaCentavos(id) {
+        const valor =
+            numeroOuNull(
+                document.getElementById(id).value
+            );
+
+        if (valor === null) {
+            return null;
+        }
+
+        return Math.round(valor * 100);
+    }
+
+    document
+        .getElementById("formFabrica")
+        .addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+                const botao =
+                    document.getElementById(
+                        "btnEnviar"
+                    );
+
+                const resultado =
+                    document.getElementById(
+                        "resultado"
+                    );
+
+                const codigo =
+                    document.getElementById(
+                        "codigoAcesso"
+                    ).value.trim();
+
+                if (!codigo) {
+                    alert(
+                        "Informe o código de acesso."
+                    );
+                    return;
+                }
+
+                const formData =
+                    new FormData(event.target);
+
+                const dados = {};
+
+                for (
+                    const [chave, valor]
+                    of formData.entries()
+                ) {
+                    dados[chave] =
+                        valorOuNull(valor);
+                }
+
+                [
+                    "lote_minimo_unidades",
+                    "lote_minimo_litros",
+                    "capacidade_maxima_unidades",
+                    "capacidade_maxima_litros",
+                    "prazo_producao_dias"
+                ].forEach(campo => {
+                    dados[campo] =
+                        numeroOuNull(
+                            formData.get(campo)
+                        );
+                });
+
+                [
+                    "embalagem_vidro",
+                    "embalagem_pet",
+                    "envase_200ml",
+                    "rotulagem",
+                    "responsabilidade_tecnica",
+                    "analises_laboratoriais",
+                    "pode_copack"
+                ].forEach(campo => {
+                    dados[campo] =
+                        booleanoOuNull(
+                            formData.get(campo)
+                        );
+                });
+
+                dados.custo_unitario_centavos =
+                    reaisParaCentavos(
+                        "custoUnitarioReais"
+                    );
+
+                dados.custo_litro_centavos =
+                    reaisParaCentavos(
+                        "custoLitroReais"
+                    );
+
+                dados.ufs_atendidas =
+                    lista(
+                        document.getElementById(
+                            "ufsAtendidas"
+                        ).value
+                    );
+
+                dados.segmentos_atendidos =
+                    lista(
+                        document.getElementById(
+                            "segmentosAtendidos"
+                        ).value
+                    );
+
+                dados.modalidades_logisticas =
+                    lista(
+                        document.getElementById(
+                            "modalidadesLogisticas"
+                        ).value
+                    );
+
+                // Código não faz parte dos dados empresariais.
+                delete dados.codigoAcesso;
+
+                botao.disabled = true;
+                botao.textContent =
+                    "ENVIANDO...";
+
+                resultado.className = "";
+                resultado.style.display = "none";
+
+                try {
+
+                    const response =
+                        await fetch(
+                            "/api/parceiros/fabricas/cadastro",
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json",
+
+                                    "X-Cadastro-Key":
+                                        codigo
+                                },
+
+                                body:
+                                    JSON.stringify(dados)
+                            }
+                        );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+
+                        let mensagem =
+                            data.error ||
+                            "Não foi possível enviar o cadastro.";
+
+                        if (
+                            Array.isArray(
+                                data.errors
+                            )
+                        ) {
+                            mensagem =
+                                data.errors.join(" ");
+                        }
+
+                        throw new Error(
+                            mensagem
+                        );
+                    }
+
+                    resultado.className = "ok";
+                    resultado.style.display =
+                        "block";
+
+                    resultado.innerHTML =
+                        "<strong>Cadastro recebido.</strong><br>" +
+                        "Status: PENDENTE.<br>" +
+                        "A direção da Maranhão Cordial fará " +
+                        "a validação antes de qualquer homologação.";
+
+                    // Preserva os dados do responsável
+                    // para facilitar cadastros consecutivos.
+                    const preservar = {
+                        responsavel_dados_nome:
+                            formData.get(
+                                "responsavel_dados_nome"
+                            ),
+
+                        responsavel_dados_empresa:
+                            formData.get(
+                                "responsavel_dados_empresa"
+                            ),
+
+                        responsavel_dados_cargo:
+                            formData.get(
+                                "responsavel_dados_cargo"
+                            ),
+
+                        responsavel_dados_email:
+                            formData.get(
+                                "responsavel_dados_email"
+                            ),
+
+                        responsavel_dados_whatsapp:
+                            formData.get(
+                                "responsavel_dados_whatsapp"
+                            )
+                    };
+
+                    event.target.reset();
+
+                    for (
+                        const [campo, valor]
+                        of Object.entries(preservar)
+                    ) {
+                        const elemento =
+                            event.target.elements[
+                                campo
+                            ];
+
+                        if (elemento) {
+                            elemento.value =
+                                valor || "";
+                        }
+                    }
+
+                } catch (erro) {
+
+                    resultado.className = "erro";
+                    resultado.style.display =
+                        "block";
+
+                    resultado.textContent =
+                        erro.message;
+
+                } finally {
+
+                    botao.disabled = false;
+                    botao.textContent =
+                        "ENVIAR PARA VALIDAÇÃO";
+                }
+            }
+        );
+</script>
+
+</body>
+</html>

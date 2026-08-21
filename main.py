@@ -2508,6 +2508,14 @@ def renderizar_html(nome_arquivo):
     )
 
 
+@app.route("/cadastro-fabrica")
+@app.route("/cadastro-fabrica.html")
+def cadastro_fabrica():
+    return renderizar_html(
+        "cadastro-fabrica.html"
+    )
+
+
 @app.route("/experience")
 def experience():
     return renderizar_html("experience.html")
@@ -7485,6 +7493,123 @@ def parceiro_cadastrar_fabrica():
             with conn.cursor(
                 cursor_factory=RealDictCursor
             ) as cur:
+
+                # ==========================================
+                # PREVENCAO DE DUPLICIDADE
+                # ==========================================
+                #
+                # Regra:
+                # 1. Se houver CNPJ, ele é a identidade principal.
+                # 2. Sem CNPJ, usa nome + UF.
+                #
+                # Isso também protege contra clique/reenvio
+                # acidental do mesmo cadastro.
+
+                cnpj_recebido = str(
+                    dados.get("cnpj") or ""
+                ).strip()
+
+                cnpj_normalizado = re.sub(
+                    r"\D",
+                    "",
+                    cnpj_recebido
+                )
+
+                fabrica_existente = None
+
+                if cnpj_normalizado:
+
+                    cur.execute("""
+                        SELECT
+                            id,
+                            nome,
+                            cnpj,
+                            estado,
+                            status_fluxo,
+                            origem_cadastro,
+                            criado_em
+
+                        FROM fabricas_parceiras
+
+                        WHERE regexp_replace(
+                            COALESCE(cnpj, ''),
+                            '[^0-9]',
+                            '',
+                            'g'
+                        ) = %s
+
+                        ORDER BY criado_em DESC
+                        LIMIT 1
+                    """, (
+                        cnpj_normalizado,
+                    ))
+
+                    fabrica_existente = (
+                        cur.fetchone()
+                    )
+
+                else:
+
+                    cur.execute("""
+                        SELECT
+                            id,
+                            nome,
+                            cnpj,
+                            estado,
+                            status_fluxo,
+                            origem_cadastro,
+                            criado_em
+
+                        FROM fabricas_parceiras
+
+                        WHERE LOWER(TRIM(nome))
+                              = LOWER(TRIM(%s))
+
+                          AND UPPER(TRIM(
+                              COALESCE(estado, '')
+                          )) = UPPER(TRIM(%s))
+
+                        ORDER BY criado_em DESC
+                        LIMIT 1
+                    """, (
+                        nome,
+                        estado
+                    ))
+
+                    fabrica_existente = (
+                        cur.fetchone()
+                    )
+
+                if fabrica_existente:
+
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Esta fábrica já possui cadastro no sistema.",
+                        "duplicado": True,
+                        "fabrica_existente": {
+                            "id":
+                                fabrica_existente[
+                                    "id"
+                                ],
+                            "nome":
+                                fabrica_existente[
+                                    "nome"
+                                ],
+                            "estado":
+                                fabrica_existente[
+                                    "estado"
+                                ],
+                            "status":
+                                fabrica_existente[
+                                    "status_fluxo"
+                                ],
+                            "origem":
+                                fabrica_existente[
+                                    "origem_cadastro"
+                                ]
+                        }
+                    }), 409
 
                 cur.execute("""
                     INSERT INTO fabricas_parceiras (
