@@ -386,6 +386,10 @@ def resposta_rapida_maranhao(mensagem):
 
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 
+# Chave exclusiva para colaboradores que cadastram fábricas.
+# Não concede acesso administrativo.
+FABRICAS_CADASTRO_KEY = os.getenv("FABRICAS_CADASTRO_KEY")
+
 # =====================================================
 # BANCO DE DADOS — LEADS B2B E DEGUSTAÇÃO
 # =====================================================
@@ -7322,6 +7326,422 @@ def admin_listar_fabricas():
             "total": len(fabricas),
             "fabricas": fabricas
         }), 200
+
+    finally:
+        conn.close()
+
+
+
+# =====================================================
+# CADASTRO EXTERNO DE FABRICAS
+# =====================================================
+
+@app.route(
+    "/api/parceiros/fabricas/cadastro",
+    methods=["POST"]
+)
+def parceiro_cadastrar_fabrica():
+    """
+    Permite que colaborador autorizado alimente
+    a matriz industrial.
+
+    SEGURANCA:
+    - nunca homologa;
+    - nunca valida;
+    - nunca libera fábrica para cálculo da IA;
+    - registra obrigatoriamente a origem dos dados.
+    """
+
+    chave = request.headers.get(
+        "X-Cadastro-Key",
+        ""
+    )
+
+    if (
+        not FABRICAS_CADASTRO_KEY
+        or chave != FABRICAS_CADASTRO_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    nome = str(
+        dados.get("nome") or ""
+    ).strip()
+
+    estado = str(
+        dados.get("estado") or ""
+    ).strip().upper()
+
+    responsavel_nome = str(
+        dados.get(
+            "responsavel_dados_nome"
+        ) or ""
+    ).strip()
+
+    responsavel_empresa = str(
+        dados.get(
+            "responsavel_dados_empresa"
+        ) or ""
+    ).strip()
+
+    responsavel_cargo = str(
+        dados.get(
+            "responsavel_dados_cargo"
+        ) or ""
+    ).strip()
+
+    responsavel_email = str(
+        dados.get(
+            "responsavel_dados_email"
+        ) or ""
+    ).strip()
+
+    responsavel_whatsapp = str(
+        dados.get(
+            "responsavel_dados_whatsapp"
+        ) or ""
+    ).strip()
+
+    fonte_dados = str(
+        dados.get("fonte_dados") or ""
+    ).strip()
+
+    erros = []
+
+    if not nome:
+        erros.append(
+            "Nome da fábrica é obrigatório."
+        )
+
+    if len(estado) != 2:
+        erros.append(
+            "UF da fábrica deve ter 2 letras."
+        )
+
+    if not responsavel_nome:
+        erros.append(
+            "Responsável pelos dados é obrigatório."
+        )
+
+    if not responsavel_empresa:
+        erros.append(
+            "Empresa/organização do responsável é obrigatória."
+        )
+
+    if not responsavel_cargo:
+        erros.append(
+            "Cargo/função do responsável é obrigatório."
+        )
+
+    if not responsavel_email:
+        erros.append(
+            "E-mail do responsável é obrigatório."
+        )
+
+    if not responsavel_whatsapp:
+        erros.append(
+            "WhatsApp do responsável é obrigatório."
+        )
+
+    if not fonte_dados:
+        erros.append(
+            "Fonte dos dados é obrigatória."
+        )
+
+    if erros:
+        return jsonify({
+            "success": False,
+            "errors": erros
+        }), 400
+
+    fabrica_id = str(uuid.uuid4())
+
+    def json_lista(nome_campo):
+        valor = dados.get(
+            nome_campo,
+            []
+        )
+
+        if not isinstance(valor, list):
+            valor = []
+
+        return json.dumps(
+            valor,
+            ensure_ascii=False
+        )
+
+    conn = get_db_connection()
+
+    try:
+
+        with conn:
+
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO fabricas_parceiras (
+
+                        id,
+
+                        nome,
+                        razao_social,
+                        cnpj,
+
+                        cidade,
+                        estado,
+                        regiao,
+                        cep,
+                        endereco_operacional,
+
+                        contato_nome,
+                        contato_email,
+                        contato_whatsapp,
+                        site,
+
+                        lote_minimo_unidades,
+                        lote_minimo_litros,
+
+                        capacidade_maxima_unidades,
+                        capacidade_maxima_litros,
+
+                        custo_unitario_centavos,
+                        custo_litro_centavos,
+
+                        prazo_producao_dias,
+
+                        embalagem_vidro,
+                        embalagem_pet,
+                        envase_200ml,
+                        rotulagem,
+                        responsabilidade_tecnica,
+                        analises_laboratoriais,
+                        pode_copack,
+
+                        mapa_status,
+                        ncm_informado,
+
+                        observacoes,
+                        fonte_dados,
+
+                        ufs_atendidas,
+                        segmentos_atendidos,
+                        modalidades_logisticas,
+
+                        responsavel_dados_nome,
+                        responsavel_dados_email,
+                        responsavel_dados_whatsapp,
+                        responsavel_dados_empresa,
+                        responsavel_dados_cargo,
+
+                        origem_cadastro,
+                        status_fluxo,
+                        status_comercial,
+                        status_regulatorio,
+
+                        disponivel_calculo_ia,
+
+                        cadastro_externo_em
+
+                    )
+
+                    VALUES (
+
+                        %s,
+
+                        %s, %s, %s,
+
+                        %s, %s, %s, %s, %s,
+
+                        %s, %s, %s, %s,
+
+                        %s, %s,
+
+                        %s, %s,
+
+                        %s, %s,
+
+                        %s,
+
+                        %s, %s, %s, %s,
+                        %s, %s, %s,
+
+                        %s, %s,
+
+                        %s, %s,
+
+                        %s::jsonb,
+                        %s::jsonb,
+                        %s::jsonb,
+
+                        %s, %s, %s, %s, %s,
+
+                        'externo',
+                        'pendente',
+                        'prospectada',
+                        'nao_verificado',
+
+                        FALSE,
+
+                        NOW()
+                    )
+
+                    RETURNING *
+                """, (
+
+                    fabrica_id,
+
+                    nome,
+                    dados.get("razao_social"),
+                    dados.get("cnpj"),
+
+                    dados.get("cidade"),
+                    estado,
+                    dados.get("regiao"),
+                    dados.get("cep"),
+                    dados.get(
+                        "endereco_operacional"
+                    ),
+
+                    dados.get("contato_nome"),
+                    dados.get("contato_email"),
+                    dados.get(
+                        "contato_whatsapp"
+                    ),
+                    dados.get("site"),
+
+                    dados.get(
+                        "lote_minimo_unidades"
+                    ),
+                    dados.get(
+                        "lote_minimo_litros"
+                    ),
+
+                    dados.get(
+                        "capacidade_maxima_unidades"
+                    ),
+                    dados.get(
+                        "capacidade_maxima_litros"
+                    ),
+
+                    dados.get(
+                        "custo_unitario_centavos"
+                    ),
+                    dados.get(
+                        "custo_litro_centavos"
+                    ),
+
+                    dados.get(
+                        "prazo_producao_dias"
+                    ),
+
+                    dados.get("embalagem_vidro")
+                        if "embalagem_vidro" in dados
+                        else None,
+
+                    dados.get("embalagem_pet")
+                        if "embalagem_pet" in dados
+                        else None,
+
+                    dados.get("envase_200ml")
+                        if "envase_200ml" in dados
+                        else None,
+
+                    dados.get("rotulagem")
+                        if "rotulagem" in dados
+                        else None,
+
+                    dados.get(
+                        "responsabilidade_tecnica"
+                    )
+                        if "responsabilidade_tecnica" in dados
+                        else None,
+
+                    dados.get(
+                        "analises_laboratoriais"
+                    )
+                        if "analises_laboratoriais" in dados
+                        else None,
+
+                    dados.get("pode_copack")
+                        if "pode_copack" in dados
+                        else None,
+
+                    dados.get("mapa_status"),
+                    dados.get("ncm_informado"),
+
+                    dados.get("observacoes"),
+                    fonte_dados,
+
+                    json_lista("ufs_atendidas"),
+                    json_lista(
+                        "segmentos_atendidos"
+                    ),
+                    json_lista(
+                        "modalidades_logisticas"
+                    ),
+
+                    responsavel_nome,
+                    responsavel_email,
+                    responsavel_whatsapp,
+                    responsavel_empresa,
+                    responsavel_cargo
+
+                ))
+
+                fabrica = cur.fetchone()
+
+        registrar_auditoria(
+            categoria="industrial",
+            acao="fabrica_cadastrada_externamente",
+            ator_tipo="colaborador_externo",
+            ator_id=responsavel_nome,
+            origem="cadastro_externo_fabricas",
+            entidade_tipo="fabrica_parceira",
+            entidade_id=fabrica_id,
+            status="pendente",
+            dados_entrada={
+                "nome": nome,
+                "estado": estado,
+                "responsavel_dados":
+                    responsavel_nome,
+                "responsavel_empresa":
+                    responsavel_empresa,
+                "fonte_dados":
+                    fonte_dados
+            }
+        )
+
+        return jsonify({
+            "success": True,
+            "mensagem":
+                "Fábrica cadastrada e enviada "
+                "para validação da direção.",
+            "fabrica_id": fabrica_id,
+            "status": "pendente",
+            "disponivel_calculo_ia": False,
+            "fabrica": fabrica
+        }), 201
+
+    except Exception as erro:
+
+        print(
+            "ERRO CADASTRO EXTERNO FABRICA:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Erro ao cadastrar fábrica."
+        }), 500
 
     finally:
         conn.close()
