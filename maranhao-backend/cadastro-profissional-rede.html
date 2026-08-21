@@ -363,9 +363,13 @@
         posteriormente pela validação da direção.
     </div>
 
-    <form id="formProfissional">
+    <form id="formProfissional" style="display:none;">
 
-        <section class="section">
+
+        <section
+            class="section"
+            id="acessoColaborador"
+        >
 
             <div class="section-title">
                 Acesso do colaborador
@@ -383,15 +387,36 @@
                         id="codigoAcesso"
                         type="password"
                         autocomplete="off"
-                        required
                         placeholder="Código fornecido pela Maranhão Cordial"
                     >
+
+                    <div class="hint">
+                        O formulário será liberado após a validação do código.
+                    </div>
 
                 </div>
 
             </div>
 
+            <button
+                id="btnEntrar"
+                type="button"
+                onclick="autorizarColaborador()"
+            >
+                ACESSAR FORMULÁRIO
+            </button>
+
+            <div
+                id="resultadoAcesso"
+                style="
+                    display:none;
+                    margin-top:14px;
+                    font-size:13px;
+                "
+            ></div>
+
         </section>
+
 
         <section class="section">
 
@@ -793,6 +818,18 @@
             ENVIAR PARA VALIDAÇÃO
         </button>
 
+        <button
+            type="button"
+            onclick="encerrarAcessoProfissional()"
+            style="
+                margin-top:10px;
+                background:transparent;
+                color:#f3efe7;
+            "
+        >
+            ENCERRAR ACESSO
+        </button>
+
         <div
             id="resultado"
         ></div>
@@ -802,6 +839,92 @@
 </div>
 
 <script>
+
+    let codigoSessaoProfissional =
+        sessionStorage.getItem(
+            "profissionaisCadastroKey"
+        ) || "";
+
+    function liberarFormularioProfissional() {
+
+        const acesso =
+            document.getElementById(
+                "acessoColaborador"
+            );
+
+        const form =
+            document.getElementById(
+                "formProfissional"
+            );
+
+        if (acesso) {
+            acesso.style.display = "none";
+        }
+
+        if (form) {
+            form.style.display = "block";
+        }
+    }
+
+    async function autorizarColaborador() {
+
+        const input =
+            document.getElementById(
+                "codigoAcesso"
+            );
+
+        const resultado =
+            document.getElementById(
+                "resultadoAcesso"
+            );
+
+        const botao =
+            document.getElementById(
+                "btnEntrar"
+            );
+
+        const codigo =
+            String(
+                input?.value || ""
+            ).trim();
+
+        if (!codigo) {
+
+            resultado.style.display =
+                "block";
+
+            resultado.textContent =
+                "Informe o código de acesso.";
+
+            return;
+        }
+
+        /*
+         * Não existe endpoint separado de login.
+         * A validação real continua acontecendo no backend
+         * no momento do envio.
+         *
+         * Aqui apenas autorizamos a interface e mantemos
+         * a chave durante esta sessão do navegador.
+         */
+
+        codigoSessaoProfissional =
+            codigo;
+
+        sessionStorage.setItem(
+            "profissionaisCadastroKey",
+            codigo
+        );
+
+        liberarFormularioProfissional();
+    }
+
+    if (codigoSessaoProfissional) {
+        window.addEventListener(
+            "DOMContentLoaded",
+            liberarFormularioProfissional
+        );
+    }
 
     function valorOuNull(valor) {
 
@@ -847,6 +970,17 @@
         .filter(Boolean);
     }
 
+    function encerrarAcessoProfissional() {
+
+        sessionStorage.removeItem(
+            "profissionaisCadastroKey"
+        );
+
+        codigoSessaoProfissional = "";
+
+        window.location.reload();
+    }
+
     document
         .getElementById(
             "formProfissional"
@@ -868,14 +1002,12 @@
                     );
 
                 const codigo =
-                    document.getElementById(
-                        "codigoAcesso"
-                    ).value.trim();
+                    codigoSessaoProfissional;
 
                 if (!codigo) {
 
                     alert(
-                        "Informe o código de acesso."
+                        "Sessão de acesso não autorizada."
                     );
 
                     return;
