@@ -896,6 +896,107 @@ def inicializar_banco():
                     ON fabricas_parceiras(origem_cadastro)
                 """)
 
+                # =====================================================
+                # REDE PROFISSIONAL — BARTENDERS / MIXOLOGISTAS
+                # =====================================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS profissionais_rede (
+                        id UUID PRIMARY KEY,
+
+                        nome VARCHAR(220) NOT NULL,
+                        nome_profissional VARCHAR(220),
+
+                        cidade VARCHAR(120),
+                        estado VARCHAR(2),
+                        regiao VARCHAR(40),
+
+                        estabelecimento_nome VARCHAR(220),
+                        estabelecimento_tipo VARCHAR(80),
+                        cargo_funcao VARCHAR(160),
+
+                        instagram VARCHAR(220),
+                        whatsapp VARCHAR(80),
+                        email VARCHAR(220),
+
+                        especialidade VARCHAR(220),
+                        experiencia_anos NUMERIC(8,2),
+
+                        eventos TEXT[],
+                        areas_atuacao TEXT[],
+
+                        origem_cadastro VARCHAR(40)
+                            NOT NULL DEFAULT 'externo',
+
+                        status_fluxo VARCHAR(40)
+                            NOT NULL DEFAULT 'mapeado',
+
+                        status_relacionamento VARCHAR(40)
+                            NOT NULL DEFAULT 'sem_contato',
+
+                        recebeu_amostra BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        degustou BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        feedback_recebido BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        interessado BOOLEAN,
+
+                        oportunidade_gerada BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        relevancia VARCHAR(40),
+
+                        responsavel_dados_nome VARCHAR(220),
+                        responsavel_dados_empresa VARCHAR(220),
+                        responsavel_dados_cargo VARCHAR(160),
+                        responsavel_dados_email VARCHAR(220),
+                        responsavel_dados_whatsapp VARCHAR(80),
+
+                        fonte_dados TEXT,
+                        observacoes TEXT,
+
+                        validado_por VARCHAR(220),
+                        validado_em TIMESTAMPTZ,
+
+                        qualificado_por VARCHAR(220),
+                        qualificado_em TIMESTAMPTZ,
+
+                        ativo_por VARCHAR(220),
+                        ativo_em TIMESTAMPTZ,
+
+                        disponivel_ia BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_profissionais_rede_status_fluxo
+                    ON profissionais_rede(status_fluxo)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_profissionais_rede_estado
+                    ON profissionais_rede(estado)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_profissionais_rede_disponivel_ia
+                    ON profissionais_rede(disponivel_ia)
+                """)
+
                 # ==========================================
                 # CENARIOS FISCAIS / CUSTO TRIBUTARIO
                 # ==========================================
