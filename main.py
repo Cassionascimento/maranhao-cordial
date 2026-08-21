@@ -7747,6 +7747,342 @@ def parceiro_cadastrar_fabrica():
         conn.close()
 
 
+
+# =====================================================
+# ADMIN — WORKFLOW / HOMOLOGACAO DE FABRICAS
+# =====================================================
+
+@app.route(
+    "/api/admin/fabricas/<fabrica_id>/workflow",
+    methods=["PATCH"]
+)
+def admin_workflow_fabrica(fabrica_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    novo_status = str(
+        dados.get("status") or ""
+    ).strip().lower()
+
+    responsavel = str(
+        dados.get("responsavel") or ""
+    ).strip()
+
+    motivo = str(
+        dados.get("motivo") or ""
+    ).strip()
+
+    status_validos = {
+        "pendente",
+        "em_validacao",
+        "qualificada",
+        "homologada",
+        "suspensa",
+        "rejeitada"
+    }
+
+    if novo_status not in status_validos:
+        return jsonify({
+            "success": False,
+            "error": "Status de workflow inválido."
+        }), 400
+
+    if not responsavel:
+        return jsonify({
+            "success": False,
+            "error":
+                "Responsável pela alteração é obrigatório."
+        }), 400
+
+    # ----------------------------------------------
+    # FLUXO PERMITIDO
+    # ----------------------------------------------
+
+    transicoes_permitidas = {
+        "pendente": {
+            "em_validacao",
+            "rejeitada"
+        },
+
+        "em_validacao": {
+            "pendente",
+            "qualificada",
+            "rejeitada"
+        },
+
+        "qualificada": {
+            "em_validacao",
+            "homologada",
+            "rejeitada"
+        },
+
+        "homologada": {
+            "suspensa"
+        },
+
+        "suspensa": {
+            "em_validacao",
+            "homologada",
+            "rejeitada"
+        },
+
+        "rejeitada": {
+            "pendente",
+            "em_validacao"
+        }
+    }
+
+    conn = get_db_connection()
+
+    try:
+
+        with conn:
+
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                # Bloqueia a linha durante a alteração
+                # para evitar duas aprovações simultâneas.
+                cur.execute("""
+                    SELECT *
+                    FROM fabricas_parceiras
+                    WHERE id = %s
+                    FOR UPDATE
+                """, (
+                    fabrica_id,
+                ))
+
+                fabrica_atual = cur.fetchone()
+
+                if not fabrica_atual:
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Fábrica não encontrada."
+                    }), 404
+
+                status_atual = (
+                    fabrica_atual.get(
+                        "status_fluxo"
+                    )
+                    or "pendente"
+                )
+
+                if novo_status != status_atual:
+
+                    permitidos = (
+                        transicoes_permitidas.get(
+                            status_atual,
+                            set()
+                        )
+                    )
+
+                    if novo_status not in permitidos:
+                        return jsonify({
+                            "success": False,
+                            "error":
+                                "Transição de status não permitida.",
+                            "status_atual":
+                                status_atual,
+                            "status_solicitado":
+                                novo_status,
+                            "transicoes_permitidas":
+                                sorted(
+                                    list(permitidos)
+                                )
+                        }), 409
+
+                # ------------------------------------------
+                # COMPATIBILIDADE COM STATUS COMERCIAL
+                # EXISTENTE
+                # ------------------------------------------
+
+                mapa_status_comercial = {
+                    "pendente":
+                        "prospectada",
+
+                    "em_validacao":
+                        "prospectada",
+
+                    "qualificada":
+                        "qualificada",
+
+                    "homologada":
+                        "homologada",
+
+                    "suspensa":
+                        "inativa",
+
+                    "rejeitada":
+                        "descartada"
+                }
+
+                status_comercial = (
+                    mapa_status_comercial[
+                        novo_status
+                    ]
+                )
+
+                disponivel_ia = (
+                    novo_status
+                    == "homologada"
+                )
+
+                cur.execute("""
+                    UPDATE fabricas_parceiras
+
+                    SET
+                        status_fluxo = %s,
+
+                        status_comercial = %s,
+
+                        disponivel_calculo_ia = %s,
+
+                        motivo_status = %s,
+
+                        validado_por =
+                            CASE
+                                WHEN %s = 'em_validacao'
+                                THEN %s
+                                ELSE validado_por
+                            END,
+
+                        validado_em =
+                            CASE
+                                WHEN %s = 'em_validacao'
+                                THEN NOW()
+                                ELSE validado_em
+                            END,
+
+                        qualificado_por =
+                            CASE
+                                WHEN %s = 'qualificada'
+                                THEN %s
+                                ELSE qualificado_por
+                            END,
+
+                        qualificado_em =
+                            CASE
+                                WHEN %s = 'qualificada'
+                                THEN NOW()
+                                ELSE qualificado_em
+                            END,
+
+                        homologado_por =
+                            CASE
+                                WHEN %s = 'homologada'
+                                THEN %s
+                                ELSE homologado_por
+                            END,
+
+                        homologado_em =
+                            CASE
+                                WHEN %s = 'homologada'
+                                THEN NOW()
+                                ELSE homologado_em
+                            END,
+
+                        atualizado_em = NOW()
+
+                    WHERE id = %s
+
+                    RETURNING *
+                """, (
+
+                    novo_status,
+                    status_comercial,
+                    disponivel_ia,
+                    motivo or None,
+
+                    novo_status,
+                    responsavel,
+
+                    novo_status,
+
+                    novo_status,
+                    responsavel,
+
+                    novo_status,
+
+                    novo_status,
+                    responsavel,
+
+                    novo_status,
+
+                    fabrica_id
+                ))
+
+                fabrica = cur.fetchone()
+
+        registrar_auditoria(
+            categoria="industrial",
+            acao="workflow_fabrica_atualizado",
+            ator_tipo="admin",
+            ator_id=responsavel,
+            origem="painel_admin",
+            entidade_tipo="fabrica_parceira",
+            entidade_id=fabrica_id,
+            status=novo_status,
+            dados_entrada={
+                "status_anterior":
+                    status_atual,
+
+                "status_novo":
+                    novo_status,
+
+                "motivo":
+                    motivo or None,
+
+                "disponivel_calculo_ia":
+                    disponivel_ia
+            }
+        )
+
+        return jsonify({
+            "success": True,
+
+            "mensagem":
+                "Workflow da fábrica atualizado.",
+
+            "status_anterior":
+                status_atual,
+
+            "status_atual":
+                novo_status,
+
+            "disponivel_calculo_ia":
+                disponivel_ia,
+
+            "fabrica":
+                fabrica
+        }), 200
+
+    except Exception as erro:
+
+        print(
+            "ERRO WORKFLOW FABRICA:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Erro ao atualizar workflow da fábrica."
+        }), 500
+
+    finally:
+        conn.close()
+
+
 @app.route(
     "/api/admin/fabricas",
     methods=["POST"]
