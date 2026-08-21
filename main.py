@@ -820,6 +820,79 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # GOVERNANCA / WORKFLOW DE FABRICAS
+                # ==========================================
+
+                # Cadastro externo nunca entra automaticamente
+                # nos cálculos ou recomendações definitivas da IA.
+                cur.execute("""
+                    ALTER TABLE fabricas_parceiras
+
+                    ADD COLUMN IF NOT EXISTS status_fluxo VARCHAR(40)
+                        NOT NULL DEFAULT 'pendente',
+
+                    ADD COLUMN IF NOT EXISTS origem_cadastro VARCHAR(60)
+                        NOT NULL DEFAULT 'interno',
+
+                    ADD COLUMN IF NOT EXISTS disponivel_calculo_ia BOOLEAN
+                        NOT NULL DEFAULT FALSE,
+
+                    ADD COLUMN IF NOT EXISTS responsavel_dados_nome VARCHAR(180),
+
+                    ADD COLUMN IF NOT EXISTS responsavel_dados_email VARCHAR(180),
+
+                    ADD COLUMN IF NOT EXISTS responsavel_dados_whatsapp VARCHAR(50),
+
+                    ADD COLUMN IF NOT EXISTS responsavel_dados_empresa VARCHAR(180),
+
+                    ADD COLUMN IF NOT EXISTS responsavel_dados_cargo VARCHAR(120),
+
+                    ADD COLUMN IF NOT EXISTS cep VARCHAR(12),
+
+                    ADD COLUMN IF NOT EXISTS endereco_operacional TEXT,
+
+                    ADD COLUMN IF NOT EXISTS ufs_atendidas JSONB,
+
+                    ADD COLUMN IF NOT EXISTS segmentos_atendidos JSONB,
+
+                    ADD COLUMN IF NOT EXISTS modalidades_logisticas JSONB,
+
+                    ADD COLUMN IF NOT EXISTS validado_por VARCHAR(180),
+
+                    ADD COLUMN IF NOT EXISTS validado_em TIMESTAMPTZ,
+
+                    ADD COLUMN IF NOT EXISTS qualificado_por VARCHAR(180),
+
+                    ADD COLUMN IF NOT EXISTS qualificado_em TIMESTAMPTZ,
+
+                    ADD COLUMN IF NOT EXISTS homologado_por VARCHAR(180),
+
+                    ADD COLUMN IF NOT EXISTS homologado_em TIMESTAMPTZ,
+
+                    ADD COLUMN IF NOT EXISTS motivo_status TEXT,
+
+                    ADD COLUMN IF NOT EXISTS cadastro_externo_em TIMESTAMPTZ
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_fabricas_status_fluxo
+                    ON fabricas_parceiras(status_fluxo)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_fabricas_disponivel_calculo_ia
+                    ON fabricas_parceiras(disponivel_calculo_ia)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_fabricas_origem_cadastro
+                    ON fabricas_parceiras(origem_cadastro)
+                """)
+
+                # ==========================================
                 # CENARIOS FISCAIS / CUSTO TRIBUTARIO
                 # ==========================================
 
