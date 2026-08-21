@@ -390,6 +390,13 @@ ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
 # Não concede acesso administrativo.
 FABRICAS_CADASTRO_KEY = os.getenv("FABRICAS_CADASTRO_KEY")
 
+# Chave exclusiva para colaboradores que cadastram
+# bartenders/mixologistas na Rede Profissional.
+# Não concede acesso administrativo nem industrial.
+PROFISSIONAIS_CADASTRO_KEY = os.getenv(
+    "PROFISSIONAIS_CADASTRO_KEY"
+)
+
 # =====================================================
 # BANCO DE DADOS — LEADS B2B E DEGUSTAÇÃO
 # =====================================================
@@ -8333,8 +8340,8 @@ def parceiro_cadastrar_profissional():
     )
 
     if (
-        not FABRICAS_CADASTRO_KEY
-        or chave != FABRICAS_CADASTRO_KEY
+        not PROFISSIONAIS_CADASTRO_KEY
+        or chave != PROFISSIONAIS_CADASTRO_KEY
     ):
         return jsonify({
             "success": False,
