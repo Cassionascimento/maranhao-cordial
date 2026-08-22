@@ -1596,6 +1596,7 @@ C6_STATUS_FIELD = os.getenv("C6_STATUS_FIELD", "status")
 # genérico até adaptarmos ao contrato/API da transportadora.
 
 LOGISTICA_WEBHOOK_TOKEN = os.getenv("LOGISTICA_WEBHOOK_TOKEN")
+META_WEBHOOK_VERIFY_TOKEN = os.getenv("META_WEBHOOK_VERIFY_TOKEN")
 
 
 # =====================================================
@@ -4187,6 +4188,134 @@ def webhook_c6():
 
 
     return "", 200
+
+# =====================================================
+# META / WHATSAPP — WEBHOOK
+# =====================================================
+
+@app.route(
+    "/webhooks/meta",
+    methods=["GET", "POST"]
+)
+def webhook_meta():
+
+    # -------------------------------------------------
+    # GET — VERIFICAÇÃO INICIAL DA META
+    # -------------------------------------------------
+
+    if request.method == "GET":
+
+        modo = request.args.get(
+            "hub.mode",
+            ""
+        )
+
+        token_recebido = request.args.get(
+            "hub.verify_token",
+            ""
+        )
+
+        desafio = request.args.get(
+            "hub.challenge",
+            ""
+        )
+
+        if (
+            modo == "subscribe"
+            and META_WEBHOOK_VERIFY_TOKEN
+            and token_recebido
+                == META_WEBHOOK_VERIFY_TOKEN
+        ):
+
+            print(
+                "META WEBHOOK VERIFICADO"
+            )
+
+            return (
+                desafio,
+                200,
+                {
+                    "Content-Type":
+                        "text/plain; charset=utf-8"
+                }
+            )
+
+        print(
+            "META WEBHOOK — FALHA DE VERIFICACAO"
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Falha na verificação do webhook."
+        }), 403
+
+    # -------------------------------------------------
+    # POST — EVENTOS DO WHATSAPP
+    # -------------------------------------------------
+
+    payload = request.get_json(
+        silent=True
+    ) or {}
+
+    try:
+
+        objeto = payload.get(
+            "object"
+        )
+
+        entradas = payload.get(
+            "entry"
+        ) or []
+
+        total_changes = 0
+
+        for entrada in entradas:
+
+            changes = entrada.get(
+                "changes"
+            ) or []
+
+            total_changes += len(
+                changes
+            )
+
+        print(
+            "META WEBHOOK RECEBIDO",
+            {
+                "object":
+                    objeto,
+                "entries":
+                    len(entradas),
+                "changes":
+                    total_changes
+            }
+        )
+
+        # Importante:
+        # nesta etapa apenas confirmamos o recebimento.
+        # Persistência, CRM e IA serão conectados depois.
+
+        return jsonify({
+            "success": True
+        }), 200
+
+    except Exception as erro:
+
+        print(
+            "ERRO META WEBHOOK:",
+            repr(erro)
+        )
+
+        # A Meta prefere confirmação rápida do webhook.
+        # Mantemos 200 para evitar retries desnecessários
+        # enquanto a integração está em desenvolvimento.
+
+        return jsonify({
+            "success": True
+        }), 200
+
+
 # =====================================================
 # LOGÍSTICA — WEBHOOK GENÉRICO (FUTURA TRANSPORTADORA)
 # =====================================================
