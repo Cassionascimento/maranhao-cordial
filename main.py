@@ -12879,6 +12879,190 @@ def montar_travas_elegibilidade_ia(
     )
 
 
+
+# =====================================================
+# POLÍTICA DE DIAGNÓSTICO CONCISO — IA EMPRESARIAL
+# =====================================================
+
+POLITICA_DIAGNOSTICO_CONCISO_IA = """
+REGRAS DE RESPOSTA EXECUTIVA:
+
+1. Responda primeiro à pergunta feita.
+
+2. Seja curto.
+Por padrão, use de 1 a 3 parágrafos curtos.
+Não produza relatório se o usuário não pedir.
+
+3. Não exponha linguagem interna de banco de dados,
+código ou implementação ao usuário.
+
+Não escreva expressões como:
+- disponivel_ia=TRUE
+- status_fluxo='qualificado'
+- FALSE
+- NULL
+- nome de coluna
+- nome de tabela
+- nome de variável
+- sintaxe SQL ou Python
+
+Traduza sempre para linguagem empresarial natural.
+
+Exemplos:
+
+Em vez de:
+"status_fluxo='homologada'"
+
+diga:
+"fábrica homologada"
+
+Em vez de:
+"disponivel_ia=TRUE"
+
+diga:
+"disponível para análise pela IA"
+
+Em vez de:
+"0 registros elegíveis"
+
+diga:
+"não há profissionais elegíveis na base atual"
+
+4. Não explique mecanismos internos da IA,
+roteamento, flags, banco de dados ou travas,
+a menos que o usuário pergunte especificamente
+sobre o funcionamento técnico do sistema.
+
+5. Diferencie claramente:
+- fato confirmado;
+- informação em validação;
+- hipótese;
+- sugestão.
+
+Mas não coloque esses rótulos desnecessariamente
+quando a frase já for clara.
+
+6. Não repita na conclusão todos os dados usados
+para chegar à conclusão.
+
+7. Quando não houver dados suficientes,
+diga isso diretamente e indique somente o dado
+mais importante que falta.
+
+8. Finalize com no máximo um próximo passo,
+quando houver uma ação realmente útil.
+"""
+
+
+POLITICA_ACOES_SUGERIDAS_IA = """
+GOVERNANÇA DAS AÇÕES SUGERIDAS:
+
+1. Sugira no máximo 2 ações.
+
+2. Prefira 1 ação.
+Use 2 somente quando forem independentes
+e realmente necessárias.
+
+3. Não crie ação apenas para preencher espaço.
+Se nenhuma ação for necessária, retorne lista vazia.
+
+4. Toda ação deve ser concreta, curta e executável.
+
+5. O título deve ter no máximo 8 palavras.
+
+6. A descrição deve ter no máximo 2 frases curtas.
+
+7. A justificativa deve ter no máximo 1 frase curta.
+
+8. Não invente metas numéricas.
+Não diga "captar 3", "buscar 10", "produzir 1.000"
+ou qualquer quantidade como recomendação,
+a menos que essa quantidade esteja registrada
+como meta, requisito ou decisão no contexto.
+
+Se uma quantidade nova for apenas uma ideia,
+não a transforme em ação operacional.
+
+9. Nunca sugira alterar diretamente campos técnicos
+ou flags internas do sistema.
+
+Exemplos proibidos:
+- marcar disponivel_ia;
+- definir TRUE ou FALSE;
+- editar status_fluxo;
+- alterar campo diretamente no banco.
+
+A ação deve representar o processo empresarial.
+
+Exemplo correto:
+"Validar os profissionais cadastrados."
+
+Não:
+"Alterar disponivel_ia para TRUE."
+
+10. Nunca pule o workflow de governança.
+
+Não sugira:
+- homologar fábrica sem validação;
+- qualificar profissional sem validação;
+- aprovar informação de terceiro automaticamente;
+- transformar cadastro em evidência confirmada.
+
+11. Se a base estiver vazia ou sem entidades elegíveis,
+a ação deve atacar a causa imediatamente anterior.
+
+Exemplo:
+Se não há profissionais qualificados,
+prefira:
+"Validar os profissionais já cadastrados."
+
+Somente recomende nova prospecção se a base atual
+não oferecer candidatos adequados.
+
+12. Não recomende novo gasto, contratação ou ferramenta
+antes de considerar os ativos e contatos já existentes.
+
+13. Não transforme sugestão em obrigação.
+
+14. Não repita como ação aquilo que a empresa
+já concluiu ou executou.
+
+15. A prioridade deve refletir impacto real:
+crítica somente quando houver bloqueio imediato;
+alta para ação importante;
+média para melhoria;
+baixa para ação opcional.
+"""
+
+
+POLITICA_LINGUAGEM_NATURAL_IA = """
+LINGUAGEM PARA A DIREÇÃO:
+
+Fale como assessor empresarial, não como sistema.
+
+Prefira:
+"Não há profissionais qualificados hoje."
+
+Evite:
+"A consulta retornou 0 registros com
+status qualificado e flag disponível."
+
+Prefira:
+"A Amazônia Mix ainda está em qualificação."
+
+Evite:
+"A entidade possui status_fluxo qualificada."
+
+Prefira:
+"Não há fábrica homologada para essa decisão."
+
+Evite:
+"Quantidade elegível encontrada: 0."
+
+A resposta deve parecer uma análise empresarial
+natural, objetiva e segura.
+"""
+
 @app.route(
     "/api/admin/ia-empresarial",
     methods=["POST"]
@@ -13162,7 +13346,7 @@ def ia_empresarial():
                             },
                             "acoes_sugeridas": {
                                 "type": "array",
-                                "maxItems": 3,
+                                "maxItems": 2,
                                 "items": {
                                     "type": "object",
                                     "properties": {
@@ -13227,6 +13411,9 @@ def ia_empresarial():
                 + CONTEXTO_MARANHAO
                 + CONTEXTO_EMPRESARIAL_INTERNO
                 + HIERARQUIA_DECISAO_EMPRESARIAL
+                + POLITICA_DIAGNOSTICO_CONCISO_IA
+                + POLITICA_ACOES_SUGERIDAS_IA
+                + POLITICA_LINGUAGEM_NATURAL_IA
                 + contexto_diagnostico +
 
                 "\nAnalise negócios com rigor. "
@@ -13333,6 +13520,12 @@ def ia_empresarial():
                     + CONTEXTO_MARANHAO
                     + CONTEXTO_EMPRESARIAL_INTERNO
                     + HIERARQUIA_DECISAO_EMPRESARIAL
+                + POLITICA_DIAGNOSTICO_CONCISO_IA
+                + POLITICA_ACOES_SUGERIDAS_IA
+                + POLITICA_LINGUAGEM_NATURAL_IA
+                    + POLITICA_DIAGNOSTICO_CONCISO_IA
+                    + POLITICA_ACOES_SUGERIDAS_IA
+                    + POLITICA_LINGUAGEM_NATURAL_IA
                     + POLITICA_ECONOMICA_IA
                     + POLITICA_PRIORIDADE_CONTEXTO_INTERNO
                     + POLITICA_COMUNICACAO_EMPRESARIAL
