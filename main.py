@@ -12510,6 +12510,375 @@ def montar_contexto_empresarial_seletivo(
     }
 
 
+
+# =====================================================
+# TRAVAS DE ELEGIBILIDADE — IA EMPRESARIAL
+# =====================================================
+
+def montar_travas_elegibilidade_ia(
+    pergunta,
+    *,
+    fabricas=None,
+    profissionais=None
+):
+
+    import unicodedata
+
+    fabricas = fabricas or []
+    profissionais = profissionais or []
+
+    texto_original = str(
+        pergunta or ""
+    ).strip().lower()
+
+    texto = "".join(
+        caractere
+        for caractere in unicodedata.normalize(
+            "NFD",
+            texto_original
+        )
+        if unicodedata.category(
+            caractere
+        ) != "Mn"
+    )
+
+    regras = []
+
+    # -------------------------------------------------
+    # REDE PROFISSIONAL
+    # -------------------------------------------------
+
+    termos_profissionais = {
+        "bartender",
+        "bartenders",
+        "mixologista",
+        "mixologistas",
+        "profissional",
+        "profissionais",
+        "sommelier",
+        "sommeliers"
+    }
+
+    consulta_profissional = any(
+        termo in texto
+        for termo in termos_profissionais
+    )
+
+    pede_qualificado = (
+        "qualificad" in texto
+    )
+
+    pede_ativo = (
+        "ativo" in texto
+        or "ativos" in texto
+    )
+
+    if consulta_profissional:
+
+        if pede_ativo:
+            elegiveis_profissionais = [
+                item
+                for item in profissionais
+                if (
+                    item.get(
+                        "status_fluxo"
+                    )
+                    == "ativo"
+                    and item.get(
+                        "disponivel_ia"
+                    ) is True
+                )
+            ]
+
+            descricao_status = (
+                "status_fluxo='ativo' "
+                "e disponivel_ia=TRUE"
+            )
+
+        elif pede_qualificado:
+            elegiveis_profissionais = [
+                item
+                for item in profissionais
+                if (
+                    item.get(
+                        "status_fluxo"
+                    )
+                    in {
+                        "qualificado",
+                        "relacionamento",
+                        "ativo"
+                    }
+                    and item.get(
+                        "disponivel_ia"
+                    ) is True
+                )
+            ]
+
+            descricao_status = (
+                "qualificado, relacionamento "
+                "ou ativo e disponivel_ia=TRUE"
+            )
+
+        else:
+            elegiveis_profissionais = [
+                item
+                for item in profissionais
+                if item.get(
+                    "disponivel_ia"
+                ) is True
+            ]
+
+            descricao_status = (
+                "disponivel_ia=TRUE"
+            )
+
+        total_profissionais = len(
+            elegiveis_profissionais
+        )
+
+        regras.append(
+            "- A pergunta atual está direcionada "
+            "à REDE PROFISSIONAL."
+        )
+
+        regras.append(
+            "- Não substitua bartender, mixologista "
+            "ou profissional por fábrica, fornecedor, "
+            "consultor industrial ou contato de outra "
+            "categoria."
+        )
+
+        regras.append(
+            "- Critério de elegibilidade profissional "
+            f"nesta consulta: {descricao_status}."
+        )
+
+        regras.append(
+            "- Quantidade de profissionais elegíveis "
+            f"encontrados: {total_profissionais}."
+        )
+
+        if total_profissionais == 0:
+            regras.append(
+                "- NÃO HÁ profissionais elegíveis "
+                "para a solicitação atual. "
+                "A resposta deve declarar explicitamente "
+                "a ausência de profissionais elegíveis "
+                "na base. NÃO escolha entidade de outra "
+                "rede para preencher a lacuna."
+            )
+
+        else:
+            nomes = [
+                str(
+                    item.get("nome")
+                    or "sem nome"
+                )
+                for item
+                in elegiveis_profissionais[:20]
+            ]
+
+            regras.append(
+                "- Profissionais elegíveis nesta consulta: "
+                + "; ".join(nomes)
+                + "."
+            )
+
+    # -------------------------------------------------
+    # REDE INDUSTRIAL
+    # -------------------------------------------------
+
+    termos_fabricas = {
+        "fabrica",
+        "fabricas",
+        "fabricante",
+        "fabricantes",
+        "industria",
+        "industrias"
+    }
+
+    consulta_fabrica = any(
+        termo in texto
+        for termo in termos_fabricas
+    )
+
+    pede_homologada = (
+        "homologad" in texto
+    )
+
+    pede_qualificada_fabrica = (
+        "qualificad" in texto
+        and consulta_fabrica
+    )
+
+    if consulta_fabrica:
+
+        if pede_homologada:
+
+            elegiveis_fabricas = [
+                item
+                for item in fabricas
+                if (
+                    item.get(
+                        "status_fluxo"
+                    )
+                    == "homologada"
+                    and item.get(
+                        "disponivel_calculo_ia"
+                    ) is True
+                )
+            ]
+
+            descricao_status_fabrica = (
+                "status_fluxo='homologada' "
+                "e disponivel_calculo_ia=TRUE"
+            )
+
+        elif pede_qualificada_fabrica:
+
+            elegiveis_fabricas = [
+                item
+                for item in fabricas
+                if item.get(
+                    "status_fluxo"
+                )
+                in {
+                    "qualificada",
+                    "homologada"
+                }
+            ]
+
+            descricao_status_fabrica = (
+                "status_fluxo qualificada "
+                "ou homologada"
+            )
+
+        else:
+
+            elegiveis_fabricas = [
+                item
+                for item in fabricas
+                if item.get(
+                    "status_fluxo"
+                )
+                not in {
+                    "rejeitada",
+                    "suspensa"
+                }
+            ]
+
+            descricao_status_fabrica = (
+                "não rejeitada e não suspensa"
+            )
+
+        total_fabricas = len(
+            elegiveis_fabricas
+        )
+
+        regras.append(
+            "- A pergunta atual envolve "
+            "a REDE INDUSTRIAL."
+        )
+
+        regras.append(
+            "- Critério industrial desta consulta: "
+            f"{descricao_status_fabrica}."
+        )
+
+        regras.append(
+            "- Quantidade de fábricas elegíveis "
+            f"encontradas: {total_fabricas}."
+        )
+
+        if (
+            pede_homologada
+            and total_fabricas == 0
+        ):
+            regras.append(
+                "- NÃO HÁ fábrica homologada elegível "
+                "na base para esta consulta. "
+                "É proibido apresentar uma fábrica "
+                "qualificada, pendente ou em validação "
+                "como se estivesse homologada."
+            )
+
+        elif total_fabricas:
+
+            nomes = [
+                str(
+                    item.get("nome")
+                    or "sem nome"
+                )
+                + " ["
+                + str(
+                    item.get(
+                        "status_fluxo"
+                    )
+                    or "sem status"
+                )
+                + "]"
+                for item
+                in elegiveis_fabricas[:20]
+            ]
+
+            regras.append(
+                "- Fábricas elegíveis nesta consulta: "
+                + "; ".join(nomes)
+                + "."
+            )
+
+    # -------------------------------------------------
+    # NÚMEROS / FATOS EMPRESARIAIS
+    # -------------------------------------------------
+
+    termos_numericos = {
+        "custo",
+        "preco",
+        "margem",
+        "percentual",
+        "volume",
+        "litros",
+        "unidades",
+        "prazo",
+        "faturamento",
+        "ebitda",
+        "ticket",
+        "capacidade"
+    }
+
+    if any(
+        termo in texto
+        for termo in termos_numericos
+    ):
+        regras.append(
+            "- Qualquer número apresentado como fato "
+            "empresarial deve existir no contexto atual. "
+            "Se não existir, identifique-o explicitamente "
+            "como ESTIMATIVA, HIPÓTESE ou SUGESTÃO."
+        )
+
+    # -------------------------------------------------
+    # REGRA GERAL CONTRA PREENCHIMENTO DE LACUNAS
+    # -------------------------------------------------
+
+    regras.append(
+        "- Se os dados elegíveis forem insuficientes "
+        "para concluir, diga que não há dados suficientes. "
+        "Não complete a resposta usando entidade, status "
+        "ou número de outra categoria."
+    )
+
+    if not regras:
+        return ""
+
+    return (
+        "\n\n"
+        "TRAVAS OBRIGATÓRIAS DA CONSULTA ATUAL\n"
+        + "\n".join(regras)
+        + "\n"
+    )
+
+
 @app.route(
     "/api/admin/ia-empresarial",
     methods=["POST"]
@@ -12752,6 +13121,29 @@ def ia_empresarial():
             contexto_seletivo_ia[
                 "contexto"
             ]
+        )
+
+        travas_elegibilidade = (
+            montar_travas_elegibilidade_ia(
+                pergunta,
+
+                fabricas=
+                    fabricas_ia.get(
+                        "fabricas",
+                        []
+                    ),
+
+                profissionais=
+                    profissionais_ia.get(
+                        "profissionais",
+                        []
+                    )
+            )
+        )
+
+        contexto_diagnostico = (
+            contexto_diagnostico
+            + travas_elegibilidade
         )
 
         resposta = openai_client.responses.create(
