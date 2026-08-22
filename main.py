@@ -12160,6 +12160,356 @@ Não exponha essa análise ao destinatário.
 """
 
 
+
+# =====================================================
+# ROTEADOR DE CONTEXTO — IA EMPRESARIAL
+# =====================================================
+
+def classificar_contexto_empresarial(pergunta):
+
+    texto = str(
+        pergunta or ""
+    ).strip().lower()
+
+    categorias = set()
+
+    grupos = {
+
+        "industrial": {
+            "fábrica",
+            "fabrica",
+            "fabricante",
+            "produção",
+            "producao",
+            "lote",
+            "copack",
+            "envase",
+            "capacidade",
+            "industrial",
+            "terceirização",
+            "terceirizacao",
+            "white label"
+        },
+
+        "financeiro": {
+            "custo",
+            "margem",
+            "preço",
+            "preco",
+            "lucro",
+            "ebitda",
+            "cmv",
+            "caixa",
+            "faturamento",
+            "rentabilidade",
+            "ticket",
+            "capital",
+            "investimento"
+        },
+
+        "fiscal": {
+            "imposto",
+            "tributo",
+            "icms",
+            "difal",
+            "st",
+            "ncm",
+            "cfop",
+            "csosn",
+            "simples",
+            "fiscal"
+        },
+
+        "logistica": {
+            "frete",
+            "logística",
+            "logistica",
+            "entrega",
+            "rota",
+            "transportadora",
+            "distância",
+            "distancia",
+            "prazo de entrega"
+        },
+
+        "comercial": {
+            "cliente",
+            "lead",
+            "venda",
+            "comprador",
+            "hotel",
+            "bar",
+            "restaurante",
+            "distribuidor",
+            "proposta",
+            "negociação",
+            "negociacao",
+            "b2b",
+            "degustação",
+            "degustacao"
+        },
+
+        "profissional": {
+            "bartender",
+            "mixologista",
+            "sommelier",
+            "chef",
+            "profissional",
+            "embaixador",
+            "influenciador",
+            "amostra",
+            "evento"
+        },
+
+        "regulatorio": {
+            "mapa",
+            "registro",
+            "regulatório",
+            "regulatorio",
+            "rótulo",
+            "rotulo",
+            "legislação",
+            "legislacao",
+            "anvisa",
+            "responsável técnico",
+            "responsavel tecnico"
+        },
+
+        "estrategia": {
+            "estratégia",
+            "estrategia",
+            "prioridade",
+            "decisão",
+            "decisao",
+            "vale a pena",
+            "melhor opção",
+            "melhor opcao",
+            "recomenda",
+            "o que fazer",
+            "próximo passo",
+            "proximo passo"
+        }
+    }
+
+    for categoria, termos in grupos.items():
+
+        if any(
+            termo in texto
+            for termo in termos
+        ):
+            categorias.add(
+                categoria
+            )
+
+    # Perguntas estratégicas podem exigir
+    # combinação de diferentes contextos.
+    if "estrategia" in categorias:
+
+        if not (
+            categorias
+            - {"estrategia"}
+        ):
+            categorias.update({
+                "comercial",
+                "financeiro",
+                "industrial"
+            })
+
+    if not categorias:
+        categorias.add(
+            "geral"
+        )
+
+    return categorias
+
+
+def montar_contexto_empresarial_seletivo(
+    pergunta,
+    *,
+    contexto_documental="",
+    contexto_evidencias="",
+    contexto_decisoes="",
+    contexto_acoes="",
+    contexto_crm="",
+    contexto_fabricas="",
+    contexto_profissionais="",
+    contexto_fiscal="",
+    contexto_logistica="",
+    contexto_contatos="",
+    contexto_operacional=""
+):
+
+    categorias = (
+        classificar_contexto_empresarial(
+            pergunta
+        )
+    )
+
+    blocos = []
+
+    # -------------------------------------------------
+    # Contextos centrais
+    # -------------------------------------------------
+
+    blocos.append(
+        contexto_decisoes
+    )
+
+    blocos.append(
+        contexto_evidencias
+    )
+
+    # -------------------------------------------------
+    # Documentos
+    # -------------------------------------------------
+
+    if categorias & {
+        "industrial",
+        "regulatorio",
+        "financeiro",
+        "estrategia",
+        "geral"
+    }:
+        blocos.append(
+            contexto_documental
+        )
+
+    # -------------------------------------------------
+    # Fábricas
+    # -------------------------------------------------
+
+    if categorias & {
+        "industrial",
+        "financeiro",
+        "fiscal",
+        "logistica",
+        "estrategia"
+    }:
+        blocos.append(
+            contexto_fabricas
+        )
+
+    # -------------------------------------------------
+    # Rede profissional
+    # -------------------------------------------------
+
+    if categorias & {
+        "profissional",
+        "comercial",
+        "estrategia"
+    }:
+        blocos.append(
+            contexto_profissionais
+        )
+
+    # -------------------------------------------------
+    # CRM
+    # -------------------------------------------------
+
+    if categorias & {
+        "comercial",
+        "estrategia"
+    }:
+        blocos.append(
+            contexto_crm
+        )
+
+    # -------------------------------------------------
+    # Fiscal
+    # -------------------------------------------------
+
+    if categorias & {
+        "fiscal",
+        "financeiro",
+        "industrial",
+        "estrategia"
+    }:
+        blocos.append(
+            contexto_fiscal
+        )
+
+    # -------------------------------------------------
+    # Logística
+    # -------------------------------------------------
+
+    if categorias & {
+        "logistica",
+        "industrial",
+        "comercial",
+        "financeiro",
+        "estrategia"
+    }:
+        blocos.append(
+            contexto_logistica
+        )
+
+    # -------------------------------------------------
+    # Contatos estratégicos
+    # -------------------------------------------------
+
+    if categorias & {
+        "comercial",
+        "profissional",
+        "estrategia"
+    }:
+        blocos.append(
+            contexto_contatos
+        )
+
+    # -------------------------------------------------
+    # Operação
+    # -------------------------------------------------
+
+    if categorias & {
+        "industrial",
+        "financeiro",
+        "estrategia",
+        "geral"
+    }:
+        blocos.append(
+            contexto_operacional
+        )
+
+    # -------------------------------------------------
+    # Ações
+    # -------------------------------------------------
+
+    if categorias & {
+        "comercial",
+        "estrategia",
+        "geral"
+    }:
+        blocos.append(
+            contexto_acoes
+        )
+
+    contexto_final = "".join(
+        bloco
+        for bloco in blocos
+        if bloco
+    )
+
+    cabecalho = (
+        "\n\nROTEAMENTO DE CONTEXTO DA IA\n"
+        "Categorias detectadas: "
+        + ", ".join(
+            sorted(categorias)
+        )
+        + "\n"
+        "Use prioritariamente os contextos selecionados "
+        "para responder à pergunta atual.\n"
+    )
+
+    return {
+        "categorias":
+            sorted(categorias),
+
+        "contexto":
+            cabecalho
+            + contexto_final
+    }
+
+
 @app.route(
     "/api/admin/ia-empresarial",
     methods=["POST"]
@@ -12344,6 +12694,7 @@ def ia_empresarial():
             or ""
         )
 
+
         contatos_estrategicos_ia = (
             carregar_contatos_estrategicos_para_ia()
         )
@@ -12356,6 +12707,51 @@ def ia_empresarial():
         contexto_operacional = (
             "\n\nDADOS ATUAIS DO SISTEMA:\n"
             + str(resumo)
+        )
+
+        contexto_seletivo_ia = (
+            montar_contexto_empresarial_seletivo(
+                pergunta,
+
+                contexto_documental=
+                    contexto_documental,
+
+                contexto_evidencias=
+                    contexto_evidencias,
+
+                contexto_decisoes=
+                    contexto_decisoes,
+
+                contexto_acoes=
+                    contexto_acoes,
+
+                contexto_crm=
+                    contexto_crm,
+
+                contexto_fabricas=
+                    contexto_fabricas,
+
+                contexto_profissionais=
+                    contexto_profissionais,
+
+                contexto_fiscal=
+                    contexto_fiscal,
+
+                contexto_logistica=
+                    contexto_logistica,
+
+                contexto_contatos=
+                    contexto_contatos,
+
+                contexto_operacional=
+                    contexto_operacional
+            )
+        )
+
+        contexto_diagnostico = (
+            contexto_seletivo_ia[
+                "contexto"
+            ]
         )
 
         resposta = openai_client.responses.create(
@@ -12439,17 +12835,7 @@ def ia_empresarial():
                 + CONTEXTO_MARANHAO
                 + CONTEXTO_EMPRESARIAL_INTERNO
                 + HIERARQUIA_DECISAO_EMPRESARIAL
-                + contexto_documental
-                + contexto_evidencias
-                + contexto_decisoes
-                + contexto_acoes
-                + contexto_crm
-                + contexto_fabricas
-                + contexto_profissionais
-                + contexto_fiscal
-                + contexto_logistica
-                + contexto_contatos
-                + contexto_operacional +
+                + contexto_diagnostico +
 
                 "\nAnalise negócios com rigor. "
                 "Separe fatos, hipóteses, riscos e oportunidades. "
@@ -12559,17 +12945,7 @@ def ia_empresarial():
                     + POLITICA_PRIORIDADE_CONTEXTO_INTERNO
                     + POLITICA_COMUNICACAO_EMPRESARIAL
                     + REGRA_MENSAGENS_ESTRATEGICAS
-                    + contexto_documental
-                    + contexto_evidencias
-                    + contexto_decisoes
-                    + contexto_acoes
-                    + contexto_crm
-                    + contexto_fabricas
-                    + contexto_profissionais
-                    + contexto_fiscal
-                    + contexto_logistica
-                    + contexto_contatos
-                    + contexto_operacional
+                    + contexto_diagnostico
                 ),
 
                 input=pergunta,
