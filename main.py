@@ -10638,13 +10638,13 @@ def carregar_fabricas_para_ia(limite=50):
                     f"{fabrica['ncm_informado'] or 'não informado'} "
 
                     f"| Workflow: "
-                    f"{fabrica['status_fluxo'] or 'pendente'} "
+                    f"{fabrica.get('status_fluxo') or 'pendente'} "
 
                     f"| Origem cadastro: "
-                    f"{fabrica['origem_cadastro'] or 'não informada'} "
+                    f"{fabrica.get('origem_cadastro') or 'não informada'} "
 
                     f"| Disponível para cálculo IA: "
-                    f"{'SIM' if fabrica['disponivel_calculo_ia'] else 'NÃO'} "
+                    f"{'SIM' if fabrica.get('disponivel_calculo_ia') else 'NÃO'} "
 
                     f"| Responsável original pelos dados: "
                     f"{fabrica['responsavel_dados_nome'] or 'não informado'} "
