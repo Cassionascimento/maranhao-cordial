@@ -10571,14 +10571,14 @@ def carregar_fabricas_para_ia(limite=50):
         for fabrica in fabricas:
 
             custo_unitario = (
-                fabrica["custo_unitario_centavos"] / 100
-                if fabrica["custo_unitario_centavos"] is not None
+                fabrica.get('custo_unitario_centavos') / 100
+                if fabrica.get('custo_unitario_centavos') is not None
                 else None
             )
 
             custo_litro = (
-                fabrica["custo_litro_centavos"] / 100
-                if fabrica["custo_litro_centavos"] is not None
+                fabrica.get('custo_litro_centavos') / 100
+                if fabrica.get('custo_litro_centavos') is not None
                 else None
             )
 
@@ -10596,46 +10596,46 @@ def carregar_fabricas_para_ia(limite=50):
 
             linhas.append(
                 (
-                    f"- {fabrica['nome']} "
+                    f"- {fabrica.get('nome')} "
                     f"| Local: "
-                    f"{fabrica['cidade'] or 'não informada'}/"
-                    f"{fabrica['estado'] or 'não informado'} "
+                    f"{fabrica.get('cidade') or 'não informada'}/"
+                    f"{fabrica.get('estado') or 'não informado'} "
                     f"| Região: "
-                    f"{fabrica['regiao'] or 'não informada'} "
+                    f"{fabrica.get('regiao') or 'não informada'} "
                     f"| Comercial: "
-                    f"{fabrica['status_comercial']} "
+                    f"{fabrica.get('status_comercial')} "
                     f"| Regulatório: "
-                    f"{fabrica['status_regulatorio']} "
+                    f"{fabrica.get('status_regulatorio')} "
                     f"| MAPA: "
-                    f"{fabrica['mapa_status'] or 'não informado'} "
+                    f"{fabrica.get('mapa_status') or 'não informado'} "
                     f"| Lote mínimo unidades: "
-                    f"{fabrica['lote_minimo_unidades'] or 'não informado'} "
+                    f"{fabrica.get('lote_minimo_unidades') or 'não informado'} "
                     f"| Lote mínimo litros: "
-                    f"{fabrica['lote_minimo_litros'] or 'não informado'} "
+                    f"{fabrica.get('lote_minimo_litros') or 'não informado'} "
                     f"| Capacidade máxima unidades: "
-                    f"{fabrica['capacidade_maxima_unidades'] or 'não informada'} "
+                    f"{fabrica.get('capacidade_maxima_unidades') or 'não informada'} "
                     f"| Capacidade máxima litros: "
-                    f"{fabrica['capacidade_maxima_litros'] or 'não informada'} "
+                    f"{fabrica.get('capacidade_maxima_litros') or 'não informada'} "
                     f"| Custo unitário: "
                     f"{texto_custo_unitario} "
                     f"| Custo por litro: "
                     f"{texto_custo_litro} "
                     f"| Prazo produção: "
-                    f"{fabrica['prazo_producao_dias'] or 'não informado'} dias "
+                    f"{fabrica.get('prazo_producao_dias') or 'não informado'} dias "
                     f"| Copack: "
-                    f"{texto_booleano_verificado(fabrica['pode_copack'])} "
+                    f"{texto_booleano_verificado(fabrica.get('pode_copack'))} "
                     f"| Envase 200ml: "
-                    f"{texto_booleano_verificado(fabrica['envase_200ml'])} "
+                    f"{texto_booleano_verificado(fabrica.get('envase_200ml'))} "
                     f"| Vidro: "
-                    f"{texto_booleano_verificado(fabrica['embalagem_vidro'])} "
+                    f"{texto_booleano_verificado(fabrica.get('embalagem_vidro'))} "
                     f"| Rotulagem: "
-                    f"{texto_booleano_verificado(fabrica['rotulagem'])} "
+                    f"{texto_booleano_verificado(fabrica.get('rotulagem'))} "
                     f"| RT: "
-                    f"{texto_booleano_verificado(fabrica['responsabilidade_tecnica'])} "
+                    f"{texto_booleano_verificado(fabrica.get('responsabilidade_tecnica'))} "
                     f"| Análises: "
-                    f"{texto_booleano_verificado(fabrica['analises_laboratoriais'])} "
+                    f"{texto_booleano_verificado(fabrica.get('analises_laboratoriais'))} "
                     f"| NCM informado: "
-                    f"{fabrica['ncm_informado'] or 'não informado'} "
+                    f"{fabrica.get('ncm_informado') or 'não informado'} "
 
                     f"| Workflow: "
                     f"{fabrica.get('status_fluxo') or 'pendente'} "
@@ -10647,31 +10647,31 @@ def carregar_fabricas_para_ia(limite=50):
                     f"{'SIM' if fabrica.get('disponivel_calculo_ia') else 'NÃO'} "
 
                     f"| Responsável original pelos dados: "
-                    f"{fabrica['responsavel_dados_nome'] or 'não informado'} "
+                    f"{fabrica.get('responsavel_dados_nome') or 'não informado'} "
 
                     f"| Empresa do responsável: "
-                    f"{fabrica['responsavel_dados_empresa'] or 'não informada'} "
+                    f"{fabrica.get('responsavel_dados_empresa') or 'não informada'} "
 
                     f"| Cargo do responsável: "
-                    f"{fabrica['responsavel_dados_cargo'] or 'não informado'} "
+                    f"{fabrica.get('responsavel_dados_cargo') or 'não informado'} "
 
                     f"| Validado por: "
-                    f"{fabrica['validado_por'] or 'não validado'} "
+                    f"{fabrica.get('validado_por') or 'não validado'} "
 
                     f"| Qualificado por: "
-                    f"{fabrica['qualificado_por'] or 'não qualificado'} "
+                    f"{fabrica.get('qualificado_por') or 'não qualificado'} "
 
                     f"| Homologado por: "
-                    f"{fabrica['homologado_por'] or 'não homologado'} "
+                    f"{fabrica.get('homologado_por') or 'não homologado'} "
 
                     f"| Fonte: "
-                    f"{fabrica['fonte_dados'] or 'não informada'} "
+                    f"{fabrica.get('fonte_dados') or 'não informada'} "
 
                     f"| Verificado por legado: "
-                    f"{fabrica['verificado_por'] or 'não verificado'} "
+                    f"{fabrica.get('verificado_por') or 'não verificado'} "
 
                     f"| Observações: "
-                    f"{fabrica['observacoes'] or 'sem observações'}"
+                    f"{fabrica.get('observacoes') or 'sem observações'}"
                 )
             )
 
