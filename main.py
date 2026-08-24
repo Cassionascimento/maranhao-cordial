@@ -4360,6 +4360,7 @@ def webhook_meta():
         ) or []
 
         total_changes = 0
+        total_messaging = 0
 
         for entrada in entradas:
 
@@ -4367,9 +4368,65 @@ def webhook_meta():
                 "changes"
             ) or []
 
+            messaging = entrada.get(
+                "messaging"
+            ) or []
+
             total_changes += len(
                 changes
             )
+
+            total_messaging += len(
+                messaging
+            )
+
+            for evento in messaging:
+
+                remetente = (
+                    evento.get("sender")
+                    or {}
+                ).get("id")
+
+                destinatario = (
+                    evento.get("recipient")
+                    or {}
+                ).get("id")
+
+                mensagem = (
+                    evento.get("message")
+                    or {}
+                )
+
+                texto = mensagem.get(
+                    "text"
+                )
+
+                mid = mensagem.get(
+                    "mid"
+                )
+
+                echo = mensagem.get(
+                    "is_echo",
+                    False
+                )
+
+                print(
+                    "INSTAGRAM MENSAGEM RECEBIDA",
+                    {
+                        "sender_id":
+                            remetente,
+                        "recipient_id":
+                            destinatario,
+                        "mid":
+                            mid,
+                        "is_echo":
+                            echo,
+                        "text":
+                            texto[:300]
+                            if isinstance(texto, str)
+                            else None
+                    }
+                )
 
         print(
             "META WEBHOOK RECEBIDO",
@@ -4379,13 +4436,16 @@ def webhook_meta():
                 "entries":
                     len(entradas),
                 "changes":
-                    total_changes
+                    total_changes,
+                "messaging":
+                    total_messaging
             }
         )
 
-        # Importante:
-        # nesta etapa apenas confirmamos o recebimento.
-        # Persistência, CRM e IA serão conectados depois.
+        # Nesta etapa:
+        # - recebemos eventos da Meta;
+        # - identificamos mensagens do Instagram;
+        # - ainda NÃO enviamos resposta automática.
 
         return jsonify({
             "success": True
