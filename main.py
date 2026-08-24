@@ -1597,6 +1597,7 @@ C6_STATUS_FIELD = os.getenv("C6_STATUS_FIELD", "status")
 
 LOGISTICA_WEBHOOK_TOKEN = os.getenv("LOGISTICA_WEBHOOK_TOKEN")
 META_WEBHOOK_VERIFY_TOKEN = os.getenv("META_WEBHOOK_VERIFY_TOKEN")
+META_INSTAGRAM_ACCESS_TOKEN = os.getenv("META_INSTAGRAM_ACCESS_TOKEN")
 
 
 # =====================================================
