@@ -4189,6 +4189,96 @@ def webhook_c6():
 
     return "", 200
 
+
+
+# =====================================================
+# META — PÁGINAS LEGAIS
+# =====================================================
+
+@app.route("/politica-de-privacidade")
+def politica_de_privacidade():
+    return """
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Política de Privacidade - Maranhão Cordial</title>
+    </head>
+    <body style="font-family:Arial,sans-serif;max-width:800px;margin:40px auto;line-height:1.6">
+        <h1>Política de Privacidade</h1>
+
+        <p>A Maranhão Cordial utiliza dados fornecidos por usuários para atendimento,
+        relacionamento comercial, suporte, processamento de solicitações e melhoria
+        dos seus serviços.</p>
+
+        <p>Quando usuários entram em contato por Instagram, WhatsApp ou outros canais
+        integrados, mensagens e dados necessários ao atendimento podem ser processados
+        pelos sistemas da empresa.</p>
+
+        <p>Os dados não são comercializados e são utilizados apenas para as finalidades
+        relacionadas à operação da Maranhão Cordial.</p>
+
+        <p>O titular pode solicitar esclarecimentos, correção ou exclusão de seus dados
+        pelos canais oficiais da empresa.</p>
+
+        <p>Última atualização: 24 de agosto de 2026.</p>
+    </body>
+    </html>
+    """, 200
+
+
+@app.route("/termos-de-servico")
+def termos_de_servico():
+    return """
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Termos de Serviço - Maranhão Cordial</title>
+    </head>
+    <body style="font-family:Arial,sans-serif;max-width:800px;margin:40px auto;line-height:1.6">
+        <h1>Termos de Serviço</h1>
+
+        <p>Os canais digitais da Maranhão Cordial destinam-se ao atendimento,
+        relacionamento comercial, suporte e fornecimento de informações sobre
+        seus produtos e serviços.</p>
+
+        <p>O uso dos canais implica concordância com estes termos e com a
+        Política de Privacidade.</p>
+
+        <p>As informações fornecidas pelos sistemas podem ser atualizadas
+        conforme a operação da empresa.</p>
+
+        <p>Última atualização: 24 de agosto de 2026.</p>
+    </body>
+    </html>
+    """, 200
+
+
+@app.route("/exclusao-de-dados")
+def exclusao_de_dados():
+    return """
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Exclusão de Dados - Maranhão Cordial</title>
+    </head>
+    <body style="font-family:Arial,sans-serif;max-width:800px;margin:40px auto;line-height:1.6">
+        <h1>Solicitação de Exclusão de Dados</h1>
+
+        <p>Usuários podem solicitar a exclusão de dados pessoais associados
+        ao atendimento realizado pelos canais digitais da Maranhão Cordial.</p>
+
+        <p>Para solicitar a exclusão, entre em contato pelos canais oficiais
+        da empresa e informe os dados necessários para identificação do atendimento.</p>
+
+        <p>Após a validação da solicitação, os dados serão excluídos ou anonimizados
+        quando aplicável, respeitadas as obrigações legais e regulatórias.</p>
+
+        <p>Última atualização: 24 de agosto de 2026.</p>
+    </body>
+    </html>
+    """, 200
+
+
 # =====================================================
 # META / WHATSAPP — WEBHOOK
 # =====================================================
