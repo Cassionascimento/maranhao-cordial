@@ -5447,6 +5447,329 @@ def admin_decidir_resposta_omnichannel(
 
 
 # =====================================================
+# INSTAGRAM — ENVIO DE RESPOSTA APROVADA
+# =====================================================
+
+def obter_config_instagram_mensagens():
+
+    token = (
+        os.getenv("INSTAGRAM_ACCESS_TOKEN")
+        or os.getenv("META_ACCESS_TOKEN")
+        or os.getenv("PAGE_ACCESS_TOKEN")
+        or ""
+    ).strip()
+
+    conta_id = (
+        os.getenv("INSTAGRAM_ACCOUNT_ID")
+        or os.getenv("INSTAGRAM_USER_ID")
+        or os.getenv("INSTAGRAM_ID")
+        or ""
+    ).strip()
+
+    endpoint_customizado = (
+        os.getenv("INSTAGRAM_MESSAGES_ENDPOINT")
+        or ""
+    ).strip()
+
+    return {
+        "token": token,
+        "conta_id": conta_id,
+        "endpoint":
+            endpoint_customizado
+    }
+
+
+def enviar_resposta_instagram(
+    fila
+):
+
+    if not fila:
+        return {
+            "success": False,
+            "erro": "Resposta não informada."
+        }
+
+    status = str(
+        fila.get("status")
+        or ""
+    ).strip().lower()
+
+    if status != "aprovada":
+
+        return {
+            "success": False,
+            "erro":
+                "Resposta ainda não foi aprovada."
+        }
+
+    destinatario = str(
+        fila.get(
+            "destinatario_id"
+        )
+        or ""
+    ).strip()
+
+    texto = str(
+        fila.get(
+            "resposta_sugerida"
+        )
+        or ""
+    ).strip()
+
+    if not destinatario:
+
+        return {
+            "success": False,
+            "erro":
+                "Destinatário Instagram ausente."
+        }
+
+    if not texto:
+
+        return {
+            "success": False,
+            "erro":
+                "Texto da resposta ausente."
+        }
+
+    config = (
+        obter_config_instagram_mensagens()
+    )
+
+    token = config["token"]
+    conta_id = config["conta_id"]
+    endpoint = config["endpoint"]
+
+    if not token:
+
+        return {
+            "success": False,
+            "erro":
+                "Token Instagram/Meta não configurado."
+        }
+
+    if not endpoint:
+
+        if not conta_id:
+
+            return {
+                "success": False,
+                "erro":
+                    "INSTAGRAM_ACCOUNT_ID não configurado."
+            }
+
+        endpoint = (
+            "https://graph.facebook.com/"
+            "v26.0/"
+            + conta_id
+            + "/messages"
+        )
+
+    payload = {
+        "recipient": {
+            "id": destinatario
+        },
+        "message": {
+            "text": texto
+        }
+    }
+
+    try:
+
+        resposta = requests.post(
+            endpoint,
+            headers={
+                "Authorization":
+                    "Bearer " + token,
+                "Content-Type":
+                    "application/json"
+            },
+            json=payload,
+            timeout=30
+        )
+
+        corpo = {}
+
+        try:
+            corpo = resposta.json()
+        except Exception:
+            corpo = {
+                "raw":
+                    resposta.text[:1000]
+            }
+
+        if not resposta.ok:
+
+            return {
+                "success": False,
+                "status_code":
+                    resposta.status_code,
+                "erro":
+                    corpo
+            }
+
+        return {
+            "success": True,
+            "status_code":
+                resposta.status_code,
+            "meta":
+                corpo
+        }
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "erro":
+                str(erro)
+        }
+
+
+@app.route(
+    "/api/admin/omnichannel/respostas/<resposta_id>/enviar",
+    methods=["POST"]
+)
+def admin_enviar_resposta_omnichannel(
+    resposta_id
+):
+
+    if not validar_admin_omnichannel():
+
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM fila_respostas_omnichannel
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    resposta_id,
+                ))
+
+                fila = cur.fetchone()
+
+                if not fila:
+
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Resposta não encontrada."
+                    }), 404
+
+                status = str(
+                    fila.get(
+                        "status"
+                    )
+                    or ""
+                ).strip().lower()
+
+                if status == "enviada":
+
+                    return jsonify({
+                        "success": True,
+                        "ja_enviada": True,
+                        "resposta":
+                            dict(fila)
+                    }), 200
+
+                if status != "aprovada":
+
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "A resposta precisa ser aprovada antes do envio.",
+                        "status":
+                            status
+                    }), 409
+
+                canal = str(
+                    fila.get(
+                        "canal"
+                    )
+                    or ""
+                ).strip().lower()
+
+                if canal != "instagram":
+
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Este endpoint envia somente mensagens do Instagram."
+                    }), 400
+
+                resultado = (
+                    enviar_resposta_instagram(
+                        dict(fila)
+                    )
+                )
+
+                if resultado.get(
+                    "success"
+                ):
+
+                    cur.execute("""
+                        UPDATE fila_respostas_omnichannel
+                        SET
+                            status = 'enviada',
+                            enviado_em = NOW(),
+                            erro_envio = NULL,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                        RETURNING *
+                    """, (
+                        resposta_id,
+                    ))
+
+                    atualizada = (
+                        cur.fetchone()
+                    )
+
+                    return jsonify({
+                        "success": True,
+                        "envio":
+                            resultado,
+                        "resposta":
+                            dict(atualizada)
+                    }), 200
+
+                cur.execute("""
+                    UPDATE fila_respostas_omnichannel
+                    SET
+                        erro_envio = %s,
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                """, (
+                    str(
+                        resultado
+                    )[:4000],
+                    resposta_id
+                ))
+
+                return jsonify({
+                    "success": False,
+                    "error":
+                        "A Meta não confirmou o envio.",
+                    "detalhes":
+                        resultado
+                }), 502
+
+    finally:
+        conn.close()
+
+
+# =====================================================
 # META / WHATSAPP — WEBHOOK
 # =====================================================
 
