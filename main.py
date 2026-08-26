@@ -717,6 +717,130 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # OMNICHANNEL — INTERAÇÕES META
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS interacoes_omnichannel (
+                        id UUID PRIMARY KEY,
+
+                        canal VARCHAR(40) NOT NULL,
+                        plataforma VARCHAR(40),
+
+                        sender_id VARCHAR(220),
+                        recipient_id VARCHAR(220),
+
+                        message_id VARCHAR(300),
+
+                        texto TEXT,
+
+                        tipo_interacao VARCHAR(80),
+                        classificacao VARCHAR(80),
+                        interesse TEXT,
+
+                        lead_id UUID,
+
+                        processado_ia BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT fk_interacao_lead
+                            FOREIGN KEY (lead_id)
+                            REFERENCES leads_crm(id)
+                            ON DELETE SET NULL
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    idx_interacoes_omnichannel_message_id
+                    ON interacoes_omnichannel(message_id)
+                    WHERE message_id IS NOT NULL
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_interacoes_omnichannel_sender
+                    ON interacoes_omnichannel(
+                        canal,
+                        sender_id
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_interacoes_omnichannel_lead
+                    ON interacoes_omnichannel(lead_id)
+                """)
+
+                # ==========================================
+                # OMNICHANNEL — FILA DE RESPOSTAS
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    fila_respostas_omnichannel (
+                        id UUID PRIMARY KEY,
+
+                        interacao_id UUID NOT NULL,
+
+                        canal VARCHAR(40) NOT NULL,
+
+                        destinatario_id VARCHAR(220)
+                            NOT NULL,
+
+                        resposta_sugerida TEXT
+                            NOT NULL,
+
+                        status VARCHAR(40)
+                            NOT NULL
+                            DEFAULT 'aguardando_aprovacao',
+
+                        modo_autonomia VARCHAR(40)
+                            NOT NULL
+                            DEFAULT 'manual',
+
+                        aprovado_por VARCHAR(220),
+
+                        aprovado_em TIMESTAMPTZ,
+
+                        enviado_em TIMESTAMPTZ,
+
+                        erro_envio TEXT,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT fk_fila_interacao
+                            FOREIGN KEY (interacao_id)
+                            REFERENCES interacoes_omnichannel(id)
+                            ON DELETE CASCADE
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_fila_respostas_status
+                    ON fila_respostas_omnichannel(status)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_fila_respostas_interacao
+                    ON fila_respostas_omnichannel(
+                        interacao_id
+                    )
+                """)
+
+                # ==========================================
                 # MATRIZ DE FABRICAS PARCEIRAS
                 # ==========================================
 
@@ -2559,6 +2683,137 @@ def salvar_atendimento_sac(
                     codigo_pedido,
                     cliente_email
                 ))
+
+    finally:
+        conn.close()
+
+
+# =====================================================
+# OMNICHANNEL — REGISTRAR INTERAÇÃO
+# =====================================================
+
+def registrar_interacao_omnichannel(
+    canal,
+    sender_id,
+    recipient_id,
+    message_id,
+    texto,
+    plataforma="meta",
+    tipo_interacao="mensagem",
+    classificacao=None,
+    interesse=None,
+    lead_id=None
+):
+    canal = str(canal or "").strip().lower()
+    plataforma = str(plataforma or "").strip().lower()
+
+    sender_id = (
+        str(sender_id).strip()
+        if sender_id is not None
+        else None
+    )
+
+    recipient_id = (
+        str(recipient_id).strip()
+        if recipient_id is not None
+        else None
+    )
+
+    message_id = (
+        str(message_id).strip()
+        if message_id
+        else None
+    )
+
+    texto = (
+        str(texto).strip()
+        if texto is not None
+        else None
+    )
+
+    if not canal:
+        raise ValueError(
+            "Canal omnichannel obrigatório."
+        )
+
+    interacao_id = str(uuid.uuid4())
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                # Evita processar novamente a mesma
+                # mensagem enviada pela Meta.
+                if message_id:
+
+                    cur.execute("""
+                        SELECT *
+                        FROM interacoes_omnichannel
+                        WHERE message_id = %s
+                        LIMIT 1
+                    """, (
+                        message_id,
+                    ))
+
+                    existente = cur.fetchone()
+
+                    if existente:
+                        return {
+                            "success": True,
+                            "duplicada": True,
+                            "interacao":
+                                dict(existente)
+                        }
+
+                cur.execute("""
+                    INSERT INTO interacoes_omnichannel (
+                        id,
+                        canal,
+                        plataforma,
+                        sender_id,
+                        recipient_id,
+                        message_id,
+                        texto,
+                        tipo_interacao,
+                        classificacao,
+                        interesse,
+                        lead_id,
+                        processado_ia
+                    )
+                    VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s, FALSE
+                    )
+                    RETURNING *
+                """, (
+                    interacao_id,
+                    canal,
+                    plataforma,
+                    sender_id,
+                    recipient_id,
+                    message_id,
+                    texto,
+                    tipo_interacao,
+                    classificacao,
+                    interesse,
+                    lead_id
+                ))
+
+                interacao = cur.fetchone()
+
+        return {
+            "success": True,
+            "duplicada": False,
+            "interacao":
+                dict(interacao)
+                if interacao
+                else None
+        }
 
     finally:
         conn.close()
@@ -4427,6 +4682,50 @@ def webhook_meta():
                             else None
                     }
                 )
+
+                # -----------------------------------------
+                # REGISTRO OMNICHANNEL
+                # -----------------------------------------
+
+                if (
+                    not echo
+                    and isinstance(texto, str)
+                    and texto.strip()
+                ):
+
+                    try:
+                        registro = (
+                            registrar_interacao_omnichannel(
+                                canal="instagram",
+                                sender_id=remetente,
+                                recipient_id=destinatario,
+                                message_id=mid,
+                                texto=texto,
+                                plataforma="meta",
+                                tipo_interacao="mensagem"
+                            )
+                        )
+
+                        print(
+                            "OMNICHANNEL REGISTRADO",
+                            {
+                                "canal":
+                                    "instagram",
+                                "duplicada":
+                                    registro.get(
+                                        "duplicada"
+                                    )
+                            }
+                        )
+
+                    except Exception as erro_registro:
+
+                        print(
+                            "ERRO REGISTRO OMNICHANNEL:",
+                            repr(
+                                erro_registro
+                            )
+                        )
 
         print(
             "META WEBHOOK RECEBIDO",
