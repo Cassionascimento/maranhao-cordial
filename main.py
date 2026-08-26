@@ -5670,47 +5670,47 @@ def webhook_meta():
                                 )
 
                             # ---------------------------------
-                            # RESPOSTA SUGERIDA — FILA MANUAL
-                            # ---------------------------------
+                                # RESPOSTA SUGERIDA — FILA MANUAL
+                                # ---------------------------------
 
-                            try:
-                                sugestao = (
-                                    gerar_resposta_sugerida_omnichannel(
-                                        registro.get(
-                                            "interacao"
-                                        ),
-                                        processamento
-                                    )
-                                )
-
-                                print(
-                                    "OMNICHANNEL RESPOSTA SUGERIDA",
-                                    {
-                                        "criada":
-                                            not sugestao.get(
-                                                "duplicada",
-                                                False
+                                try:
+                                    sugestao = (
+                                        gerar_resposta_sugerida_omnichannel(
+                                            registro.get(
+                                                "interacao"
                                             ),
-                                        "status":
-                                            (
-                                                sugestao.get(
-                                                    "fila"
-                                                )
-                                                or {}
-                                            ).get(
-                                                "status"
-                                            )
-                                    }
-                                )
-
-                            except Exception as erro_sugestao:
-
-                                print(
-                                    "ERRO RESPOSTA SUGERIDA:",
-                                    repr(
-                                        erro_sugestao
+                                            processamento
+                                        )
                                     )
-                                )
+
+                                    print(
+                                        "OMNICHANNEL RESPOSTA SUGERIDA",
+                                        {
+                                            "criada":
+                                                not sugestao.get(
+                                                    "duplicada",
+                                                    False
+                                                ),
+                                            "status":
+                                                (
+                                                    sugestao.get(
+                                                        "fila"
+                                                    )
+                                                    or {}
+                                                ).get(
+                                                    "status"
+                                                )
+                                        }
+                                    )
+
+                                except Exception as erro_sugestao:
+
+                                    print(
+                                        "ERRO RESPOSTA SUGERIDA:",
+                                        repr(
+                                            erro_sugestao
+                                        )
+                                    )
 
                             except Exception as erro_crm:
 
