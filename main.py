@@ -2820,6 +2820,356 @@ def registrar_interacao_omnichannel(
 
 
 # =====================================================
+# OMNICHANNEL — CLASSIFICAÇÃO COMERCIAL INICIAL
+# =====================================================
+
+def classificar_interacao_comercial(texto):
+
+    texto_normalizado = str(
+        texto or ""
+    ).strip().lower()
+
+    termos_b2b = (
+        "bar",
+        "restaurante",
+        "hotel",
+        "bartender",
+        "barman",
+        "distribuidor",
+        "distribuidora",
+        "revenda",
+        "revender",
+        "atacado",
+        "fornecedor",
+        "comprar para",
+        "meu estabelecimento",
+        "minha empresa",
+        "meu restaurante",
+        "meu bar",
+        "meu hotel"
+    )
+
+    termos_degustacao = (
+        "degustação",
+        "degustacao",
+        "experimentar",
+        "provar",
+        "amostra",
+        "conhecer o produto",
+        "apresentação",
+        "apresentacao"
+    )
+
+    eh_b2b = any(
+        termo in texto_normalizado
+        for termo in termos_b2b
+    )
+
+    quer_degustacao = any(
+        termo in texto_normalizado
+        for termo in termos_degustacao
+    )
+
+    if eh_b2b:
+
+        return {
+            "relevante_crm": True,
+            "tipo_lead": "b2b",
+            "classificacao": "interesse_comercial_b2b",
+            "interesse":
+                "degustacao"
+                if quer_degustacao
+                else "contato_comercial",
+            "estagio":
+                "degustacao"
+                if quer_degustacao
+                else "novo"
+        }
+
+    return {
+        "relevante_crm": False,
+        "tipo_lead": None,
+        "classificacao": "atendimento",
+        "interesse": None,
+        "estagio": None
+    }
+
+
+# =====================================================
+# OMNICHANNEL — PROCESSAR PARA CRM
+# =====================================================
+
+def processar_interacao_omnichannel_crm(
+    interacao
+):
+
+    if not interacao:
+        return {
+            "success": False,
+            "erro": "Interação não informada."
+        }
+
+    interacao_id = str(
+        interacao.get("id") or ""
+    ).strip()
+
+    canal = str(
+        interacao.get("canal") or ""
+    ).strip().lower()
+
+    sender_id = str(
+        interacao.get("sender_id") or ""
+    ).strip()
+
+    texto = str(
+        interacao.get("texto") or ""
+    ).strip()
+
+    if not interacao_id:
+        return {
+            "success": False,
+            "erro": "Interação sem ID."
+        }
+
+    classificacao = (
+        classificar_interacao_comercial(
+            texto
+        )
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                # -----------------------------------------
+                # NÃO É LEAD COMERCIAL
+                # -----------------------------------------
+
+                if not classificacao[
+                    "relevante_crm"
+                ]:
+
+                    cur.execute("""
+                        UPDATE interacoes_omnichannel
+                        SET
+                            classificacao = %s,
+                            processado_ia = TRUE,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                        RETURNING *
+                    """, (
+                        classificacao[
+                            "classificacao"
+                        ],
+                        interacao_id
+                    ))
+
+                    atualizada = cur.fetchone()
+
+                    return {
+                        "success": True,
+                        "lead_criado": False,
+                        "lead_atualizado": False,
+                        "classificacao":
+                            classificacao,
+                        "interacao":
+                            dict(atualizada)
+                            if atualizada
+                            else None
+                    }
+
+                # -----------------------------------------
+                # PROCURA LEAD EXISTENTE
+                # canal + sender_id
+                # -----------------------------------------
+
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE
+                        canal = %s
+                        AND contato = %s
+                    ORDER BY criado_em DESC
+                    LIMIT 1
+                """, (
+                    canal,
+                    sender_id
+                ))
+
+                lead = cur.fetchone()
+
+                lead_criado = False
+                lead_atualizado = False
+
+                # -----------------------------------------
+                # ATUALIZA LEAD EXISTENTE
+                # -----------------------------------------
+
+                if lead:
+
+                    observacao_nova = (
+                        "["
+                        + canal
+                        + "] "
+                        + texto[:1500]
+                    )
+
+                    observacao_anterior = (
+                        lead.get(
+                            "observacoes"
+                        )
+                        or ""
+                    )
+
+                    observacoes = (
+                        observacao_anterior
+                        + "\n"
+                        + observacao_nova
+                    ).strip()
+
+                    cur.execute("""
+                        UPDATE leads_crm
+                        SET
+                            interesse = %s,
+                            estagio = CASE
+                                WHEN estagio = 'novo'
+                                     AND %s = 'degustacao'
+                                THEN 'degustacao'
+                                ELSE estagio
+                            END,
+                            observacoes = %s,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                        RETURNING *
+                    """, (
+                        classificacao[
+                            "interesse"
+                        ],
+                        classificacao[
+                            "estagio"
+                        ],
+                        observacoes,
+                        lead["id"]
+                    ))
+
+                    lead = cur.fetchone()
+                    lead_atualizado = True
+
+                # -----------------------------------------
+                # CRIA NOVO LEAD
+                # -----------------------------------------
+
+                else:
+
+                    lead_id = str(
+                        uuid.uuid4()
+                    )
+
+                    observacoes = (
+                        "Lead identificado "
+                        "automaticamente pelo "
+                        "omnichannel.\n"
+                        "["
+                        + canal
+                        + "] "
+                        + texto[:1500]
+                    )
+
+                    cur.execute("""
+                        INSERT INTO leads_crm (
+                            id,
+                            nome,
+                            empresa,
+                            tipo_lead,
+                            origem,
+                            canal,
+                            contato,
+                            interesse,
+                            estagio,
+                            receita_acumulada_centavos,
+                            observacoes
+                        )
+                        VALUES (
+                            %s, %s, %s, %s,
+                            %s, %s, %s, %s,
+                            %s, %s, %s
+                        )
+                        RETURNING *
+                    """, (
+                        lead_id,
+                        None,
+                        None,
+                        classificacao[
+                            "tipo_lead"
+                        ],
+                        canal,
+                        canal,
+                        sender_id,
+                        classificacao[
+                            "interesse"
+                        ],
+                        classificacao[
+                            "estagio"
+                        ],
+                        0,
+                        observacoes
+                    ))
+
+                    lead = cur.fetchone()
+                    lead_criado = True
+
+                # -----------------------------------------
+                # LIGA INTERAÇÃO AO CRM
+                # -----------------------------------------
+
+                cur.execute("""
+                    UPDATE interacoes_omnichannel
+                    SET
+                        classificacao = %s,
+                        interesse = %s,
+                        lead_id = %s,
+                        processado_ia = TRUE,
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING *
+                """, (
+                    classificacao[
+                        "classificacao"
+                    ],
+                    classificacao[
+                        "interesse"
+                    ],
+                    lead["id"],
+                    interacao_id
+                ))
+
+                atualizada = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "lead_criado":
+                        lead_criado,
+                    "lead_atualizado":
+                        lead_atualizado,
+                    "classificacao":
+                        classificacao,
+                    "lead":
+                        dict(lead),
+                    "interacao":
+                        dict(atualizada)
+                        if atualizada
+                        else None
+                }
+
+    finally:
+        conn.close()
+
+
+# =====================================================
 # PÁGINA INICIAL
 # =====================================================
 
@@ -4717,6 +5067,55 @@ def webhook_meta():
                                     )
                             }
                         )
+
+                        # ---------------------------------
+                        # PROCESSAMENTO CRM
+                        # ---------------------------------
+
+                        if not registro.get(
+                            "duplicada"
+                        ):
+
+                            try:
+                                processamento = (
+                                    processar_interacao_omnichannel_crm(
+                                        registro.get(
+                                            "interacao"
+                                        )
+                                    )
+                                )
+
+                                print(
+                                    "OMNICHANNEL CRM PROCESSADO",
+                                    {
+                                        "lead_criado":
+                                            processamento.get(
+                                                "lead_criado"
+                                            ),
+                                        "lead_atualizado":
+                                            processamento.get(
+                                                "lead_atualizado"
+                                            ),
+                                        "classificacao":
+                                            (
+                                                processamento.get(
+                                                    "classificacao"
+                                                )
+                                                or {}
+                                            ).get(
+                                                "classificacao"
+                                            )
+                                    }
+                                )
+
+                            except Exception as erro_crm:
+
+                                print(
+                                    "ERRO PROCESSAMENTO CRM:",
+                                    repr(
+                                        erro_crm
+                                    )
+                                )
 
                     except Exception as erro_registro:
 
