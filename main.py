@@ -7060,40 +7060,107 @@ def admin_alterar_status_documento(documento_id):
         silent=True
     ) or {}
 
-    status_documento = str(
-        dados.get(
-            "status_documento",
-            ""
-        )
-    ).strip()
+    status_documento = dados.get(
+        "status_documento"
+    )
 
-    if status_documento not in {
-        "vigente",
-        "rascunho",
-        "historico"
-    }:
+    usar_na_ia = dados.get(
+        "usar_na_ia"
+    )
+
+    atualizacoes = []
+    valores = []
+
+    if status_documento is not None:
+
+        status_documento = str(
+            status_documento
+        ).strip()
+
+        if status_documento not in {
+            "vigente",
+            "rascunho",
+            "historico"
+        }:
+            return jsonify({
+                "success": False,
+                "error": "Status documental inválido."
+            }), 400
+
+        atualizacoes.append(
+            "status_documento = %s"
+        )
+
+        valores.append(
+            status_documento
+        )
+
+    if usar_na_ia is not None:
+
+        if isinstance(
+            usar_na_ia,
+            str
+        ):
+            usar_na_ia = (
+                usar_na_ia.strip().lower()
+                in {
+                    "1",
+                    "true",
+                    "sim",
+                    "on"
+                }
+            )
+        else:
+            usar_na_ia = bool(
+                usar_na_ia
+            )
+
+        atualizacoes.append(
+            "usar_na_ia = %s"
+        )
+
+        valores.append(
+            usar_na_ia
+        )
+
+    if not atualizacoes:
         return jsonify({
             "success": False,
-            "error": "Status documental inválido."
+            "error":
+                "Informe status_documento ou usar_na_ia."
         }), 400
+
+    atualizacoes.append(
+        "atualizado_em = NOW()"
+    )
+
+    valores.append(
+        documento_id
+    )
 
     conn = get_db_connection()
 
     try:
         with conn:
-            with conn.cursor() as cur:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
 
-                cur.execute("""
+                query = f"""
                     UPDATE documentos_empresariais
                     SET
-                        status_documento = %s,
-                        atualizado_em = NOW()
+                        {", ".join(atualizacoes)}
                     WHERE id = %s
-                    RETURNING id
-                """, (
-                    status_documento,
-                    documento_id
-                ))
+                    RETURNING
+                        id,
+                        status_documento,
+                        usar_na_ia
+                """
+
+                cur.execute(
+                    query,
+                    tuple(valores)
+                )
 
                 atualizado = cur.fetchone()
 
@@ -7105,8 +7172,8 @@ def admin_alterar_status_documento(documento_id):
 
         return jsonify({
             "success": True,
-            "documento_id": documento_id,
-            "status_documento": status_documento
+            "documento":
+                dict(atualizado)
         }), 200
 
     finally:
