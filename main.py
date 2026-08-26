@@ -3170,6 +3170,277 @@ def processar_interacao_omnichannel_crm(
 
 
 # =====================================================
+# OMNICHANNEL — GERAR RESPOSTA SUGERIDA
+# =====================================================
+
+def gerar_resposta_sugerida_omnichannel(
+    interacao,
+    processamento=None
+):
+    if not interacao:
+        return {
+            "success": False,
+            "erro": "Interação não informada."
+        }
+
+    interacao_id = str(
+        interacao.get("id") or ""
+    ).strip()
+
+    canal = str(
+        interacao.get("canal") or ""
+    ).strip().lower()
+
+    sender_id = str(
+        interacao.get("sender_id") or ""
+    ).strip()
+
+    texto = str(
+        interacao.get("texto") or ""
+    ).strip()
+
+    if not interacao_id:
+        return {
+            "success": False,
+            "erro": "Interação sem ID."
+        }
+
+    if not sender_id:
+        return {
+            "success": False,
+            "erro": "Interação sem destinatário."
+        }
+
+    if not texto:
+        return {
+            "success": False,
+            "erro": "Interação sem texto."
+        }
+
+    # -------------------------------------------------
+    # NÃO DUPLICAR RESPOSTA PARA A MESMA INTERAÇÃO
+    # -------------------------------------------------
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM fila_respostas_omnichannel
+                    WHERE interacao_id = %s
+                    ORDER BY criado_em DESC
+                    LIMIT 1
+                """, (
+                    interacao_id,
+                ))
+
+                existente = cur.fetchone()
+
+                if existente:
+                    return {
+                        "success": True,
+                        "duplicada": True,
+                        "fila":
+                            dict(existente)
+                    }
+
+    finally:
+        conn.close()
+
+    # -------------------------------------------------
+    # CLASSIFICAÇÃO JÁ REALIZADA
+    # -------------------------------------------------
+
+    classificacao = {}
+
+    if isinstance(processamento, dict):
+        classificacao = (
+            processamento.get(
+                "classificacao"
+            )
+            or {}
+        )
+
+    tipo_classificacao = str(
+        classificacao.get(
+            "classificacao"
+        )
+        or interacao.get(
+            "classificacao"
+        )
+        or "atendimento"
+    )
+
+    interesse = str(
+        classificacao.get(
+            "interesse"
+        )
+        or interacao.get(
+            "interesse"
+        )
+        or ""
+    )
+
+    # -------------------------------------------------
+    # GERAÇÃO SEGURA DA RESPOSTA
+    # -------------------------------------------------
+
+    if not openai_client:
+
+        resposta_sugerida = (
+            "Olá! Obrigado pelo contato com a Maranhão Cordial. "
+            "Recebemos sua mensagem e teremos prazer em orientar você."
+        )
+
+    else:
+
+        try:
+            resposta_ia = (
+                openai_client.responses.create(
+                    model="gpt-5-mini",
+
+                    instructions=(
+                        "Você é o atendimento externo oficial "
+                        "da Maranhão Cordial. "
+
+                        + CONTEXTO_MARANHAO +
+
+                        "\nA mensagem veio de um canal público, "
+                        "como Instagram ou WhatsApp. "
+
+                        "Responda em português do Brasil. "
+                        "Seja elegante, natural, cordial e objetivo. "
+                        "Use no máximo 3 frases curtas. "
+
+                        "Não revele informações internas da empresa. "
+                        "Não mencione custos internos, fornecedores, "
+                        "fábricas, margens, estratégias, CRM, documentos "
+                        "internos, decisões empresariais ou dados de "
+                        "outros clientes. "
+
+                        "Não invente preço, prazo, disponibilidade, "
+                        "condição comercial, desconto ou promessa. "
+
+                        "Não aceite contratos, não feche negócios "
+                        "e não assuma compromissos em nome da empresa. "
+
+                        "Se houver interesse B2B, reconheça o interesse "
+                        "e conduza naturalmente para continuidade do contato. "
+
+                        "Se houver interesse em degustação, reconheça isso "
+                        "sem prometer data, envio ou disponibilidade. "
+
+                        "Faça no máximo uma pergunta, somente quando ela "
+                        "for realmente útil para dar continuidade. "
+
+                        "A resposta será revisada por um administrador "
+                        "antes do envio."
+                    ),
+
+                    input=(
+                        "CANAL: "
+                        + canal
+                        + "\nCLASSIFICAÇÃO: "
+                        + tipo_classificacao
+                        + "\nINTERESSE: "
+                        + interesse
+                        + "\nMENSAGEM DO CLIENTE:\n"
+                        + texto
+                    ),
+
+                    reasoning={
+                        "effort": "low"
+                    },
+
+                    max_output_tokens=220
+                )
+            )
+
+            resposta_sugerida = (
+                resposta_ia.output_text
+                or ""
+            ).strip()
+
+            if not resposta_sugerida:
+                resposta_sugerida = (
+                    "Olá! Obrigado pelo contato com a Maranhão Cordial. "
+                    "Recebemos sua mensagem e teremos prazer em orientar você."
+                )
+
+        except Exception as erro_ia:
+
+            print(
+                "ERRO IA RESPOSTA OMNICHANNEL:",
+                repr(erro_ia)
+            )
+
+            resposta_sugerida = (
+                "Olá! Obrigado pelo contato com a Maranhão Cordial. "
+                "Recebemos sua mensagem e teremos prazer em orientar você."
+            )
+
+    # -------------------------------------------------
+    # FILA — SEM ENVIO AUTOMÁTICO
+    # -------------------------------------------------
+
+    fila_id = str(
+        uuid.uuid4()
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO fila_respostas_omnichannel (
+                        id,
+                        interacao_id,
+                        canal,
+                        destinatario_id,
+                        resposta_sugerida,
+                        status,
+                        modo_autonomia
+                    )
+                    VALUES (
+                        %s, %s, %s, %s,
+                        %s,
+                        'aguardando_aprovacao',
+                        'manual'
+                    )
+                    RETURNING *
+                """, (
+                    fila_id,
+                    interacao_id,
+                    canal,
+                    sender_id,
+                    resposta_sugerida
+                ))
+
+                fila = cur.fetchone()
+
+        return {
+            "success": True,
+            "duplicada": False,
+            "fila":
+                dict(fila)
+                if fila
+                else None
+        }
+
+    finally:
+        conn.close()
+
+
+# =====================================================
 # PÁGINA INICIAL
 # =====================================================
 
@@ -4886,6 +5157,296 @@ def exclusao_de_dados():
 
 
 # =====================================================
+# ADMIN — OMNICHANNEL / FILA DE RESPOSTAS
+# =====================================================
+
+def validar_admin_omnichannel():
+
+    chave = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    return bool(
+        ADMIN_API_KEY
+        and chave == ADMIN_API_KEY
+    )
+
+
+@app.route(
+    "/api/admin/omnichannel/respostas",
+    methods=["GET"]
+)
+def admin_listar_respostas_omnichannel():
+
+    if not validar_admin_omnichannel():
+
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    status = str(
+        request.args.get(
+            "status",
+            ""
+        )
+    ).strip().lower()
+
+    limite_raw = request.args.get(
+        "limite",
+        "100"
+    )
+
+    try:
+        limite = int(
+            limite_raw
+        )
+    except Exception:
+        limite = 100
+
+    limite = max(
+        1,
+        min(
+            limite,
+            200
+        )
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                if status:
+
+                    cur.execute("""
+                        SELECT
+                            f.*,
+                            i.texto AS mensagem_recebida,
+                            i.sender_id,
+                            i.message_id,
+                            i.classificacao,
+                            i.interesse,
+                            i.lead_id
+                        FROM fila_respostas_omnichannel f
+                        JOIN interacoes_omnichannel i
+                            ON i.id = f.interacao_id
+                        WHERE f.status = %s
+                        ORDER BY f.criado_em DESC
+                        LIMIT %s
+                    """, (
+                        status,
+                        limite
+                    ))
+
+                else:
+
+                    cur.execute("""
+                        SELECT
+                            f.*,
+                            i.texto AS mensagem_recebida,
+                            i.sender_id,
+                            i.message_id,
+                            i.classificacao,
+                            i.interesse,
+                            i.lead_id
+                        FROM fila_respostas_omnichannel f
+                        JOIN interacoes_omnichannel i
+                            ON i.id = f.interacao_id
+                        ORDER BY f.criado_em DESC
+                        LIMIT %s
+                    """, (
+                        limite,
+                    ))
+
+                filas = cur.fetchall()
+
+        return jsonify({
+            "success": True,
+            "total":
+                len(filas),
+            "respostas":
+                [
+                    dict(item)
+                    for item in filas
+                ]
+        }), 200
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/omnichannel/respostas/<resposta_id>",
+    methods=["PATCH"]
+)
+def admin_decidir_resposta_omnichannel(
+    resposta_id
+):
+
+    if not validar_admin_omnichannel():
+
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    acao = str(
+        dados.get(
+            "acao",
+            ""
+        )
+    ).strip().lower()
+
+    resposta_editada = str(
+        dados.get(
+            "resposta",
+            ""
+        )
+    ).strip()
+
+    admin_id = str(
+        dados.get(
+            "admin",
+            "admin"
+        )
+    ).strip() or "admin"
+
+    if acao not in {
+        "aprovar",
+        "rejeitar"
+    }:
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Ação deve ser aprovar ou rejeitar."
+        }), 400
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM fila_respostas_omnichannel
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    resposta_id,
+                ))
+
+                fila = cur.fetchone()
+
+                if not fila:
+
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Resposta não encontrada."
+                    }), 404
+
+                status_atual = str(
+                    fila.get(
+                        "status"
+                    )
+                    or ""
+                ).strip().lower()
+
+                if status_atual not in {
+                    "aguardando_aprovacao",
+                    "aprovada"
+                }:
+
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Esta resposta já foi processada.",
+                        "status":
+                            status_atual
+                    }), 409
+
+                if acao == "rejeitar":
+
+                    cur.execute("""
+                        UPDATE fila_respostas_omnichannel
+                        SET
+                            status = 'rejeitada',
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                        RETURNING *
+                    """, (
+                        resposta_id,
+                    ))
+
+                    atualizada = cur.fetchone()
+
+                    return jsonify({
+                        "success": True,
+                        "acao": "rejeitar",
+                        "resposta":
+                            dict(atualizada)
+                    }), 200
+
+                texto_final = (
+                    resposta_editada
+                    or str(
+                        fila.get(
+                            "resposta_sugerida"
+                        )
+                        or ""
+                    ).strip()
+                )
+
+                if not texto_final:
+
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Resposta final vazia."
+                    }), 400
+
+                cur.execute("""
+                    UPDATE fila_respostas_omnichannel
+                    SET
+                        resposta_sugerida = %s,
+                        status = 'aprovada',
+                        aprovado_por = %s,
+                        aprovado_em = NOW(),
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING *
+                """, (
+                    texto_final,
+                    admin_id,
+                    resposta_id
+                ))
+
+                atualizada = cur.fetchone()
+
+        return jsonify({
+            "success": True,
+            "acao": "aprovar",
+            "resposta":
+                dict(atualizada)
+        }), 200
+
+    finally:
+        conn.close()
+
+
+# =====================================================
 # META / WHATSAPP — WEBHOOK
 # =====================================================
 
@@ -5106,6 +5667,49 @@ def webhook_meta():
                                                 "classificacao"
                                             )
                                     }
+                                )
+
+                            # ---------------------------------
+                            # RESPOSTA SUGERIDA — FILA MANUAL
+                            # ---------------------------------
+
+                            try:
+                                sugestao = (
+                                    gerar_resposta_sugerida_omnichannel(
+                                        registro.get(
+                                            "interacao"
+                                        ),
+                                        processamento
+                                    )
+                                )
+
+                                print(
+                                    "OMNICHANNEL RESPOSTA SUGERIDA",
+                                    {
+                                        "criada":
+                                            not sugestao.get(
+                                                "duplicada",
+                                                False
+                                            ),
+                                        "status":
+                                            (
+                                                sugestao.get(
+                                                    "fila"
+                                                )
+                                                or {}
+                                            ).get(
+                                                "status"
+                                            )
+                                    }
+                                )
+
+                            except Exception as erro_sugestao:
+
+                                print(
+                                    "ERRO RESPOSTA SUGERIDA:",
+                                    repr(
+                                        erro_sugestao
+                                    )
                                 )
 
                             except Exception as erro_crm:
