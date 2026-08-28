@@ -15486,6 +15486,7 @@ def ia_empresarial():
                 + POLITICA_DIAGNOSTICO_CONCISO_IA
                 + POLITICA_ACOES_SUGERIDAS_IA
                 + POLITICA_LINGUAGEM_NATURAL_IA
+                + contexto_instagram
                 + contexto_diagnostico +
 
                 "\nAnalise negócios com rigor. "
