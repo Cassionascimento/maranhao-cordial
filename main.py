@@ -16139,7 +16139,7 @@ def meta_get_instagram(caminho, params=None):
     parametros["access_token"] = token
 
     resposta = requests.get(
-        "https://graph.facebook.com/v26.0/"
+        "https://graph.instagram.com/v26.0/"
         + str(caminho).lstrip("/"),
         params=parametros,
         timeout=30
