@@ -15216,6 +15216,24 @@ def ia_empresarial():
         }), 503
 
     try:
+
+        # =============================================
+        # CONTEXTO DINÂMICO — INSTAGRAM
+        # =============================================
+        contexto_instagram = ""
+
+        if pergunta_requer_analytics_instagram(
+            pergunta
+        ):
+            contexto_instagram = (
+                montar_contexto_analytics_instagram()
+            )
+
+            print(
+                "IA EMPRESARIAL: "
+                "analytics Instagram consultado."
+            )
+
         resumo = (
             obter_resumo_empresarial_postgres()
         )
@@ -15583,6 +15601,8 @@ def ia_empresarial():
                     + POLITICA_ECONOMICA_IA
                     + POLITICA_EXPANSAO_OPORTUNIDADES_IA
                     + POLITICA_PRIORIDADE_CONTEXTO_INTERNO
+                    + carregar_feedback_para_ia()
+                    + contexto_instagram
                     + POLITICA_COMUNICACAO_EMPRESARIAL
                     + REGRA_MENSAGENS_ESTRATEGICAS
                     + contexto_diagnostico
@@ -16133,6 +16153,129 @@ def meta_get_instagram(caminho, params=None):
         )
 
     return dados
+
+
+
+def montar_contexto_analytics_instagram():
+
+    try:
+        posts = listar_desempenho_posts_instagram(
+            limite=25
+        )
+
+        genero = obter_demografia_instagram_genero()
+
+        linhas = [
+            "\nANALYTICS ATUAL DO INSTAGRAM:"
+        ]
+
+        if posts:
+            for posicao, post in enumerate(
+                posts[:10],
+                start=1
+            ):
+                insights = (
+                    post.get("insights")
+                    or {}
+                )
+
+                legenda = str(
+                    post.get("caption")
+                    or ""
+                ).replace(
+                    "\n",
+                    " "
+                )[:180]
+
+                linhas.append(
+                    f"{posicao}. "
+                    f"views={insights.get('views')} "
+                    f"| reach={insights.get('reach')} "
+                    f"| shares={insights.get('shares')} "
+                    f"| saved={insights.get('saved')} "
+                    f"| likes={post.get('like_count')} "
+                    f"| comentarios={post.get('comments_count')} "
+                    f"| legenda={legenda}"
+                )
+        else:
+            linhas.append(
+                "Nenhum post retornado pela API."
+            )
+
+        linhas.append(
+            "\nDEMOGRAFIA DE GENERO:"
+        )
+
+        if genero.get("success"):
+            linhas.append(
+                json.dumps(
+                    genero.get("dados") or [],
+                    ensure_ascii=False
+                )
+            )
+        else:
+            linhas.append(
+                "Não disponível: "
+                + str(
+                    genero.get("observacao")
+                    or genero.get("erro")
+                )
+            )
+
+        linhas.append(
+            "\nUse estes dados como observação atual "
+            "da operação. Não invente métricas ausentes."
+        )
+
+        return "\n".join(linhas)
+
+    except Exception as erro:
+        return (
+            "\nANALYTICS DO INSTAGRAM: "
+            "consulta indisponível nesta tentativa. "
+            "Erro: "
+            + str(erro)
+        )
+
+
+def pergunta_requer_analytics_instagram(
+    pergunta
+):
+
+    texto = str(
+        pergunta or ""
+    ).lower()
+
+    termos = (
+        "instagram",
+        "post",
+        "postagem",
+        "reels",
+        "reel",
+        "story",
+        "stories",
+        "seguidores",
+        "seguidor",
+        "visualização",
+        "visualizações",
+        "visualizacoes",
+        "alcance",
+        "engajamento",
+        "curtida",
+        "marketing",
+        "conteúdo",
+        "conteudo",
+        "demografia",
+        "homens",
+        "mulheres",
+        "gênero",
+        "genero"
+    )
+
+    return any(
+        termo in texto
+        for termo in termos
+    )
 
 
 def obter_demografia_instagram_genero():
