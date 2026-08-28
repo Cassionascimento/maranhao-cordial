@@ -1068,6 +1068,51 @@
                 </div>
 
                 <div
+                    id="iaCentralDecisoes"
+                    class="card"
+                    style="
+                        margin-top:20px;
+                        display:none;
+                    "
+                >
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        gap:12px;
+                        margin-bottom:16px;
+                    ">
+                        <div>
+                            <div style="
+                                font-size:11px;
+                                letter-spacing:1px;
+                                text-transform:uppercase;
+                                opacity:.7;
+                            ">
+                                Precisa da sua decisão
+                            </div>
+
+                            <div
+                                id="iaCentralDecisoesResumo"
+                                style="
+                                    margin-top:5px;
+                                    font-size:14px;
+                                "
+                            ></div>
+                        </div>
+
+                        <button
+                            id="iaAtualizarDecisoes"
+                            type="button"
+                        >
+                            Atualizar
+                        </button>
+                    </div>
+
+                    <div id="iaListaDecisoes"></div>
+                </div>
+
+                <div
                     id="iaAcoesSugeridas"
                     style="
                         display:none;
@@ -1150,6 +1195,22 @@
 
             const iaEmpresarialResposta =
                 document.getElementById("iaEmpresarialResposta");
+
+            const iaCentralDecisoes =
+                document.getElementById("iaCentralDecisoes");
+
+            const iaCentralDecisoesResumo =
+                document.getElementById(
+                    "iaCentralDecisoesResumo"
+                );
+
+            const iaListaDecisoes =
+                document.getElementById("iaListaDecisoes");
+
+            const iaAtualizarDecisoes =
+                document.getElementById(
+                    "iaAtualizarDecisoes"
+                );
 
             const iaAcoesSugeridas =
                 document.getElementById("iaAcoesSugeridas");
@@ -3172,6 +3233,400 @@
             );
 
 
+            function escaparHtmlIA(valor) {
+                return String(valor ?? "")
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll('"', "&quot;")
+                    .replaceAll("'", "&#039;");
+            }
+
+
+            function nomeCanalIA(canal) {
+                const nomes = {
+                    instagram: "Instagram",
+                    whatsapp: "WhatsApp",
+                    email: "E-mail"
+                };
+
+                return nomes[canal] || canal || "Canal";
+            }
+
+
+            async function carregarCentralDecisoes() {
+
+                if (!adminKeyAtual) {
+                    return;
+                }
+
+                iaCentralDecisoes.style.display = "block";
+
+                iaCentralDecisoesResumo.textContent =
+                    "Buscando decisões...";
+
+                iaListaDecisoes.innerHTML = "";
+
+                try {
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/omnichannel/respostas?status=aguardando_aprovacao",
+                        {
+                            method: "GET",
+                            mode: "cors",
+                            cache: "no-store",
+                            headers: {
+                                "X-Admin-Key": adminKeyAtual
+                            }
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Não foi possível carregar as decisões."
+                        );
+                    }
+
+                    const itens = Array.isArray(data)
+                        ? data
+                        : (
+                            data.respostas ||
+                            data.itens ||
+                            data.data ||
+                            []
+                        );
+
+                    if (!itens.length) {
+                        iaCentralDecisoesResumo.textContent =
+                            "Nada esperando sua decisão.";
+
+                        iaListaDecisoes.innerHTML = `
+                            <div class="subtitle">
+                                A empresa não tem mensagens pendentes
+                                de aprovação neste momento.
+                            </div>
+                        `;
+
+                        return;
+                    }
+
+                    iaCentralDecisoesResumo.textContent =
+                        itens.length === 1
+                            ? "1 decisão aguardando você."
+                            : `${itens.length} decisões aguardando você.`;
+
+                    iaListaDecisoes.innerHTML =
+                        itens.map(item => {
+
+                            const id =
+                                escaparHtmlIA(item.id);
+
+                            const canal =
+                                escaparHtmlIA(
+                                    nomeCanalIA(item.canal)
+                                );
+
+                            const resposta =
+                                escaparHtmlIA(
+                                    item.resposta_sugerida || ""
+                                );
+
+                            const destinatario =
+                                escaparHtmlIA(
+                                    item.destinatario_id || ""
+                                );
+
+                            return `
+                                <div
+                                    class="admin-card ia-decisao-card"
+                                    data-id="${id}"
+                                    style="
+                                        margin-top:12px;
+                                        padding:16px;
+                                    "
+                                >
+                                    <div style="
+                                        display:flex;
+                                        justify-content:space-between;
+                                        gap:12px;
+                                        margin-bottom:12px;
+                                    ">
+                                        <strong>${canal}</strong>
+
+                                        <span style="
+                                            font-size:11px;
+                                            opacity:.65;
+                                        ">
+                                            Aguardando decisão
+                                        </span>
+                                    </div>
+
+                                    <div style="
+                                        font-size:11px;
+                                        opacity:.6;
+                                        margin-bottom:8px;
+                                    ">
+                                        Destinatário: ${destinatario}
+                                    </div>
+
+                                    <label style="
+                                        display:block;
+                                        font-size:11px;
+                                        text-transform:uppercase;
+                                        letter-spacing:1px;
+                                        margin-bottom:7px;
+                                    ">
+                                        Resposta preparada
+                                    </label>
+
+                                    <textarea
+                                        class="ia-decisao-resposta"
+                                        rows="4"
+                                        style="
+                                            width:100%;
+                                            box-sizing:border-box;
+                                            background:rgba(255,255,255,.03);
+                                            color:inherit;
+                                            border:1px solid rgba(255,255,255,.12);
+                                            border-radius:8px;
+                                            padding:12px;
+                                            resize:vertical;
+                                            font:inherit;
+                                        "
+                                    >${resposta}</textarea>
+
+                                    <div style="
+                                        display:flex;
+                                        flex-wrap:wrap;
+                                        gap:8px;
+                                        margin-top:12px;
+                                    ">
+                                        <button
+                                            type="button"
+                                            class="ia-decisao-aprovar"
+                                        >
+                                            Aprovar e enviar
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            class="ia-decisao-recusar"
+                                        >
+                                            Recusar
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        class="ia-decisao-status subtitle"
+                                        style="margin-top:10px;"
+                                    ></div>
+                                </div>
+                            `;
+                        }).join("");
+
+                } catch (erro) {
+
+                    iaCentralDecisoesResumo.textContent =
+                        "Não foi possível carregar.";
+
+                    iaListaDecisoes.innerHTML = `
+                        <div class="subtitle">
+                            ${escaparHtmlIA(erro.message)}
+                        </div>
+                    `;
+                }
+            }
+
+
+            async function decidirMensagemIA(
+                card,
+                acao
+            ) {
+
+                const id = card.dataset.id;
+
+                const textarea =
+                    card.querySelector(
+                        ".ia-decisao-resposta"
+                    );
+
+                const status =
+                    card.querySelector(
+                        ".ia-decisao-status"
+                    );
+
+                const resposta =
+                    textarea.value.trim();
+
+                if (
+                    acao === "aprovar" &&
+                    !resposta
+                ) {
+                    status.textContent =
+                        "Escreva a resposta antes de enviar.";
+                    return;
+                }
+
+                const botoes =
+                    card.querySelectorAll("button");
+
+                botoes.forEach(
+                    botao => botao.disabled = true
+                );
+
+                status.textContent =
+                    acao === "aprovar"
+                        ? "Aprovando..."
+                        : "Recusando...";
+
+                try {
+
+                    const decisaoResponse = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/omnichannel/respostas/"
+                        + encodeURIComponent(id),
+                        {
+                            method: "PATCH",
+                            mode: "cors",
+                            cache: "no-store",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            },
+
+                            body: JSON.stringify({
+                                acao:
+                                    acao === "aprovar"
+                                        ? "aprovar"
+                                        : "rejeitar",
+                                resposta: resposta,
+                                admin: "direcao"
+                            })
+                        }
+                    );
+
+                    const decisaoData =
+                        await decisaoResponse.json();
+
+                    if (!decisaoResponse.ok) {
+                        throw new Error(
+                            decisaoData.error ||
+                            "Não foi possível registrar a decisão."
+                        );
+                    }
+
+                    if (acao === "rejeitar") {
+                        status.textContent =
+                            "Resposta recusada.";
+
+                        setTimeout(
+                            carregarCentralDecisoes,
+                            500
+                        );
+
+                        return;
+                    }
+
+                    status.textContent =
+                        "Aprovada. Enviando...";
+
+                    const envioResponse = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/omnichannel/respostas/"
+                        + encodeURIComponent(id)
+                        + "/enviar",
+                        {
+                            method: "POST",
+                            mode: "cors",
+                            cache: "no-store",
+
+                            headers: {
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            }
+                        }
+                    );
+
+                    const envioData =
+                        await envioResponse.json();
+
+                    if (!envioResponse.ok) {
+                        throw new Error(
+                            envioData.error ||
+                            envioData?.envio?.error ||
+                            "A plataforma não confirmou o envio."
+                        );
+                    }
+
+                    status.textContent =
+                        "Enviada com sucesso.";
+
+                    setTimeout(
+                        carregarCentralDecisoes,
+                        700
+                    );
+
+                } catch (erro) {
+
+                    status.textContent =
+                        "Erro: " + erro.message;
+
+                    botoes.forEach(
+                        botao => botao.disabled = false
+                    );
+                }
+            }
+
+
+            iaListaDecisoes.addEventListener(
+                "click",
+                event => {
+
+                    const card =
+                        event.target.closest(
+                            ".ia-decisao-card"
+                        );
+
+                    if (!card) {
+                        return;
+                    }
+
+                    if (
+                        event.target.closest(
+                            ".ia-decisao-aprovar"
+                        )
+                    ) {
+                        decidirMensagemIA(
+                            card,
+                            "aprovar"
+                        );
+                        return;
+                    }
+
+                    if (
+                        event.target.closest(
+                            ".ia-decisao-recusar"
+                        )
+                    ) {
+                        decidirMensagemIA(
+                            card,
+                            "rejeitar"
+                        );
+                    }
+                }
+            );
+
+
+            iaAtualizarDecisoes.addEventListener(
+                "click",
+                carregarCentralDecisoes
+            );
+
+
             async function consultarIAEmpresarial() {
 
                 const pergunta =
@@ -3506,6 +3961,10 @@
 
                     if (destino === "crm") {
                         carregarLeadsCRM();
+                    }
+
+                    if (destino === "ia-empresarial") {
+                        carregarCentralDecisoes();
                     }
 
                     document.querySelectorAll(
