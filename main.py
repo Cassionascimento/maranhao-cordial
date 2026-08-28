@@ -15603,6 +15603,7 @@ def ia_empresarial():
                     + POLITICA_EXPANSAO_OPORTUNIDADES_IA
                     + POLITICA_PRIORIDADE_CONTEXTO_INTERNO
                     + carregar_feedback_para_ia()
+                    + carregar_objetivos_estrategicos_para_ia()
                     + contexto_instagram
                     + POLITICA_COMUNICACAO_EMPRESARIAL
                     + REGRA_MENSAGENS_ESTRATEGICAS
@@ -17181,3 +17182,538 @@ def admin_relacionamentos_b2b():
 
     finally:
         conn.close()
+
+
+# ============================================================
+# ORQUESTRADOR EMPRESARIAL
+# IA → OBJETIVOS → ORDENS → EXECUÇÃO → FEEDBACK
+# ============================================================
+
+def garantir_tabelas_orquestrador_empresarial():
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS objetivos_estrategicos (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        titulo TEXT NOT NULL,
+                        descricao TEXT NOT NULL,
+                        area TEXT NOT NULL DEFAULT 'estrategia',
+                        prioridade TEXT NOT NULL DEFAULT 'media',
+                        status TEXT NOT NULL DEFAULT 'ativo',
+                        origem TEXT NOT NULL DEFAULT 'direcao',
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        encerrado_em TIMESTAMPTZ,
+                        substitui_objetivo_id UUID,
+                        observacoes TEXT
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_objetivos_estrategicos_status
+                    ON objetivos_estrategicos(status)
+                """)
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS comandos_empresariais (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        comando_original TEXT NOT NULL,
+                        origem TEXT NOT NULL DEFAULT 'texto',
+                        intencao TEXT,
+                        canal TEXT,
+                        destinatario TEXT,
+                        conteudo TEXT,
+                        requer_aprovacao BOOLEAN NOT NULL DEFAULT TRUE,
+                        status TEXT NOT NULL DEFAULT 'interpretado',
+                        resultado TEXT,
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        executado_em TIMESTAMPTZ
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_comandos_empresariais_status
+                    ON comandos_empresariais(status)
+                """)
+
+        print("✓ ORQUESTRADOR EMPRESARIAL INICIALIZADO")
+
+    finally:
+        conn.close()
+
+
+def carregar_objetivos_estrategicos_para_ia():
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    id,
+                    titulo,
+                    descricao,
+                    area,
+                    prioridade,
+                    criado_em
+                FROM objetivos_estrategicos
+                WHERE status = 'ativo'
+                ORDER BY
+                    CASE prioridade
+                        WHEN 'critica' THEN 1
+                        WHEN 'alta' THEN 2
+                        WHEN 'media' THEN 3
+                        ELSE 4
+                    END,
+                    criado_em DESC
+            """)
+
+            linhas = cur.fetchall()
+
+        if not linhas:
+            return (
+                "\n\n=== OBJETIVOS ESTRATÉGICOS ATIVOS ===\n"
+                "Nenhum objetivo estratégico formal ativo.\n"
+            )
+
+        texto = [
+            "",
+            "",
+            "=== OBJETIVOS ESTRATÉGICOS ATIVOS ==="
+        ]
+
+        for linha in linhas:
+            texto.append(
+                f"- {linha[1]} | "
+                f"área={linha[3]} | "
+                f"prioridade={linha[4]} | "
+                f"{linha[2]}"
+            )
+
+        texto.extend([
+            "",
+            "Use estes objetivos para priorizar recomendações.",
+            "Não altere objetivos estratégicos sem comando explícito da direção.",
+            ""
+        ])
+
+        return "\n".join(texto)
+
+    finally:
+        conn.close()
+
+
+def registrar_objetivo_estrategico(
+    titulo,
+    descricao,
+    area="estrategia",
+    prioridade="media",
+    substitui_objetivo_id=None
+):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                if substitui_objetivo_id:
+                    cur.execute("""
+                        UPDATE objetivos_estrategicos
+                        SET
+                            status = 'substituido',
+                            encerrado_em = NOW()
+                        WHERE id = %s
+                    """, (substitui_objetivo_id,))
+
+                cur.execute("""
+                    INSERT INTO objetivos_estrategicos (
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        origem,
+                        substitui_objetivo_id
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, 'direcao', %s
+                    )
+                    RETURNING id
+                """, (
+                    titulo,
+                    descricao,
+                    area,
+                    prioridade,
+                    substitui_objetivo_id
+                ))
+
+                objetivo_id = cur.fetchone()[0]
+
+        return str(objetivo_id)
+
+    finally:
+        conn.close()
+
+
+def interpretar_comando_empresarial(comando):
+    if not openai_client:
+        raise RuntimeError("OpenAI indisponível.")
+
+    resposta = openai_client.responses.create(
+        model="gpt-5-mini",
+
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "comando_empresarial",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+
+                        "intencao": {
+                            "type": "string",
+                            "enum": [
+                                "consultar",
+                                "enviar_mensagem",
+                                "responder_mensagem",
+                                "registrar_objetivo",
+                                "alterar_objetivo",
+                                "registrar_informacao",
+                                "analisar",
+                                "outra"
+                            ]
+                        },
+
+                        "canal": {
+                            "type": "string",
+                            "enum": [
+                                "instagram",
+                                "whatsapp",
+                                "email",
+                                "interno",
+                                "nenhum"
+                            ]
+                        },
+
+                        "destinatario": {
+                            "type": "string"
+                        },
+
+                        "conteudo": {
+                            "type": "string"
+                        },
+
+                        "area": {
+                            "type": "string",
+                            "enum": [
+                                "comercial",
+                                "marketing",
+                                "financeiro",
+                                "operacional",
+                                "produto",
+                                "regulatorio",
+                                "estrategia",
+                                "tecnologia"
+                            ]
+                        },
+
+                        "prioridade": {
+                            "type": "string",
+                            "enum": [
+                                "baixa",
+                                "media",
+                                "alta",
+                                "critica"
+                            ]
+                        },
+
+                        "requer_aprovacao": {
+                            "type": "boolean"
+                        },
+
+                        "justificativa": {
+                            "type": "string"
+                        }
+                    },
+
+                    "required": [
+                        "intencao",
+                        "canal",
+                        "destinatario",
+                        "conteudo",
+                        "area",
+                        "prioridade",
+                        "requer_aprovacao",
+                        "justificativa"
+                    ],
+
+                    "additionalProperties": False
+                }
+            }
+        },
+
+        instructions=(
+            "Você interpreta comandos da DIREÇÃO da Maranhão Cordial. "
+            "Não execute nada; apenas transforme o comando em estrutura. "
+
+            "Mudanças de estratégia, preço, contrato, pagamento, "
+            "negociação comercial, compromisso externo ou mensagem "
+            "sensível devem requerer aprovação. "
+
+            "Consultas e análises não requerem aprovação. "
+
+            "Uma ordem explícita da direção para enviar uma mensagem "
+            "pode ser marcada como não exigindo nova aprovação apenas "
+            "quando destinatário e conteúdo estiverem claramente definidos. "
+
+            "Nunca invente destinatários, números ou conteúdo."
+        ),
+
+        input=comando,
+
+        reasoning={
+            "effort": "low"
+        },
+
+        max_output_tokens=800
+    )
+
+    import json
+
+    return json.loads(
+        resposta.output_text
+    )
+
+
+def registrar_comando_empresarial(
+    comando_original,
+    interpretacao,
+    origem="texto"
+):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    INSERT INTO comandos_empresariais (
+                        comando_original,
+                        origem,
+                        intencao,
+                        canal,
+                        destinatario,
+                        conteudo,
+                        requer_aprovacao,
+                        status
+                    )
+                    VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s
+                    )
+                    RETURNING id
+                """, (
+                    comando_original,
+                    origem,
+                    interpretacao["intencao"],
+                    interpretacao["canal"],
+                    interpretacao["destinatario"],
+                    interpretacao["conteudo"],
+                    interpretacao["requer_aprovacao"],
+                    (
+                        "aguardando_aprovacao"
+                        if interpretacao["requer_aprovacao"]
+                        else "pronta_execucao"
+                    )
+                ))
+
+                comando_id = cur.fetchone()[0]
+
+        return str(comando_id)
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/comando-empresarial",
+    methods=["POST"]
+)
+def comando_empresarial():
+
+    chave = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    comando = (
+        dados.get("comando")
+        or ""
+    ).strip()
+
+    origem = (
+        dados.get("origem")
+        or "texto"
+    ).strip()
+
+    if not comando:
+        return jsonify({
+            "success": False,
+            "error": "Comando vazio."
+        }), 400
+
+    try:
+        interpretacao = (
+            interpretar_comando_empresarial(
+                comando
+            )
+        )
+
+        # ------------------------------------------
+        # ALTERAÇÃO / CRIAÇÃO DE OBJETIVO
+        # ------------------------------------------
+
+        if interpretacao["intencao"] in [
+            "registrar_objetivo",
+            "alterar_objetivo"
+        ]:
+            objetivo_id = (
+                registrar_objetivo_estrategico(
+                    titulo=comando[:140],
+                    descricao=(
+                        interpretacao["conteudo"]
+                        or comando
+                    ),
+                    area=interpretacao["area"],
+                    prioridade=(
+                        interpretacao[
+                            "prioridade"
+                        ]
+                    )
+                )
+            )
+
+            comando_id = (
+                registrar_comando_empresarial(
+                    comando,
+                    interpretacao,
+                    origem
+                )
+            )
+
+            return jsonify({
+                "success": True,
+                "tipo": "objetivo_estrategico",
+                "objetivo_id": objetivo_id,
+                "comando_id": comando_id,
+                "interpretacao": interpretacao
+            })
+
+        comando_id = (
+            registrar_comando_empresarial(
+                comando,
+                interpretacao,
+                origem
+            )
+        )
+
+        return jsonify({
+            "success": True,
+            "comando_id": comando_id,
+            "interpretacao": interpretacao
+        })
+
+    except Exception as erro:
+        print(
+            "ERRO COMANDO EMPRESARIAL:",
+            erro
+        )
+
+        return jsonify({
+            "success": False,
+            "error": str(erro)
+        }), 500
+
+
+@app.route(
+    "/api/admin/objetivos-estrategicos",
+    methods=["GET"]
+)
+def listar_objetivos_estrategicos():
+
+    chave = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    id,
+                    titulo,
+                    descricao,
+                    area,
+                    prioridade,
+                    status,
+                    origem,
+                    criado_em,
+                    encerrado_em
+                FROM objetivos_estrategicos
+                ORDER BY criado_em DESC
+                LIMIT 100
+            """)
+
+            colunas = [
+                d[0]
+                for d in cur.description
+            ]
+
+            dados = [
+                dict(zip(colunas, linha))
+                for linha in cur.fetchall()
+            ]
+
+        return jsonify({
+            "success": True,
+            "objetivos": dados
+        })
+
+    finally:
+        conn.close()
+
+
+try:
+    garantir_tabelas_orquestrador_empresarial()
+except Exception as erro:
+    print(
+        "ERRO AO INICIALIZAR ORQUESTRADOR:",
+        erro
+    )
+
