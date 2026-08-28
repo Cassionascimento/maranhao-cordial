@@ -3381,6 +3381,79 @@ def gerar_resposta_sugerida_omnichannel(
     )
 
     # -------------------------------------------------
+    # IDENTIFICA CONTEÚDO COMPARTILHADO
+    # -------------------------------------------------
+
+    texto_normalizado = (
+        texto.strip()
+    )
+
+    texto_lower = (
+        texto_normalizado.lower()
+    )
+
+    tipo_compartilhamento = ""
+
+    if (
+        texto_lower.startswith(
+            "https://www.instagram.com/stories/"
+        )
+        or texto_lower.startswith(
+            "https://instagram.com/stories/"
+        )
+    ):
+        tipo_compartilhamento = "story"
+
+    elif (
+        texto_lower.startswith(
+            "https://www.instagram.com/reel/"
+        )
+        or texto_lower.startswith(
+            "https://instagram.com/reel/"
+        )
+        or texto_lower.startswith(
+            "https://www.instagram.com/reels/"
+        )
+        or texto_lower.startswith(
+            "https://instagram.com/reels/"
+        )
+    ):
+        tipo_compartilhamento = "reel"
+
+    elif (
+        texto_lower.startswith(
+            "https://www.instagram.com/p/"
+        )
+        or texto_lower.startswith(
+            "https://instagram.com/p/"
+        )
+        or texto_lower.startswith(
+            "https://www.instagram.com/tv/"
+        )
+        or texto_lower.startswith(
+            "https://instagram.com/tv/"
+        )
+    ):
+        tipo_compartilhamento = "publicacao"
+
+    contexto_compartilhamento = ""
+
+    if tipo_compartilhamento:
+
+        contexto_compartilhamento = (
+            "\nATENÇÃO SOBRE O CONTEÚDO RECEBIDO: "
+            "A mensagem contém apenas um link de conteúdo "
+            "compartilhado do Instagram. "
+            "Você NÃO recebeu nem analisou a imagem, vídeo, "
+            "áudio, legenda ou conteúdo interno desse link. "
+            "Não diga nem insinue que viu, ouviu, gostou ou "
+            "compreendeu o conteúdo compartilhado. "
+            "Não deduza o assunto do conteúdo pelo link. "
+            "Se responder, reconheça apenas que a pessoa "
+            "compartilhou algo e mantenha a resposta neutra. "
+        )
+
+    # -------------------------------------------------
     # GERAÇÃO SEGURA DA RESPOSTA
     # -------------------------------------------------
 
@@ -3433,7 +3506,9 @@ def gerar_resposta_sugerida_omnichannel(
                         "for realmente útil para dar continuidade. "
 
                         "A resposta será revisada por um administrador "
-                        "antes do envio."
+                        "antes do envio. "
+
+                        + contexto_compartilhamento
                     ),
 
                     input=(
@@ -3443,6 +3518,11 @@ def gerar_resposta_sugerida_omnichannel(
                         + tipo_classificacao
                         + "\nINTERESSE: "
                         + interesse
+                        + "\nTIPO DE COMPARTILHAMENTO: "
+                        + (
+                            tipo_compartilhamento
+                            or "nenhum"
+                        )
                         + "\nMENSAGEM DO CLIENTE:\n"
                         + texto
                     ),
