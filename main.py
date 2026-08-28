@@ -1991,7 +1991,13 @@ def executar_acao_controlada(acao):
             executar_registro_analise_interna,
 
         "atualizar_lead_crm":
-            executar_atualizacao_lead_crm
+            executar_atualizacao_lead_crm,
+
+        "responder_mensagem":
+            executar_mensagem_instagram,
+
+        "enviar_mensagem":
+            executar_mensagem_instagram
     }
 
     executor = executores.get(tipo)
@@ -2004,6 +2010,94 @@ def executar_acao_controlada(acao):
         }
 
     return executor(acao)
+
+
+def executar_mensagem_instagram(acao):
+    """
+    Adaptador entre a ação empresarial universal
+    e o executor já existente do Instagram.
+
+    Nunca inventa destinatário.
+    """
+
+    if not acao:
+        return {
+            "success": False,
+            "erro": "Ação inexistente."
+        }
+
+    canal = str(
+        acao.get("canal")
+        or ""
+    ).strip().lower()
+
+    if canal != "instagram":
+        return {
+            "success": False,
+            "erro":
+                "Ação não pertence ao canal Instagram."
+        }
+
+    estado = str(
+        acao.get("estado_execucao")
+        or ""
+    ).strip().lower()
+
+    if estado != "autorizada":
+        return {
+            "success": False,
+            "erro":
+                "Ação Instagram ainda não autorizada."
+        }
+
+    destinatario = str(
+        acao.get("destinatario")
+        or ""
+    ).strip()
+
+    conteudo = str(
+        acao.get("conteudo")
+        or ""
+    ).strip()
+
+    destinatarios_invalidos = {
+        "",
+        "cliente",
+        "cliente genérico",
+        "cliente generico",
+        "não especificado",
+        "nao especificado",
+        "não informado",
+        "nao informado",
+        "destinatário não especificado",
+        "destinatario nao especificado"
+    }
+
+    if destinatario.lower() in destinatarios_invalidos:
+        return {
+            "success": False,
+            "erro":
+                "Destinatário Instagram real não informado."
+        }
+
+    if not conteudo:
+        return {
+            "success": False,
+            "erro":
+                "Conteúdo da mensagem Instagram ausente."
+        }
+
+    fila_compatibilidade = {
+        "status": "aprovada",
+        "destinatario_id": destinatario,
+        "resposta_sugerida": conteudo
+    }
+
+    resultado = enviar_resposta_instagram(
+        fila_compatibilidade
+    )
+
+    return resultado
 
 
 def executar_atualizacao_lead_crm(acao):
