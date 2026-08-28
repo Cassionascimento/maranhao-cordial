@@ -3370,6 +3370,22 @@
                                     item.resposta_sugerida || ""
                                 );
 
+                            const mensagemRecebida =
+                                escaparHtmlIA(
+                                    item.mensagem_recebida ||
+                                    "Mensagem original não disponível."
+                                );
+
+                            const classificacao =
+                                escaparHtmlIA(
+                                    item.classificacao || ""
+                                );
+
+                            const interesse =
+                                escaparHtmlIA(
+                                    item.interesse || ""
+                                );
+
                             const destinatario =
                                 escaparHtmlIA(
                                     item.destinatario_id || ""
@@ -3406,6 +3422,58 @@
                                         margin-bottom:8px;
                                     ">
                                         Destinatário: ${destinatario}
+                                    </div>
+
+                                    <div style="
+                                        margin-bottom:16px;
+                                        padding:14px;
+                                        border-radius:10px;
+                                        background:rgba(255,255,255,.045);
+                                        border:1px solid rgba(255,255,255,.10);
+                                    ">
+                                        <div style="
+                                            font-size:11px;
+                                            text-transform:uppercase;
+                                            letter-spacing:1px;
+                                            opacity:.65;
+                                            margin-bottom:8px;
+                                        ">
+                                            Mensagem recebida
+                                        </div>
+
+                                        <div style="
+                                            font-size:14px;
+                                            line-height:1.55;
+                                            white-space:pre-wrap;
+                                        ">${mensagemRecebida}</div>
+
+                                        ${
+                                            classificacao || interesse
+                                                ? `
+                                                    <div style="
+                                                        font-size:11px;
+                                                        opacity:.55;
+                                                        margin-top:10px;
+                                                    ">
+                                                        ${
+                                                            classificacao
+                                                                ? classificacao
+                                                                : ""
+                                                        }
+                                                        ${
+                                                            classificacao && interesse
+                                                                ? " • "
+                                                                : ""
+                                                        }
+                                                        ${
+                                                            interesse
+                                                                ? interesse
+                                                                : ""
+                                                        }
+                                                    </div>
+                                                `
+                                                : ""
+                                        }
                                     </div>
 
                                     <label style="
