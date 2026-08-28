@@ -17809,37 +17809,87 @@ def criar_acao_empresarial(
     comando_id=None,
     status="aguardando_aprovacao"
 ):
+    """
+    Cria ação usando a estrutura histórica de acoes_empresariais
+    e os campos novos do orquestrador.
+    """
+
     conn = get_db_connection()
 
     try:
         with conn:
             with conn.cursor() as cur:
 
+                titulo = (
+                    f"{tipo.replace('_', ' ').title()} "
+                    f"via {canal.title()}"
+                )
+
+                descricao = conteudo
+
+                area = (
+                    "marketing"
+                    if canal == "instagram"
+                    else "comercial"
+                )
+
+                modo_execucao = (
+                    "requer_aprovacao"
+                    if status == "aguardando_aprovacao"
+                    else "manual"
+                )
+
+                estado_execucao = "nao_iniciada"
+
+                executor = canal
+
+                tipo_execucao = tipo
+
                 cur.execute("""
                     INSERT INTO acoes_empresariais (
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        status,
+
+                        modo_execucao,
+                        estado_execucao,
+                        executor,
+                        tentativas_execucao,
+                        tipo_execucao,
+
                         comando_id,
                         tipo,
                         canal,
                         destinatario,
                         conteudo,
-                        justificativa,
-                        prioridade,
-                        status
+                        justificativa
                     )
                     VALUES (
-                        %s, %s, %s, %s,
-                        %s, %s, %s, %s
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, 0, %s,
+                        %s, %s, %s, %s, %s, %s
                     )
                     RETURNING id
                 """, (
+                    titulo,
+                    descricao,
+                    area,
+                    prioridade,
+                    status,
+
+                    modo_execucao,
+                    estado_execucao,
+                    executor,
+                    tipo_execucao,
+
                     comando_id,
                     tipo,
                     canal,
                     destinatario,
                     conteudo,
-                    justificativa,
-                    prioridade,
-                    status
+                    justificativa
                 ))
 
                 acao_id = cur.fetchone()[0]
