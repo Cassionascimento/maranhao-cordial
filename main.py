@@ -16158,86 +16158,332 @@ def meta_get_instagram(caminho, params=None):
 
 
 def montar_contexto_analytics_instagram():
+    """
+    Monta contexto executivo de Instagram para a IA.
+
+    Regras:
+    - identifica publicações de forma humana;
+    - entrega métricas oficiais disponíveis;
+    - não confunde maior volume de views com melhor anúncio;
+    - não inventa métricas ausentes;
+    - permite comparação estratégica entre conteúdos.
+    """
 
     try:
         posts = listar_desempenho_posts_instagram(
             limite=25
         )
 
-        genero = obter_demografia_instagram_genero()
+        demografia = (
+            obter_demografia_instagram_genero()
+        )
+
+        if not posts:
+            return (
+                "\n\n=== INSTAGRAM ANALYTICS ===\n"
+                "A consulta ao Instagram foi realizada, "
+                "mas nenhuma publicação com métricas "
+                "foi retornada.\n"
+            )
+
+        posts_ordenados = sorted(
+            posts,
+            key=lambda item: (
+                item.get("insights", {})
+                .get("views", 0)
+                or 0
+            ),
+            reverse=True
+        )
 
         linhas = [
-            "\nANALYTICS ATUAL DO INSTAGRAM:"
+            "",
+            "",
+            "=== INSTAGRAM ANALYTICS OFICIAL ===",
+            (
+                "Fonte: API oficial do Instagram. "
+                f"Publicações retornadas: "
+                f"{len(posts_ordenados)}."
+            ),
+            "",
+            "PUBLICAÇÕES:",
         ]
 
-        if posts:
-            for posicao, post in enumerate(
-                posts[:10],
-                start=1
+        for indice, post in enumerate(
+            posts_ordenados[:10],
+            start=1
+        ):
+            insights = (
+                post.get("insights") or {}
+            )
+
+            views = insights.get("views")
+            reach = insights.get("reach")
+            saved = insights.get("saved")
+            shares = insights.get("shares")
+            likes = post.get("like_count")
+            comments = post.get(
+                "comments_count"
+            )
+
+            caption = (
+                post.get("caption")
+                or "(sem legenda)"
+            ).strip()
+
+            if len(caption) > 120:
+                caption = caption[:117] + "..."
+
+            timestamp = (
+                post.get("timestamp")
+                or ""
+            )
+
+            data = (
+                timestamp[:10]
+                if timestamp
+                else "data indisponível"
+            )
+
+            permalink = (
+                post.get("permalink")
+                or "link indisponível"
+            )
+
+            tipo = (
+                post.get("media_product_type")
+                or post.get("media_type")
+                or "conteúdo"
+            )
+
+            linhas.extend([
+                "",
+                (
+                    f"{indice}. {tipo} de {data}"
+                ),
+                f'Legenda: "{caption}"',
+                (
+                    "Métricas: "
+                    f"views={views}; "
+                    f"alcance={reach}; "
+                    f"curtidas={likes}; "
+                    f"comentários={comments}; "
+                    f"salvamentos={saved}; "
+                    f"compartilhamentos={shares}."
+                ),
+                f"Link: {permalink}",
+            ])
+
+            if (
+                isinstance(reach, (int, float))
+                and reach > 0
             ):
-                insights = (
-                    post.get("insights")
+                interacoes = sum(
+                    valor
+                    for valor in [
+                        likes,
+                        comments,
+                        saved,
+                        shares
+                    ]
+                    if isinstance(
+                        valor,
+                        (int, float)
+                    )
+                )
+
+                taxa = (
+                    interacoes
+                    / reach
+                    * 100
+                )
+
+                linhas.append(
+                    "Interações observáveis/"
+                    f"alcance: {taxa:.2f}% "
+                    "(indicador calculado; "
+                    "não é métrica oficial da Meta)."
+                )
+
+        linhas.extend([
+            "",
+            "REGRAS DE INTERPRETAÇÃO:",
+            (
+                "- Maior número de visualizações "
+                "NÃO significa automaticamente "
+                "melhor publicação para anúncio."
+            ),
+            (
+                "- Compare visualizações, alcance, "
+                "salvamentos, compartilhamentos, "
+                "curtidas e comentários."
+            ),
+            (
+                "- Salvamentos e compartilhamentos "
+                "podem indicar valor ou intenção "
+                "diferentes de simples visualização."
+            ),
+            (
+                "- Não recomende impulsionamento "
+                "apenas porque um conteúdo teve "
+                "mais views."
+            ),
+            (
+                "- Antes de recomendar mídia paga, "
+                "considere o objetivo: descoberta, "
+                "engajamento, tráfego, lead ou venda."
+            ),
+            (
+                "- Se não houver dados de cliques, "
+                "conversão ou gasto de mídia, diga "
+                "explicitamente que não é possível "
+                "concluir qual publicação vende melhor."
+            ),
+            (
+                "- Quando recomendar replicação, "
+                "explique QUAL característica parece "
+                "merecer teste: tema, música, estética, "
+                "gancho, formato ou abordagem."
+            ),
+            (
+                "- Identifique a publicação pela data, "
+                "legenda e/ou link. Nunca responda "
+                "apenas 'postagem 1'."
+            ),
+            (
+                "- Não peça relatório manual de "
+                "Instagram Insights quando estes dados "
+                "já estiverem presentes neste contexto."
+            ),
+            (
+                "- Não confunda curtidas exibidas "
+                "publicamente com visualizações "
+                "retornadas pelos Insights."
+            ),
+        ])
+
+        # ---------------------------------------------
+        # DEMOGRAFIA
+        # ---------------------------------------------
+
+        try:
+            dados_demo = (
+                demografia.get("dados", [])
+                if isinstance(demografia, dict)
+                else []
+            )
+
+            resultados_genero = []
+
+            for item in dados_demo:
+                total_value = (
+                    item.get("total_value")
                     or {}
                 )
 
-                legenda = str(
-                    post.get("caption")
-                    or ""
-                ).replace(
-                    "\n",
-                    " "
-                )[:180]
+                for breakdown in (
+                    total_value.get(
+                        "breakdowns",
+                        []
+                    )
+                ):
+                    if (
+                        breakdown.get(
+                            "dimension_keys"
+                        )
+                        == ["gender"]
+                    ):
+                        resultados_genero.extend(
+                            breakdown.get(
+                                "results",
+                                []
+                            )
+                        )
 
-                linhas.append(
-                    f"{posicao}. "
-                    f"views={insights.get('views')} "
-                    f"| reach={insights.get('reach')} "
-                    f"| shares={insights.get('shares')} "
-                    f"| saved={insights.get('saved')} "
-                    f"| likes={post.get('like_count')} "
-                    f"| comentarios={post.get('comments_count')} "
-                    f"| legenda={legenda}"
+            if resultados_genero:
+                mapa = {}
+
+                for resultado in (
+                    resultados_genero
+                ):
+                    valores = (
+                        resultado.get(
+                            "dimension_values"
+                        )
+                        or []
+                    )
+
+                    if not valores:
+                        continue
+
+                    mapa[valores[0]] = (
+                        resultado.get(
+                            "value",
+                            0
+                        )
+                        or 0
+                    )
+
+                feminino = mapa.get("F", 0)
+                masculino = mapa.get("M", 0)
+                indefinido = mapa.get("U", 0)
+
+                total = (
+                    feminino
+                    + masculino
+                    + indefinido
                 )
-        else:
-            linhas.append(
-                "Nenhum post retornado pela API."
+
+                linhas.extend([
+                    "",
+                    "DEMOGRAFIA DE SEGUIDORES:",
+                    (
+                        f"Feminino: {feminino}; "
+                        f"Masculino: {masculino}; "
+                        f"Não classificado: "
+                        f"{indefinido}."
+                    ),
+                ])
+
+                if total > 0:
+                    linhas.append(
+                        "Distribuição calculada: "
+                        f"F={feminino/total*100:.1f}%; "
+                        f"M={masculino/total*100:.1f}%; "
+                        f"U={indefinido/total*100:.1f}%."
+                    )
+
+        except Exception as erro_demo:
+            print(
+                "INSTAGRAM DEMOGRAFIA "
+                "INDISPONIVEL:",
+                erro_demo
             )
 
-        linhas.append(
-            "\nDEMOGRAFIA DE GENERO:"
-        )
-
-        if genero.get("success"):
-            linhas.append(
-                json.dumps(
-                    genero.get("dados") or [],
-                    ensure_ascii=False
-                )
-            )
-        else:
-            linhas.append(
-                "Não disponível: "
-                + str(
-                    genero.get("observacao")
-                    or genero.get("erro")
-                )
-            )
-
-        linhas.append(
-            "\nUse estes dados como observação atual "
-            "da operação. Não invente métricas ausentes."
-        )
+        linhas.extend([
+            "",
+            (
+                "Use estes dados como contexto atual "
+                "e factual. Não invente métricas que "
+                "não estejam acima."
+            ),
+            "",
+        ])
 
         return "\n".join(linhas)
 
     except Exception as erro:
-        return (
-            "\nANALYTICS DO INSTAGRAM: "
-            "consulta indisponível nesta tentativa. "
-            "Erro: "
-            + str(erro)
+        print(
+            "ERRO CONTEXTO ANALYTICS INSTAGRAM:",
+            erro
         )
 
+        return (
+            "\n\n=== INSTAGRAM ANALYTICS ===\n"
+            "Consulta temporariamente indisponível. "
+            "Não invente métricas nem conclusões "
+            "sobre performance do Instagram.\n"
+        )
 
 def pergunta_requer_analytics_instagram(
     pergunta
