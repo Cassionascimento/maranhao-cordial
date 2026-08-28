@@ -15486,6 +15486,7 @@ def ia_empresarial():
                 + POLITICA_DIAGNOSTICO_CONCISO_IA
                 + POLITICA_ACOES_SUGERIDAS_IA
                 + POLITICA_LINGUAGEM_NATURAL_IA
+                + carregar_objetivos_estrategicos_para_ia()
                 + contexto_instagram
                 + contexto_diagnostico +
 
@@ -17460,17 +17461,26 @@ def interpretar_comando_empresarial(comando):
             "Você interpreta comandos da DIREÇÃO da Maranhão Cordial. "
             "Não execute nada; apenas transforme o comando em estrutura. "
 
-            "Mudanças de estratégia, preço, contrato, pagamento, "
-            "negociação comercial, compromisso externo ou mensagem "
-            "sensível devem requerer aprovação. "
+            "O comando recebido nesta rota vem diretamente da DIREÇÃO. "
 
-            "Consultas e análises não requerem aprovação. "
+            "Quando a direção disser explicitamente para registrar, alterar, "
+            "definir ou substituir um objetivo estratégico, considere o próprio "
+            "comando como autorização. Nesse caso requer_aprovacao=false. "
 
-            "Uma ordem explícita da direção para enviar uma mensagem "
-            "pode ser marcada como não exigindo nova aprovação apenas "
-            "quando destinatário e conteúdo estiverem claramente definidos. "
+            "Consultas, análises e registros internos também não requerem aprovação. "
 
-            "Nunca invente destinatários, números ou conteúdo."
+            "Para comunicação externa, diferencie PREPARAR de ENVIAR. "
+            "Se a direção pedir apenas para escrever, preparar ou sugerir uma "
+            "mensagem, não envie e mantenha a ação como preparação. "
+
+            "Se houver uma ação externa ainda não explicitamente autorizada, "
+            "como resposta sugerida pelo sistema, e-mail sugerido pela IA ou "
+            "contato proativo recomendado pela IA, requer_aprovacao=true. "
+
+            "Preço, desconto, contrato, pagamento, obrigação financeira e "
+            "aceitação de negociação nunca devem ser inferidos automaticamente. "
+
+            "Nunca invente destinatários, números, preços ou conteúdo."
         ),
 
         input=comando,
