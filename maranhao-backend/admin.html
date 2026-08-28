@@ -1052,13 +1052,39 @@
                         "
                     ></textarea>
 
-                    <button
-                        id="iaEmpresarialEnviar"
-                        type="button"
-                        style="margin-top:14px;"
+                    <div
+                        style="
+                            display:flex;
+                            gap:10px;
+                            align-items:center;
+                            flex-wrap:wrap;
+                            margin-top:14px;
+                        "
                     >
-                        Analisar
-                    </button>
+                        <button
+                            id="iaEmpresarialMicrofone"
+                            type="button"
+                            title="Falar comando"
+                            style="
+                                min-width:52px;
+                                font-size:20px;
+                            "
+                        >
+                            🎤
+                        </button>
+
+                        <button
+                            id="iaEmpresarialEnviar"
+                            type="button"
+                        >
+                            Analisar
+                        </button>
+
+                        <span
+                            id="iaEmpresarialVozStatus"
+                            class="subtitle"
+                        ></span>
+                    </div>
 
                     <div
                         id="iaEmpresarialStatus"
@@ -1189,6 +1215,16 @@
 
             const iaEmpresarialEnviar =
                 document.getElementById("iaEmpresarialEnviar");
+
+            const iaEmpresarialMicrofone =
+                document.getElementById(
+                    "iaEmpresarialMicrofone"
+                );
+
+            const iaEmpresarialVozStatus =
+                document.getElementById(
+                    "iaEmpresarialVozStatus"
+                );
 
             const iaEmpresarialStatus =
                 document.getElementById("iaEmpresarialStatus");
@@ -3624,6 +3660,255 @@
             iaAtualizarDecisoes.addEventListener(
                 "click",
                 carregarCentralDecisoes
+            );
+
+
+            let iaGravador = null;
+            let iaPartesAudio = [];
+            let iaGravando = false;
+            let iaStreamAudio = null;
+
+
+            function escolherMimeAudioIA() {
+
+                const candidatos = [
+                    "audio/webm;codecs=opus",
+                    "audio/webm",
+                    "audio/mp4"
+                ];
+
+                for (const tipo of candidatos) {
+                    if (
+                        window.MediaRecorder &&
+                        MediaRecorder.isTypeSupported(tipo)
+                    ) {
+                        return tipo;
+                    }
+                }
+
+                return "";
+            }
+
+
+            async function transcreverAudioIA(blob, mimeType) {
+
+                iaEmpresarialVozStatus.textContent =
+                    "Entendendo o que você disse...";
+
+                const extensao =
+                    mimeType.includes("mp4")
+                        ? "m4a"
+                        : "webm";
+
+                const formulario =
+                    new FormData();
+
+                formulario.append(
+                    "audio",
+                    blob,
+                    "comando." + extensao
+                );
+
+                const response = await fetch(
+                    "https://maranhao-cordial-api.onrender.com/api/admin/ia-empresarial/transcrever",
+                    {
+                        method: "POST",
+                        mode: "cors",
+                        cache: "no-store",
+
+                        headers: {
+                            "X-Admin-Key":
+                                adminKeyAtual
+                        },
+
+                        body: formulario
+                    }
+                );
+
+                const data =
+                    await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error ||
+                        "Não consegui entender o áudio."
+                    );
+                }
+
+                iaEmpresarialPergunta.value =
+                    data.texto || "";
+
+                iaEmpresarialVozStatus.textContent =
+                    "Entendi. Confira o texto antes de analisar.";
+
+                iaEmpresarialPergunta.focus();
+            }
+
+
+            async function iniciarVozIA() {
+
+                if (!adminKeyAtual) {
+                    iaEmpresarialVozStatus.textContent =
+                        "Autentique-se novamente.";
+                    return;
+                }
+
+                if (
+                    !navigator.mediaDevices ||
+                    !navigator.mediaDevices.getUserMedia ||
+                    !window.MediaRecorder
+                ) {
+                    iaEmpresarialVozStatus.textContent =
+                        "Este navegador não permite gravação de voz.";
+                    return;
+                }
+
+                try {
+
+                    iaStreamAudio =
+                        await navigator.mediaDevices
+                            .getUserMedia({
+                                audio: {
+                                    echoCancellation: true,
+                                    noiseSuppression: true,
+                                    autoGainControl: true
+                                }
+                            });
+
+                    const mimeType =
+                        escolherMimeAudioIA();
+
+                    const opcoes =
+                        mimeType
+                            ? { mimeType }
+                            : {};
+
+                    iaPartesAudio = [];
+
+                    iaGravador =
+                        new MediaRecorder(
+                            iaStreamAudio,
+                            opcoes
+                        );
+
+                    iaGravador.addEventListener(
+                        "dataavailable",
+                        event => {
+                            if (
+                                event.data &&
+                                event.data.size > 0
+                            ) {
+                                iaPartesAudio.push(
+                                    event.data
+                                );
+                            }
+                        }
+                    );
+
+                    iaGravador.addEventListener(
+                        "stop",
+                        async () => {
+
+                            const tipoFinal =
+                                iaGravador.mimeType ||
+                                mimeType ||
+                                "audio/webm";
+
+                            const blob =
+                                new Blob(
+                                    iaPartesAudio,
+                                    {
+                                        type: tipoFinal
+                                    }
+                                );
+
+                            if (iaStreamAudio) {
+                                iaStreamAudio
+                                    .getTracks()
+                                    .forEach(
+                                        track => track.stop()
+                                    );
+                            }
+
+                            iaStreamAudio = null;
+                            iaGravando = false;
+
+                            iaEmpresarialMicrofone.textContent =
+                                "🎤";
+
+                            iaEmpresarialMicrofone.title =
+                                "Falar comando";
+
+                            if (!blob.size) {
+                                iaEmpresarialVozStatus.textContent =
+                                    "Nenhum áudio foi capturado.";
+                                return;
+                            }
+
+                            try {
+                                await transcreverAudioIA(
+                                    blob,
+                                    tipoFinal
+                                );
+                            } catch (erro) {
+                                iaEmpresarialVozStatus.textContent =
+                                    "Erro: " + erro.message;
+                            }
+                        }
+                    );
+
+                    iaGravador.start();
+
+                    iaGravando = true;
+
+                    iaEmpresarialMicrofone.textContent =
+                        "⏹";
+
+                    iaEmpresarialMicrofone.title =
+                        "Parar gravação";
+
+                    iaEmpresarialVozStatus.textContent =
+                        "Estou ouvindo... fale normalmente.";
+
+                } catch (erro) {
+
+                    iaGravando = false;
+
+                    iaEmpresarialVozStatus.textContent =
+                        "Não consegui acessar o microfone.";
+
+                    console.error(
+                        "Microfone IA:",
+                        erro
+                    );
+                }
+            }
+
+
+            function pararVozIA() {
+
+                if (
+                    iaGravador &&
+                    iaGravando &&
+                    iaGravador.state !== "inactive"
+                ) {
+                    iaEmpresarialVozStatus.textContent =
+                        "Processando áudio...";
+
+                    iaGravador.stop();
+                }
+            }
+
+
+            iaEmpresarialMicrofone.addEventListener(
+                "click",
+                () => {
+                    if (iaGravando) {
+                        pararVozIA();
+                    } else {
+                        iniciarVozIA();
+                    }
+                }
             );
 
 

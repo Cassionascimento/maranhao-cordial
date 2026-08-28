@@ -15214,6 +15214,97 @@ natural, objetiva e segura.
 """
 
 @app.route(
+    "/api/admin/ia-empresarial/transcrever",
+    methods=["POST"]
+)
+def transcrever_comando_ia_empresarial():
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    if not openai_client:
+        return jsonify({
+            "success": False,
+            "error": "OpenAI não configurada."
+        }), 503
+
+    arquivo = request.files.get("audio")
+
+    if not arquivo or not arquivo.filename:
+        return jsonify({
+            "success": False,
+            "error": "Áudio não recebido."
+        }), 400
+
+    try:
+
+        transcricao = (
+            openai_client.audio.transcriptions.create(
+                model="gpt-4o-transcribe",
+                file=(
+                    arquivo.filename,
+                    arquivo.stream,
+                    arquivo.mimetype
+                    or "audio/webm"
+                ),
+                language="pt",
+                prompt=(
+                    "Comando empresarial em português do Brasil. "
+                    "Contexto: Maranhão Cordial, guaraná, gengibre, "
+                    "cordial, bartender, bares, restaurantes, B2B, "
+                    "Instagram, WhatsApp, e-mail, Facebook, TikTok, "
+                    "LinkedIn, Pinterest, anúncios, campanhas, leads, "
+                    "CRM, fábrica, produção e distribuição. "
+                    "Preserve nomes próprios, números, valores em reais, "
+                    "percentuais, datas e nomes de canais com precisão."
+                )
+            )
+        )
+
+        texto = str(
+            getattr(
+                transcricao,
+                "text",
+                ""
+            )
+            or ""
+        ).strip()
+
+        if not texto:
+            return jsonify({
+                "success": False,
+                "error": "Não consegui compreender o áudio."
+            }), 422
+
+        return jsonify({
+            "success": True,
+            "texto": texto
+        })
+
+    except Exception as erro:
+
+        print(
+            "ERRO TRANSCRICAO IA EMPRESARIAL:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível transcrever o áudio."
+        }), 500
+
+
+@app.route(
     "/api/admin/ia-empresarial",
     methods=["POST"]
 )
