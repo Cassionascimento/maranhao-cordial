@@ -3370,10 +3370,61 @@
                                     item.resposta_sugerida || ""
                                 );
 
+                            const mensagemOriginal =
+                                String(
+                                    item.mensagem_recebida ||
+                                    ""
+                                ).trim();
+
+                            let tipoCompartilhamento = "";
+                            let avisoCompartilhamento = "";
+
+                            if (
+                                /^https?:\/\/(www\.)?instagram\.com\/stories\//i.test(
+                                    mensagemOriginal
+                                )
+                            ) {
+                                tipoCompartilhamento =
+                                    "Story compartilhado";
+
+                                avisoCompartilhamento =
+                                    "A IA recebeu o link, mas não confirmou o conteúdo visual ou o áudio deste Story.";
+                            } else if (
+                                /^https?:\/\/(www\.)?instagram\.com\/(reel|reels)\//i.test(
+                                    mensagemOriginal
+                                )
+                            ) {
+                                tipoCompartilhamento =
+                                    "Reel compartilhado";
+
+                                avisoCompartilhamento =
+                                    "A IA recebeu o link, mas não confirmou o conteúdo visual ou o áudio deste Reel.";
+                            } else if (
+                                /^https?:\/\/(www\.)?instagram\.com\/(p|tv)\//i.test(
+                                    mensagemOriginal
+                                )
+                            ) {
+                                tipoCompartilhamento =
+                                    "Publicação compartilhada";
+
+                                avisoCompartilhamento =
+                                    "A IA recebeu o link, mas não confirmou o conteúdo desta publicação.";
+                            }
+
                             const mensagemRecebida =
                                 escaparHtmlIA(
-                                    item.mensagem_recebida ||
+                                    mensagemOriginal ||
                                     "Mensagem original não disponível."
+                                );
+
+                            const tipoCompartilhamentoHtml =
+                                escaparHtmlIA(
+                                    tipoCompartilhamento
+                                );
+
+                            const avisoCompartilhamentoHtml =
+                                escaparHtmlIA(
+                                    avisoCompartilhamento
                                 );
 
                             const classificacao =
@@ -3441,11 +3492,41 @@
                                             Mensagem recebida
                                         </div>
 
-                                        <div style="
-                                            font-size:14px;
-                                            line-height:1.55;
-                                            white-space:pre-wrap;
-                                        ">${mensagemRecebida}</div>
+                                        ${
+                                            tipoCompartilhamentoHtml
+                                                ? `
+                                                    <div style="
+                                                        font-size:14px;
+                                                        font-weight:700;
+                                                        margin-bottom:8px;
+                                                    ">
+                                                        ${tipoCompartilhamentoHtml}
+                                                    </div>
+
+                                                    <div style="
+                                                        font-size:12px;
+                                                        opacity:.72;
+                                                        margin-bottom:8px;
+                                                    ">
+                                                        ${avisoCompartilhamentoHtml}
+                                                    </div>
+
+                                                    <div style="
+                                                        font-size:11px;
+                                                        opacity:.55;
+                                                        word-break:break-all;
+                                                    ">
+                                                        ${mensagemRecebida}
+                                                    </div>
+                                                `
+                                                : `
+                                                    <div style="
+                                                        font-size:14px;
+                                                        line-height:1.55;
+                                                        white-space:pre-wrap;
+                                                    ">${mensagemRecebida}</div>
+                                                `
+                                        }
 
                                         ${
                                             classificacao || interesse
@@ -3659,6 +3740,18 @@
                         await envioResponse.json();
 
                     if (!envioResponse.ok) {
+
+                        if (envioData.envio_incerto) {
+
+                            status.textContent =
+                                "Envio sem confirmação. Novo envio bloqueado para evitar mensagem duplicada.";
+
+                            card.dataset.envioIncerto =
+                                "true";
+
+                            return;
+                        }
+
                         throw new Error(
                             envioData.error ||
                             envioData?.envio?.error ||
