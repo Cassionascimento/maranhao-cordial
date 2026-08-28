@@ -18316,10 +18316,34 @@ def api_aprovar_acao_empresarial(acao_id):
                 )
             }), 409
 
-        atualizar_status_acao_empresarial(
-            acao_id,
-            "aprovada"
-        )
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET
+                            status = 'aprovada',
+                            aprovado_em = NOW(),
+                            estado_execucao = 'autorizada',
+                            autorizado_em = NOW(),
+                            autorizado_por = 'direcao',
+                            atualizado_em = NOW()
+                        WHERE
+                            id = %s
+                            AND status = 'aguardando_aprovacao'
+                    """, (
+                        acao_id,
+                    ))
+
+                    if cur.rowcount != 1:
+                        raise ValueError(
+                            "Ação não pôde ser autorizada."
+                        )
+
+        finally:
+            conn.close()
 
         return jsonify({
             "success": True,
