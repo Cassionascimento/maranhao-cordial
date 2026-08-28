@@ -1646,7 +1646,7 @@ def adicionar_cors_sac(response):
 
             response.headers[
                 "Access-Control-Allow-Methods"
-            ] = "GET, POST, OPTIONS"
+            ] = "GET, POST, PATCH, PUT, DELETE, OPTIONS"
 
     return response
 
