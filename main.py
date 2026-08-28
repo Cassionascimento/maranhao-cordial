@@ -5547,14 +5547,16 @@ def admin_decidir_resposta_omnichannel(
 def obter_config_instagram_mensagens():
 
     token = (
-        os.getenv("INSTAGRAM_ACCESS_TOKEN")
+        os.getenv("META_INSTAGRAM_ACCESS_TOKEN")
+        or os.getenv("INSTAGRAM_ACCESS_TOKEN")
         or os.getenv("META_ACCESS_TOKEN")
         or os.getenv("PAGE_ACCESS_TOKEN")
         or ""
     ).strip()
 
     conta_id = (
-        os.getenv("INSTAGRAM_ACCOUNT_ID")
+        os.getenv("META_INSTAGRAM_ACCOUNT_ID")
+        or os.getenv("INSTAGRAM_ACCOUNT_ID")
         or os.getenv("INSTAGRAM_USER_ID")
         or os.getenv("INSTAGRAM_ID")
         or ""
@@ -5653,7 +5655,7 @@ def enviar_resposta_instagram(
             }
 
         endpoint = (
-            "https://graph.facebook.com/"
+            "https://graph.instagram.com/"
             "v26.0/"
             + conta_id
             + "/messages"
