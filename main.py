@@ -17643,9 +17643,16 @@ def comando_empresarial():
             )
         )
 
+        acao_id = criar_acao_a_partir_de_comando(
+            comando_id,
+            interpretacao
+        )
+
         return jsonify({
             "success": True,
             "comando_id": comando_id,
+            "acao_id": acao_id,
+            "aguardando_aprovacao": bool(acao_id),
             "interpretacao": interpretacao
         })
 
@@ -17724,6 +17731,539 @@ try:
 except Exception as erro:
     print(
         "ERRO AO INICIALIZAR ORQUESTRADOR:",
+        erro
+    )
+
+
+
+# ============================================================
+# FILA UNIVERSAL DE AÇÕES DA IA EMPRESARIAL
+# ============================================================
+
+def garantir_tabela_acoes_empresariais():
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    acoes_empresariais (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+                        comando_id UUID,
+
+                        tipo TEXT NOT NULL,
+                        canal TEXT NOT NULL,
+
+                        destinatario TEXT,
+                        conteudo TEXT NOT NULL,
+
+                        justificativa TEXT,
+
+                        status TEXT NOT NULL
+                            DEFAULT 'aguardando_aprovacao',
+
+                        prioridade TEXT NOT NULL
+                            DEFAULT 'media',
+
+                        criado_em TIMESTAMPTZ NOT NULL
+                            DEFAULT NOW(),
+
+                        aprovado_em TIMESTAMPTZ,
+                        recusado_em TIMESTAMPTZ,
+                        executado_em TIMESTAMPTZ,
+
+                        resultado TEXT,
+                        erro TEXT
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_acoes_empresariais_status
+                    ON acoes_empresariais(status)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_acoes_empresariais_canal
+                    ON acoes_empresariais(canal)
+                """)
+
+        print(
+            "✓ FILA UNIVERSAL DE AÇÕES INICIALIZADA"
+        )
+
+    finally:
+        conn.close()
+
+
+def criar_acao_empresarial(
+    tipo,
+    canal,
+    conteudo,
+    destinatario="",
+    justificativa="",
+    prioridade="media",
+    comando_id=None,
+    status="aguardando_aprovacao"
+):
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    INSERT INTO acoes_empresariais (
+                        comando_id,
+                        tipo,
+                        canal,
+                        destinatario,
+                        conteudo,
+                        justificativa,
+                        prioridade,
+                        status
+                    )
+                    VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s
+                    )
+                    RETURNING id
+                """, (
+                    comando_id,
+                    tipo,
+                    canal,
+                    destinatario,
+                    conteudo,
+                    justificativa,
+                    prioridade,
+                    status
+                ))
+
+                acao_id = cur.fetchone()[0]
+
+        return str(acao_id)
+
+    finally:
+        conn.close()
+
+
+def listar_acoes_empresariais(
+    status="aguardando_aprovacao"
+):
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+
+            cur.execute("""
+                SELECT
+                    id,
+                    comando_id,
+                    tipo,
+                    canal,
+                    destinatario,
+                    conteudo,
+                    justificativa,
+                    status,
+                    prioridade,
+                    criado_em,
+                    aprovado_em,
+                    executado_em,
+                    resultado,
+                    erro
+                FROM acoes_empresariais
+                WHERE
+                    (%s = 'todas' OR status = %s)
+                ORDER BY
+                    CASE prioridade
+                        WHEN 'critica' THEN 1
+                        WHEN 'alta' THEN 2
+                        WHEN 'media' THEN 3
+                        ELSE 4
+                    END,
+                    criado_em DESC
+                LIMIT 100
+            """, (
+                status,
+                status
+            ))
+
+            colunas = [
+                d[0]
+                for d in cur.description
+            ]
+
+            return [
+                dict(zip(colunas, linha))
+                for linha in cur.fetchall()
+            ]
+
+    finally:
+        conn.close()
+
+
+def obter_acao_empresarial(acao_id):
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+
+            cur.execute("""
+                SELECT
+                    id,
+                    comando_id,
+                    tipo,
+                    canal,
+                    destinatario,
+                    conteudo,
+                    justificativa,
+                    status,
+                    prioridade,
+                    criado_em,
+                    aprovado_em,
+                    recusado_em,
+                    executado_em,
+                    resultado,
+                    erro
+                FROM acoes_empresariais
+                WHERE id = %s
+            """, (acao_id,))
+
+            linha = cur.fetchone()
+
+            if not linha:
+                return None
+
+            colunas = [
+                d[0]
+                for d in cur.description
+            ]
+
+            return dict(
+                zip(colunas, linha)
+            )
+
+    finally:
+        conn.close()
+
+
+def atualizar_status_acao_empresarial(
+    acao_id,
+    status
+):
+    permitidos = {
+        "aguardando_aprovacao",
+        "aprovada",
+        "recusada",
+        "executando",
+        "executada",
+        "erro"
+    }
+
+    if status not in permitidos:
+        raise ValueError(
+            "Status de ação inválido."
+        )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                if status == "aprovada":
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET
+                            status = %s,
+                            aprovado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        status,
+                        acao_id
+                    ))
+
+                elif status == "recusada":
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET
+                            status = %s,
+                            recusado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        status,
+                        acao_id
+                    ))
+
+                else:
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET status = %s
+                        WHERE id = %s
+                    """, (
+                        status,
+                        acao_id
+                    ))
+
+                if cur.rowcount == 0:
+                    raise ValueError(
+                        "Ação não encontrada."
+                    )
+
+    finally:
+        conn.close()
+
+
+# ------------------------------------------------------------
+# CONVERTE COMANDO EXTERNO EM AÇÃO PENDENTE
+# ------------------------------------------------------------
+
+def criar_acao_a_partir_de_comando(
+    comando_id,
+    interpretacao
+):
+    intencao = interpretacao.get(
+        "intencao"
+    )
+
+    canal = interpretacao.get(
+        "canal"
+    )
+
+    if intencao not in {
+        "enviar_mensagem",
+        "responder_mensagem"
+    }:
+        return None
+
+    if canal not in {
+        "instagram",
+        "whatsapp",
+        "email"
+    }:
+        return None
+
+    return criar_acao_empresarial(
+        comando_id=comando_id,
+        tipo=intencao,
+        canal=canal,
+        destinatario=(
+            interpretacao.get(
+                "destinatario"
+            )
+            or ""
+        ),
+        conteudo=(
+            interpretacao.get(
+                "conteudo"
+            )
+            or ""
+        ),
+        justificativa=(
+            interpretacao.get(
+                "justificativa"
+            )
+            or ""
+        ),
+        prioridade=(
+            interpretacao.get(
+                "prioridade"
+            )
+            or "media"
+        ),
+        status="aguardando_aprovacao"
+    )
+
+
+# ------------------------------------------------------------
+# API — LISTAR AÇÕES
+# ------------------------------------------------------------
+
+@app.route(
+    "/api/admin/acoes-empresariais",
+    methods=["GET"]
+)
+def api_listar_acoes_empresariais():
+
+    chave = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    status = (
+        request.args.get("status")
+        or "aguardando_aprovacao"
+    )
+
+    try:
+        acoes = (
+            listar_acoes_empresariais(
+                status=status
+            )
+        )
+
+        return jsonify({
+            "success": True,
+            "total": len(acoes),
+            "acoes": acoes
+        })
+
+    except Exception as erro:
+        return jsonify({
+            "success": False,
+            "error": str(erro)
+        }), 500
+
+
+# ------------------------------------------------------------
+# API — APROVAR
+# Ainda NÃO envia externamente.
+# ------------------------------------------------------------
+
+@app.route(
+    "/api/admin/acoes-empresariais/<acao_id>/aprovar",
+    methods=["POST"]
+)
+def api_aprovar_acao_empresarial(acao_id):
+
+    chave = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        acao = obter_acao_empresarial(
+            acao_id
+        )
+
+        if not acao:
+            return jsonify({
+                "success": False,
+                "error": "Ação não encontrada."
+            }), 404
+
+        if acao["status"] != (
+            "aguardando_aprovacao"
+        ):
+            return jsonify({
+                "success": False,
+                "error": (
+                    "Ação não está aguardando "
+                    "aprovação."
+                )
+            }), 409
+
+        atualizar_status_acao_empresarial(
+            acao_id,
+            "aprovada"
+        )
+
+        return jsonify({
+            "success": True,
+            "acao_id": acao_id,
+            "status": "aprovada",
+            "executada": False,
+            "mensagem": (
+                "Ação aprovada. "
+                "Executor externo ainda "
+                "não foi acionado."
+            )
+        })
+
+    except Exception as erro:
+        return jsonify({
+            "success": False,
+            "error": str(erro)
+        }), 500
+
+
+# ------------------------------------------------------------
+# API — RECUSAR
+# ------------------------------------------------------------
+
+@app.route(
+    "/api/admin/acoes-empresariais/<acao_id>/recusar",
+    methods=["POST"]
+)
+def api_recusar_acao_empresarial(acao_id):
+
+    chave = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if (
+        not ADMIN_API_KEY
+        or chave != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        acao = obter_acao_empresarial(
+            acao_id
+        )
+
+        if not acao:
+            return jsonify({
+                "success": False,
+                "error": "Ação não encontrada."
+            }), 404
+
+        if acao["status"] != (
+            "aguardando_aprovacao"
+        ):
+            return jsonify({
+                "success": False,
+                "error": (
+                    "Ação não está aguardando "
+                    "aprovação."
+                )
+            }), 409
+
+        atualizar_status_acao_empresarial(
+            acao_id,
+            "recusada"
+        )
+
+        return jsonify({
+            "success": True,
+            "acao_id": acao_id,
+            "status": "recusada"
+        })
+
+    except Exception as erro:
+        return jsonify({
+            "success": False,
+            "error": str(erro)
+        }), 500
+
+
+try:
+    garantir_tabela_acoes_empresariais()
+except Exception as erro:
+    print(
+        "ERRO AO INICIALIZAR FILA UNIVERSAL:",
         erro
     )
 
