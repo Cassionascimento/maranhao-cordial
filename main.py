@@ -5745,11 +5745,12 @@ def admin_enviar_resposta_omnichannel(
                 cursor_factory=RealDictCursor
             ) as cur:
 
+                # Trava a linha durante a decisão de envio.
                 cur.execute("""
                     SELECT *
                     FROM fila_respostas_omnichannel
                     WHERE id = %s
-                    LIMIT 1
+                    FOR UPDATE
                 """, (
                     resposta_id,
                 ))
@@ -5765,20 +5766,29 @@ def admin_enviar_resposta_omnichannel(
                     }), 404
 
                 status = str(
-                    fila.get(
-                        "status"
-                    )
-                    or ""
+                    fila.get("status") or ""
                 ).strip().lower()
 
+                # Idempotência: mensagem já confirmada.
                 if status == "enviada":
 
                     return jsonify({
                         "success": True,
                         "ja_enviada": True,
-                        "resposta":
-                            dict(fila)
+                        "resposta": dict(fila)
                     }), 200
+
+                # Uma tentativa anterior ficou em estado
+                # intermediário. Não arrisca duplicidade.
+                if status == "enviando":
+
+                    return jsonify({
+                        "success": False,
+                        "envio_incerto": True,
+                        "error":
+                            "Já existe uma tentativa de envio em andamento ou sem confirmação. Verifique antes de reenviar.",
+                        "status": status
+                    }), 409
 
                 if status != "aprovada":
 
@@ -5786,15 +5796,11 @@ def admin_enviar_resposta_omnichannel(
                         "success": False,
                         "error":
                             "A resposta precisa ser aprovada antes do envio.",
-                        "status":
-                            status
+                        "status": status
                     }), 409
 
                 canal = str(
-                    fila.get(
-                        "canal"
-                    )
-                    or ""
+                    fila.get("canal") or ""
                 ).strip().lower()
 
                 if canal != "instagram":
@@ -5805,15 +5811,51 @@ def admin_enviar_resposta_omnichannel(
                             "Este endpoint envia somente mensagens do Instagram."
                     }), 400
 
-                resultado = (
-                    enviar_resposta_instagram(
-                        dict(fila)
-                    )
+                # Marca ANTES da chamada externa.
+                # Se a conexão cair depois que a Meta receber,
+                # não permitimos um segundo envio automático.
+                cur.execute("""
+                    UPDATE fila_respostas_omnichannel
+                    SET
+                        status = 'enviando',
+                        erro_envio = NULL,
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING *
+                """, (
+                    resposta_id,
+                ))
+
+                fila_envio = cur.fetchone()
+
+                resultado = enviar_resposta_instagram(
+                    {
+                        **dict(fila_envio),
+                        "status": "aprovada"
+                    }
                 )
 
-                if resultado.get(
-                    "success"
-                ):
+                meta = (
+                    resultado.get("meta")
+                    if isinstance(resultado, dict)
+                    else None
+                )
+
+                message_id = ""
+
+                if isinstance(meta, dict):
+                    message_id = str(
+                        meta.get("message_id")
+                        or meta.get("message")
+                        or ""
+                    ).strip()
+
+                confirmado = bool(
+                    resultado.get("success")
+                    and message_id
+                )
+
+                if confirmado:
 
                     cur.execute("""
                         UPDATE fila_respostas_omnichannel
@@ -5828,17 +5870,20 @@ def admin_enviar_resposta_omnichannel(
                         resposta_id,
                     ))
 
-                    atualizada = (
-                        cur.fetchone()
-                    )
+                    atualizada = cur.fetchone()
 
                     return jsonify({
                         "success": True,
-                        "envio":
-                            resultado,
+                        "confirmado_meta": True,
+                        "message_id": message_id,
+                        "envio": resultado,
                         "resposta":
                             dict(atualizada)
                     }), 200
+
+                # HTTP/resultado sem confirmação inequívoca:
+                # permanece "enviando" para impedir duplicidade.
+                detalhe = str(resultado)[:4000]
 
                 cur.execute("""
                     UPDATE fila_respostas_omnichannel
@@ -5846,20 +5891,37 @@ def admin_enviar_resposta_omnichannel(
                         erro_envio = %s,
                         atualizado_em = NOW()
                     WHERE id = %s
+                    RETURNING *
                 """, (
-                    str(
-                        resultado
-                    )[:4000],
+                    detalhe,
                     resposta_id
                 ))
 
+                atualizada = cur.fetchone()
+
                 return jsonify({
                     "success": False,
+                    "envio_incerto": True,
                     "error":
-                        "A Meta não confirmou o envio.",
-                    "detalhes":
-                        resultado
+                        "O envio não teve confirmação inequívoca da Meta. O sistema bloqueou novo envio para evitar duplicidade.",
+                    "detalhes": resultado,
+                    "resposta":
+                        dict(atualizada)
                 }), 502
+
+    except Exception as erro:
+
+        print(
+            "ERRO ENVIO OMNICHANNEL:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "envio_incerto": True,
+            "error":
+                "Falha durante a tentativa de envio. Novo envio foi bloqueado por segurança."
+        }), 500
 
     finally:
         conn.close()
