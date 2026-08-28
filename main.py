@@ -16014,6 +16014,581 @@ for regra in app.url_map.iter_rules():
     print(regra)
 
 
+
+# =====================================================
+# CENTRAL DE COMANDO — IA EMPRESARIAL
+# =====================================================
+
+def garantir_tabelas_central_comando():
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS ordens_empresariais (
+                        id UUID PRIMARY KEY,
+                        comando TEXT NOT NULL,
+                        categoria VARCHAR(80),
+                        canal VARCHAR(40),
+                        destino TEXT,
+                        payload JSONB,
+                        prioridade VARCHAR(20)
+                            NOT NULL DEFAULT 'media',
+                        estado VARCHAR(40)
+                            NOT NULL DEFAULT 'pendente',
+                        requer_aprovacao BOOLEAN
+                            NOT NULL DEFAULT TRUE,
+                        aprovado_por VARCHAR(180),
+                        aprovado_em TIMESTAMPTZ,
+                        executado_em TIMESTAMPTZ,
+                        resultado JSONB,
+                        erro TEXT,
+                        criado_por VARCHAR(180),
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS feedback_empresarial (
+                        id UUID PRIMARY KEY,
+                        entidade_tipo VARCHAR(80) NOT NULL,
+                        entidade_id VARCHAR(220) NOT NULL,
+                        avaliacao VARCHAR(40) NOT NULL,
+                        resultado_negocio VARCHAR(80),
+                        nota INTEGER,
+                        comentario TEXT,
+                        registrado_por VARCHAR(180),
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_ordens_empresariais_estado
+                    ON ordens_empresariais(estado)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_feedback_empresarial_entidade
+                    ON feedback_empresarial(
+                        entidade_tipo,
+                        entidade_id
+                    )
+                """)
+
+    finally:
+        conn.close()
+
+
+def instagram_config():
+
+    token = (
+        os.getenv("META_INSTAGRAM_ACCESS_TOKEN")
+        or os.getenv("INSTAGRAM_ACCESS_TOKEN")
+        or ""
+    ).strip()
+
+    conta_id = (
+        os.getenv("META_INSTAGRAM_ACCOUNT_ID")
+        or os.getenv("INSTAGRAM_ACCOUNT_ID")
+        or os.getenv("INSTAGRAM_USER_ID")
+        or ""
+    ).strip()
+
+    return token, conta_id
+
+
+def meta_get_instagram(caminho, params=None):
+
+    token, _ = instagram_config()
+
+    if not token:
+        raise RuntimeError(
+            "META_INSTAGRAM_ACCESS_TOKEN não configurado."
+        )
+
+    parametros = dict(params or {})
+    parametros["access_token"] = token
+
+    resposta = requests.get(
+        "https://graph.facebook.com/v26.0/"
+        + str(caminho).lstrip("/"),
+        params=parametros,
+        timeout=30
+    )
+
+    dados = resposta.json()
+
+    if not resposta.ok:
+        raise RuntimeError(
+            "Meta Instagram: " + str(dados)
+        )
+
+    return dados
+
+
+def obter_demografia_instagram_genero():
+
+    _, conta_id = instagram_config()
+
+    if not conta_id:
+        raise RuntimeError(
+            "META_INSTAGRAM_ACCOUNT_ID não configurado."
+        )
+
+    try:
+        dados = meta_get_instagram(
+            f"{conta_id}/insights",
+            {
+                "metric":
+                    "follower_demographics",
+                "period":
+                    "lifetime",
+                "metric_type":
+                    "total_value",
+                "breakdown":
+                    "gender",
+                "timeframe":
+                    "this_month"
+            }
+        )
+
+        return {
+            "success": True,
+            "dados": dados.get("data", [])
+        }
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "erro": str(erro),
+            "observacao":
+                "A Meta pode não disponibilizar "
+                "demografia quando não houver "
+                "audiência/dados suficientes."
+        }
+
+
+def listar_desempenho_posts_instagram(
+    limite=50
+):
+
+    _, conta_id = instagram_config()
+
+    if not conta_id:
+        raise RuntimeError(
+            "META_INSTAGRAM_ACCOUNT_ID não configurado."
+        )
+
+    media = meta_get_instagram(
+        f"{conta_id}/media",
+        {
+            "fields":
+                "id,caption,media_type,"
+                "media_product_type,permalink,"
+                "timestamp,like_count,comments_count",
+            "limit":
+                limite
+        }
+    )
+
+    resultados = []
+
+    metricas_tentativa = [
+        "views",
+        "reach",
+        "shares",
+        "saved"
+    ]
+
+    for item in media.get("data", []):
+
+        registro = dict(item)
+
+        registro["insights"] = {}
+
+        for metrica in metricas_tentativa:
+
+            try:
+                resp = meta_get_instagram(
+                    f"{item['id']}/insights",
+                    {
+                        "metric":
+                            metrica
+                    }
+                )
+
+                valores = resp.get(
+                    "data",
+                    []
+                )
+
+                valor = None
+
+                if valores:
+                    primeiro = valores[0]
+
+                    if "values" in primeiro:
+                        lista_valores = (
+                            primeiro.get("values")
+                            or []
+                        )
+
+                        if lista_valores:
+                            valor = (
+                                lista_valores[-1]
+                                .get("value")
+                            )
+
+                    elif "total_value" in primeiro:
+                        valor = (
+                            primeiro.get(
+                                "total_value",
+                                {}
+                            ).get("value")
+                        )
+
+                registro[
+                    "insights"
+                ][metrica] = valor
+
+            except Exception:
+                registro[
+                    "insights"
+                ][metrica] = None
+
+        resultados.append(
+            registro
+        )
+
+    resultados.sort(
+        key=lambda x: (
+            x.get("insights", {})
+            .get("views")
+            or 0
+        ),
+        reverse=True
+    )
+
+    return resultados
+
+
+def carregar_feedback_para_ia(
+    limite=80
+):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        entidade_tipo,
+                        entidade_id,
+                        avaliacao,
+                        resultado_negocio,
+                        nota,
+                        comentario,
+                        registrado_por,
+                        criado_em
+                    FROM feedback_empresarial
+                    ORDER BY criado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                linhas = cur.fetchall()
+
+        if not linhas:
+            return (
+                "\nFEEDBACK OPERACIONAL:\n"
+                "Ainda não há feedback registrado.\n"
+            )
+
+        texto = [
+            "\nFEEDBACK OPERACIONAL / CLOSED LOOP:"
+        ]
+
+        for f in linhas:
+
+            texto.append(
+                "- "
+                + str(f.get("entidade_tipo"))
+                + " "
+                + str(f.get("entidade_id"))
+                + " | avaliação="
+                + str(f.get("avaliacao"))
+                + " | resultado="
+                + str(
+                    f.get("resultado_negocio")
+                    or "não informado"
+                )
+                + " | nota="
+                + str(
+                    f.get("nota")
+                    if f.get("nota") is not None
+                    else "não informada"
+                )
+                + " | comentário="
+                + str(
+                    f.get("comentario")
+                    or "sem comentário"
+                )
+            )
+
+        texto.append(
+            "\nUse esse histórico para ajustar "
+            "prioridades e recomendações futuras. "
+            "Não trate correlação como causalidade."
+        )
+
+        return "\n".join(texto)
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/instagram/analytics",
+    methods=["GET"]
+)
+def admin_instagram_analytics():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+
+        posts = (
+            listar_desempenho_posts_instagram()
+        )
+
+        genero = (
+            obter_demografia_instagram_genero()
+        )
+
+        return jsonify({
+            "success": True,
+            "total_posts":
+                len(posts),
+            "posts":
+                posts,
+            "top_post":
+                posts[0]
+                if posts else None,
+            "demografia_genero":
+                genero
+        }), 200
+
+    except Exception as erro:
+
+        return jsonify({
+            "success": False,
+            "error": str(erro)
+        }), 500
+
+
+@app.route(
+    "/api/admin/feedback",
+    methods=["POST"]
+)
+def admin_registrar_feedback():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    entidade_tipo = str(
+        dados.get("entidade_tipo", "")
+    ).strip()
+
+    entidade_id = str(
+        dados.get("entidade_id", "")
+    ).strip()
+
+    avaliacao = str(
+        dados.get("avaliacao", "")
+    ).strip().lower()
+
+    if not entidade_tipo \
+       or not entidade_id \
+       or avaliacao not in {
+           "positivo",
+           "negativo",
+           "neutro"
+       }:
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Feedback inválido."
+        }), 400
+
+    feedback_id = str(
+        uuid.uuid4()
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    INSERT INTO feedback_empresarial (
+                        id,
+                        entidade_tipo,
+                        entidade_id,
+                        avaliacao,
+                        resultado_negocio,
+                        nota,
+                        comentario,
+                        registrado_por
+                    )
+                    VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s
+                    )
+                """, (
+                    feedback_id,
+                    entidade_tipo,
+                    entidade_id,
+                    avaliacao,
+                    dados.get(
+                        "resultado_negocio"
+                    ),
+                    dados.get("nota"),
+                    dados.get("comentario"),
+                    dados.get(
+                        "registrado_por",
+                        "admin"
+                    )
+                ))
+
+        return jsonify({
+            "success": True,
+            "feedback_id":
+                feedback_id
+        }), 201
+
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/ordens",
+    methods=["POST"]
+)
+def admin_criar_ordem_empresarial():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    comando = str(
+        dados.get("comando", "")
+    ).strip()
+
+    if not comando:
+        return jsonify({
+            "success": False,
+            "error": "Comando obrigatório."
+        }), 400
+
+    ordem_id = str(
+        uuid.uuid4()
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    INSERT INTO ordens_empresariais (
+                        id,
+                        comando,
+                        categoria,
+                        canal,
+                        destino,
+                        payload,
+                        prioridade,
+                        estado,
+                        requer_aprovacao,
+                        criado_por
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s,
+                        'pendente',
+                        TRUE,
+                        %s
+                    )
+                """, (
+                    ordem_id,
+                    comando,
+                    dados.get("categoria"),
+                    dados.get("canal"),
+                    dados.get("destino"),
+                    json.dumps(
+                        dados.get("payload") or {},
+                        ensure_ascii=False
+                    ),
+                    dados.get(
+                        "prioridade",
+                        "media"
+                    ),
+                    dados.get(
+                        "criado_por",
+                        "admin"
+                    )
+                ))
+
+        return jsonify({
+            "success": True,
+            "ordem_id":
+                ordem_id,
+            "estado":
+                "pendente",
+            "requer_aprovacao":
+                True
+        }), 201
+
+    finally:
+        conn.close()
+
+
+
 # =====================================================
 # INICIALIZAÇÃO
 # =====================================================
@@ -16023,7 +16598,9 @@ for regra in app.url_map.iter_rules():
 if DATABASE_URL:
     try:
         inicializar_banco()
+        garantir_tabelas_central_comando()
         print("✓ BANCO DE LEADS INICIALIZADO")
+        print("✓ CENTRAL DE COMANDO INICIALIZADA")
     except Exception as erro:
         print("ERRO AO INICIALIZAR BANCO DE LEADS:", erro)
 else:
