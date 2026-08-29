@@ -15563,6 +15563,34 @@ def ia_empresarial():
                 "analytics Instagram consultado."
             )
 
+        # =============================================
+        # CONTEXTO DINÂMICO — GOOGLE ANALYTICS 4
+        # =============================================
+        contexto_ga4 = ""
+
+        if comando_pede_analytics(pergunta):
+            try:
+                contexto_ga4 = (
+                    montar_contexto_analytics_ga4()
+                )
+
+                print(
+                    "IA EMPRESARIAL: "
+                    "Google Analytics 4 consultado."
+                )
+
+            except Exception as erro_ga4:
+                print(
+                    "ERRO ANALYTICS GA4:",
+                    repr(erro_ga4)
+                )
+
+                contexto_ga4 = (
+                    "\n\n=== GOOGLE ANALYTICS 4 ===\n"
+                    "A consulta ao GA4 falhou nesta execução. "
+                    "Não invente métricas do site.\n"
+                )
+
         resumo = (
             obter_resumo_empresarial_postgres()
         )
@@ -15817,6 +15845,7 @@ def ia_empresarial():
                 + POLITICA_LINGUAGEM_NATURAL_IA
                 + carregar_objetivos_estrategicos_para_ia()
                 + contexto_instagram
+                + contexto_ga4
                 + contexto_diagnostico +
 
                 "\nAnalise negócios com rigor. "
@@ -17828,6 +17857,118 @@ def interpretar_comando_empresarial(comando):
     )
 
 
+
+def comando_pede_analytics(comando):
+    texto = (comando or "").lower()
+
+    termos = [
+        "analytics",
+        "ga4",
+        "google analytics",
+        "tráfego",
+        "trafego",
+        "site",
+        "visitantes",
+        "visitas",
+        "sessões",
+        "sessoes",
+        "usuários do site",
+        "usuarios do site",
+        "página mais acessada",
+        "pagina mais acessada",
+        "páginas mais acessadas",
+        "paginas mais acessadas",
+        "origem do tráfego",
+        "origem do trafego",
+        "desempenho digital",
+    ]
+
+    return any(termo in texto for termo in termos)
+
+
+def montar_contexto_analytics_ga4():
+    import json
+
+    from analytics_service import (
+        resumo_geral,
+        origens_trafego,
+        paginas_mais_acessadas,
+    )
+
+    dados = {
+        "resumo_ultimos_7_dias": resumo_geral(7),
+        "origens_trafego_ultimos_30_dias": origens_trafego(30),
+        "paginas_mais_acessadas_ultimos_30_dias": paginas_mais_acessadas(30),
+    }
+
+    return (
+        "\n\n=== GOOGLE ANALYTICS 4 — DADOS REAIS DO SITE ===\n"
+        "Os dados abaixo foram consultados diretamente no GA4 nesta execução.\n"
+        "Não invente métricas que não estejam presentes.\n"
+        "A taxa_engajamento é retornada pelo GA4 como proporção entre 0 e 1.\n"
+        "Não há métrica de conversão neste conjunto de dados; não invente taxa de conversão.\n\n"
+        + json.dumps(
+            dados,
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n=== FIM DOS DADOS GA4 ===\n"
+    )
+
+
+def analisar_google_analytics_empresarial(comando):
+    import json
+
+    from analytics_service import (
+        resumo_geral,
+        origens_trafego,
+        paginas_mais_acessadas,
+    )
+
+    if not openai_client:
+        raise RuntimeError("OpenAI indisponível.")
+
+    dados_analytics = {
+        "resumo_7_dias": resumo_geral(7),
+        "origens_30_dias": origens_trafego(30),
+        "paginas_30_dias": paginas_mais_acessadas(30),
+    }
+
+    contexto = json.dumps(
+        dados_analytics,
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    resposta = openai_client.responses.create(
+        model="gpt-5-mini",
+        instructions=(
+            "Você é a inteligência empresarial da Maranhão Cordial. "
+            "Responda à DIREÇÃO usando os dados reais do Google Analytics "
+            "fornecidos no contexto. "
+            "Nunca invente números, conversões, causas ou conclusões que "
+            "os dados não sustentem. "
+            "Diferencie claramente dado observado de interpretação. "
+            "Quando não houver evidência suficiente, diga isso. "
+            "Seja objetivo, empresarial e indique ações práticas quando "
+            "forem pertinentes."
+        ),
+        input=(
+            f"PERGUNTA DA DIREÇÃO:\n{comando}\n\n"
+            f"DADOS REAIS DO GOOGLE ANALYTICS:\n{contexto}"
+        ),
+        reasoning={
+            "effort": "low"
+        },
+        max_output_tokens=1000,
+    )
+
+    return {
+        "resposta": resposta.output_text,
+        "dados": dados_analytics,
+    }
+
+
 def registrar_comando_empresarial(
     comando_original,
     interpretacao,
@@ -17923,6 +18064,40 @@ def comando_empresarial():
                 comando
             )
         )
+
+        # ------------------------------------------
+        # CONSULTA GOOGLE ANALYTICS / GA4
+        # ------------------------------------------
+
+        if (
+            interpretacao["intencao"] in [
+                "consultar",
+                "analisar"
+            ]
+            and comando_pede_analytics(comando)
+        ):
+            resultado_analytics = (
+                analisar_google_analytics_empresarial(
+                    comando
+                )
+            )
+
+            comando_id = (
+                registrar_comando_empresarial(
+                    comando,
+                    interpretacao,
+                    origem
+                )
+            )
+
+            return jsonify({
+                "success": True,
+                "tipo": "google_analytics",
+                "comando_id": comando_id,
+                "resposta": resultado_analytics["resposta"],
+                "dados_analytics": resultado_analytics["dados"],
+                "interpretacao": interpretacao
+            }), 200
 
         # ------------------------------------------
         # ALTERAÇÃO / CRIAÇÃO DE OBJETIVO

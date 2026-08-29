@@ -14,3 +14,7 @@ main.py.broken_backup
 *.backup-*
 main.py.backup-*
 maranhao-backend/admin.html.backup-*
+
+# Segredos locais
+secrets/
+*.json
