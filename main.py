@@ -416,6 +416,82 @@ def get_db_connection():
     )
 
 
+
+def registrar_evento_empresarial(
+    fonte,
+    tipo,
+    descricao,
+    external_id=None,
+    payload=None,
+    importancia="normal"
+):
+    """Registra eventos empresariais para análise pela IA."""
+
+    if not DATABASE_URL:
+        print("AVISO: DATABASE_URL não configurada.")
+        return None
+
+    conn = None
+
+    try:
+        payload_json = json.dumps(
+            payload or {},
+            ensure_ascii=False,
+            default=str
+        )
+
+        conn = get_db_connection()
+
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+            cur.execute(
+                """
+                INSERT INTO eventos_empresariais (
+                    fonte,
+                    tipo,
+                    descricao,
+                    external_id,
+                    payload_json,
+                    importancia
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (fonte, external_id)
+                WHERE external_id IS NOT NULL
+                DO NOTHING
+                RETURNING id
+                """,
+                (
+                    fonte,
+                    tipo,
+                    descricao,
+                    external_id,
+                    payload_json,
+                    importancia,
+                )
+            )
+
+            resultado = cur.fetchone()
+
+        conn.commit()
+
+        return resultado["id"] if resultado else None
+
+    except Exception as erro:
+        print(
+            "ERRO AO REGISTRAR EVENTO EMPRESARIAL:",
+            repr(erro)
+        )
+
+        if conn:
+            conn.rollback()
+
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
 def inicializar_banco():
     conn = get_db_connection()
 
