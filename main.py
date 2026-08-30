@@ -418,6 +418,46 @@ def get_db_connection():
 
 
 
+
+def executar_monitoramento_ga4():
+    """
+    Executa um ciclo completo de monitoramento do GA4:
+    1. registra o snapshot atual;
+    2. compara com o snapshot anterior;
+    3. registra mudança relevante quando necessário.
+    """
+
+    try:
+        print("GA4: iniciando monitoramento.")
+
+        snapshot_id = registrar_snapshot_ga4()
+
+        mudanca_id = analisar_mudanca_ga4()
+
+        resultado = {
+            "snapshot_id": snapshot_id,
+            "mudanca_id": mudanca_id,
+        }
+
+        print(
+            "GA4: monitoramento concluído:",
+            resultado
+        )
+
+        return resultado
+
+    except Exception as erro:
+        print(
+            "ERRO NO MONITORAMENTO GA4:",
+            repr(erro)
+        )
+
+        return {
+            "snapshot_id": None,
+            "mudanca_id": None,
+            "erro": str(erro),
+        }
+
 def registrar_snapshot_ga4():
     """
     Consulta o GA4 e registra um snapshot na central de eventos.
