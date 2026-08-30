@@ -417,6 +417,57 @@ def get_db_connection():
 
 
 
+
+def registrar_snapshot_ga4():
+    """
+    Consulta o GA4 e registra um snapshot na central de eventos.
+    O external_id evita duplicidade dentro da mesma janela temporal.
+    """
+
+    try:
+        from analytics_service import resumo_geral
+        from datetime import datetime, timezone
+
+        dados = resumo_geral(dias=7)
+
+        if not dados:
+            print("GA4 sem dados nesta execução.")
+            return None
+
+        agora = datetime.now(timezone.utc)
+
+        janela = agora.strftime("%Y-%m-%d-%H")
+
+        external_id = f"ga4-resumo-7d-{janela}"
+
+        descricao = (
+            f"GA4 7 dias: "
+            f"{dados.get('usuarios_ativos', '0')} usuários ativos, "
+            f"{dados.get('sessoes', '0')} sessões, "
+            f"{dados.get('visualizacoes', '0')} visualizações."
+        )
+
+        evento_id = registrar_evento_empresarial(
+            fonte="google_analytics",
+            tipo="snapshot_ga4",
+            descricao=descricao,
+            external_id=external_id,
+            payload=dados,
+            importancia="normal"
+        )
+
+        print("SNAPSHOT GA4 EVENTO ID:", evento_id)
+
+        return evento_id
+
+    except Exception as erro:
+        print(
+            "ERRO AO REGISTRAR SNAPSHOT GA4:",
+            repr(erro)
+        )
+
+        return None
+
 def registrar_evento_empresarial(
     fonte,
     tipo,
