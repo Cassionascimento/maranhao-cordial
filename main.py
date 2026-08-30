@@ -468,6 +468,167 @@ def registrar_snapshot_ga4():
 
         return None
 
+
+def analisar_mudanca_ga4():
+    """
+    Compara os dois últimos snapshots do GA4.
+    Registra um evento somente quando encontra mudança relevante.
+    """
+
+    conn = None
+
+    try:
+        conn = get_db_connection()
+
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    payload_json,
+                    criado_em
+                FROM eventos_empresariais
+                WHERE fonte = 'google_analytics'
+                  AND tipo = 'snapshot_ga4'
+                ORDER BY id DESC
+                LIMIT 2
+                """
+            )
+
+            snapshots = cur.fetchall()
+
+        if len(snapshots) < 2:
+            print(
+                "GA4: ainda não existem dois snapshots para comparação."
+            )
+            return None
+
+        atual = json.loads(
+            snapshots[0]["payload_json"] or "{}"
+        )
+
+        anterior = json.loads(
+            snapshots[1]["payload_json"] or "{}"
+        )
+
+        def numero(valor):
+            try:
+                return float(valor or 0)
+            except (TypeError, ValueError):
+                return 0.0
+
+        def variacao_percentual(novo, antigo):
+            novo = numero(novo)
+            antigo = numero(antigo)
+
+            if antigo == 0:
+                if novo == 0:
+                    return 0.0
+                return 100.0
+
+            return ((novo - antigo) / antigo) * 100
+
+        variacao_usuarios = variacao_percentual(
+            atual.get("usuarios_ativos"),
+            anterior.get("usuarios_ativos")
+        )
+
+        variacao_sessoes = variacao_percentual(
+            atual.get("sessoes"),
+            anterior.get("sessoes")
+        )
+
+        engajamento_atual = numero(
+            atual.get("taxa_engajamento")
+        )
+
+        engajamento_anterior = numero(
+            anterior.get("taxa_engajamento")
+        )
+
+        diferenca_engajamento = (
+            engajamento_atual - engajamento_anterior
+        ) * 100
+
+        mudancas = []
+
+        if abs(variacao_usuarios) >= 20:
+            mudancas.append(
+                f"usuários ativos {variacao_usuarios:+.1f}%"
+            )
+
+        if abs(variacao_sessoes) >= 20:
+            mudancas.append(
+                f"sessões {variacao_sessoes:+.1f}%"
+            )
+
+        if abs(diferenca_engajamento) >= 10:
+            mudancas.append(
+                f"engajamento {diferenca_engajamento:+.1f} p.p."
+            )
+
+        if not mudancas:
+            print("GA4: nenhuma mudança relevante detectada.")
+            return None
+
+        descricao = (
+            "Mudança relevante detectada no Google Analytics: "
+            + "; ".join(mudancas)
+            + "."
+        )
+
+        external_id = (
+            f"ga4-mudanca-"
+            f"{snapshots[1]['id']}-"
+            f"{snapshots[0]['id']}"
+        )
+
+        payload = {
+            "snapshot_anterior_id": snapshots[1]["id"],
+            "snapshot_atual_id": snapshots[0]["id"],
+            "anterior": anterior,
+            "atual": atual,
+            "variacao_usuarios_percentual": round(
+                variacao_usuarios, 2
+            ),
+            "variacao_sessoes_percentual": round(
+                variacao_sessoes, 2
+            ),
+            "diferenca_engajamento_pontos_percentuais": round(
+                diferenca_engajamento, 2
+            ),
+        }
+
+        evento_id = registrar_evento_empresarial(
+            fonte="google_analytics",
+            tipo="mudanca_relevante_ga4",
+            descricao=descricao,
+            external_id=external_id,
+            payload=payload,
+            importancia="alta"
+        )
+
+        print(
+            "MUDANÇA GA4 EVENTO ID:",
+            evento_id
+        )
+
+        return evento_id
+
+    except Exception as erro:
+        print(
+            "ERRO AO ANALISAR MUDANÇA GA4:",
+            repr(erro)
+        )
+
+        return None
+
+    finally:
+        if conn:
+            conn.close()
+
 def registrar_evento_empresarial(
     fonte,
     tipo,
