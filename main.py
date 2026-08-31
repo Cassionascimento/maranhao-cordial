@@ -15085,16 +15085,33 @@ def registrar_insight_empresarial(insight):
         }
     )
 
-    objetivo_id = (
-        str(insight.get("objetivo_id")).strip()
-        if insight.get("objetivo_id")
-        else None
+    def normalizar_uuid_referencia(valor):
+
+        if not valor:
+            return None
+
+        texto = str(valor).strip()
+
+        if not texto:
+            return None
+
+        try:
+            return str(
+                uuid.UUID(texto)
+            )
+        except (
+            ValueError,
+            TypeError,
+            AttributeError
+        ):
+            return None
+
+    objetivo_id = normalizar_uuid_referencia(
+        insight.get("objetivo_id")
     )
 
-    decisao_id = (
-        str(insight.get("decisao_id")).strip()
-        if insight.get("decisao_id")
-        else None
+    decisao_id = normalizar_uuid_referencia(
+        insight.get("decisao_id")
     )
 
     titulo_normalizado = " ".join(
