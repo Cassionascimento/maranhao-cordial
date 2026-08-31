@@ -15314,6 +15314,148 @@ def registrar_insight_empresarial(insight):
 
 
 
+
+def validar_insight_empresarial(insight):
+    """
+    Valida epistemologicamente um insight antes da persistência.
+
+    Esta função não grava no banco, não cria ações,
+    não altera objetivos e não executa operações empresariais.
+    """
+
+    if not isinstance(insight, dict):
+        return {
+            "aprovado": False,
+            "motivo": "Insight candidato não é um objeto válido."
+        }
+
+    contexto = (
+        (carregar_evidencias_para_ia().get("contexto") or "")
+        + (carregar_decisoes_para_ia().get("contexto") or "")
+        + (carregar_acoes_para_ia().get("contexto") or "")
+        + (carregar_objetivos_estrategicos_para_ia() or "")
+    )
+
+    if not contexto.strip():
+        return {
+            "aprovado": False,
+            "motivo": "Contexto empresarial insuficiente para validação."
+        }
+
+    resposta = openai_client.responses.create(
+        model="gpt-5-mini",
+
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "validacao_insight_empresarial",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "aprovado": {
+                            "type": "boolean"
+                        },
+                        "motivo": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "aprovado",
+                        "motivo"
+                    ],
+                    "additionalProperties": False
+                }
+            }
+        },
+
+        instructions=(
+            "Você é o validador epistemológico da inteligência "
+            "empresarial privada da Maranhão Cordial. "
+
+            "Sua função é verificar se um insight candidato é "
+            "sustentado pelo contexto empresarial fornecido. "
+
+            "Seja conservador. Rejeite o insight quando ele transformar "
+            "possibilidade, associação, pendência ou hipótese em certeza, "
+            "necessidade, impedimento, bloqueio ou causalidade sem suporte "
+            "explícito no contexto. "
+
+            "Rejeite quando ampliar um risco localizado para toda a "
+            "operação sem evidência de dependência exclusiva. "
+
+            "Rejeite quando existência documental, contrato, pagamento, "
+            "cadastro, atividade registrada ou disponibilidade forem usados "
+            "como prova de capacidade operacional, desempenho, urgência, "
+            "economia, eficiência ou resultado sem suporte específico. "
+
+            "Rejeite quando protocolo, pedido, negociação, intenção ou "
+            "processo em andamento forem tratados como concessão, aprovação, "
+            "direito adquirido ou resultado concluído. "
+
+            "Verifique também se as evidências, ações, objetivo e decisão "
+            "citados pelo candidato realmente sustentam a conclusão. "
+
+            "Uma oportunidade ou hipótese plausível pode ser aprovada quando "
+            "estiver claramente apresentada como possibilidade, preservar "
+            "a incerteza e tiver confiança compatível. "
+
+            "Não corrija nem reescreva o insight. "
+            "Apenas aprove ou rejeite e explique brevemente o motivo. "
+
+            + CONTEXTO_MARANHAO
+            + CONTEXTO_EMPRESARIAL_INTERNO
+            + HIERARQUIA_DECISAO_EMPRESARIAL
+            + POLITICA_LINGUAGEM_NATURAL_IA
+        ),
+
+        input=(
+            "INSIGHT CANDIDATO:\n"
+            + json.dumps(
+                insight,
+                ensure_ascii=False,
+                default=str
+            )
+            + "\n\nCONTEXTO EMPRESARIAL DISPONÍVEL:\n"
+            + contexto
+        )
+    )
+
+    texto_bruto = (
+        resposta.output_text
+        or ""
+    ).strip()
+
+    if not texto_bruto:
+        return {
+            "aprovado": False,
+            "motivo": "Validador não retornou resposta."
+        }
+
+    try:
+        dados = json.loads(texto_bruto)
+    except Exception as erro:
+        raise ValueError(
+            "A IA retornou validação de insight em formato inválido."
+        ) from erro
+
+    if not isinstance(dados, dict):
+        raise ValueError(
+            "Estrutura de validação de insight inválida."
+        )
+
+    return {
+        "aprovado": bool(
+            dados.get("aprovado")
+        ),
+        "motivo": str(
+            dados.get("motivo")
+            or ""
+        )
+    }
+
+
+
 def processar_insights_empresariais():
 
     analise = (
@@ -15332,6 +15474,25 @@ def processar_insights_empresariais():
 
         try:
 
+            validacao = validar_insight_empresarial(
+                insight
+            )
+
+            if not validacao.get("aprovado"):
+                resultados.append({
+                    "indice": indice,
+                    "sucesso": True,
+                    "aprovado": False,
+                    "criado": False,
+                    "insight_id": None,
+                    "chave_deduplicacao": None,
+                    "motivo_rejeicao": (
+                        validacao.get("motivo")
+                        or ""
+                    )
+                })
+                continue
+
             registro = registrar_insight_empresarial(
                 insight
             )
@@ -15339,6 +15500,7 @@ def processar_insights_empresariais():
             resultados.append({
                 "indice": indice,
                 "sucesso": True,
+                "aprovado": True,
                 "criado": registro["criado"],
                 "insight_id": (
                     str(registro["insight"]["id"])
@@ -15349,6 +15511,10 @@ def processar_insights_empresariais():
                     registro[
                         "chave_deduplicacao"
                     ]
+                ),
+                "motivo_validacao": (
+                    validacao.get("motivo")
+                    or ""
                 )
             })
 
@@ -15379,7 +15545,16 @@ def processar_insights_empresariais():
             for item in resultados
             if (
                 item.get("sucesso")
+                and item.get("aprovado") is True
                 and not item.get("criado")
+            )
+        ),
+        "rejeitados": sum(
+            1
+            for item in resultados
+            if (
+                item.get("sucesso")
+                and item.get("aprovado") is False
             )
         ),
         "erros": sum(
