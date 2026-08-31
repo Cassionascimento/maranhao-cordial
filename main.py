@@ -1506,6 +1506,31 @@ def inicializar_banco():
                 """)
 
 
+                # Idempotência das ações originadas pela IA.
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    evento_origem_id BIGINT
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    acao_origem_indice INTEGER
+                """)
+
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    idx_acoes_evento_origem
+                    ON acoes_empresariais (
+                        evento_origem_id,
+                        acao_origem_indice
+                    )
+                    WHERE evento_origem_id IS NOT NULL
+                """)
+
+
                 # ==========================================
                 # AUDITORIA CENTRAL
                 # ==========================================
@@ -1559,6 +1584,17 @@ def inicializar_banco():
                         entidade_id
                     )
                 """)
+
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    idx_auditoria_acao_correlation
+                    ON auditoria_eventos (
+                        acao,
+                        correlation_id
+                    )
+                    WHERE correlation_id IS NOT NULL
+                """)
+
 
                 # ==========================================
                 # CRM / FUNIL DE LEADS
@@ -3570,6 +3606,13 @@ def registrar_auditoria(
                             %s, %s, %s, %s, %s,
                             %s, %s, %s, %s, %s
                         )
+                        ON CONFLICT (
+                            acao,
+                            correlation_id
+                        )
+                        WHERE correlation_id IS NOT NULL
+                        DO NOTHING
+                        RETURNING id
                     """, (
                         evento_id,
                         str(categoria),
@@ -3588,7 +3631,39 @@ def registrar_auditoria(
                         str(erro) if erro else None
                     ))
 
-            return evento_id
+                    resultado = cur.fetchone()
+
+            if resultado:
+                return str(resultado[0])
+
+            # Registro já existente: operação idempotente.
+            # Recupera o ID existente para distinguir
+            # duplicidade legítima de falha real.
+            if correlation_id:
+                conn2 = get_db_connection()
+
+                try:
+                    with conn2.cursor() as cur:
+                        cur.execute("""
+                            SELECT id
+                            FROM auditoria_eventos
+                            WHERE acao = %s
+                              AND correlation_id = %s
+                            LIMIT 1
+                        """, (
+                            str(acao),
+                            str(correlation_id)
+                        ))
+
+                        existente = cur.fetchone()
+
+                    if existente:
+                        return str(existente[0])
+
+                finally:
+                    conn2.close()
+
+            return None
 
         finally:
             conn.close()
