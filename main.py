@@ -15396,6 +15396,26 @@ def validar_insight_empresarial(insight):
             "Verifique também se as evidências, ações, objetivo e decisão "
             "citados pelo candidato realmente sustentam a conclusão. "
 
+            "Valide separadamente título, descrição, tipo, prioridade e confiança. "
+            "Rejeite quando o título for mais categórico, amplo ou conclusivo "
+            "do que a descrição e as fontes permitem. "
+
+            "Prioridade alta ou crítica exige suporte explícito de impacto, "
+            "urgência, prazo, dependência ou consequência relevante. "
+            "Não classifique como crítico apenas porque existe pendência "
+            "ou porque o tema é importante para a empresa. "
+
+            "Não transforme risco de um canal específico de pagamento, fornecedor, "
+            "integração ou processo em risco para recebimentos, operação ou empresa "
+            "como um todo sem evidência de dependência exclusiva ou ausência "
+            "de alternativas relevantes. "
+
+            "Não trate reputação, profissionalização percebida, vantagem comercial, "
+            "ganho de credibilidade, eficiência ou valorização como resultado "
+            "demonstrado quando forem apenas efeitos plausíveis. Nesses casos, "
+            "a formulação deve permanecer explicitamente como hipótese ou "
+            "oportunidade a validar. "
+
             "Uma oportunidade ou hipótese plausível pode ser aprovada quando "
             "estiver claramente apresentada como possibilidade, preservar "
             "a incerteza e tiver confiança compatível. "
