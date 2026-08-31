@@ -744,6 +744,78 @@ def registrar_evento_empresarial(
         if conn:
             conn.close()
 
+
+def buscar_eventos_pendentes_para_ia(limite=20):
+    """
+    Busca eventos empresariais ainda não analisados pela IA.
+
+    Esta função apenas lê os eventos.
+    Não marca como analisado e não executa ações.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    fonte,
+                    tipo,
+                    descricao,
+                    external_id,
+                    payload_json,
+                    importancia,
+                    criado_em,
+                    analisado,
+                    notificado
+                FROM eventos_empresariais
+                WHERE analisado = FALSE
+                ORDER BY
+                    CASE importancia
+                        WHEN 'critica' THEN 1
+                        WHEN 'alta' THEN 2
+                        WHEN 'normal' THEN 3
+                        WHEN 'media' THEN 4
+                        WHEN 'baixa' THEN 5
+                        ELSE 6
+                    END,
+                    criado_em ASC
+                LIMIT %s
+                """,
+                (limite,)
+            )
+
+            eventos = cur.fetchall()
+
+        resultado = []
+
+        for evento in eventos:
+            item = dict(evento)
+
+            payload_bruto = item.get("payload_json")
+
+            try:
+                item["payload"] = (
+                    json.loads(payload_bruto)
+                    if payload_bruto
+                    else {}
+                )
+            except Exception:
+                item["payload"] = {}
+
+            item.pop("payload_json", None)
+
+            resultado.append(item)
+
+        return resultado
+
+    finally:
+        conn.close()
+
 def inicializar_banco():
     conn = get_db_connection()
 
