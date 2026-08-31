@@ -15291,6 +15291,84 @@ def registrar_insight_empresarial(insight):
         conn.close()
 
 
+
+def processar_insights_empresariais():
+
+    analise = (
+        analisar_contexto_empresarial_para_insights()
+    )
+
+    candidatos = (
+        analise.get("insights")
+        if isinstance(analise, dict)
+        else []
+    ) or []
+
+    resultados = []
+
+    for indice, insight in enumerate(candidatos):
+
+        try:
+
+            registro = registrar_insight_empresarial(
+                insight
+            )
+
+            resultados.append({
+                "indice": indice,
+                "sucesso": True,
+                "criado": registro["criado"],
+                "insight_id": (
+                    str(registro["insight"]["id"])
+                    if registro.get("insight")
+                    else None
+                ),
+                "chave_deduplicacao": (
+                    registro[
+                        "chave_deduplicacao"
+                    ]
+                )
+            })
+
+        except Exception as erro:
+
+            resultados.append({
+                "indice": indice,
+                "sucesso": False,
+                "criado": False,
+                "insight_id": None,
+                "erro": str(erro)
+            })
+
+    return {
+        "resposta": (
+            analise.get("resposta", "")
+            if isinstance(analise, dict)
+            else ""
+        ),
+        "candidatos": len(candidatos),
+        "criados": sum(
+            1
+            for item in resultados
+            if item.get("criado")
+        ),
+        "existentes": sum(
+            1
+            for item in resultados
+            if (
+                item.get("sucesso")
+                and not item.get("criado")
+            )
+        ),
+        "erros": sum(
+            1
+            for item in resultados
+            if not item.get("sucesso")
+        ),
+        "resultados": resultados
+    }
+
+
 def carregar_insights_para_ia(limite=50):
 
     conn = get_db_connection()
