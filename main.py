@@ -1428,6 +1428,9 @@ def inicializar_banco():
                         evidencias_origem JSONB
                             NOT NULL DEFAULT '[]'::jsonb,
 
+                        acoes_origem JSONB
+                            NOT NULL DEFAULT '[]'::jsonb,
+
                         eventos_origem JSONB
                             NOT NULL DEFAULT '[]'::jsonb,
 
@@ -1443,6 +1446,12 @@ def inicializar_banco():
                         atualizado_em TIMESTAMPTZ
                             NOT NULL DEFAULT NOW()
                     )
+                """)
+
+                cur.execute("""
+                    ALTER TABLE insights_empresariais
+                    ADD COLUMN IF NOT EXISTS acoes_origem JSONB
+                    NOT NULL DEFAULT '[]'::jsonb
                 """)
 
                 cur.execute("""
