@@ -14722,6 +14722,99 @@ def carregar_acoes_para_ia(limite=30):
         conn.close()
 
 
+
+def carregar_insights_para_ia(limite=50):
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        tipo_insight,
+                        prioridade,
+                        confianca,
+                        status,
+                        justificativa,
+                        evidencias_origem,
+                        eventos_origem,
+                        objetivo_id,
+                        decisao_id,
+                        origem,
+                        criado_em,
+                        atualizado_em
+                    FROM insights_empresariais
+                    WHERE status = 'ativo'
+                    ORDER BY
+                        CASE prioridade
+                            WHEN 'critica' THEN 1
+                            WHEN 'alta' THEN 2
+                            WHEN 'media' THEN 3
+                            WHEN 'baixa' THEN 4
+                            ELSE 5
+                        END,
+                        criado_em DESC
+                    LIMIT %s
+                """, (limite,))
+
+                insights = cur.fetchall()
+
+        linhas = []
+
+        for insight in insights:
+
+            linhas.append(
+                (
+                    f"- {insight['titulo']} "
+                    f"| Área: {insight['area']} "
+                    f"| Tipo: {insight['tipo_insight']} "
+                    f"| Prioridade: {insight['prioridade']} "
+                    f"| Confiança: {insight['confianca']} "
+                    f"| Descrição: {insight['descricao']} "
+                    f"| Justificativa: "
+                    f"{insight['justificativa'] or 'não informada'} "
+                    f"| Objetivo relacionado: "
+                    f"{insight['objetivo_id'] or 'não informado'} "
+                    f"| Decisão relacionada: "
+                    f"{insight['decisao_id'] or 'não informada'}"
+                )
+            )
+
+        contexto = ""
+
+        if linhas:
+            contexto = (
+                "\n\n"
+                "INSIGHTS EMPRESARIAIS ATIVOS\n"
+                "Os itens abaixo são conclusões analíticas inferidas "
+                "a partir de dados empresariais. "
+                "Não os trate como fatos documentais. "
+                "Considere a confiança, as evidências de origem "
+                "e o contexto atual antes de utilizá-los. "
+                "Um insight pode orientar uma recomendação, "
+                "mas não constitui autorização para executar ações "
+                "ou alterar objetivos estratégicos.\n"
+                + "\n".join(linhas)
+                + "\n"
+            )
+
+        return {
+            "insights": insights,
+            "contexto": contexto
+        }
+
+    finally:
+        conn.close()
+
+
 def carregar_decisoes_para_ia(limite=30):
     conn = get_db_connection()
 
