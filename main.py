@@ -1399,6 +1399,71 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # INSIGHTS EMPRESARIAIS
+                # Conhecimento inferido a partir dos dados
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS insights_empresariais (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+                        titulo VARCHAR(220) NOT NULL,
+                        descricao TEXT NOT NULL,
+
+                        area VARCHAR(80) NOT NULL,
+                        tipo_insight VARCHAR(60)
+                            NOT NULL DEFAULT 'analise',
+
+                        prioridade VARCHAR(30)
+                            NOT NULL DEFAULT 'media',
+
+                        confianca VARCHAR(30)
+                            NOT NULL DEFAULT 'media',
+
+                        status VARCHAR(30)
+                            NOT NULL DEFAULT 'ativo',
+
+                        justificativa TEXT,
+
+                        evidencias_origem JSONB
+                            NOT NULL DEFAULT '[]'::jsonb,
+
+                        eventos_origem JSONB
+                            NOT NULL DEFAULT '[]'::jsonb,
+
+                        objetivo_id UUID,
+                        decisao_id UUID,
+
+                        origem VARCHAR(80)
+                            NOT NULL DEFAULT 'ia_empresarial',
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_insights_empresariais_status
+                    ON insights_empresariais(status)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_insights_empresariais_area
+                    ON insights_empresariais(area)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_insights_empresariais_prioridade
+                    ON insights_empresariais(prioridade)
+                """)
+
+                # ==========================================
                 # ACOES EMPRESARIAIS
                 # ==========================================
 
