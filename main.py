@@ -14686,7 +14686,8 @@ def carregar_acoes_para_ia(limite=30):
 
             linhas.append(
                 (
-                    f"- [{acao['status']}] "
+                    f"- ID: {acao['id']} "
+                    f"| [{acao['status']}] "
                     f"{acao['titulo']} | "
                     f"Área: {acao['area']} | "
                     f"Prioridade: {acao['prioridade']} | "
@@ -14854,6 +14855,7 @@ def carregar_decisoes_para_ia(limite=30):
 
             partes.append(
                 "\n=== DECISÃO EMPRESARIAL ATIVA ===\n"
+                f"ID: {decisao['id']}\n"
                 f"Título: {decisao['titulo']}\n"
                 f"Área: {decisao['area']}\n"
                 f"Horizonte: {decisao['horizonte']}\n"
@@ -18770,7 +18772,8 @@ def carregar_objetivos_estrategicos_para_ia():
 
         for linha in linhas:
             texto.append(
-                f"- {linha[1]} | "
+                f"- ID: {linha[0]} | "
+                f"{linha[1]} | "
                 f"área={linha[3]} | "
                 f"prioridade={linha[4]} | "
                 f"{linha[2]}"
