@@ -15563,6 +15563,173 @@ def validar_insight_empresarial(insight):
 
 
 
+def verificar_duplicidade_semantica_insight(insight):
+
+    if not isinstance(insight, dict):
+        return {
+            "duplicado": False,
+            "insight_existente_id": None,
+            "motivo": "Candidato inválido para comparação semântica."
+        }
+
+    existentes = carregar_insights_para_ia(
+        limite=50
+    ).get("insights") or []
+
+    if not existentes:
+        return {
+            "duplicado": False,
+            "insight_existente_id": None,
+            "motivo": "Não há insights ativos para comparação."
+        }
+
+    candidatos_existentes = []
+
+    for existente in existentes:
+
+        candidatos_existentes.append({
+            "id": str(existente.get("id") or ""),
+            "titulo": str(
+                existente.get("titulo") or ""
+            ),
+            "descricao": str(
+                existente.get("descricao") or ""
+            ),
+            "area": str(
+                existente.get("area") or ""
+            ),
+            "tipo_insight": str(
+                existente.get("tipo_insight") or ""
+            ),
+            "justificativa": str(
+                existente.get("justificativa") or ""
+            )
+        })
+
+    resposta = openai_client.responses.create(
+        model="gpt-5-mini",
+
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "duplicidade_semantica_insight",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "duplicado": {
+                            "type": "boolean"
+                        },
+                        "insight_existente_id": {
+                            "type": "string"
+                        },
+                        "motivo": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "duplicado",
+                        "insight_existente_id",
+                        "motivo"
+                    ],
+                    "additionalProperties": False
+                }
+            }
+        },
+
+        instructions=(
+            "Você atua como verificador conservador de duplicidade "
+            "semântica de insights empresariais. "
+
+            "Compare o insight candidato somente com os insights ativos "
+            "fornecidos. Considere duplicado apenas quando candidato e "
+            "insight existente expressarem essencialmente a mesma conclusão "
+            "empresarial central, mesmo que usem palavras diferentes. "
+
+            "Semelhança de tema, área, evidência, entidade, objetivo ou "
+            "vocabulário não é suficiente para declarar duplicidade. "
+            "Dois insights sobre o mesmo assunto podem representar conclusões "
+            "diferentes e devem permanecer distintos. "
+
+            "Não considere duplicado quando houver diferença material de "
+            "causa, efeito, risco, oportunidade, hipótese, escopo, condição "
+            "ou conclusão. Na dúvida, responda duplicado=false. "
+
+            "Se duplicado=true, insight_existente_id deve conter exatamente "
+            "o ID de um dos insights ativos fornecidos. "
+            "Se duplicado=false, insight_existente_id deve ser string vazia. "
+
+            "Não invente IDs. Não altere nem reescreva os insights. "
+        ),
+
+        input=(
+            "INSIGHT CANDIDATO:\n"
+            + json.dumps(
+                insight,
+                ensure_ascii=False,
+                default=str
+            )
+            + "\n\nINSIGHTS ATIVOS EXISTENTES:\n"
+            + json.dumps(
+                candidatos_existentes,
+                ensure_ascii=False,
+                default=str
+            )
+        )
+    )
+
+    try:
+        dados = json.loads(
+            resposta.output_text
+        )
+    except Exception as erro:
+        raise ValueError(
+            "A IA retornou verificação de duplicidade "
+            "semântica em formato inválido."
+        ) from erro
+
+    if not isinstance(dados, dict):
+        raise ValueError(
+            "Estrutura de duplicidade semântica inválida."
+        )
+
+    duplicado = bool(
+        dados.get("duplicado")
+    )
+
+    insight_existente_id = str(
+        dados.get("insight_existente_id")
+        or ""
+    ).strip()
+
+    ids_validos = {
+        str(item.get("id"))
+        for item in candidatos_existentes
+        if item.get("id")
+    }
+
+    if (
+        duplicado
+        and insight_existente_id not in ids_validos
+    ):
+        raise ValueError(
+            "Duplicidade semântica retornou "
+            "insight existente inválido."
+        )
+
+    if not duplicado:
+        insight_existente_id = None
+
+    return {
+        "duplicado": duplicado,
+        "insight_existente_id":
+            insight_existente_id,
+        "motivo": str(
+            dados.get("motivo") or ""
+        )
+    }
+
+
 def processar_insights_empresariais():
 
     analise = (
@@ -15598,6 +15765,38 @@ def processar_insights_empresariais():
                     "chave_deduplicacao": None,
                     "motivo_rejeicao": (
                         validacao.get("motivo")
+                        or ""
+                    )
+                })
+                continue
+
+            duplicidade = verificar_duplicidade_semantica_insight(
+                insight
+            )
+
+            if duplicidade.get("duplicado"):
+
+                resultados.append({
+                    "indice": indice,
+                    "titulo": str(
+                        insight.get("titulo") or ""
+                    ),
+                    "sucesso": True,
+                    "aprovado": True,
+                    "criado": False,
+                    "insight_id": (
+                        duplicidade.get(
+                            "insight_existente_id"
+                        )
+                    ),
+                    "chave_deduplicacao": None,
+                    "duplicado_semanticamente": True,
+                    "motivo_validacao": (
+                        validacao.get("motivo")
+                        or ""
+                    ),
+                    "motivo_deduplicacao": (
+                        duplicidade.get("motivo")
                         or ""
                     )
                 })
@@ -15689,6 +15888,19 @@ def processar_insights_empresariais():
                 item.get("sucesso")
                 and item.get("aprovado") is True
                 and not item.get("criado")
+                and not item.get(
+                    "duplicado_semanticamente"
+                )
+            )
+        ),
+        "duplicados_semanticamente": sum(
+            1
+            for item in resultados
+            if (
+                item.get("sucesso")
+                and item.get(
+                    "duplicado_semanticamente"
+                ) is True
             )
         ),
         "rejeitados": rejeitados,
