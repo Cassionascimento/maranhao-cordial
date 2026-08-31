@@ -15484,6 +15484,9 @@ def processar_insights_empresariais():
             if not validacao.get("aprovado"):
                 resultados.append({
                     "indice": indice,
+                    "titulo": str(
+                        insight.get("titulo") or ""
+                    ),
                     "sucesso": True,
                     "aprovado": False,
                     "criado": False,
@@ -15502,6 +15505,9 @@ def processar_insights_empresariais():
 
             resultados.append({
                 "indice": indice,
+                "titulo": str(
+                    insight.get("titulo") or ""
+                ),
                 "sucesso": True,
                 "aprovado": True,
                 "criado": registro["criado"],
@@ -15525,19 +15531,48 @@ def processar_insights_empresariais():
 
             resultados.append({
                 "indice": indice,
+                "titulo": str(
+                    insight.get("titulo") or ""
+                ),
                 "sucesso": False,
                 "criado": False,
                 "insight_id": None,
                 "erro": str(erro)
             })
 
+    aprovados = sum(
+        1
+        for item in resultados
+        if (
+            item.get("sucesso")
+            and item.get("aprovado") is True
+        )
+    )
+
+    rejeitados = sum(
+        1
+        for item in resultados
+        if (
+            item.get("sucesso")
+            and item.get("aprovado") is False
+        )
+    )
+
+    erros = sum(
+        1
+        for item in resultados
+        if not item.get("sucesso")
+    )
+
     return {
         "resposta": (
-            analise.get("resposta", "")
-            if isinstance(analise, dict)
-            else ""
+            f"{len(candidatos)} candidatos processados: "
+            f"{aprovados} aprovados, "
+            f"{rejeitados} rejeitados e "
+            f"{erros} erros."
         ),
         "candidatos": len(candidatos),
+        "aprovados": aprovados,
         "criados": sum(
             1
             for item in resultados
@@ -15552,19 +15587,8 @@ def processar_insights_empresariais():
                 and not item.get("criado")
             )
         ),
-        "rejeitados": sum(
-            1
-            for item in resultados
-            if (
-                item.get("sucesso")
-                and item.get("aprovado") is False
-            )
-        ),
-        "erros": sum(
-            1
-            for item in resultados
-            if not item.get("sucesso")
-        ),
+        "rejeitados": rejeitados,
+        "erros": erros,
         "resultados": resultados
     }
 
