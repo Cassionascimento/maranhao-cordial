@@ -971,6 +971,302 @@ def analisar_evento_empresarial_com_ia(evento):
             interpretada["acoes_sugeridas"]
     }
 
+
+def criar_acao_sugerida_pela_ia(
+    sugestao
+):
+    """
+    Registra uma recomendação gerencial da IA
+    como ação aguardando aprovação humana.
+
+    Não executa a ação.
+    """
+
+    if not isinstance(sugestao, dict):
+        raise ValueError(
+            "Sugestão de ação inválida."
+        )
+
+    titulo = str(
+        sugestao.get("titulo") or ""
+    ).strip()
+
+    descricao = str(
+        sugestao.get("descricao") or ""
+    ).strip()
+
+    area = str(
+        sugestao.get("area") or "estrategia"
+    ).strip()
+
+    prioridade = str(
+        sugestao.get("prioridade") or "media"
+    ).strip()
+
+    justificativa = str(
+        sugestao.get("justificativa") or ""
+    ).strip()
+
+    if not titulo:
+        raise ValueError(
+            "Ação sugerida sem título."
+        )
+
+    areas_validas = {
+        "comercial",
+        "financeiro",
+        "operacional",
+        "produto",
+        "regulatorio",
+        "marketing",
+        "tecnologia",
+        "estrategia"
+    }
+
+    prioridades_validas = {
+        "baixa",
+        "media",
+        "alta",
+        "critica"
+    }
+
+    if area not in areas_validas:
+        area = "estrategia"
+
+    if prioridade not in prioridades_validas:
+        prioridade = "media"
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    INSERT INTO acoes_empresariais (
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        status,
+
+                        modo_execucao,
+                        estado_execucao,
+                        executor,
+                        tentativas_execucao,
+                        tipo_execucao,
+
+                        tipo,
+                        canal,
+                        conteudo,
+                        justificativa
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, 0, %s,
+                        %s, %s, %s, %s
+                    )
+                    RETURNING id
+                """, (
+                    titulo,
+                    descricao,
+                    area,
+                    prioridade,
+                    "aguardando_aprovacao",
+
+                    "requer_aprovacao",
+                    "nao_iniciada",
+                    "gestao",
+                    "acao_gerencial",
+
+                    "acao_gerencial",
+                    "interno",
+                    descricao,
+                    justificativa
+                ))
+
+                acao_id = cur.fetchone()[0]
+
+        return str(acao_id)
+
+    finally:
+        conn.close()
+
+
+def marcar_evento_como_analisado(
+    evento_id
+):
+    """
+    Marca o evento como analisado pela IA.
+    Não altera o estado de notificação.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    UPDATE eventos_empresariais
+                    SET analisado = TRUE
+                    WHERE id = %s
+                      AND analisado = FALSE
+                    RETURNING id
+                """, (
+                    evento_id,
+                ))
+
+                linha = cur.fetchone()
+
+        return bool(linha)
+
+    finally:
+        conn.close()
+
+
+def processar_eventos_empresariais(
+    limite=10
+):
+    """
+    Processa eventos empresariais pendentes.
+
+    Fluxo:
+    evento -> IA -> auditoria -> ação pendente
+    -> marca evento analisado.
+
+    Nenhuma ação é executada automaticamente.
+    """
+
+    eventos = buscar_eventos_pendentes_para_ia(
+        limite=limite
+    )
+
+    resumo = {
+        "encontrados": len(eventos),
+        "processados": 0,
+        "acoes_criadas": 0,
+        "erros": []
+    }
+
+    for evento in eventos:
+
+        evento_id = evento.get("id")
+
+        try:
+            analise = (
+                analisar_evento_empresarial_com_ia(
+                    evento
+                )
+            )
+
+            auditoria_id = registrar_auditoria(
+                categoria="ia",
+                acao="analise_evento_empresarial",
+                ator_tipo="ia",
+                ator_id="maranhao-empresarial-v1",
+                origem="processador_eventos",
+                entidade_tipo="evento_empresarial",
+                entidade_id=str(evento_id),
+                status="concluido",
+                requer_aprovacao=bool(
+                    analise.get(
+                        "acoes_sugeridas"
+                    )
+                ),
+                correlation_id=(
+                    f"evento_empresarial:{evento_id}"
+                ),
+                dados_entrada={
+                    "fonte": evento.get("fonte"),
+                    "tipo": evento.get("tipo"),
+                    "descricao":
+                        evento.get("descricao"),
+                    "importancia":
+                        evento.get("importancia"),
+                    "payload":
+                        evento.get("payload")
+                },
+                dados_saida=analise
+            )
+
+            if not auditoria_id:
+                raise RuntimeError(
+                    "Falha ao registrar auditoria."
+                )
+
+            acoes_criadas = []
+
+            for sugestao in (
+                analise.get(
+                    "acoes_sugeridas",
+                    []
+                )
+                or []
+            ):
+                acao_id = (
+                    criar_acao_sugerida_pela_ia(
+                        sugestao
+                    )
+                )
+
+                acoes_criadas.append(
+                    acao_id
+                )
+
+            marcado = (
+                marcar_evento_como_analisado(
+                    evento_id
+                )
+            )
+
+            if not marcado:
+                raise RuntimeError(
+                    "Evento não pôde ser marcado como analisado."
+                )
+
+            resumo["processados"] += 1
+            resumo["acoes_criadas"] += len(
+                acoes_criadas
+            )
+
+            print(
+                "EVENTO PROCESSADO:",
+                evento_id,
+                "| AÇÕES:",
+                len(acoes_criadas)
+            )
+
+        except Exception as erro:
+
+            print(
+                "ERRO PROCESSAR EVENTO:",
+                evento_id,
+                repr(erro)
+            )
+
+            registrar_auditoria(
+                categoria="ia",
+                acao="falha_processamento_evento",
+                ator_tipo="sistema",
+                ator_id="processador-eventos-v1",
+                origem="processador_eventos",
+                entidade_tipo="evento_empresarial",
+                entidade_id=str(evento_id),
+                status="falhou",
+                correlation_id=(
+                    f"evento_empresarial:{evento_id}"
+                ),
+                erro=str(erro)
+            )
+
+            resumo["erros"].append({
+                "evento_id": evento_id,
+                "erro": str(erro)
+            })
+
+    return resumo
+
 def inicializar_banco():
     conn = get_db_connection()
 
