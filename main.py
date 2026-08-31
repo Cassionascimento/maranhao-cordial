@@ -819,6 +819,158 @@ def buscar_eventos_pendentes_para_ia(limite=20):
     finally:
         conn.close()
 
+
+def analisar_evento_empresarial_com_ia(evento):
+    """
+    Analisa um único evento empresarial usando a IA.
+
+    Esta função apenas interpreta o evento e sugere ações.
+    Não executa ações e não altera o status do evento.
+    """
+
+    if not isinstance(evento, dict):
+        raise ValueError(
+            "Evento empresarial inválido."
+        )
+
+    evento_para_ia = {
+        "id": evento.get("id"),
+        "fonte": evento.get("fonte"),
+        "tipo": evento.get("tipo"),
+        "descricao": evento.get("descricao"),
+        "external_id": evento.get("external_id"),
+        "importancia": evento.get("importancia"),
+        "criado_em": str(
+            evento.get("criado_em") or ""
+        ),
+        "payload": evento.get("payload") or {},
+    }
+
+    contexto_evento = json.dumps(
+        evento_para_ia,
+        ensure_ascii=False,
+        default=str
+    )
+
+    resposta = openai_client.responses.create(
+        model="gpt-5-mini",
+
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "analise_evento_empresarial",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "resposta": {
+                            "type": "string"
+                        },
+                        "acoes_sugeridas": {
+                            "type": "array",
+                            "maxItems": 2,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "titulo": {
+                                        "type": "string"
+                                    },
+                                    "descricao": {
+                                        "type": "string"
+                                    },
+                                    "area": {
+                                        "type": "string",
+                                        "enum": [
+                                            "comercial",
+                                            "financeiro",
+                                            "operacional",
+                                            "produto",
+                                            "regulatorio",
+                                            "marketing",
+                                            "tecnologia",
+                                            "estrategia"
+                                        ]
+                                    },
+                                    "prioridade": {
+                                        "type": "string",
+                                        "enum": [
+                                            "baixa",
+                                            "media",
+                                            "alta",
+                                            "critica"
+                                        ]
+                                    },
+                                    "justificativa": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "titulo",
+                                    "descricao",
+                                    "area",
+                                    "prioridade",
+                                    "justificativa"
+                                ],
+                                "additionalProperties": False
+                            }
+                        }
+                    },
+                    "required": [
+                        "resposta",
+                        "acoes_sugeridas"
+                    ],
+                    "additionalProperties": False
+                }
+            }
+        },
+
+        instructions=(
+            "Você é a inteligência empresarial privada "
+            "da Maranhão Cordial. "
+
+            "Analise o evento empresarial recebido. "
+
+            "Determine se ele exige atenção, decisão "
+            "ou alguma ação empresarial. "
+
+            "Não execute nenhuma ação. "
+            "Não assuma compromissos. "
+            "Não autorize pagamentos, contratos, descontos, "
+            "preços ou negociações. "
+
+            "Se o evento for apenas informativo, técnico, "
+            "redundante ou não exigir ação, retorne "
+            "acoes_sugeridas como lista vazia. "
+
+            + CONTEXTO_MARANHAO
+            + CONTEXTO_EMPRESARIAL_INTERNO
+            + HIERARQUIA_DECISAO_EMPRESARIAL
+            + POLITICA_ACOES_SUGERIDAS_IA
+            + POLITICA_LINGUAGEM_NATURAL_IA
+        ),
+
+        input=(
+            "EVENTO EMPRESARIAL PARA ANÁLISE:\n"
+            + contexto_evento
+        )
+    )
+
+    texto_bruto = (
+        resposta.output_text
+        or ""
+    ).strip()
+
+    interpretada = interpretar_saida_ia_empresarial(
+        texto_bruto
+    )
+
+    return {
+        "evento_id": evento.get("id"),
+        "resposta": interpretada["resposta"],
+        "acoes_sugeridas":
+            interpretada["acoes_sugeridas"]
+    }
+
 def inicializar_banco():
     conn = get_db_connection()
 
