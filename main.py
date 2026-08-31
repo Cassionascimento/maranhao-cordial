@@ -15726,6 +15726,7 @@ def montar_contexto_empresarial_seletivo(
     contexto_documental="",
     contexto_evidencias="",
     contexto_decisoes="",
+    contexto_insights="",
     contexto_acoes="",
     contexto_crm="",
     contexto_fabricas="",
@@ -15754,6 +15755,10 @@ def montar_contexto_empresarial_seletivo(
 
     blocos.append(
         contexto_evidencias
+    )
+
+    blocos.append(
+        contexto_insights
     )
 
     # -------------------------------------------------
@@ -16727,6 +16732,15 @@ def ia_empresarial():
             or ""
         )
 
+        insights_ia = (
+            carregar_insights_para_ia()
+        )
+
+        contexto_insights = (
+            insights_ia["contexto"]
+            or ""
+        )
+
         acoes_ia = (
             carregar_acoes_para_ia()
         )
@@ -16808,6 +16822,9 @@ def ia_empresarial():
 
                 contexto_decisoes=
                     contexto_decisoes,
+
+                contexto_insights=
+                    contexto_insights,
 
                 contexto_acoes=
                     contexto_acoes,
