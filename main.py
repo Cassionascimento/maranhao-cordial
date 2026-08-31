@@ -14969,6 +14969,21 @@ def analisar_contexto_empresarial_para_insights():
             "interpretação do escopo documental, trate-o como hipótese sujeita "
             "a verificação e não como capacidade formal ou possibilidade garantida. "
 
+            "Ausência de evidência no contexto disponível não é evidência de "
+            "ausência na empresa. Não conclua inexistência, insuficiência, lacuna, "
+            "falta de capacidade, falta de parceiros, falta de alternativas ou "
+            "outro estado negativo apenas porque não há registro correspondente "
+            "nas fontes fornecidas. Nesses casos, diga somente que o contexto "
+            "disponível não permite confirmar a existência ou suficiência e, "
+            "quando útil, formule a necessidade de verificação como hipótese. "
+
+            "Não trate uma ação recomendada como benefício demonstrado. "
+            "Mapear, contratar, integrar, homologar, monitorar, estabelecer "
+            "parcerias ou executar outra ação pode ter benefícios plausíveis, "
+            "mas não comprova que reduzirá risco, acelerará resultados, aumentará "
+            "vendas, melhorará eficiência ou produzirá outro efeito específico "
+            "sem evidência que sustente essa relação. "
+
             "A resposta textual deve mencionar somente a quantidade real "
             "de insights presentes no array insights. "
 
@@ -15453,6 +15468,19 @@ def validar_insight_empresarial(insight):
             "outro uso ou finalidade sem suporte explícito. Rejeite quando o "
             "insight extrapolar o alcance documental e apresentar essa extensão "
             "como capacidade formal, direito disponível ou possibilidade comprovada. "
+
+            "Ausência de registro ou evidência no contexto disponível não comprova "
+            "inexistência, insuficiência ou lacuna real. Rejeite quando o insight "
+            "transformar falta de evidência sobre parceiro, fornecedor, capacidade, "
+            "alternativa, processo, recurso ou outro elemento em evidência de que "
+            "esse elemento não existe ou é insuficiente. A formulação aceitável "
+            "deve preservar que o estado é desconhecido e pode exigir verificação. "
+
+            "Rejeite também quando uma ação sugerida ou recomendada for usada como "
+            "prova de benefício futuro. A plausibilidade de mapear, contratar, "
+            "integrar, homologar, monitorar, estabelecer parceria ou executar outra "
+            "ação não demonstra, por si só, redução de risco, aceleração, aumento "
+            "de vendas, ganho de eficiência ou outro resultado empresarial. "
 
             "Uma oportunidade ou hipótese plausível pode ser aprovada quando "
             "estiver claramente apresentada como possibilidade, preservar "
