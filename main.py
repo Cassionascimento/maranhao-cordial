@@ -15651,9 +15651,24 @@ def verificar_duplicidade_semantica_insight(insight):
             "Dois insights sobre o mesmo assunto podem representar conclusões "
             "diferentes e devem permanecer distintos. "
 
+            "Compartilhar a mesma evidência documental também não é suficiente. "
+            "Um insight que descreve o estado, existência ou situação de um "
+            "documento, processo, contrato, ativo ou fato não é automaticamente "
+            "duplicado de outro insight que deriva dessa mesma evidência uma "
+            "oportunidade, risco, uso estratégico ou aplicação operacional. "
+
+            "Considere materialmente diferentes os insights que introduzam "
+            "uma ação estratégica, finalidade, público-alvo, canal, mercado, "
+            "localidade, etapa operacional, efeito esperado ou condição que "
+            "não faça parte da conclusão central do insight existente. "
+            "Por exemplo, constatar que um ativo documental existe e concluir "
+            "que esse ativo pode ser usado em uma estratégia comercial "
+            "específica são conclusões relacionadas, mas não equivalentes. "
+
             "Não considere duplicado quando houver diferença material de "
-            "causa, efeito, risco, oportunidade, hipótese, escopo, condição "
-            "ou conclusão. Na dúvida, responda duplicado=false. "
+            "causa, efeito, risco, oportunidade, hipótese, escopo, condição, "
+            "finalidade, público, mercado ou conclusão. "
+            "Na dúvida, responda duplicado=false. "
 
             "Se duplicado=true, insight_existente_id deve conter exatamente "
             "o ID de um dos insights ativos fornecidos. "
