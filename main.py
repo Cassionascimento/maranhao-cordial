@@ -14931,6 +14931,17 @@ def analisar_contexto_empresarial_para_insights():
             "alternativas possíveis ou quando o contexto não demonstrar "
             "dependência exclusiva. "
 
+            "Registro documental de existência, atividade, contrato, "
+            "pagamento ou disponibilidade não comprova, por si só, "
+            "capacidade operacional, desempenho, urgência, economia, "
+            "eficiência ou resultado. "
+
+            "Conhecimento geral de negócios pode ajudar a formular hipóteses, "
+            "mas não deve ser apresentado como conclusão específica sobre "
+            "a empresa sem suporte no contexto fornecido. "
+            "Quando uma relação for apenas plausível, trate-a explicitamente "
+            "como hipótese ou oportunidade a validar e reduza a confiança. "
+
             "Pedido, protocolo, negociação, intenção ou processo em andamento "
             "não equivalem a concessão, aprovação, contrato concluído "
             "ou direito definitivamente adquirido. "
