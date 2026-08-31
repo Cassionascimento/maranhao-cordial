@@ -14942,6 +14942,19 @@ def analisar_contexto_empresarial_para_insights():
             "Quando uma relação for apenas plausível, trate-a explicitamente "
             "como hipótese ou oportunidade a validar e reduza a confiança. "
 
+            "Não transforme efeito plausível em benefício demonstrado. "
+            "Simplificação, destravamento, redução de atrito, redução de risco, "
+            "ganho operacional, vantagem comercial ou melhoria de resultado "
+            "exigem evidência específica de que esse efeito ocorreu ou de que "
+            "a relação causal está explicitamente sustentada no contexto. "
+            "Quando forem apenas consequências possíveis, formule como hipótese "
+            "condicional a validar e não como conclusão sobre a empresa. "
+
+            "A prioridade ou urgência atribuída a uma ação interna não comprova, "
+            "por si só, a prioridade do insight derivado dela. A prioridade do "
+            "insight deve refletir impacto, prazo, dependência ou consequência "
+            "sustentados pelo conjunto do contexto. "
+
             "Pedido, protocolo, negociação, intenção ou processo em andamento "
             "não equivalem a concessão, aprovação, contrato concluído "
             "ou direito definitivamente adquirido. "
@@ -15404,6 +15417,10 @@ def validar_insight_empresarial(insight):
             "urgência, prazo, dependência ou consequência relevante. "
             "Não classifique como crítico apenas porque existe pendência "
             "ou porque o tema é importante para a empresa. "
+            "A prioridade ou confiança registrada em uma ação interna não é, "
+            "sozinha, evidência suficiente para validar a prioridade ou confiança "
+            "do insight. Avalie esses campos pela força das evidências e pela "
+            "consequência empresarial efetivamente sustentada. "
 
             "Não transforme risco de um canal específico de pagamento, fornecedor, "
             "integração ou processo em risco para recebimentos, operação ou empresa "
@@ -15415,6 +15432,12 @@ def validar_insight_empresarial(insight):
             "demonstrado quando forem apenas efeitos plausíveis. Nesses casos, "
             "a formulação deve permanecer explicitamente como hipótese ou "
             "oportunidade a validar. "
+
+            "Também rejeite quando protocolo, pedido, cadastro, contrato ou outro "
+            "ato documental for usado para concluir redução de risco, redução de "
+            "conflito, destravamento, simplificação, ganho operacional ou benefício "
+            "sem evidência específica de que esse efeito ocorreu ou de que a "
+            "relação causal está explicitamente demonstrada. "
 
             "Uma oportunidade ou hipótese plausível pode ser aprovada quando "
             "estiver claramente apresentada como possibilidade, preservar "
