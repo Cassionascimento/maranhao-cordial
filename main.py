@@ -14920,6 +14920,17 @@ def analisar_contexto_empresarial_para_insights():
             "Não transforme possibilidade, pendência ou associação "
             "em impedimento, obrigação ou certeza sem suporte explícito. "
 
+            "A existência de pendência, ação aberta ou processo não concluído "
+            "não demonstra, por si só, gargalo, bloqueio, dependência crítica "
+            "ou impedimento. Só faça essa classificação quando houver "
+            "evidência explícita da relação de dependência. "
+
+            "Diferencie risco localizado de risco empresarial geral. "
+            "Não amplie uma limitação de canal, fornecedor, integração "
+            "ou processo específico para toda a operação quando existirem "
+            "alternativas possíveis ou quando o contexto não demonstrar "
+            "dependência exclusiva. "
+
             "Pedido, protocolo, negociação, intenção ou processo em andamento "
             "não equivalem a concessão, aprovação, contrato concluído "
             "ou direito definitivamente adquirido. "
