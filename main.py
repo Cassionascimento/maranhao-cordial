@@ -14892,6 +14892,16 @@ def analisar_contexto_empresarial_para_insights():
 
             "Não confunda correlação com causalidade. "
             "Preserve a incerteza. "
+            "Não transforme possibilidade, pendência ou associação "
+            "em impedimento, obrigação ou certeza sem suporte explícito. "
+
+            "Pedido, protocolo, negociação, intenção ou processo em andamento "
+            "não equivalem a concessão, aprovação, contrato concluído "
+            "ou direito definitivamente adquirido. "
+
+            "A resposta textual deve mencionar somente a quantidade real "
+            "de insights presentes no array insights. "
+
             "Não gere insight apenas para preencher a resposta. "
             "Evite repetir insights ativos existentes. "
 
