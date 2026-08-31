@@ -14898,6 +14898,8 @@ def analisar_contexto_empresarial_para_insights():
             "Pedido, protocolo, negociação, intenção ou processo em andamento "
             "não equivalem a concessão, aprovação, contrato concluído "
             "ou direito definitivamente adquirido. "
+            "Não descreva protocolo ou pedido de registro como proteção, "
+            "garantia, autorização ou base jurídica adquirida. "
 
             "A resposta textual deve mencionar somente a quantidade real "
             "de insights presentes no array insights. "
