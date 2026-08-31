@@ -774,6 +774,9 @@ def buscar_eventos_pendentes_para_ia(limite=20):
                     notificado
                 FROM eventos_empresariais
                 WHERE analisado = FALSE
+                  AND tipo NOT IN (
+                      'snapshot_ga4'
+                  )
                 ORDER BY
                     CASE importancia
                         WHEN 'critica' THEN 1
