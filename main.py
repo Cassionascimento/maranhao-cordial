@@ -9522,7 +9522,8 @@ def carregar_evidencias_para_ia(limite=150):
 
             linhas.append(
                 (
-                    f"- {ev['titulo']} "
+                    f"- ID: {ev['id']} "
+                    f"| {ev['titulo']} "
                     f"| Área: {ev['area']} "
                     f"| Categoria: {ev['categoria']} "
                     f"| Entidade: "
