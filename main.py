@@ -14984,6 +14984,15 @@ def analisar_contexto_empresarial_para_insights():
             "vendas, melhorará eficiência ou produzirá outro efeito específico "
             "sem evidência que sustente essa relação. "
 
+            "A mera existência de cláusula, obrigação, condição ou previsão "
+            "contratual não comprova efeito operacional concreto. Não conclua "
+            "gargalo, atraso, custo adicional, restrição de fluxo, necessidade "
+            "de autorização, controle adicional ou outro impacto apenas pela "
+            "existência do texto contratual. Esses efeitos exigem suporte "
+            "específico no próprio documento ou evidência operacional adicional. "
+            "Se o alcance prático da cláusula for desconhecido, preserve esse "
+            "estado como questão a verificar, sem atribuir impacto presumido. "
+
             "A resposta textual deve mencionar somente a quantidade real "
             "de insights presentes no array insights. "
 
@@ -15481,6 +15490,15 @@ def validar_insight_empresarial(insight):
             "integrar, homologar, monitorar, estabelecer parceria ou executar outra "
             "ação não demonstra, por si só, redução de risco, aceleração, aumento "
             "de vendas, ganho de eficiência ou outro resultado empresarial. "
+
+            "Rejeite quando a mera existência de cláusula, obrigação, condição "
+            "ou previsão contratual for transformada em gargalo, atraso, custo, "
+            "restrição operacional, necessidade de autorização, controle adicional "
+            "ou outro efeito concreto sem suporte explícito. A possibilidade "
+            "abstrata de uma cláusula produzir determinado impacto não comprova "
+            "que esse impacto existe ou ocorrerá nesta empresa. Se o efeito "
+            "operacional depender da interpretação do alcance da cláusula, "
+            "o estado deve permanecer desconhecido até verificação específica. "
 
             "Uma oportunidade ou hipótese plausível pode ser aprovada quando "
             "estiver claramente apresentada como possibilidade, preservar "
