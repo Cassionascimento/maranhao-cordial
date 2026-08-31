@@ -973,7 +973,9 @@ def analisar_evento_empresarial_com_ia(evento):
 
 
 def criar_acao_sugerida_pela_ia(
-    sugestao
+    sugestao,
+    evento_id,
+    indice
 ):
     """
     Registra uma recomendação gerencial da IA
@@ -1059,13 +1061,23 @@ def criar_acao_sugerida_pela_ia(
                         tipo,
                         canal,
                         conteudo,
-                        justificativa
+                        justificativa,
+
+                        evento_origem_id,
+                        acao_origem_indice
                     )
                     VALUES (
                         %s, %s, %s, %s, %s,
                         %s, %s, %s, 0, %s,
-                        %s, %s, %s, %s
+                        %s, %s, %s, %s,
+                        %s, %s
                     )
+                    ON CONFLICT (
+                        evento_origem_id,
+                        acao_origem_indice
+                    )
+                    WHERE evento_origem_id IS NOT NULL
+                    DO NOTHING
                     RETURNING id
                 """, (
                     titulo,
@@ -1082,12 +1094,18 @@ def criar_acao_sugerida_pela_ia(
                     "acao_gerencial",
                     "interno",
                     descricao,
-                    justificativa
+                    justificativa,
+
+                    evento_id,
+                    indice
                 ))
 
-                acao_id = cur.fetchone()[0]
+                linha = cur.fetchone()
 
-        return str(acao_id)
+                if linha:
+                    return str(linha[0])
+
+                return None
 
     finally:
         conn.close()
@@ -1197,7 +1215,7 @@ def processar_eventos_empresariais(
 
             acoes_criadas = []
 
-            for sugestao in (
+            for indice, sugestao in enumerate(
                 analise.get(
                     "acoes_sugeridas",
                     []
@@ -1206,13 +1224,16 @@ def processar_eventos_empresariais(
             ):
                 acao_id = (
                     criar_acao_sugerida_pela_ia(
-                        sugestao
+                        sugestao,
+                        evento_id,
+                        indice
                     )
                 )
 
-                acoes_criadas.append(
-                    acao_id
-                )
+                if acao_id:
+                    acoes_criadas.append(
+                        acao_id
+                    )
 
             marcado = (
                 marcar_evento_como_analisado(
