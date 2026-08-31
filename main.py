@@ -1621,6 +1621,31 @@ def inicializar_banco():
                 """)
 
 
+                # Idempotência das ações originadas por insights.
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    insight_origem_id UUID
+                """)
+
+                cur.execute("""
+                    ALTER TABLE acoes_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    acao_insight_indice INTEGER
+                """)
+
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    idx_acoes_insight_origem
+                    ON acoes_empresariais (
+                        insight_origem_id,
+                        acao_insight_indice
+                    )
+                    WHERE insight_origem_id IS NOT NULL
+                """)
+
+
                 # ==========================================
                 # AUDITORIA CENTRAL
                 # ==========================================
