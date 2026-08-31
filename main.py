@@ -2,6 +2,7 @@ from flask import Flask, send_from_directory, request, jsonify, send_file
 from flask_socketio import SocketIO, emit
 import os
 import json
+import hashlib
 import io
 import uuid
 import re
@@ -1440,6 +1441,8 @@ def inicializar_banco():
                         origem VARCHAR(80)
                             NOT NULL DEFAULT 'ia_empresarial',
 
+                        chave_deduplicacao VARCHAR(64),
+
                         criado_em TIMESTAMPTZ
                             NOT NULL DEFAULT NOW(),
 
@@ -1452,6 +1455,19 @@ def inicializar_banco():
                     ALTER TABLE insights_empresariais
                     ADD COLUMN IF NOT EXISTS acoes_origem JSONB
                     NOT NULL DEFAULT '[]'::jsonb
+                """)
+
+                cur.execute("""
+                    ALTER TABLE insights_empresariais
+                    ADD COLUMN IF NOT EXISTS
+                    chave_deduplicacao VARCHAR(64)
+                """)
+
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    idx_insights_empresariais_chave_deduplicacao
+                    ON insights_empresariais(chave_deduplicacao)
+                    WHERE chave_deduplicacao IS NOT NULL
                 """)
 
                 cur.execute("""
@@ -14967,6 +14983,297 @@ def analisar_contexto_empresarial_para_insights():
     }
 
 
+def registrar_insight_empresarial(insight):
+
+    if not isinstance(insight, dict):
+        raise ValueError(
+            "Insight empresarial inválido."
+        )
+
+    titulo = str(
+        insight.get("titulo") or ""
+    ).strip()
+
+    descricao = str(
+        insight.get("descricao") or ""
+    ).strip()
+
+    area = str(
+        insight.get("area") or "estrategia"
+    ).strip().lower()
+
+    tipo_insight = str(
+        insight.get("tipo_insight") or "analise"
+    ).strip().lower()
+
+    prioridade = str(
+        insight.get("prioridade") or "media"
+    ).strip().lower()
+
+    confianca = str(
+        insight.get("confianca") or "media"
+    ).strip().lower()
+
+    justificativa = str(
+        insight.get("justificativa") or ""
+    ).strip()
+
+    if not titulo:
+        raise ValueError(
+            "Insight sem título."
+        )
+
+    if not descricao:
+        raise ValueError(
+            "Insight sem descrição."
+        )
+
+    evidencias_origem = (
+        insight.get("evidencias_origem")
+        or []
+    )
+
+    acoes_origem = (
+        insight.get("acoes_origem")
+        or []
+    )
+
+    eventos_origem = (
+        insight.get("eventos_origem")
+        or []
+    )
+
+    if not isinstance(
+        evidencias_origem,
+        list
+    ):
+        evidencias_origem = []
+
+    if not isinstance(
+        acoes_origem,
+        list
+    ):
+        acoes_origem = []
+
+    if not isinstance(
+        eventos_origem,
+        list
+    ):
+        eventos_origem = []
+
+    evidencias_origem = sorted(
+        {
+            str(item).strip()
+            for item in evidencias_origem
+            if str(item).strip()
+        }
+    )
+
+    acoes_origem = sorted(
+        {
+            str(item).strip()
+            for item in acoes_origem
+            if str(item).strip()
+        }
+    )
+
+    eventos_origem = sorted(
+        {
+            str(item).strip()
+            for item in eventos_origem
+            if str(item).strip()
+        }
+    )
+
+    objetivo_id = (
+        str(insight.get("objetivo_id")).strip()
+        if insight.get("objetivo_id")
+        else None
+    )
+
+    decisao_id = (
+        str(insight.get("decisao_id")).strip()
+        if insight.get("decisao_id")
+        else None
+    )
+
+    titulo_normalizado = " ".join(
+        titulo.lower().split()
+    )
+
+    base_deduplicacao = {
+        "titulo": titulo_normalizado,
+        "area": area,
+        "tipo_insight": tipo_insight,
+        "evidencias_origem":
+            evidencias_origem,
+        "acoes_origem":
+            acoes_origem,
+        "eventos_origem":
+            eventos_origem,
+        "objetivo_id":
+            objetivo_id,
+        "decisao_id":
+            decisao_id
+    }
+
+    chave_deduplicacao = hashlib.sha256(
+        json.dumps(
+            base_deduplicacao,
+            ensure_ascii=False,
+            sort_keys=True
+        ).encode("utf-8")
+    ).hexdigest()
+
+    insight_id = str(
+        uuid.uuid4()
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO insights_empresariais (
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        tipo_insight,
+                        prioridade,
+                        confianca,
+                        status,
+                        justificativa,
+                        evidencias_origem,
+                        acoes_origem,
+                        eventos_origem,
+                        objetivo_id,
+                        decisao_id,
+                        origem,
+                        chave_deduplicacao
+                    )
+                    VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s,
+                        %s::jsonb,
+                        %s::jsonb,
+                        %s::jsonb,
+                        %s, %s, %s, %s
+                    )
+                    ON CONFLICT (
+                        chave_deduplicacao
+                    )
+                    WHERE
+                        chave_deduplicacao
+                        IS NOT NULL
+                    DO NOTHING
+                    RETURNING *
+                """, (
+                    insight_id,
+                    titulo,
+                    descricao,
+                    area,
+                    tipo_insight,
+                    prioridade,
+                    confianca,
+                    "ativo",
+                    justificativa or None,
+                    json.dumps(
+                        evidencias_origem,
+                        ensure_ascii=False
+                    ),
+                    json.dumps(
+                        acoes_origem,
+                        ensure_ascii=False
+                    ),
+                    json.dumps(
+                        eventos_origem,
+                        ensure_ascii=False
+                    ),
+                    objetivo_id,
+                    decisao_id,
+                    "ia_empresarial",
+                    chave_deduplicacao
+                ))
+
+                registro = cur.fetchone()
+
+                criado = registro is not None
+
+                if not criado:
+                    cur.execute("""
+                        SELECT *
+                        FROM insights_empresariais
+                        WHERE chave_deduplicacao = %s
+                        LIMIT 1
+                    """, (
+                        chave_deduplicacao,
+                    ))
+
+                    registro = cur.fetchone()
+
+        registro_id = (
+            str(registro["id"])
+            if registro
+            else insight_id
+        )
+
+        registrar_auditoria(
+            categoria="insight_empresarial",
+            acao=(
+                "insight_empresarial_registrado"
+                if criado
+                else
+                "insight_empresarial_deduplicado"
+            ),
+            ator_tipo="ia",
+            ator_id="ia_empresarial",
+            origem="ia_empresarial",
+            entidade_tipo="insight_empresarial",
+            entidade_id=registro_id,
+            status=(
+                "criado"
+                if criado
+                else "existente"
+            ),
+            dados_entrada={
+                "titulo": titulo,
+                "area": area,
+                "tipo_insight":
+                    tipo_insight,
+                "evidencias_origem":
+                    evidencias_origem,
+                "acoes_origem":
+                    acoes_origem,
+                "eventos_origem":
+                    eventos_origem
+            },
+            dados_saida={
+                "insight_id":
+                    registro_id,
+                "criado":
+                    criado,
+                "chave_deduplicacao":
+                    chave_deduplicacao
+            }
+        )
+
+        return {
+            "insight": registro,
+            "criado": criado,
+            "chave_deduplicacao":
+                chave_deduplicacao
+        }
+
+    finally:
+        conn.close()
+
+
 def carregar_insights_para_ia(limite=50):
 
     conn = get_db_connection()
@@ -14989,6 +15296,7 @@ def carregar_insights_para_ia(limite=50):
                         status,
                         justificativa,
                         evidencias_origem,
+                        acoes_origem,
                         eventos_origem,
                         objetivo_id,
                         decisao_id,
@@ -15025,6 +15333,12 @@ def carregar_insights_para_ia(limite=50):
                     f"| Descrição: {insight['descricao']} "
                     f"| Justificativa: "
                     f"{insight['justificativa'] or 'não informada'} "
+                    f"| Evidências de origem: "
+                    f"{insight['evidencias_origem'] or []} "
+                    f"| Ações de origem: "
+                    f"{insight['acoes_origem'] or []} "
+                    f"| Eventos de origem: "
+                    f"{insight['eventos_origem'] or []} "
                     f"| Objetivo relacionado: "
                     f"{insight['objetivo_id'] or 'não informado'} "
                     f"| Decisão relacionada: "
