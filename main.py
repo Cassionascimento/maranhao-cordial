@@ -15402,6 +15402,9 @@ def validar_insight_empresarial(insight):
 
             "Não corrija nem reescreva o insight. "
             "Apenas aprove ou rejeite e explique brevemente o motivo. "
+            "No campo motivo, não cite, abrevie, reproduza ou invente IDs, "
+            "UUIDs ou identificadores internos. Explique a validação em "
+            "linguagem conceitual e rastreável pelos campos estruturados. "
 
             + CONTEXTO_MARANHAO
             + CONTEXTO_EMPRESARIAL_INTERNO
