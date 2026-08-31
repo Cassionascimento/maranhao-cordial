@@ -14961,6 +14961,14 @@ def analisar_contexto_empresarial_para_insights():
             "Não descreva protocolo ou pedido de registro como proteção, "
             "garantia, autorização ou base jurídica adquirida. "
 
+            "Respeite rigorosamente o escopo de documentos, contratos, licenças "
+            "e autorizações. Um documento que comprova direito, permissão ou "
+            "capacidade em determinado canal, finalidade ou modalidade não "
+            "comprova automaticamente direito, permissão ou capacidade em outro "
+            "uso, ambiente, canal ou finalidade. Quando o novo uso depender de "
+            "interpretação do escopo documental, trate-o como hipótese sujeita "
+            "a verificação e não como capacidade formal ou possibilidade garantida. "
+
             "A resposta textual deve mencionar somente a quantidade real "
             "de insights presentes no array insights. "
 
@@ -15438,6 +15446,13 @@ def validar_insight_empresarial(insight):
             "conflito, destravamento, simplificação, ganho operacional ou benefício "
             "sem evidência específica de que esse efeito ocorreu ou de que a "
             "relação causal está explicitamente demonstrada. "
+
+            "Valide também o escopo do documento citado. Contrato, licença, "
+            "autorização ou outro documento que sustente determinado direito, "
+            "canal, finalidade ou modalidade não deve ser usado para comprovar "
+            "outro uso ou finalidade sem suporte explícito. Rejeite quando o "
+            "insight extrapolar o alcance documental e apresentar essa extensão "
+            "como capacidade formal, direito disponível ou possibilidade comprovada. "
 
             "Uma oportunidade ou hipótese plausível pode ser aprovada quando "
             "estiver claramente apresentada como possibilidade, preservar "
