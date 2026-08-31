@@ -3037,16 +3037,27 @@ def executar_acao_controlada(acao):
 
 def executar_mensagem_instagram(acao):
     """
-    Adaptador entre a ação empresarial universal
-    e o executor já existente do Instagram.
+    Executor controlado de mensagens Instagram.
 
-    Nunca inventa destinatário.
+    Exige autorização prévia, evita execução duplicada
+    e persiste o resultado real retornado pela Meta.
     """
 
     if not acao:
         return {
             "success": False,
             "erro": "Ação inexistente."
+        }
+
+    acao_id = str(
+        acao.get("id")
+        or ""
+    ).strip()
+
+    if not acao_id:
+        return {
+            "success": False,
+            "erro": "Ação sem ID."
         }
 
     canal = str(
@@ -3110,6 +3121,41 @@ def executar_mensagem_instagram(acao):
                 "Conteúdo da mensagem Instagram ausente."
         }
 
+    # -------------------------------------------------
+    # RESERVA ATÔMICA DA EXECUÇÃO
+    # Evita dois cliques enviarem a mesma mensagem.
+    # -------------------------------------------------
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE acoes_empresariais
+                    SET
+                        estado_execucao = 'executando',
+                        atualizado_em = NOW()
+                    WHERE
+                        id = %s
+                        AND estado_execucao = 'autorizada'
+                    RETURNING id
+                """, (
+                    acao_id,
+                ))
+
+                reservada = cur.fetchone()
+
+        if not reservada:
+            return {
+                "success": False,
+                "erro":
+                    "Ação não está disponível para execução."
+            }
+
+    finally:
+        conn.close()
+
     fila_compatibilidade = {
         "status": "aprovada",
         "destinatario_id": destinatario,
@@ -3119,6 +3165,124 @@ def executar_mensagem_instagram(acao):
     resultado = enviar_resposta_instagram(
         fila_compatibilidade
     )
+
+    resultado_serializado = json.dumps(
+        resultado,
+        ensure_ascii=False,
+        default=str
+    )
+
+    if resultado.get("success"):
+
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET
+                            estado_execucao = 'executada',
+                            status = 'concluida',
+                            executor = 'instagram',
+                            tentativas_execucao =
+                                tentativas_execucao + 1,
+                            executado_em = NOW(),
+                            resultado = %s,
+                            ultimo_erro = NULL,
+                            atualizado_em = NOW()
+                        WHERE
+                            id = %s
+                            AND estado_execucao = 'executando'
+                    """, (
+                        resultado_serializado,
+                        acao_id
+                    ))
+        finally:
+            conn.close()
+
+        try:
+            registrar_auditoria(
+                categoria="execucao",
+                acao="mensagem_instagram_enviada",
+                ator_tipo="sistema",
+                ator_id="backend",
+                origem="motor_execucao",
+                entidade_tipo="acao_empresarial",
+                entidade_id=acao_id,
+                status="executada",
+                dados_saida={
+                    "status_code":
+                        resultado.get("status_code"),
+                    "meta":
+                        resultado.get("meta")
+                }
+            )
+        except Exception as erro_auditoria:
+            print(
+                "ERRO AUDITORIA INSTAGRAM:",
+                erro_auditoria
+            )
+
+        return resultado
+
+    erro_resultado = resultado.get(
+        "erro"
+    )
+
+    if not isinstance(erro_resultado, str):
+        erro_resultado = json.dumps(
+            erro_resultado,
+            ensure_ascii=False,
+            default=str
+        )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE acoes_empresariais
+                    SET
+                        estado_execucao = 'falhou',
+                        tentativas_execucao =
+                            tentativas_execucao + 1,
+                        resultado = %s,
+                        ultimo_erro = %s,
+                        atualizado_em = NOW()
+                    WHERE
+                        id = %s
+                        AND estado_execucao = 'executando'
+                """, (
+                    resultado_serializado,
+                    erro_resultado,
+                    acao_id
+                ))
+    finally:
+        conn.close()
+
+    try:
+        registrar_auditoria(
+            categoria="execucao",
+            acao="mensagem_instagram_falhou",
+            ator_tipo="sistema",
+            ator_id="backend",
+            origem="motor_execucao",
+            entidade_tipo="acao_empresarial",
+            entidade_id=acao_id,
+            status="falhou",
+            erro=erro_resultado,
+            dados_saida={
+                "status_code":
+                    resultado.get("status_code")
+            }
+        )
+    except Exception as erro_auditoria:
+        print(
+            "ERRO AUDITORIA INSTAGRAM:",
+            erro_auditoria
+        )
 
     return resultado
 
@@ -4663,13 +4827,32 @@ def gerar_resposta_sugerida_omnichannel(
 
                 fila = cur.fetchone()
 
+        # -------------------------------------------------
+        # FILA UNIVERSAL — AÇÃO EMPRESARIAL GOVERNADA
+        # -------------------------------------------------
+
+        acao_id = criar_acao_empresarial(
+            tipo="responder_mensagem",
+            canal=canal,
+            conteudo=resposta_sugerida,
+            destinatario=sender_id,
+            justificativa=(
+                "Resposta sugerida para interação omnichannel "
+                + interacao_id
+            ),
+            prioridade="media",
+            status="aguardando_aprovacao"
+        )
+
         return {
             "success": True,
             "duplicada": False,
             "fila":
                 dict(fila)
                 if fila
-                else None
+                else None,
+            "acao_empresarial_id":
+                acao_id
         }
 
     finally:
