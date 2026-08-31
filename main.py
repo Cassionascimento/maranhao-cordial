@@ -14725,6 +14725,227 @@ def carregar_acoes_para_ia(limite=30):
 
 
 
+
+def analisar_contexto_empresarial_para_insights():
+    """
+    Analisa o contexto empresarial e produz possíveis insights.
+
+    Insight é uma inferência analítica, não um fato documental.
+
+    Esta função não grava no banco, não cria ações,
+    não altera objetivos e não executa operações empresariais.
+    """
+
+    evidencias_ia = carregar_evidencias_para_ia()
+    decisoes_ia = carregar_decisoes_para_ia()
+    acoes_ia = carregar_acoes_para_ia()
+    insights_atuais = carregar_insights_para_ia()
+    objetivos_contexto = carregar_objetivos_estrategicos_para_ia()
+
+    contexto = (
+        (evidencias_ia.get("contexto") or "")
+        + (decisoes_ia.get("contexto") or "")
+        + (acoes_ia.get("contexto") or "")
+        + (insights_atuais.get("contexto") or "")
+        + (objetivos_contexto or "")
+    )
+
+    if not contexto.strip():
+        return {
+            "resposta": "Contexto empresarial insuficiente.",
+            "insights": []
+        }
+
+    resposta = openai_client.responses.create(
+        model="gpt-5-mini",
+
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "geracao_insights_empresariais",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "resposta": {
+                            "type": "string"
+                        },
+                        "insights": {
+                            "type": "array",
+                            "maxItems": 3,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "titulo": {
+                                        "type": "string"
+                                    },
+                                    "descricao": {
+                                        "type": "string"
+                                    },
+                                    "area": {
+                                        "type": "string",
+                                        "enum": [
+                                            "comercial",
+                                            "financeiro",
+                                            "operacional",
+                                            "produto",
+                                            "regulatorio",
+                                            "marketing",
+                                            "tecnologia",
+                                            "estrategia"
+                                        ]
+                                    },
+                                    "tipo_insight": {
+                                        "type": "string",
+                                        "enum": [
+                                            "analise",
+                                            "oportunidade",
+                                            "risco",
+                                            "padrao",
+                                            "gargalo",
+                                            "alerta"
+                                        ]
+                                    },
+                                    "prioridade": {
+                                        "type": "string",
+                                        "enum": [
+                                            "baixa",
+                                            "media",
+                                            "alta",
+                                            "critica"
+                                        ]
+                                    },
+                                    "confianca": {
+                                        "type": "string",
+                                        "enum": [
+                                            "baixa",
+                                            "media",
+                                            "alta"
+                                        ]
+                                    },
+                                    "justificativa": {
+                                        "type": "string"
+                                    },
+                                    "evidencias_origem": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "acoes_origem": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "objetivo_id": {
+                                        "type": "string"
+                                    },
+                                    "decisao_id": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "titulo",
+                                    "descricao",
+                                    "area",
+                                    "tipo_insight",
+                                    "prioridade",
+                                    "confianca",
+                                    "justificativa",
+                                    "evidencias_origem",
+                                    "acoes_origem",
+                                    "objetivo_id",
+                                    "decisao_id"
+                                ],
+                                "additionalProperties": False
+                            }
+                        }
+                    },
+                    "required": [
+                        "resposta",
+                        "insights"
+                    ],
+                    "additionalProperties": False
+                }
+            }
+        },
+
+        instructions=(
+            "Você é a camada analítica de conhecimento "
+            "da inteligência empresarial privada da Maranhão Cordial. "
+
+            "Identifique conclusões úteis pelo cruzamento de "
+            "evidências, decisões, ações, objetivos estratégicos "
+            "e insights existentes. "
+
+            "Insight é inferência, não fato documental. "
+            "Não invente informações, relações, resultados ou IDs. "
+            "Use somente IDs explicitamente presentes no contexto. "
+
+            "Se objetivo ou decisão não estiver diretamente "
+            "relacionado, use string vazia para o respectivo ID. "
+
+            "Use em evidencias_origem somente evidências que "
+            "realmente sustentem a conclusão. "
+            "Use em acoes_origem somente ações relevantes à análise. "
+
+            "Não confunda correlação com causalidade. "
+            "Preserve a incerteza. "
+            "Não gere insight apenas para preencher a resposta. "
+            "Evite repetir insights ativos existentes. "
+
+            "Não execute ações nem crie compromissos. "
+            "Não altere objetivos estratégicos. "
+
+            + CONTEXTO_MARANHAO
+            + CONTEXTO_EMPRESARIAL_INTERNO
+            + HIERARQUIA_DECISAO_EMPRESARIAL
+            + POLITICA_LINGUAGEM_NATURAL_IA
+        ),
+
+        input=(
+            "CONTEXTO EMPRESARIAL PARA GERAÇÃO DE INSIGHTS:\n"
+            + contexto
+        )
+    )
+
+    texto_bruto = (
+        resposta.output_text
+        or ""
+    ).strip()
+
+    if not texto_bruto:
+        return {
+            "resposta": "",
+            "insights": []
+        }
+
+    try:
+        dados = json.loads(texto_bruto)
+    except Exception as erro:
+        raise ValueError(
+            "A IA retornou insights em formato inválido."
+        ) from erro
+
+    if not isinstance(dados, dict):
+        raise ValueError(
+            "Estrutura de insights inválida."
+        )
+
+    insights = dados.get("insights") or []
+
+    if not isinstance(insights, list):
+        insights = []
+
+    return {
+        "resposta": str(
+            dados.get("resposta") or ""
+        ),
+        "insights": insights
+    }
+
+
 def carregar_insights_para_ia(limite=50):
 
     conn = get_db_connection()
