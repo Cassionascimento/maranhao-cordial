@@ -7,3 +7,7 @@ psycopg2-binary>=2.9,<3
 openai
 pypdf>=5,<6
 google-analytics-data==0.23.0
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2

@@ -1,6 +1,12 @@
-from flask import Flask, send_from_directory, request, jsonify, send_file
+from flask import Flask, send_from_directory, request, jsonify, send_file, redirect, session
+
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
 from flask_socketio import SocketIO, emit
 import os
+import base64
+from email.message import EmailMessage
 import json
 import hashlib
 import io
@@ -7544,6 +7550,310 @@ def admin_enviar_resposta_omnichannel(
 
 
 # =====================================================
+
+# =====================================================
+# GOOGLE / GMAIL — CONFIGURAÇÃO
+# =====================================================
+
+GMAIL_SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send"
+]
+
+GMAIL_CLIENT_ID = os.getenv("GOOGLE_GMAIL_CLIENT_ID")
+GMAIL_CLIENT_SECRET = os.getenv("GOOGLE_GMAIL_CLIENT_SECRET")
+GMAIL_REDIRECT_URI = os.getenv("GOOGLE_GMAIL_REDIRECT_URI")
+
+GMAIL_CLIENT_CONFIG = {
+    "web": {
+        "client_id": GMAIL_CLIENT_ID,
+        "client_secret": GMAIL_CLIENT_SECRET,
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "redirect_uris": [
+            GMAIL_REDIRECT_URI
+        ] if GMAIL_REDIRECT_URI else []
+    }
+}
+
+
+# =====================================================
+# GOOGLE / GMAIL — OAUTH
+# =====================================================
+
+@app.route("/api/gmail/conectar")
+def gmail_conectar():
+    if not all([
+        GMAIL_CLIENT_ID,
+        GMAIL_CLIENT_SECRET,
+        GMAIL_REDIRECT_URI
+    ]):
+        return jsonify({
+            "success": False,
+            "erro": "Configuração OAuth do Gmail incompleta."
+        }), 500
+
+    flow = Flow.from_client_config(
+        GMAIL_CLIENT_CONFIG,
+        scopes=GMAIL_SCOPES
+    )
+
+    flow.redirect_uri = GMAIL_REDIRECT_URI
+
+    authorization_url, state = (
+        flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent"
+        )
+    )
+
+    session["gmail_oauth_state"] = state
+
+    return redirect(authorization_url)
+
+
+@app.route("/api/gmail/callback")
+def gmail_callback():
+    state = session.get("gmail_oauth_state")
+
+    if not state:
+        return jsonify({
+            "success": False,
+            "erro": "Estado OAuth do Gmail não encontrado."
+        }), 400
+
+    flow = Flow.from_client_config(
+        GMAIL_CLIENT_CONFIG,
+        scopes=GMAIL_SCOPES,
+        state=state
+    )
+
+    flow.redirect_uri = GMAIL_REDIRECT_URI
+
+    flow.fetch_token(
+        authorization_response=request.url
+    )
+
+    credentials = flow.credentials
+
+    session["gmail_credentials"] = {
+        "token": credentials.token,
+        "refresh_token": credentials.refresh_token,
+        "token_uri": credentials.token_uri,
+        "client_id": credentials.client_id,
+        "client_secret": credentials.client_secret,
+        "scopes": credentials.scopes
+    }
+
+    return jsonify({
+        "success": True,
+        "mensagem": "Gmail conectado com sucesso."
+    })
+
+
+
+
+
+
+# =====================================================
+# GOOGLE / GMAIL — SINCRONIZAR COM IA EMPRESARIAL
+# =====================================================
+
+@app.route("/api/gmail/sincronizar")
+def gmail_sincronizar():
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request as GoogleRequest
+
+    dados = session.get("gmail_credentials")
+
+    if not dados:
+        return jsonify({
+            "success": False,
+            "erro": "Gmail ainda não autorizado.",
+            "conectar": "/api/gmail/conectar"
+        }), 401
+
+    credentials = Credentials(
+        token=dados.get("token"),
+        refresh_token=dados.get("refresh_token"),
+        token_uri=dados.get("token_uri"),
+        client_id=dados.get("client_id"),
+        client_secret=dados.get("client_secret"),
+        scopes=dados.get("scopes")
+    )
+
+    # Renova automaticamente o token quando necessário
+    if credentials.expired and credentials.refresh_token:
+        credentials.refresh(
+            GoogleRequest()
+        )
+
+        session["gmail_credentials"] = {
+            "token": credentials.token,
+            "refresh_token": credentials.refresh_token,
+            "token_uri": credentials.token_uri,
+            "client_id": credentials.client_id,
+            "client_secret": credentials.client_secret,
+            "scopes": credentials.scopes
+        }
+
+    resultado = gmail_buscar_mensagens(
+        access_token=credentials.token,
+        limite=20
+    )
+
+    return jsonify(resultado)
+
+
+# =====================================================
+# GOOGLE / GMAIL — RECEBER MENSAGENS
+# =====================================================
+
+def gmail_buscar_mensagens(access_token, limite=20):
+    import requests
+    import base64
+
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    resposta = requests.get(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        headers=headers,
+        params={
+            "maxResults": limite,
+            "q": "in:inbox"
+        },
+        timeout=30
+    )
+
+    resposta.raise_for_status()
+
+    mensagens = resposta.json().get(
+        "messages",
+        []
+    )
+
+    resultados = []
+
+    for item in mensagens:
+
+        gmail_id = item.get("id")
+
+        detalhe = requests.get(
+            f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{gmail_id}",
+            headers=headers,
+            params={"format": "full"},
+            timeout=30
+        )
+
+        detalhe.raise_for_status()
+
+        dados = detalhe.json()
+        payload = dados.get("payload", {})
+
+        cabecalhos = {
+            h.get("name", "").lower():
+                h.get("value", "")
+            for h in payload.get("headers", [])
+        }
+
+        remetente = cabecalhos.get("from", "")
+        destinatario = cabecalhos.get("to", "")
+        assunto = cabecalhos.get("subject", "")
+
+        texto = ""
+
+        body_data = (
+            payload
+            .get("body", {})
+            .get("data")
+        )
+
+        if body_data:
+            try:
+                texto = base64.urlsafe_b64decode(
+                    body_data + "=="
+                ).decode(
+                    "utf-8",
+                    errors="replace"
+                )
+            except Exception:
+                texto = ""
+
+        if not texto:
+
+            for parte in payload.get("parts", []):
+
+                if parte.get("mimeType") == "text/plain":
+
+                    data = (
+                        parte
+                        .get("body", {})
+                        .get("data")
+                    )
+
+                    if data:
+                        try:
+                            texto = base64.urlsafe_b64decode(
+                                data + "=="
+                            ).decode(
+                                "utf-8",
+                                errors="replace"
+                            )
+                        except Exception:
+                            texto = ""
+
+                        break
+
+        if not texto:
+            texto = dados.get("snippet", "")
+
+        texto_completo = (
+            f"Assunto: {assunto}\n\n"
+            f"{texto}"
+        ).strip()
+
+        registro = registrar_interacao_omnichannel(
+            canal="gmail",
+            plataforma="gmail",
+            sender_id=remetente,
+            recipient_id=destinatario,
+            message_id=gmail_id,
+            texto=texto_completo,
+            tipo_interacao="email"
+        )
+
+        processamento = None
+
+        if (
+            registro.get("success")
+            and
+            not registro.get("duplicada")
+        ):
+            processamento = (
+                processar_interacao_omnichannel_crm(
+                    registro.get("interacao")
+                )
+            )
+
+        resultados.append({
+            "gmail_id": gmail_id,
+            "remetente": remetente,
+            "assunto": assunto,
+            "registro": registro,
+            "processamento": processamento
+        })
+
+    return {
+        "success": True,
+        "canal": "gmail",
+        "quantidade": len(resultados),
+        "mensagens": resultados
+    }
+
+
 # META / WHATSAPP — WEBHOOK
 # =====================================================
 
