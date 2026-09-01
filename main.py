@@ -7722,7 +7722,25 @@ def gmail_sincronizar():
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request as GoogleRequest
 
-    dados = session.get("gmail_credentials")
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+            cur.execute("""
+                SELECT
+                    refresh_token,
+                    token_uri,
+                    client_id,
+                    client_secret,
+                    scopes
+                FROM gmail_oauth_credentials
+                WHERE id = 1
+            """)
+            dados = cur.fetchone()
+    finally:
+        conn.close()
 
     if not dados:
         return jsonify({
@@ -7730,6 +7748,13 @@ def gmail_sincronizar():
             "erro": "Gmail ainda não autorizado.",
             "conectar": "/api/gmail/conectar"
         }), 401
+
+    dados = dict(dados)
+    dados["scopes"] = (
+        dados.get("scopes", "").split()
+        if dados.get("scopes")
+        else []
+    )
 
     credentials = Credentials(
         token=dados.get("token"),
