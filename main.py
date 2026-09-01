@@ -7609,6 +7609,7 @@ def gmail_conectar():
     )
 
     session["gmail_oauth_state"] = state
+    session["gmail_code_verifier"] = flow.code_verifier
 
     return redirect(authorization_url)
 
@@ -7630,6 +7631,7 @@ def gmail_callback():
     )
 
     flow.redirect_uri = GMAIL_REDIRECT_URI
+    flow.code_verifier = session.get("gmail_code_verifier")
 
     flow.fetch_token(
         authorization_response=request.url
