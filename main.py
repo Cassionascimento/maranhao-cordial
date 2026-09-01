@@ -1303,6 +1303,22 @@ def inicializar_banco():
             with conn.cursor() as cur:
 
                 # ==========================================
+                # GMAIL — CREDENCIAIS OAUTH
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS gmail_oauth_credentials (
+                        id INTEGER PRIMARY KEY,
+                        refresh_token TEXT NOT NULL,
+                        token_uri TEXT NOT NULL,
+                        client_id TEXT NOT NULL,
+                        client_secret TEXT NOT NULL,
+                        scopes TEXT,
+                        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                # ==========================================
                 # LEADS B2B
                 # ==========================================
 
@@ -7647,6 +7663,45 @@ def gmail_callback():
         "client_secret": credentials.client_secret,
         "scopes": credentials.scopes
     }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO gmail_oauth_credentials (
+                        id,
+                        refresh_token,
+                        token_uri,
+                        client_id,
+                        client_secret,
+                        scopes,
+                        atualizado_em
+                    )
+                    VALUES (
+                        1, %s, %s, %s, %s, %s, NOW()
+                    )
+                    ON CONFLICT (id)
+                    DO UPDATE SET
+                        refresh_token = EXCLUDED.refresh_token,
+                        token_uri = EXCLUDED.token_uri,
+                        client_id = EXCLUDED.client_id,
+                        client_secret = EXCLUDED.client_secret,
+                        scopes = EXCLUDED.scopes,
+                        atualizado_em = NOW()
+                    """,
+                    (
+                        credentials.refresh_token,
+                        credentials.token_uri,
+                        credentials.client_id,
+                        credentials.client_secret,
+                        " ".join(credentials.scopes or [])
+                    )
+                )
+    finally:
+        conn.close()
 
     return jsonify({
         "success": True,
