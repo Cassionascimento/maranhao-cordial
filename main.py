@@ -7714,6 +7714,101 @@ def gmail_callback():
 
 
 # =====================================================
+# GOOGLE / GMAIL — ENVIAR E-MAIL
+# =====================================================
+
+def gmail_enviar_email(destinatario, assunto, corpo):
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request as GoogleRequest
+    from email.mime.text import MIMEText
+    import base64
+    import requests
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+            cur.execute("""
+                SELECT
+                    refresh_token,
+                    token_uri,
+                    client_id,
+                    client_secret,
+                    scopes
+                FROM gmail_oauth_credentials
+                WHERE id = 1
+            """)
+            dados = cur.fetchone()
+    finally:
+        conn.close()
+
+    if not dados:
+        return {
+            "success": False,
+            "erro": "Gmail ainda não autorizado."
+        }
+
+    dados = dict(dados)
+
+    credentials = Credentials(
+        token=None,
+        refresh_token=dados.get("refresh_token"),
+        token_uri=dados.get("token_uri"),
+        client_id=dados.get("client_id"),
+        client_secret=dados.get("client_secret"),
+        scopes=(
+            dados.get("scopes", "").split()
+            if dados.get("scopes")
+            else []
+        )
+    )
+
+    if not credentials.valid and credentials.refresh_token:
+        credentials.refresh(
+            GoogleRequest()
+        )
+
+    mensagem = MIMEText(
+        corpo,
+        "plain",
+        "utf-8"
+    )
+
+    mensagem["to"] = destinatario
+    mensagem["subject"] = assunto
+
+    raw = base64.urlsafe_b64encode(
+        mensagem.as_bytes()
+    ).decode("utf-8")
+
+    resposta = requests.post(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        headers={
+            "Authorization": f"Bearer {credentials.token}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "raw": raw
+        },
+        timeout=30
+    )
+
+    resposta.raise_for_status()
+
+    dados_envio = resposta.json()
+
+    return {
+        "success": True,
+        "gmail_id": dados_envio.get("id"),
+        "thread_id": dados_envio.get("threadId"),
+        "destinatario": destinatario,
+        "assunto": assunto
+    }
+
+
+# =====================================================
 # GOOGLE / GMAIL — SINCRONIZAR COM IA EMPRESARIAL
 # =====================================================
 
