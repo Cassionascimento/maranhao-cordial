@@ -4009,6 +4009,297 @@ def salvar_atendimento_sac(
 
 
 # =====================================================
+# DATA/HORA LOCAL — CONTEXTO EMPRESARIAL
+# =====================================================
+
+def formatar_data_hora_local(valor):
+    """
+    Converte timestamps do banco para o horário local
+    da operação e devolve formato legível para a IA.
+    """
+
+    if not valor:
+        return ""
+
+    try:
+        from datetime import timezone
+        from zoneinfo import ZoneInfo
+
+        if valor.tzinfo is None:
+            valor = valor.replace(
+                tzinfo=timezone.utc
+            )
+
+        valor_local = valor.astimezone(
+            ZoneInfo("America/Sao_Paulo")
+        )
+
+        return valor_local.strftime(
+            "%d/%m/%Y %H:%M"
+        )
+
+    except Exception:
+        return str(valor)
+
+
+# =====================================================
+# INSTAGRAM — HISTÓRICO DE CONVERSAS PARA A IA
+# =====================================================
+
+def montar_contexto_conversas_instagram(
+    limite=30,
+    sender_id=None
+):
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+
+            parametros = []
+            filtro_sender = ""
+
+            if sender_id:
+                filtro_sender = (
+                    "AND i.sender_id = %s"
+                )
+                parametros.append(
+                    str(sender_id).strip()
+                )
+
+            parametros.append(
+                int(limite)
+            )
+
+            cur.execute(
+                f"""
+                SELECT
+                    i.id AS interacao_id,
+                    i.sender_id,
+                    i.texto AS mensagem_recebida,
+                    i.criado_em AS mensagem_em,
+                    i.classificacao,
+                    i.interesse,
+                    f.resposta_sugerida,
+                    f.status AS resposta_status,
+                    f.aprovado_em,
+                    f.enviado_em,
+                    f.erro_envio
+                FROM interacoes_omnichannel i
+                LEFT JOIN LATERAL (
+                    SELECT
+                        resposta_sugerida,
+                        status,
+                        aprovado_em,
+                        enviado_em,
+                        erro_envio
+                    FROM fila_respostas_omnichannel
+                    WHERE interacao_id = i.id
+                    ORDER BY criado_em DESC
+                    LIMIT 1
+                ) f ON TRUE
+                WHERE LOWER(i.canal) = 'instagram'
+                {filtro_sender}
+                ORDER BY i.criado_em DESC
+                LIMIT %s
+                """,
+                tuple(parametros)
+            )
+
+            linhas = list(
+                cur.fetchall()
+            )
+
+        if not linhas:
+            return ""
+
+        # -------------------------------------------------
+        # AGRUPA CONVERSAS POR CONTATO
+        # -------------------------------------------------
+
+        conversas = {}
+
+        for linha in linhas:
+            sender = str(
+                linha.get("sender_id") or ""
+            ).strip()
+
+            conversas.setdefault(
+                sender,
+                []
+            ).append(
+                linha
+            )
+
+        # Contatos mais recentes primeiro.
+        grupos_ordenados = sorted(
+            conversas.items(),
+            key=lambda item: max(
+                linha.get("mensagem_em")
+                for linha in item[1]
+                if linha.get("mensagem_em")
+            ),
+            reverse=True
+        )
+
+        blocos = [
+            "\n\nHISTÓRICO REAL DE CONVERSAS DO INSTAGRAM:\n",
+            (
+                "As datas abaixo estão no horário local "
+                "America/Sao_Paulo.\n"
+            ),
+            (
+                "Cada contato aparece em um único bloco, "
+                "com sua conversa em ordem cronológica.\n"
+            ),
+            (
+                "Não trate resposta sugerida como mensagem enviada. "
+                "Somente respostas com enviado_em preenchido representam "
+                "fala efetivamente enviada pela Maranhão Cordial.\n"
+            )
+        ]
+
+        for sender, mensagens in grupos_ordenados:
+
+            blocos.append(
+                "\nCONTATO INSTAGRAM "
+                + sender
+                + "\n"
+            )
+
+            mensagens = sorted(
+                mensagens,
+                key=lambda linha: (
+                    linha.get("mensagem_em")
+                )
+            )
+
+            for linha in mensagens:
+
+                data_mensagem = (
+                    formatar_data_hora_local(
+                        linha.get("mensagem_em")
+                    )
+                )
+
+                mensagem = str(
+                    linha.get(
+                        "mensagem_recebida"
+                    )
+                    or ""
+                ).strip()
+
+                blocos.append(
+                    "["
+                    + data_mensagem
+                    + "] RECEBIDA: "
+                    + mensagem
+                    + "\n"
+                )
+
+                resposta = str(
+                    linha.get(
+                        "resposta_sugerida"
+                    )
+                    or ""
+                ).strip()
+
+                enviado_em = linha.get(
+                    "enviado_em"
+                )
+
+                status = str(
+                    linha.get(
+                        "resposta_status"
+                    )
+                    or ""
+                ).strip()
+
+                if resposta and enviado_em:
+
+                    data_envio = (
+                        formatar_data_hora_local(
+                            enviado_em
+                        )
+                    )
+
+                    blocos.append(
+                        "["
+                        + data_envio
+                        + "] MARANHÃO CORDIAL ENVIOU: "
+                        + resposta
+                        + "\n"
+                    )
+
+                elif resposta:
+
+                    blocos.append(
+                        "RESPOSTA SUGERIDA — NÃO ENVIADA"
+                        " (status: "
+                        + status
+                        + "): "
+                        + resposta
+                        + "\n"
+                    )
+
+        return "".join(
+            blocos
+        )
+
+    finally:
+        conn.close()
+
+
+
+# =====================================================
+# INSTAGRAM — DETECTAR PEDIDO DE CONVERSAS
+# =====================================================
+
+def pergunta_requer_conversas_instagram(pergunta):
+    import re
+
+    texto = str(
+        pergunta or ""
+    ).lower().strip()
+
+    termos = [
+        "mensagem",
+        "mensagens",
+        "conversa",
+        "conversas",
+        "dm",
+        "direct",
+        "instagram",
+        "respondeu",
+        "resposta",
+        "respostas",
+        "histórico",
+        "historico",
+        "última mensagem",
+        "ultima mensagem",
+        "falou comigo",
+        "mandou mensagem",
+        "contato do instagram"
+    ]
+
+    for termo in termos:
+        if " " in termo:
+            if termo in texto:
+                return True
+        else:
+            if re.search(
+                r"(?<!\w)"
+                + re.escape(termo)
+                + r"(?!\w)",
+                texto
+            ):
+                return True
+
+    return False
+
+
+# =====================================================
 # OMNICHANNEL — REGISTRAR INTERAÇÃO
 # =====================================================
 
@@ -16981,6 +17272,8 @@ Não exponha essa análise ao destinatário.
 
 def classificar_contexto_empresarial(pergunta):
 
+    import re
+
     texto = str(
         pergunta or ""
     ).strip().lower()
@@ -17018,7 +17311,11 @@ def classificar_contexto_empresarial(pergunta):
             "rentabilidade",
             "ticket",
             "capital",
-            "investimento"
+            "investimento",
+            "valuation",
+            "valor da empresa",
+            "geração de caixa",
+            "geracao de caixa"
         },
 
         "fiscal": {
@@ -17060,7 +17357,10 @@ def classificar_contexto_empresarial(pergunta):
             "negociacao",
             "b2b",
             "degustação",
-            "degustacao"
+            "degustacao",
+            "conversão",
+            "conversao",
+            "recompra"
         },
 
         "profissional": {
@@ -17089,6 +17389,52 @@ def classificar_contexto_empresarial(pergunta):
             "responsavel tecnico"
         },
 
+        "marca": {
+            "marca",
+            "branding",
+            "posicionamento",
+            "reputação",
+            "reputacao",
+            "desejo",
+            "percepção",
+            "percepcao",
+            "imagem da marca",
+            "identidade",
+            "território de marca",
+            "territorio de marca"
+        },
+
+        "comunicacao": {
+            "imprensa",
+            "assessoria de imprensa",
+            "relações públicas",
+            "relacoes publicas",
+            "relações publicas",
+            "rp",
+            "mídia",
+            "midia",
+            "comunicação",
+            "comunicacao",
+            "release",
+            "jornalista"
+        },
+
+        "tecnologia": {
+            "tecnologia",
+            "software",
+            "sistema",
+            "ia",
+            "inteligência artificial",
+            "inteligencia artificial",
+            "automação",
+            "automacao",
+            "backend",
+            "api",
+            "integração",
+            "integracao",
+            "crm"
+        },
+
         "estrategia": {
             "estratégia",
             "estrategia",
@@ -17101,33 +17447,50 @@ def classificar_contexto_empresarial(pergunta):
             "recomenda",
             "o que fazer",
             "próximo passo",
-            "proximo passo"
+            "proximo passo",
+            "crescimento",
+            "escalar",
+            "escala",
+            "modelo de negócio",
+            "modelo de negocio",
+            "vantagem competitiva",
+            "criação de valor",
+            "criacao de valor",
+            "valor estratégico",
+            "valor estrategico"
         }
     }
+
+    def termo_presente(termo):
+
+        termo = termo.strip().lower()
+
+        if " " in termo:
+            return termo in texto
+
+        padrao = (
+            r"(?<!\w)"
+            + re.escape(termo)
+            + r"(?!\w)"
+        )
+
+        return bool(
+            re.search(
+                padrao,
+                texto,
+                flags=re.IGNORECASE
+            )
+        )
 
     for categoria, termos in grupos.items():
 
         if any(
-            termo in texto
+            termo_presente(termo)
             for termo in termos
         ):
             categorias.add(
                 categoria
             )
-
-    # Perguntas estratégicas podem exigir
-    # combinação de diferentes contextos.
-    if "estrategia" in categorias:
-
-        if not (
-            categorias
-            - {"estrategia"}
-        ):
-            categorias.update({
-                "comercial",
-                "financeiro",
-                "industrial"
-            })
 
     if not categorias:
         categorias.add(
@@ -17135,7 +17498,6 @@ def classificar_contexto_empresarial(pergunta):
         )
 
     return categorias
-
 
 def montar_contexto_empresarial_seletivo(
     pergunta,
@@ -17163,7 +17525,8 @@ def montar_contexto_empresarial_seletivo(
     blocos = []
 
     # -------------------------------------------------
-    # Contextos centrais
+    # CONTEXTO CENTRAL
+    # Sempre disponível para qualquer decisão.
     # -------------------------------------------------
 
     blocos.append(
@@ -17179,7 +17542,7 @@ def montar_contexto_empresarial_seletivo(
     )
 
     # -------------------------------------------------
-    # Documentos
+    # DOCUMENTOS
     # -------------------------------------------------
 
     if categorias & {
@@ -17187,6 +17550,8 @@ def montar_contexto_empresarial_seletivo(
         "regulatorio",
         "financeiro",
         "estrategia",
+        "marca",
+        "comunicacao",
         "geral"
     }:
         blocos.append(
@@ -17194,28 +17559,29 @@ def montar_contexto_empresarial_seletivo(
         )
 
     # -------------------------------------------------
-    # Fábricas
+    # FÁBRICAS
+    # Somente quando a pergunta realmente envolve
+    # produção, regulação ou logística industrial.
     # -------------------------------------------------
 
     if categorias & {
         "industrial",
-        "financeiro",
-        "fiscal",
-        "logistica",
-        "estrategia"
+        "regulatorio",
+        "logistica"
     }:
         blocos.append(
             contexto_fabricas
         )
 
     # -------------------------------------------------
-    # Rede profissional
+    # REDE PROFISSIONAL
     # -------------------------------------------------
 
     if categorias & {
         "profissional",
         "comercial",
-        "estrategia"
+        "comunicacao",
+        "marca"
     }:
         blocos.append(
             contexto_profissionais
@@ -17227,48 +17593,48 @@ def montar_contexto_empresarial_seletivo(
 
     if categorias & {
         "comercial",
-        "estrategia"
+        "comunicacao",
+        "marca"
     }:
         blocos.append(
             contexto_crm
         )
 
     # -------------------------------------------------
-    # Fiscal
+    # FISCAL
     # -------------------------------------------------
 
     if categorias & {
         "fiscal",
-        "financeiro",
         "industrial",
-        "estrategia"
+        "regulatorio"
     }:
         blocos.append(
             contexto_fiscal
         )
 
     # -------------------------------------------------
-    # Logística
+    # LOGÍSTICA
     # -------------------------------------------------
 
     if categorias & {
         "logistica",
         "industrial",
-        "comercial",
-        "financeiro",
-        "estrategia"
+        "comercial"
     }:
         blocos.append(
             contexto_logistica
         )
 
     # -------------------------------------------------
-    # Contatos estratégicos
+    # CONTATOS ESTRATÉGICOS
     # -------------------------------------------------
 
     if categorias & {
         "comercial",
         "profissional",
+        "comunicacao",
+        "marca",
         "estrategia"
     }:
         blocos.append(
@@ -17276,12 +17642,13 @@ def montar_contexto_empresarial_seletivo(
         )
 
     # -------------------------------------------------
-    # Operação
+    # OPERAÇÃO
     # -------------------------------------------------
 
     if categorias & {
         "industrial",
         "financeiro",
+        "tecnologia",
         "estrategia",
         "geral"
     }:
@@ -17290,12 +17657,15 @@ def montar_contexto_empresarial_seletivo(
         )
 
     # -------------------------------------------------
-    # Ações
+    # AÇÕES EMPRESARIAIS
     # -------------------------------------------------
 
     if categorias & {
         "comercial",
         "estrategia",
+        "tecnologia",
+        "comunicacao",
+        "marca",
         "geral"
     }:
         blocos.append(
@@ -17315,8 +17685,8 @@ def montar_contexto_empresarial_seletivo(
             sorted(categorias)
         )
         + "\n"
-        "Use prioritariamente os contextos selecionados "
-        "para responder à pergunta atual.\n"
+        "Use os contextos selecionados como evidência empresarial, "
+        "sem limitar o raciocínio apenas a eles.\n"
     )
 
     return {
@@ -17698,6 +18068,74 @@ def montar_travas_elegibilidade_ia(
     )
 
 
+
+# =====================================================
+# POLÍTICA DE RACIOCÍNIO ESTRATÉGICO — IA EMPRESARIAL
+# =====================================================
+
+POLITICA_RACIOCINIO_ESTRATEGICO_IA = """
+RACIOCÍNIO ESTRATÉGICO PARA A DIREÇÃO:
+
+Você é assessoria da DIREÇÃO da Maranhão Cordial, não apenas
+uma assistente do produto, da fábrica ou da operação corrente.
+
+Antes de responder, identifique qual é a natureza real da pergunta.
+Ela pode envolver, entre outros temas:
+
+- estratégia empresarial;
+- modelo de negócio;
+- crescimento;
+- valuation e criação de valor;
+- marca e posicionamento;
+- reputação e relações públicas;
+- comunicação;
+- comercial e vendas;
+- distribuição;
+- relacionamento e networking;
+- finanças e alocação de capital;
+- operação;
+- tecnologia;
+- pessoas e fornecedores;
+- produto;
+- produção;
+- logística;
+- regulatório;
+- riscos;
+- oportunidades adjacentes.
+
+NÃO direcione automaticamente toda análise para o produto físico,
+fábrica, produção, bartender ou mercado B2B.
+
+O produto é um ativo da empresa, não a empresa inteira.
+
+Quando a pergunta for ampla ou estratégica:
+1. compreenda primeiro o objetivo da direção;
+2. raciocine sobre o negócio como um sistema;
+3. considere alternativas fora do enquadramento inicial;
+4. use conhecimento empresarial geral quando ele ajudar;
+5. confronte esse conhecimento com os dados proprietários disponíveis;
+6. diferencie claramente fato interno de inferência ou recomendação;
+7. procure efeitos de segunda ordem, riscos, oportunidades e trade-offs;
+8. não force uma ação operacional imediata quando a melhor resposta
+   for reflexão, diagnóstico, comparação ou orientação estratégica.
+
+O contexto proprietário da Maranhão Cordial deve ENRIQUECER o
+raciocínio, não restringi-lo.
+
+Quando houver dados internos relevantes, use-os.
+Quando conhecimento empresarial geral for útil e não contradizer
+dados internos confirmados, utilize-o normalmente.
+
+Não confunda:
+- ausência de dado interno com impossibilidade de raciocinar;
+- contexto operacional com objetivo estratégico;
+- produto com empresa;
+- tarefa imediata com melhor decisão;
+- atividade com criação de valor.
+
+Pense como assessoria empresarial da direção:
+com visão ampla, crítica, econômica, estratégica e prática.
+"""
 
 # =====================================================
 # POLÍTICA DE DIAGNÓSTICO CONCISO — IA EMPRESARIAL
@@ -18091,6 +18529,39 @@ def ia_empresarial():
             )
 
         # =============================================
+        # CONTEXTO DINÂMICO — CONVERSAS INSTAGRAM
+        # =============================================
+        contexto_conversas_instagram = ""
+
+        if pergunta_requer_conversas_instagram(
+            pergunta
+        ):
+            try:
+                contexto_conversas_instagram = (
+                    montar_contexto_conversas_instagram(
+                        limite=30
+                    )
+                )
+
+                print(
+                    "IA EMPRESARIAL: "
+                    "histórico de conversas Instagram consultado."
+                )
+
+            except Exception as erro_conversas_instagram:
+                print(
+                    "ERRO CONVERSAS INSTAGRAM:",
+                    repr(erro_conversas_instagram)
+                )
+
+                contexto_conversas_instagram = (
+                    "\n\n=== CONVERSAS INSTAGRAM ===\n"
+                    "O histórico de conversas não pôde ser "
+                    "consultado nesta execução. "
+                    "Não invente mensagens ou respostas.\n"
+                )
+
+        # =============================================
         # CONTEXTO DINÂMICO — GOOGLE ANALYTICS 4
         # =============================================
         contexto_ga4 = ""
@@ -18379,11 +18850,17 @@ def ia_empresarial():
                 + CONTEXTO_MARANHAO
                 + CONTEXTO_EMPRESARIAL_INTERNO
                 + HIERARQUIA_DECISAO_EMPRESARIAL
+                + POLITICA_RACIOCINIO_ESTRATEGICO_IA
+                + POLITICA_ECONOMICA_IA
+                + POLITICA_EXPANSAO_OPORTUNIDADES_IA
+                + POLITICA_PRIORIDADE_CONTEXTO_INTERNO
                 + POLITICA_DIAGNOSTICO_CONCISO_IA
                 + POLITICA_ACOES_SUGERIDAS_IA
                 + POLITICA_LINGUAGEM_NATURAL_IA
+                + carregar_feedback_para_ia()
                 + carregar_objetivos_estrategicos_para_ia()
                 + contexto_instagram
+                + contexto_conversas_instagram
                 + contexto_ga4
                 + contexto_diagnostico +
 
@@ -18503,6 +18980,7 @@ def ia_empresarial():
                     + carregar_feedback_para_ia()
                     + carregar_objetivos_estrategicos_para_ia()
                     + contexto_instagram
+                    + contexto_conversas_instagram
                     + POLITICA_COMUNICACAO_EMPRESARIAL
                     + REGRA_MENSAGENS_ESTRATEGICAS
                     + contexto_diagnostico
