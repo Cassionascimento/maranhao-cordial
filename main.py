@@ -7766,7 +7766,8 @@ def gmail_sincronizar():
     )
 
     # Renova automaticamente o token quando necessário
-    if credentials.expired and credentials.refresh_token:
+    # Inclusive quando as credenciais vieram do PostgreSQL sem access token.
+    if not credentials.valid and credentials.refresh_token:
         credentials.refresh(
             GoogleRequest()
         )
