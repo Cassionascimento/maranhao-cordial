@@ -2768,6 +2768,10 @@ LOGISTICA_WEBHOOK_TOKEN = os.getenv("LOGISTICA_WEBHOOK_TOKEN")
 META_WEBHOOK_VERIFY_TOKEN = os.getenv("META_WEBHOOK_VERIFY_TOKEN")
 META_INSTAGRAM_ACCESS_TOKEN = os.getenv("META_INSTAGRAM_ACCESS_TOKEN")
 
+WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN")
+WHATSAPP_BUSINESS_ACCOUNT_ID = os.getenv("WHATSAPP_BUSINESS_ACCOUNT_ID")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+
 
 # =====================================================
 # BANCO TEMPORÁRIO DE PEDIDOS
@@ -8314,6 +8318,152 @@ def webhook_meta():
                                 erro_registro
                             )
                         )
+
+        # -------------------------------------------------
+        # WHATSAPP CLOUD API — MENSAGENS RECEBIDAS
+        # -------------------------------------------------
+
+        for entrada in entradas:
+
+            for change in entrada.get("changes") or []:
+
+                if change.get("field") != "messages":
+                    continue
+
+                value = change.get("value") or {}
+                metadata = value.get("metadata") or {}
+
+                destinatario_whatsapp = (
+                    metadata.get("phone_number_id")
+                    or WHATSAPP_PHONE_NUMBER_ID
+                )
+
+                for mensagem_whatsapp in value.get("messages") or []:
+
+                    remetente_whatsapp = mensagem_whatsapp.get("from")
+                    whatsapp_mid = mensagem_whatsapp.get("id")
+                    tipo_whatsapp = mensagem_whatsapp.get("type")
+
+                    texto_whatsapp = None
+
+                    if tipo_whatsapp == "text":
+                        texto_whatsapp = (
+                            mensagem_whatsapp.get("text")
+                            or {}
+                        ).get("body")
+
+                    print(
+                        "WHATSAPP MENSAGEM RECEBIDA",
+                        {
+                            "sender_id": remetente_whatsapp,
+                            "recipient_id": destinatario_whatsapp,
+                            "message_id": whatsapp_mid,
+                            "type": tipo_whatsapp,
+                            "text": (
+                                texto_whatsapp[:300]
+                                if isinstance(texto_whatsapp, str)
+                                else None
+                            )
+                        }
+                    )
+
+                    if (
+                        isinstance(texto_whatsapp, str)
+                        and texto_whatsapp.strip()
+                    ):
+
+                        try:
+                            registro = registrar_interacao_omnichannel(
+                                canal="whatsapp",
+                                sender_id=remetente_whatsapp,
+                                recipient_id=destinatario_whatsapp,
+                                message_id=whatsapp_mid,
+                                texto=texto_whatsapp,
+                                plataforma="meta",
+                                tipo_interacao="mensagem"
+                            )
+
+                            print(
+                                "OMNICHANNEL REGISTRADO",
+                                {
+                                    "canal": "whatsapp",
+                                    "duplicada": registro.get("duplicada")
+                                }
+                            )
+
+                            if not registro.get("duplicada"):
+
+                                try:
+                                    processamento = (
+                                        processar_interacao_omnichannel_crm(
+                                            registro.get("interacao")
+                                        )
+                                    )
+
+                                    print(
+                                        "WHATSAPP CRM PROCESSADO",
+                                        {
+                                            "lead_criado":
+                                                processamento.get(
+                                                    "lead_criado"
+                                                ),
+                                            "lead_atualizado":
+                                                processamento.get(
+                                                    "lead_atualizado"
+                                                ),
+                                            "classificacao":
+                                                (
+                                                    processamento.get(
+                                                        "classificacao"
+                                                    )
+                                                    or {}
+                                                ).get(
+                                                    "classificacao"
+                                                )
+                                        }
+                                    )
+
+                                    try:
+                                        sugestao = (
+                                            gerar_resposta_sugerida_omnichannel(
+                                                registro.get("interacao"),
+                                                processamento
+                                            )
+                                        )
+
+                                        print(
+                                            "WHATSAPP RESPOSTA SUGERIDA",
+                                            {
+                                                "duplicada":
+                                                    sugestao.get(
+                                                        "duplicada",
+                                                        False
+                                                    ),
+                                                "status":
+                                                    (
+                                                        sugestao.get("fila")
+                                                        or {}
+                                                    ).get("status")
+                                            }
+                                        )
+
+                                    except Exception as erro_sugestao:
+                                        print(
+                                            "ERRO RESPOSTA SUGERIDA WHATSAPP:",
+                                            repr(erro_sugestao)
+                                        )
+
+                                except Exception as erro_crm:
+                                    print(
+                                        "ERRO PROCESSAMENTO CRM WHATSAPP:",
+                                        repr(erro_crm)
+                                    )
+
+                        except Exception as erro_registro:
+                            print(
+                                "ERRO REGISTRO WHATSAPP:",
+                                repr(erro_registro)
+                            )
 
         print(
             "META WEBHOOK RECEBIDO",
