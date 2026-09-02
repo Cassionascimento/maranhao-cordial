@@ -11957,8 +11957,8 @@ def admin_listar_fabricas():
 )
 def parceiro_cadastrar_fabrica():
     """
-    Permite que colaborador autorizado alimente
-    a matriz industrial.
+    Permite cadastro externo de fábrica para
+    análise da matriz industrial.
 
     SEGURANCA:
     - nunca homologa;
@@ -11966,20 +11966,6 @@ def parceiro_cadastrar_fabrica():
     - nunca libera fábrica para cálculo da IA;
     - registra obrigatoriamente a origem dos dados.
     """
-
-    chave = request.headers.get(
-        "X-Cadastro-Key",
-        ""
-    )
-
-    if (
-        not FABRICAS_CADASTRO_KEY
-        or chave != FABRICAS_CADASTRO_KEY
-    ):
-        return jsonify({
-            "success": False,
-            "error": "Não autorizado."
-        }), 401
 
     dados = request.get_json(
         silent=True
@@ -11993,39 +11979,34 @@ def parceiro_cadastrar_fabrica():
         dados.get("estado") or ""
     ).strip().upper()
 
+    # Cadastro público realizado pela própria fábrica.
+    # Os dados normais de contato também alimentam
+    # a rastreabilidade interna do registro.
     responsavel_nome = str(
-        dados.get(
-            "responsavel_dados_nome"
-        ) or ""
+        dados.get("contato_nome")
+        or nome
     ).strip()
 
     responsavel_empresa = str(
-        dados.get(
-            "responsavel_dados_empresa"
-        ) or ""
+        dados.get("razao_social")
+        or nome
     ).strip()
 
-    responsavel_cargo = str(
-        dados.get(
-            "responsavel_dados_cargo"
-        ) or ""
-    ).strip()
+    responsavel_cargo = (
+        "Contato da fábrica"
+    )
 
     responsavel_email = str(
-        dados.get(
-            "responsavel_dados_email"
-        ) or ""
+        dados.get("contato_email")
+        or "nao_informado"
     ).strip()
 
     responsavel_whatsapp = str(
-        dados.get(
-            "responsavel_dados_whatsapp"
-        ) or ""
+        dados.get("contato_whatsapp")
+        or "nao_informado"
     ).strip()
 
-    fonte_dados = str(
-        dados.get("fonte_dados") or ""
-    ).strip()
+    fonte_dados = "cadastro_publico"
 
     erros = []
 
@@ -12826,19 +12807,6 @@ def admin_workflow_fabrica(fabrica_id):
 )
 def parceiro_cadastrar_profissional():
 
-    chave = request.headers.get(
-        "X-Cadastro-Key"
-    )
-
-    if (
-        not PROFISSIONAIS_CADASTRO_KEY
-        or chave != PROFISSIONAIS_CADASTRO_KEY
-    ):
-        return jsonify({
-            "success": False,
-            "error": "Não autorizado."
-        }), 401
-
     dados = request.get_json(
         silent=True
     ) or {}
@@ -12905,6 +12873,39 @@ def parceiro_cadastrar_profissional():
             ""
         )
     ).strip()
+
+    # Cadastro público realizado pelo próprio interessado.
+    # O registro continua sem qualificação automática e
+    # indisponível para uso ativo pela IA até validação interna.
+    if not responsavel_nome:
+        responsavel_nome = nome
+
+    if not responsavel_empresa:
+        responsavel_empresa = str(
+            dados.get("estabelecimento_nome")
+            or "Cadastro público"
+        ).strip()
+
+    if not responsavel_cargo:
+        responsavel_cargo = str(
+            dados.get("cargo_funcao")
+            or "Profissional"
+        ).strip()
+
+    if not responsavel_email:
+        responsavel_email = str(
+            dados.get("email")
+            or "nao_informado"
+        ).strip()
+
+    if not responsavel_whatsapp:
+        responsavel_whatsapp = str(
+            dados.get("whatsapp")
+            or "nao_informado"
+        ).strip()
+
+    if not fonte_dados:
+        fonte_dados = "cadastro_publico"
 
     obrigatorios = {
         "responsável pelos dados":

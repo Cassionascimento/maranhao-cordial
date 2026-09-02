@@ -243,28 +243,6 @@
 
         <section class="section">
             <div class="section-title">
-                Acesso do colaborador
-            </div>
-
-            <div class="grid">
-                <div class="full">
-                    <label>
-                        Código de acesso *
-                    </label>
-
-                    <input
-                        id="codigoAcesso"
-                        type="password"
-                        autocomplete="off"
-                        required
-                        placeholder="Código fornecido pela Maranhão Cordial"
-                    >
-                </div>
-            </div>
-        </section>
-
-        <section class="section">
-            <div class="section-title">
                 1. Identificação da indústria
             </div>
 
@@ -575,72 +553,19 @@
 
         <section class="section">
             <div class="section-title">
-                6. Responsável pelos dados
-            </div>
-
-            <div class="notice" style="margin-top:0">
-                Estes dados identificam quem realizou ou forneceu
-                o levantamento. Eles permanecerão associados ao cadastro
-                para rastreabilidade futura.
+                6. Observações
             </div>
 
             <div class="grid">
 
-                <div>
-                    <label>Nome completo *</label>
-                    <input
-                        name="responsavel_dados_nome"
-                        required
-                    >
-                </div>
-
-                <div>
-                    <label>Empresa / organização *</label>
-                    <input
-                        name="responsavel_dados_empresa"
-                        required
-                    >
-                </div>
-
-                <div>
-                    <label>Cargo / função *</label>
-                    <input
-                        name="responsavel_dados_cargo"
-                        required
-                    >
-                </div>
-
-                <div>
-                    <label>WhatsApp *</label>
-                    <input
-                        name="responsavel_dados_whatsapp"
-                        required
-                    >
-                </div>
-
                 <div class="full">
-                    <label>E-mail *</label>
-                    <input
-                        name="responsavel_dados_email"
-                        type="email"
-                        required
-                    >
-                </div>
+                    <label>
+                        Algo mais que devemos saber?
+                    </label>
 
-                <div class="full">
-                    <label>Fonte dos dados *</label>
-                    <input
-                        name="fonte_dados"
-                        required
-                        placeholder="Ex.: contato direto com proprietário, site institucional, associação..."
-                    >
-                </div>
-
-                <div class="full">
-                    <label>Observações</label>
                     <textarea
                         name="observacoes"
-                        placeholder="Registre limitações, dúvidas, condições comerciais ou informações que ainda precisam ser confirmadas."
+                        placeholder="Informe condições comerciais, diferenciais, certificações ou outras informações relevantes."
                     ></textarea>
                 </div>
 
@@ -728,18 +653,6 @@
                         "resultado"
                     );
 
-                const codigo =
-                    document.getElementById(
-                        "codigoAcesso"
-                    ).value.trim();
-
-                if (!codigo) {
-                    alert(
-                        "Informe o código de acesso."
-                    );
-                    return;
-                }
-
                 const formData =
                     new FormData(event.target);
 
@@ -812,9 +725,6 @@
                         ).value
                     );
 
-                // Código não faz parte dos dados empresariais.
-                delete dados.codigoAcesso;
-
                 botao.disabled = true;
                 botao.textContent =
                     "ENVIANDO...";
@@ -832,10 +742,7 @@
 
                                 headers: {
                                     "Content-Type":
-                                        "application/json",
-
-                                    "X-Cadastro-Key":
-                                        codigo
+                                        "application/json"
                                 },
 
                                 body:
@@ -876,51 +783,7 @@
                         "A direção da Maranhão Cordial fará " +
                         "a validação antes de qualquer homologação.";
 
-                    // Preserva os dados do responsável
-                    // para facilitar cadastros consecutivos.
-                    const preservar = {
-                        responsavel_dados_nome:
-                            formData.get(
-                                "responsavel_dados_nome"
-                            ),
-
-                        responsavel_dados_empresa:
-                            formData.get(
-                                "responsavel_dados_empresa"
-                            ),
-
-                        responsavel_dados_cargo:
-                            formData.get(
-                                "responsavel_dados_cargo"
-                            ),
-
-                        responsavel_dados_email:
-                            formData.get(
-                                "responsavel_dados_email"
-                            ),
-
-                        responsavel_dados_whatsapp:
-                            formData.get(
-                                "responsavel_dados_whatsapp"
-                            )
-                    };
-
                     event.target.reset();
-
-                    for (
-                        const [campo, valor]
-                        of Object.entries(preservar)
-                    ) {
-                        const elemento =
-                            event.target.elements[
-                                campo
-                            ];
-
-                        if (elemento) {
-                            elemento.value =
-                                valor || "";
-                        }
-                    }
 
                 } catch (erro) {
 

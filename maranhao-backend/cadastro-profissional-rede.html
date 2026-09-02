@@ -363,75 +363,18 @@
         posteriormente pela validação da direção.
     </div>
 
-        <section
-            class="section"
-            id="acessoColaborador"
-        >
+        <form id="formProfissional">
+
+        <section class="section">
 
             <div class="section-title">
-                Acesso do colaborador
+                1. Sobre você
             </div>
 
             <div class="grid">
 
                 <div class="full">
-
-                    <label>
-                        Código de acesso *
-                    </label>
-
-                    <input
-                        id="codigoAcesso"
-                        type="password"
-                        autocomplete="off"
-                        placeholder="Código fornecido pela Maranhão Cordial"
-                    >
-
-                    <div class="hint">
-                        O formulário será liberado após a validação do código.
-                    </div>
-
-                </div>
-
-            </div>
-
-            <button
-                id="btnEntrar"
-                type="button"
-                onclick="autorizarColaborador()"
-            >
-                ACESSAR FORMULÁRIO
-            </button>
-
-            <div
-                id="resultadoAcesso"
-                style="
-                    display:none;
-                    margin-top:14px;
-                    font-size:13px;
-                "
-            ></div>
-
-        </section>
-
-        <form
-            id="formProfissional"
-            style="display:none;"
-        >
-
-        <section class="section">
-
-            <div class="section-title">
-                1. Identificação profissional
-            </div>
-
-            <div class="grid">
-
-                <div>
-                    <label>
-                        Nome completo *
-                    </label>
-
+                    <label>Nome completo *</label>
                     <input
                         name="nome"
                         required
@@ -439,31 +382,14 @@
                 </div>
 
                 <div>
-                    <label>
-                        Nome profissional
-                    </label>
-
-                    <input
-                        name="nome_profissional"
-                        placeholder="Como é conhecido profissionalmente"
-                    >
-                </div>
-
-                <div>
-                    <label>
-                        Cidade
-                    </label>
-
+                    <label>Cidade</label>
                     <input
                         name="cidade"
                     >
                 </div>
 
                 <div>
-                    <label>
-                        UF
-                    </label>
-
+                    <label>UF</label>
                     <input
                         name="estado"
                         maxlength="2"
@@ -471,61 +397,14 @@
                     >
                 </div>
 
-                <div>
+                <div class="full">
                     <label>
-                        Região
-                    </label>
-
-                    <select
-                        name="regiao"
-                    >
-                        <option value="">
-                            Não informada
-                        </option>
-
-                        <option>
-                            Norte
-                        </option>
-
-                        <option>
-                            Nordeste
-                        </option>
-
-                        <option>
-                            Centro-Oeste
-                        </option>
-
-                        <option>
-                            Sudeste
-                        </option>
-
-                        <option>
-                            Sul
-                        </option>
-                    </select>
-                </div>
-
-                <div>
-                    <label>
-                        Especialidade
+                        O que você faz?
                     </label>
 
                     <input
-                        name="especialidade"
-                        placeholder="Mixologia, coquetelaria autoral..."
-                    >
-                </div>
-
-                <div>
-                    <label>
-                        Experiência — anos
-                    </label>
-
-                    <input
-                        name="experiencia_anos"
-                        type="number"
-                        min="0"
-                        step="0.5"
+                        name="cargo_funcao"
+                        placeholder="Ex.: bartender, chef, artista, criador, produtor, restaurante, hotel..."
                     >
                 </div>
 
@@ -533,22 +412,23 @@
 
         </section>
 
+
         <section class="section">
 
             <div class="section-title">
-                2. Estabelecimento atual
+                2. Onde você atua
             </div>
 
             <div class="grid">
 
                 <div>
                     <label>
-                        Nome do estabelecimento
+                        Estabelecimento ou projeto
                     </label>
 
                     <input
                         name="estabelecimento_nome"
-                        placeholder="Hotel, bar, restaurante..."
+                        placeholder="Nome do bar, restaurante, hotel, projeto, coletivo..."
                     >
                 </div>
 
@@ -561,7 +441,7 @@
                         name="estabelecimento_tipo"
                     >
                         <option value="">
-                            Não informado
+                            Selecione
                         </option>
 
                         <option value="bar">
@@ -573,23 +453,23 @@
                         </option>
 
                         <option value="hotel">
-                            Hotel
-                        </option>
-
-                        <option value="resort">
-                            Resort
-                        </option>
-
-                        <option value="grupo_hoteleiro">
-                            Grupo hoteleiro
-                        </option>
-
-                        <option value="consultoria">
-                            Consultoria
+                            Hotel / hospedagem
                         </option>
 
                         <option value="autonomo">
-                            Autônomo
+                            Profissional independente
+                        </option>
+
+                        <option value="projeto_cultural">
+                            Projeto cultural
+                        </option>
+
+                        <option value="criador">
+                            Criador / artista
+                        </option>
+
+                        <option value="empresa">
+                            Empresa
                         </option>
 
                         <option value="outro">
@@ -598,60 +478,39 @@
                     </select>
                 </div>
 
-                <div class="full">
-                    <label>
-                        Cargo / função
-                    </label>
-
-                    <input
-                        name="cargo_funcao"
-                        placeholder="Bartender, head bartender, mixologista, consultor..."
-                    >
-                </div>
-
             </div>
 
         </section>
 
+
         <section class="section">
 
             <div class="section-title">
-                3. Contatos
+                3. Como falar com você
             </div>
 
             <div class="grid">
 
                 <div>
-                    <label>
-                        Instagram
-                    </label>
+                    <label>Instagram</label>
 
                     <input
                         name="instagram"
                         placeholder="@perfil"
                     >
-
-                    <div class="hint">
-                        O Instagram é utilizado como
-                        um dos identificadores para
-                        evitar cadastro duplicado.
-                    </div>
                 </div>
 
                 <div>
-                    <label>
-                        WhatsApp
-                    </label>
+                    <label>WhatsApp</label>
 
                     <input
                         name="whatsapp"
+                        placeholder="(00) 00000-0000"
                     >
                 </div>
 
                 <div class="full">
-                    <label>
-                        E-mail
-                    </label>
+                    <label>E-mail</label>
 
                     <input
                         name="email"
@@ -663,10 +522,11 @@
 
         </section>
 
+
         <section class="section">
 
             <div class="section-title">
-                4. Atuação profissional
+                4. Vamos nos conectar
             </div>
 
             <div class="grid">
@@ -674,166 +534,29 @@
                 <div class="full">
 
                     <label>
-                        Eventos relacionados
-                    </label>
-
-                    <input
-                        id="eventos"
-                        placeholder="Ilha Drinks, concursos, festivais..."
-                    >
-
-                    <div class="hint">
-                        Separe vários itens por vírgula.
-                    </div>
-
-                </div>
-
-                <div class="full">
-
-                    <label>
-                        Áreas de atuação
-                    </label>
-
-                    <input
-                        id="areasAtuacao"
-                        placeholder="hotelaria, bares, eventos, consultoria..."
-                    >
-
-                    <div class="hint">
-                        Separe vários itens por vírgula.
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-        <section class="section">
-
-            <div class="section-title">
-                5. Responsável pelo levantamento
-            </div>
-
-            <div class="notice"
-                 style="margin-top:0">
-
-                Estes dados identificam quem
-                forneceu ou levantou as informações.
-
-                Eles permanecem associados ao cadastro
-                para preservar a rastreabilidade
-                da rede profissional.
-
-            </div>
-
-            <div class="grid">
-
-                <div>
-                    <label>
-                        Nome completo *
-                    </label>
-
-                    <input
-                        name="responsavel_dados_nome"
-                        required
-                    >
-                </div>
-
-                <div>
-                    <label>
-                        Empresa / organização *
-                    </label>
-
-                    <input
-                        name="responsavel_dados_empresa"
-                        required
-                    >
-                </div>
-
-                <div>
-                    <label>
-                        Cargo / função *
-                    </label>
-
-                    <input
-                        name="responsavel_dados_cargo"
-                        required
-                    >
-                </div>
-
-                <div>
-                    <label>
-                        WhatsApp *
-                    </label>
-
-                    <input
-                        name="responsavel_dados_whatsapp"
-                        required
-                    >
-                </div>
-
-                <div class="full">
-                    <label>
-                        E-mail *
-                    </label>
-
-                    <input
-                        name="responsavel_dados_email"
-                        type="email"
-                        required
-                    >
-                </div>
-
-                <div class="full">
-                    <label>
-                        Fonte dos dados *
-                    </label>
-
-                    <input
-                        name="fonte_dados"
-                        required
-                        placeholder="Contato direto, indicação, evento, Instagram..."
-                    >
-                </div>
-
-                <div class="full">
-                    <label>
-                        Observações
+                        Conte um pouco sobre seu interesse
                     </label>
 
                     <textarea
                         name="observacoes"
-                        placeholder="Registre contexto, relacionamento conhecido, indicações ou informações ainda não verificadas."
+                        placeholder="Como você conheceu a Maranhão Cordial? O que chamou sua atenção? Existe alguma ideia, projeto, parceria ou colaboração que gostaria de conversar?"
                     ></textarea>
+
                 </div>
 
             </div>
 
         </section>
+
 
         <button
             id="btnEnviar"
             type="submit"
         >
-            ENVIAR PARA VALIDAÇÃO
+            ENVIAR
         </button>
 
-        <button
-            type="button"
-            onclick="encerrarAcessoProfissional()"
-            style="
-                margin-top:10px;
-                background:transparent;
-                color:#f3efe7;
-            "
-        >
-            ENCERRAR ACESSO
-        </button>
-
-        <div
-            id="resultado"
-        ></div>
+        <div id="resultado"></div>
 
     </form>
 
@@ -841,91 +564,6 @@
 
 <script>
 
-    let codigoSessaoProfissional =
-        sessionStorage.getItem(
-            "profissionaisCadastroKey"
-        ) || "";
-
-    function liberarFormularioProfissional() {
-
-        const acesso =
-            document.getElementById(
-                "acessoColaborador"
-            );
-
-        const form =
-            document.getElementById(
-                "formProfissional"
-            );
-
-        if (acesso) {
-            acesso.style.display = "none";
-        }
-
-        if (form) {
-            form.style.display = "block";
-        }
-    }
-
-    async function autorizarColaborador() {
-
-        const input =
-            document.getElementById(
-                "codigoAcesso"
-            );
-
-        const resultado =
-            document.getElementById(
-                "resultadoAcesso"
-            );
-
-        const botao =
-            document.getElementById(
-                "btnEntrar"
-            );
-
-        const codigo =
-            String(
-                input?.value || ""
-            ).trim();
-
-        if (!codigo) {
-
-            resultado.style.display =
-                "block";
-
-            resultado.textContent =
-                "Informe o código de acesso.";
-
-            return;
-        }
-
-        /*
-         * Não existe endpoint separado de login.
-         * A validação real continua acontecendo no backend
-         * no momento do envio.
-         *
-         * Aqui apenas autorizamos a interface e mantemos
-         * a chave durante esta sessão do navegador.
-         */
-
-        codigoSessaoProfissional =
-            codigo;
-
-        sessionStorage.setItem(
-            "profissionaisCadastroKey",
-            codigo
-        );
-
-        liberarFormularioProfissional();
-    }
-
-    if (codigoSessaoProfissional) {
-        window.addEventListener(
-            "DOMContentLoaded",
-            liberarFormularioProfissional
-        );
-    }
 
     function valorOuNull(valor) {
 
@@ -971,17 +609,6 @@
         .filter(Boolean);
     }
 
-    function encerrarAcessoProfissional() {
-
-        sessionStorage.removeItem(
-            "profissionaisCadastroKey"
-        );
-
-        codigoSessaoProfissional = "";
-
-        window.location.reload();
-    }
-
     document
         .getElementById(
             "formProfissional"
@@ -1002,18 +629,6 @@
                         "resultado"
                     );
 
-                const codigo =
-                    codigoSessaoProfissional;
-
-                if (!codigo) {
-
-                    alert(
-                        "Sessão de acesso não autorizada."
-                    );
-
-                    return;
-                }
-
                 const formData =
                     new FormData(
                         event.target
@@ -1031,27 +646,6 @@
                             valor
                         );
                 }
-
-                dados.experiencia_anos =
-                    numeroOuNull(
-                        formData.get(
-                            "experiencia_anos"
-                        )
-                    );
-
-                dados.eventos =
-                    lista(
-                        document.getElementById(
-                            "eventos"
-                        ).value
-                    );
-
-                dados.areas_atuacao =
-                    lista(
-                        document.getElementById(
-                            "areasAtuacao"
-                        ).value
-                    );
 
                 botao.disabled = true;
 
@@ -1073,10 +667,7 @@
 
                                 headers: {
                                     "Content-Type":
-                                        "application/json",
-
-                                    "X-Cadastro-Key":
-                                        codigo
+                                        "application/json"
                                 },
 
                                 body:
@@ -1109,54 +700,7 @@
                         "O profissional será analisado pela direção " +
                         "antes de qualquer qualificação ou ativação.";
 
-                    const preservar = {
-
-                        responsavel_dados_nome:
-                            formData.get(
-                                "responsavel_dados_nome"
-                            ),
-
-                        responsavel_dados_empresa:
-                            formData.get(
-                                "responsavel_dados_empresa"
-                            ),
-
-                        responsavel_dados_cargo:
-                            formData.get(
-                                "responsavel_dados_cargo"
-                            ),
-
-                        responsavel_dados_email:
-                            formData.get(
-                                "responsavel_dados_email"
-                            ),
-
-                        responsavel_dados_whatsapp:
-                            formData.get(
-                                "responsavel_dados_whatsapp"
-                            )
-                    };
-
                     event.target.reset();
-
-                    for (
-                        const [campo, valor]
-                        of Object.entries(
-                            preservar
-                        )
-                    ) {
-
-                        const elemento =
-                            event.target.elements[
-                                campo
-                            ];
-
-                        if (elemento) {
-
-                            elemento.value =
-                                valor || "";
-                        }
-                    }
 
                 } catch (erro) {
 
@@ -1175,7 +719,7 @@
                         false;
 
                     botao.textContent =
-                        "ENVIAR PARA VALIDAÇÃO";
+                        "ENVIAR";
                 }
             }
         );
