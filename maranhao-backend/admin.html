@@ -1006,90 +1006,151 @@
 
 
             <section class="tab-panel" data-panel="ia-empresarial">
-                <div class="eyebrow">IA EMPRESARIAL</div>
 
-                <h2 style="
-                    font-family: Georgia, 'Times New Roman', serif;
-                    font-weight: 400;
-                    margin: 0 0 18px;
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:flex-end;
+                    gap:24px;
+                    flex-wrap:wrap;
+                    margin-bottom:28px;
                 ">
-                    Inteligência privada Maranhão Cordial
-                </h2>
+                    <div>
+                        <div class="eyebrow">IA EMPRESARIAL</div>
 
-                <p class="subtitle">
-                    Analise prioridades, oportunidades, riscos,
-                    leads e decisões empresariais.
-                </p>
+                        <h2 style="
+                            font-family:Georgia, 'Times New Roman', serif;
+                            font-weight:400;
+                            font-size:34px;
+                            line-height:1.08;
+                            margin:0 0 10px;
+                            max-width:720px;
+                        ">
+                            Central de inteligência da Maranhão Cordial
+                        </h2>
 
-                <div class="card" style="margin-top: 24px;">
-                    <label
-                        for="iaEmpresarialPergunta"
-                        style="
-                            display:block;
-                            margin-bottom:10px;
-                            font-size:11px;
-                            letter-spacing:1px;
-                            text-transform:uppercase;
-                        "
-                    >
-                        Pergunte à IA Empresarial
-                    </label>
+                        <p class="subtitle" style="
+                            max-width:760px;
+                            margin:0;
+                        ">
+                            Decisão, contexto e ação empresarial em um único lugar.
+                        </p>
+                    </div>
+
+                    <div style="
+                        font-size:11px;
+                        letter-spacing:1px;
+                        text-transform:uppercase;
+                        opacity:.55;
+                        padding-bottom:4px;
+                    ">
+                        Direção privada
+                    </div>
+                </div>
+
+                <div class="card" style="
+                    padding:24px;
+                    border:1px solid rgba(255,255,255,.10);
+                    background:linear-gradient(
+                        180deg,
+                        rgba(255,255,255,.035),
+                        rgba(255,255,255,.015)
+                    );
+                ">
+                    <div style="
+                        font-size:11px;
+                        letter-spacing:1.2px;
+                        text-transform:uppercase;
+                        opacity:.65;
+                        margin-bottom:12px;
+                    ">
+                        Consulte a empresa
+                    </div>
 
                     <textarea
                         id="iaEmpresarialPergunta"
                         rows="5"
-                        placeholder="Ex.: O que merece minha atenção hoje?"
+                        placeholder="Ex.: Entre participar desta feira e investir em imprensa, o que aumenta mais o valor estratégico da empresa agora?"
                         style="
                             width:100%;
                             box-sizing:border-box;
-                            background:rgba(255,255,255,.03);
+                            background:rgba(0,0,0,.14);
                             color:inherit;
                             border:1px solid rgba(255,255,255,.12);
-                            border-radius:8px;
-                            padding:14px;
+                            border-radius:10px;
+                            padding:18px;
                             resize:vertical;
                             font:inherit;
+                            font-size:15px;
+                            line-height:1.6;
+                            min-height:138px;
+                            outline:none;
                         "
                     ></textarea>
 
-                    <div
-                        style="
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        gap:16px;
+                        flex-wrap:wrap;
+                        margin-top:16px;
+                    ">
+                        <div style="
                             display:flex;
                             gap:10px;
                             align-items:center;
                             flex-wrap:wrap;
-                            margin-top:14px;
-                        "
-                    >
-                        <button
-                            id="iaEmpresarialMicrofone"
-                            type="button"
-                            title="Falar comando"
-                            style="
-                                min-width:52px;
-                                font-size:20px;
-                            "
-                        >
-                            🎤
-                        </button>
+                        ">
+                            <button
+                                id="iaEmpresarialMicrofone"
+                                type="button"
+                                title="Falar comando"
+                                style="
+                                    min-width:52px;
+                                    min-height:44px;
+                                    font-size:19px;
+                                "
+                            >
+                                🎤
+                            </button>
 
-                        <button
-                            id="iaEmpresarialEnviar"
-                            type="button"
-                        >
-                            Analisar
-                        </button>
+                            <button
+                                id="iaEmpresarialEnviar"
+                                type="button"
+                                style="
+                                    min-height:44px;
+                                    padding-left:22px;
+                                    padding-right:22px;
+                                "
+                            >
+                                Analisar
+                            </button>
 
-                        <span
-                            id="iaEmpresarialVozStatus"
-                            class="subtitle"
-                        ></span>
+                            <span
+                                id="iaEmpresarialVozStatus"
+                                class="subtitle"
+                            ></span>
+                        </div>
+
+                        <div style="
+                            font-size:11px;
+                            opacity:.45;
+                            max-width:360px;
+                            text-align:right;
+                            line-height:1.5;
+                        ">
+                            A IA consulta contexto empresarial antes de responder.
+                        </div>
                     </div>
 
                     <div
                         id="iaEmpresarialStatus"
                         class="subtitle"
-                        style="margin-top:14px;"
+                        style="
+                            margin-top:14px;
+                            min-height:18px;
+                        "
                     ></div>
                 </div>
 
@@ -1097,32 +1158,44 @@
                     id="iaCentralDecisoes"
                     class="card"
                     style="
-                        margin-top:20px;
+                        margin-top:22px;
                         display:none;
+                        padding:24px;
+                        border-left:3px solid rgba(255,255,255,.42);
                     "
                 >
                     <div style="
                         display:flex;
                         justify-content:space-between;
                         align-items:center;
-                        gap:12px;
-                        margin-bottom:16px;
+                        gap:16px;
+                        margin-bottom:18px;
+                        flex-wrap:wrap;
                     ">
                         <div>
                             <div style="
                                 font-size:11px;
-                                letter-spacing:1px;
+                                letter-spacing:1.2px;
                                 text-transform:uppercase;
-                                opacity:.7;
+                                opacity:.58;
                             ">
-                                Precisa da sua decisão
+                                Atendimento
+                            </div>
+
+                            <div style="
+                                font-family:Georgia, 'Times New Roman', serif;
+                                font-size:22px;
+                                margin-top:5px;
+                            ">
+                                Comunicações para aprovar
                             </div>
 
                             <div
                                 id="iaCentralDecisoesResumo"
                                 style="
-                                    margin-top:5px;
-                                    font-size:14px;
+                                    margin-top:7px;
+                                    font-size:13px;
+                                    opacity:.72;
                                 "
                             ></div>
                         </div>
@@ -1139,23 +1212,27 @@
                 </div>
 
                 <div
-                    id="iaAcoesSugeridas"
+                    id="iaEmpresarialResposta"
+                    class="card"
                     style="
+                        margin-top:22px;
                         display:none;
-                        margin-top:20px;
+                        white-space:pre-wrap;
+                        line-height:1.72;
+                        padding:26px;
+                        font-size:15px;
+                        border:1px solid rgba(255,255,255,.10);
                     "
                 ></div>
 
                 <div
-                    id="iaEmpresarialResposta"
-                    class="card"
+                    id="iaAcoesSugeridas"
                     style="
-                        margin-top:20px;
                         display:none;
-                        white-space:pre-wrap;
-                        line-height:1.65;
+                        margin-top:22px;
                     "
                 ></div>
+
             </section>
 
         </section>
@@ -3299,7 +3376,7 @@
                 iaCentralDecisoes.style.display = "block";
 
                 iaCentralDecisoesResumo.textContent =
-                    "Buscando decisões...";
+                    "Buscando comunicações...";
 
                 iaListaDecisoes.innerHTML = "";
 
@@ -3322,7 +3399,7 @@
                     if (!response.ok) {
                         throw new Error(
                             data.error ||
-                            "Não foi possível carregar as decisões."
+                            "Não foi possível carregar as comunicações."
                         );
                     }
 
@@ -3337,7 +3414,7 @@
 
                     if (!itens.length) {
                         iaCentralDecisoesResumo.textContent =
-                            "Nada esperando sua decisão.";
+                            "Nenhuma comunicação aguardando aprovação.";
 
                         iaListaDecisoes.innerHTML = `
                             <div class="subtitle">
@@ -3351,8 +3428,8 @@
 
                     iaCentralDecisoesResumo.textContent =
                         itens.length === 1
-                            ? "1 decisão aguardando você."
-                            : `${itens.length} decisões aguardando você.`;
+                            ? "1 resposta aguardando sua aprovação."
+                            : `${itens.length} respostas aguardando sua aprovação.`;
 
                     iaListaDecisoes.innerHTML =
                         itens.map(item => {
@@ -3463,7 +3540,7 @@
                                             font-size:11px;
                                             opacity:.65;
                                         ">
-                                            Aguardando decisão
+                                            Aguardando aprovação
                                         </span>
                                     </div>
 
