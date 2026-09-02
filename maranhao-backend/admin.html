@@ -197,19 +197,19 @@
 
         <div class="eyebrow">Maranhão Cordial</div>
 
-        <h1>Administração</h1>
+        <h1>IA Empresarial</h1>
 
         <p class="subtitle">
-            Área reservada para acompanhamento operacional.
+            Sua central de decisão, acompanhamento e ação da Maranhão Cordial.
         </p>
 
         <nav class="admin-tabs" id="adminTabs">
-            <button class="admin-tab active" data-tab="visao-geral">Visão Geral</button>
+            <button class="admin-tab" data-tab="visao-geral">Visão Geral</button>
             <button class="admin-tab" data-tab="pedidos">Pedidos</button>
             <button class="admin-tab" data-tab="sac">SAC</button>
             <button class="admin-tab" data-tab="b2b">B2B</button>
             <button class="admin-tab" data-tab="degustacoes">Degustações</button>
-            <button class="admin-tab" data-tab="ia-empresarial">IA Empresarial</button>
+            <button class="admin-tab active" data-tab="ia-empresarial">IA Empresarial</button>
             <button class="admin-tab" data-tab="documentos">Documentos</button>
             <button class="admin-tab" data-tab="acoes">Ações</button>
             <button class="admin-tab" data-tab="crm">CRM</button>
@@ -243,7 +243,7 @@
             class="admin-content"
         >
 
-            <section class="tab-panel active" data-panel="visao-geral">
+            <section class="tab-panel" data-panel="visao-geral">
             <div class="summary">
 
                 <div class="card">
@@ -1005,7 +1005,7 @@
             </section>
 
 
-            <section class="tab-panel" data-panel="ia-empresarial">
+            <section class="tab-panel active" data-panel="ia-empresarial">
 
                 <div style="
                     display:flex;
@@ -1026,14 +1026,14 @@
                             margin:0 0 10px;
                             max-width:720px;
                         ">
-                            Central de inteligência da Maranhão Cordial
+                            O que precisa da sua atenção hoje?
                         </h2>
 
                         <p class="subtitle" style="
                             max-width:760px;
                             margin:0;
                         ">
-                            Decisão, contexto e ação empresarial em um único lugar.
+                            Veja o que mudou, tome decisões e comande a empresa em um único lugar.
                         </p>
                     </div>
 
@@ -1045,6 +1045,36 @@
                         padding-bottom:4px;
                     ">
                         Direção privada
+                    </div>
+                </div>
+
+                <div
+                    id="iaResumoExecutivo"
+                    style="
+                        display:grid;
+                        grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+                        gap:12px;
+                        margin-bottom:22px;
+                    "
+                >
+                    <div class="card">
+                        <small>Precisa da sua decisão</small>
+                        <strong id="iaResumoDecisoes">—</strong>
+                    </div>
+
+                    <div class="card">
+                        <small>Leads ativos</small>
+                        <strong id="iaResumoLeads">—</strong>
+                    </div>
+
+                    <div class="card">
+                        <small>Ações prioritárias</small>
+                        <strong id="iaResumoAcoes">—</strong>
+                    </div>
+
+                    <div class="card">
+                        <small>Atendimentos</small>
+                        <strong id="iaResumoAtendimentos">—</strong>
                     </div>
                 </div>
 
@@ -1064,13 +1094,13 @@
                         opacity:.65;
                         margin-bottom:12px;
                     ">
-                        Consulte a empresa
+                        Pergunte ou mande a IA fazer
                     </div>
 
                     <textarea
                         id="iaEmpresarialPergunta"
                         rows="5"
-                        placeholder="Ex.: Entre participar desta feira e investir em imprensa, o que aumenta mais o valor estratégico da empresa agora?"
+                        placeholder="Ex.: O que precisa da minha atenção hoje? Quais ações estão atrasadas? Como estão os leads? Prepare uma resposta para um cliente..."
                         style="
                             width:100%;
                             box-sizing:border-box;
@@ -1124,7 +1154,7 @@
                                     padding-right:22px;
                                 "
                             >
-                                Analisar
+                                Enviar
                             </button>
 
                             <span
@@ -1327,6 +1357,18 @@
 
             const iaAcoesSugeridas =
                 document.getElementById("iaAcoesSugeridas");
+
+            const iaResumoDecisoes =
+                document.getElementById("iaResumoDecisoes");
+
+            const iaResumoLeads =
+                document.getElementById("iaResumoLeads");
+
+            const iaResumoAcoes =
+                document.getElementById("iaResumoAcoes");
+
+            const iaResumoAtendimentos =
+                document.getElementById("iaResumoAtendimentos");
 
             let adminKeyAtual = "";
 
@@ -1533,6 +1575,11 @@
 
                     totalAtendimentos.textContent =
                         atendimentos.length;
+
+                    if (iaResumoAtendimentos) {
+                        iaResumoAtendimentos.textContent =
+                            atendimentos.length;
+                    }
 
                     const responseB2B = await fetch(
                         "https://maranhao-cordial-api.onrender.com/api/admin/b2b",
@@ -2289,6 +2336,11 @@
                     ).textContent =
                         leads.length;
 
+                    if (iaResumoLeads) {
+                        iaResumoLeads.textContent =
+                            leads.length;
+                    }
+
                     document.getElementById(
                         "crmMetricaQualificacao"
                     ).textContent =
@@ -2930,6 +2982,33 @@
                     const acoes =
                         data.acoes || [];
 
+                    const acoesPrioritarias =
+                        acoes.filter((acao) => {
+                            const prioridade =
+                                String(
+                                    acao.prioridade || ""
+                                ).toLowerCase();
+
+                            const status =
+                                String(
+                                    acao.status || ""
+                                ).toLowerCase();
+
+                            return (
+                                (
+                                    prioridade === "alta" ||
+                                    prioridade === "critica"
+                                ) &&
+                                status !== "concluida" &&
+                                status !== "cancelada"
+                            );
+                        });
+
+                    if (iaResumoAcoes) {
+                        iaResumoAcoes.textContent =
+                            acoesPrioritarias.length;
+                    }
+
                     if (!acoes.length) {
 
                         acoesLista.innerHTML =
@@ -3413,6 +3492,11 @@
                         );
 
                     if (!itens.length) {
+
+                        if (iaResumoDecisoes) {
+                            iaResumoDecisoes.textContent = "0";
+                        }
+
                         iaCentralDecisoesResumo.textContent =
                             "Nenhuma comunicação aguardando aprovação.";
 
@@ -3424,6 +3508,11 @@
                         `;
 
                         return;
+                    }
+
+                    if (iaResumoDecisoes) {
+                        iaResumoDecisoes.textContent =
+                            itens.length;
                     }
 
                     iaCentralDecisoesResumo.textContent =
