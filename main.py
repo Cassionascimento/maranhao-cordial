@@ -858,9 +858,15 @@ def registrar_evento_empresarial(
             conn.close()
 
 
-def buscar_eventos_pendentes_para_ia(limite=20):
+def buscar_eventos_pendentes_para_ia(
+    limite=20,
+    evento_especifico_id=None
+):
     """
     Busca eventos empresariais ainda não analisados pela IA.
+
+    Se evento_especifico_id for informado,
+    busca somente aquele evento.
 
     Esta função apenas lê os eventos.
     Não marca como analisado e não executa ações.
@@ -872,38 +878,65 @@ def buscar_eventos_pendentes_para_ia(limite=20):
         with conn.cursor(
             cursor_factory=RealDictCursor
         ) as cur:
-            cur.execute(
-                """
-                SELECT
-                    id,
-                    fonte,
-                    tipo,
-                    descricao,
-                    external_id,
-                    payload_json,
-                    importancia,
-                    criado_em,
-                    analisado,
-                    notificado
-                FROM eventos_empresariais
-                WHERE analisado = FALSE
-                  AND tipo NOT IN (
-                      'snapshot_ga4'
-                  )
-                ORDER BY
-                    CASE importancia
-                        WHEN 'critica' THEN 1
-                        WHEN 'alta' THEN 2
-                        WHEN 'normal' THEN 3
-                        WHEN 'media' THEN 4
-                        WHEN 'baixa' THEN 5
-                        ELSE 6
-                    END,
-                    criado_em ASC
-                LIMIT %s
-                """,
-                (limite,)
-            )
+
+            if evento_especifico_id:
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        fonte,
+                        tipo,
+                        descricao,
+                        external_id,
+                        payload_json,
+                        importancia,
+                        criado_em,
+                        analisado,
+                        notificado
+                    FROM eventos_empresariais
+                    WHERE analisado = FALSE
+                      AND tipo NOT IN (
+                          'snapshot_ga4'
+                      )
+                      AND id = %s
+                    LIMIT 1
+                    """,
+                    (evento_especifico_id,)
+                )
+
+            else:
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        fonte,
+                        tipo,
+                        descricao,
+                        external_id,
+                        payload_json,
+                        importancia,
+                        criado_em,
+                        analisado,
+                        notificado
+                    FROM eventos_empresariais
+                    WHERE analisado = FALSE
+                      AND tipo NOT IN (
+                          'snapshot_ga4'
+                      )
+                    ORDER BY
+                        CASE importancia
+                            WHEN 'critica' THEN 1
+                            WHEN 'alta' THEN 2
+                            WHEN 'normal' THEN 3
+                            WHEN 'media' THEN 4
+                            WHEN 'baixa' THEN 5
+                            ELSE 6
+                        END,
+                        criado_em ASC
+                    LIMIT %s
+                    """,
+                    (limite,)
+                )
 
             eventos = cur.fetchall()
 
@@ -1257,7 +1290,8 @@ def marcar_evento_como_analisado(
 
 
 def processar_eventos_empresariais(
-    limite=10
+    limite=10,
+    evento_especifico_id=None
 ):
     """
     Processa eventos empresariais pendentes.
@@ -1270,7 +1304,8 @@ def processar_eventos_empresariais(
     """
 
     eventos = buscar_eventos_pendentes_para_ia(
-        limite=limite
+        limite=limite,
+        evento_especifico_id=evento_especifico_id
     )
 
     resumo = {
@@ -12411,6 +12446,50 @@ def parceiro_cadastrar_fabrica():
 
                 fabrica = cur.fetchone()
 
+        evento_cadastro_id = registrar_evento_empresarial(
+            fonte="cadastro_publico",
+            tipo="nova_fabrica_parceira",
+            descricao=(
+                f"Nova fábrica cadastrada: "
+                f"{nome} — {estado}. "
+                "Aguardando validação da direção."
+            ),
+            external_id=f"fabrica:{fabrica_id}",
+            payload={
+                "fabrica_id": fabrica_id,
+                "nome": nome,
+                "cidade": dados.get("cidade"),
+                "estado": estado,
+                "regiao": dados.get("regiao"),
+                "lote_minimo_unidades":
+                    dados.get("lote_minimo_unidades"),
+                "lote_minimo_litros":
+                    dados.get("lote_minimo_litros"),
+                "capacidade_maxima_unidades":
+                    dados.get("capacidade_maxima_unidades"),
+                "capacidade_maxima_litros":
+                    dados.get("capacidade_maxima_litros"),
+                "prazo_producao_dias":
+                    dados.get("prazo_producao_dias"),
+                "status": "pendente",
+                "disponivel_calculo_ia": False
+            },
+            importancia="alta"
+        )
+
+        if evento_cadastro_id:
+            try:
+                processar_eventos_empresariais(
+                    limite=1,
+                    evento_especifico_id=evento_cadastro_id
+                )
+            except Exception as erro_evento:
+                print(
+                    "ERRO PROCESSAMENTO EVENTO "
+                    "NOVA FÁBRICA:",
+                    repr(erro_evento)
+                )
+
         registrar_auditoria(
             categoria="industrial",
             acao="fabrica_cadastrada_externamente",
@@ -13133,6 +13212,56 @@ def parceiro_cadastrar_profissional():
                 ))
 
                 profissional = cur.fetchone()
+
+        evento_cadastro_id = registrar_evento_empresarial(
+            fonte="cadastro_publico",
+            tipo="novo_profissional_rede",
+            descricao=(
+                f"Novo profissional cadastrado: {nome}"
+                + (
+                    f" — {dados.get('cargo_funcao')}"
+                    if dados.get("cargo_funcao")
+                    else ""
+                )
+                + (
+                    f" — {dados.get('cidade')}/{estado}"
+                    if dados.get("cidade") and estado
+                    else ""
+                )
+                + ". Aguardando análise da direção."
+            ),
+            external_id=f"profissional:{profissional_id}",
+            payload={
+                "profissional_id": profissional_id,
+                "nome": nome,
+                "cidade": dados.get("cidade"),
+                "estado": estado or None,
+                "cargo_funcao":
+                    dados.get("cargo_funcao"),
+                "estabelecimento_nome":
+                    dados.get("estabelecimento_nome"),
+                "estabelecimento_tipo":
+                    dados.get("estabelecimento_tipo"),
+                "instagram":
+                    dados.get("instagram"),
+                "status": "mapeado",
+                "disponivel_ia": False
+            },
+            importancia="alta"
+        )
+
+        if evento_cadastro_id:
+            try:
+                processar_eventos_empresariais(
+                    limite=1,
+                    evento_especifico_id=evento_cadastro_id
+                )
+            except Exception as erro_evento:
+                print(
+                    "ERRO PROCESSAMENTO EVENTO "
+                    "NOVO PROFISSIONAL:",
+                    repr(erro_evento)
+                )
 
         return jsonify({
             "success": True,
