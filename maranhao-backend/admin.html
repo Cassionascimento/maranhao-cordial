@@ -1838,6 +1838,8 @@
 
                     adminKeyAtual = chave;
 
+                    carregarAnalytics();
+
                     status.textContent =
                         "Acesso autorizado.";
 
@@ -1868,8 +1870,6 @@
                     carregarProfissionaisWorkflow();
 
                     carregarAcoesEmpresariais();
-
-                    carregarAnalytics();
 
                     keyInput.value = "";
 
