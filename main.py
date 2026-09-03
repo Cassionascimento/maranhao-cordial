@@ -998,6 +998,24 @@ def analisar_evento_empresarial_com_ia(evento):
         default=str
     )
 
+    memoria_operacional = {
+        "contexto": "",
+        "total_memorias": 0,
+        "memorias_usadas": []
+    }
+
+    try:
+        memoria_operacional = (
+            carregar_memoria_decisoes_ia(
+                limite=20
+            )
+        )
+    except Exception as erro_memoria:
+        print(
+            "ERRO CARREGAR MEMÓRIA OPERACIONAL:",
+            repr(erro_memoria)
+        )
+
     resposta = openai_client.responses.create(
         model="gpt-5-mini",
 
@@ -1093,6 +1111,7 @@ def analisar_evento_empresarial_com_ia(evento):
             + HIERARQUIA_DECISAO_EMPRESARIAL
             + POLITICA_ACOES_SUGERIDAS_IA
             + POLITICA_LINGUAGEM_NATURAL_IA
+            + memoria_operacional["contexto"]
         ),
 
         input=(
@@ -1560,6 +1579,58 @@ def inicializar_banco():
                         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
+                """)
+
+                # ==========================================
+                # MEMÓRIA DE DECISÕES DA IA
+                # Aprendizado a partir das decisões humanas
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS memoria_decisoes_ia (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+                        acao_id UUID NOT NULL,
+                        evento_origem_id BIGINT,
+
+                        titulo_acao VARCHAR(220),
+                        descricao_acao TEXT,
+                        area VARCHAR(80),
+                        prioridade VARCHAR(30),
+
+                        decisao VARCHAR(30) NOT NULL,
+                        motivo_decisao TEXT,
+
+                        resultado TEXT,
+                        avaliacao_resultado VARCHAR(30),
+
+                        decidido_por VARCHAR(180)
+                            NOT NULL DEFAULT 'direcao',
+
+                        decidido_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS
+                    idx_memoria_decisoes_ia_acao
+                    ON memoria_decisoes_ia(acao_id)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_memoria_decisoes_ia_area
+                    ON memoria_decisoes_ia(area)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_memoria_decisoes_ia_decisao
+                    ON memoria_decisoes_ia(decisao)
                 """)
 
                 # ==========================================
@@ -17396,6 +17467,129 @@ def carregar_insights_para_ia(limite=50):
         conn.close()
 
 
+def carregar_memoria_decisoes_ia(
+    area=None,
+    limite=20
+):
+    """
+    Carrega histórico operacional de decisões humanas
+    para orientar novas análises da IA.
+
+    Esta memória é consultiva:
+    não autoriza ações e não substitui decisões estratégicas ativas.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                if area:
+                    cur.execute("""
+                        SELECT
+                            id,
+                            acao_id,
+                            evento_origem_id,
+                            titulo_acao,
+                            descricao_acao,
+                            area,
+                            prioridade,
+                            decisao,
+                            motivo_decisao,
+                            resultado,
+                            avaliacao_resultado,
+                            decidido_por,
+                            decidido_em
+                        FROM memoria_decisoes_ia
+                        WHERE area = %s
+                        ORDER BY decidido_em DESC
+                        LIMIT %s
+                    """, (
+                        area,
+                        limite
+                    ))
+
+                else:
+                    cur.execute("""
+                        SELECT
+                            id,
+                            acao_id,
+                            evento_origem_id,
+                            titulo_acao,
+                            descricao_acao,
+                            area,
+                            prioridade,
+                            decisao,
+                            motivo_decisao,
+                            resultado,
+                            avaliacao_resultado,
+                            decidido_por,
+                            decidido_em
+                        FROM memoria_decisoes_ia
+                        ORDER BY decidido_em DESC
+                        LIMIT %s
+                    """, (
+                        limite,
+                    ))
+
+                memorias = cur.fetchall()
+
+        partes = []
+        usadas = []
+
+        for memoria in memorias:
+
+            partes.append(
+                "\n=== DECISÃO OPERACIONAL ANTERIOR ===\n"
+                f"Ação: {memoria['titulo_acao'] or 'não informada'}\n"
+                f"Área: {memoria['area'] or 'não informada'}\n"
+                f"Prioridade sugerida: "
+                f"{memoria['prioridade'] or 'não informada'}\n"
+                f"Decisão humana: {memoria['decisao']}\n"
+                f"Motivo: "
+                f"{memoria['motivo_decisao'] or 'não informado'}\n"
+                f"Resultado: "
+                f"{memoria['resultado'] or 'ainda não informado'}\n"
+                f"Avaliação do resultado: "
+                f"{memoria['avaliacao_resultado'] or 'não informada'}\n"
+                f"Data da decisão: {memoria['decidido_em']}\n"
+            )
+
+            usadas.append({
+                "id": str(memoria["id"]),
+                "acao_id": str(memoria["acao_id"]),
+                "area": memoria["area"],
+                "decisao": memoria["decisao"]
+            })
+
+        contexto = ""
+
+        if partes:
+            contexto = (
+                "\n\nMEMÓRIA OPERACIONAL DE DECISÕES HUMANAS:\n"
+                "Use o histórico abaixo como aprendizado prático sobre "
+                "preferências e decisões anteriores da direção. "
+                "Ele é apenas evidência contextual, não uma autorização. "
+                "Dê mais peso a padrões repetidos e decisões recentes. "
+                "Não copie automaticamente uma decisão passada se o novo "
+                "contexto for diferente. Decisões empresariais estratégicas "
+                "ativas têm prioridade sobre esta memória operacional.\n"
+                + "".join(partes)
+            )
+
+        return {
+            "contexto": contexto,
+            "total_memorias": len(usadas),
+            "memorias_usadas": usadas
+        }
+
+    finally:
+        conn.close()
+
+
 def carregar_decisoes_para_ia(limite=30):
     conn = get_db_connection()
 
@@ -22444,6 +22638,100 @@ def criar_acao_empresarial(
         conn.close()
 
 
+def registrar_memoria_decisao_ia(
+    acao_id,
+    decisao,
+    motivo_decisao=None,
+    decidido_por="direcao"
+):
+    """
+    Registra a decisão humana tomada sobre uma ação sugerida pela IA.
+
+    A memória é idempotente por acao_id.
+    """
+
+    decisao = str(decisao or "").strip().lower()
+
+    if decisao not in {"aprovada", "recusada"}:
+        raise ValueError(
+            "decisao deve ser 'aprovada' ou 'recusada'"
+        )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        evento_origem_id,
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        resultado
+                    FROM acoes_empresariais
+                    WHERE id = %s
+                    LIMIT 1
+                """, (acao_id,))
+
+                acao = cur.fetchone()
+
+                if not acao:
+                    raise ValueError(
+                        f"Ação empresarial não encontrada: {acao_id}"
+                    )
+
+                cur.execute("""
+                    INSERT INTO memoria_decisoes_ia (
+                        acao_id,
+                        evento_origem_id,
+                        titulo_acao,
+                        descricao_acao,
+                        area,
+                        prioridade,
+                        decisao,
+                        motivo_decisao,
+                        resultado,
+                        decidido_por
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s
+                    )
+                    ON CONFLICT (acao_id)
+                    DO UPDATE SET
+                        decisao = EXCLUDED.decisao,
+                        motivo_decisao = EXCLUDED.motivo_decisao,
+                        resultado = EXCLUDED.resultado,
+                        decidido_por = EXCLUDED.decidido_por,
+                        atualizado_em = NOW()
+                    RETURNING id
+                """, (
+                    acao["id"],
+                    acao["evento_origem_id"],
+                    acao["titulo"],
+                    acao["descricao"],
+                    acao["area"],
+                    acao["prioridade"],
+                    decisao,
+                    motivo_decisao,
+                    acao["resultado"],
+                    decidido_por
+                ))
+
+                memoria = cur.fetchone()
+
+        return str(memoria["id"])
+
+    finally:
+        conn.close()
+
+
 def listar_acoes_empresariais(
     status="aguardando_aprovacao"
 ):
@@ -22795,6 +23083,27 @@ def api_aprovar_acao_empresarial(acao_id):
         finally:
             conn.close()
 
+        dados_decisao = request.get_json(
+            silent=True
+        ) or {}
+
+        try:
+            registrar_memoria_decisao_ia(
+                acao_id=acao_id,
+                decisao="aprovada",
+                motivo_decisao=(
+                    dados_decisao.get(
+                        "motivo_decisao"
+                    )
+                ),
+                decidido_por="direcao"
+            )
+        except Exception as erro_memoria:
+            print(
+                "ERRO REGISTRAR MEMÓRIA DE APROVAÇÃO:",
+                repr(erro_memoria)
+            )
+
         return jsonify({
             "success": True,
             "acao_id": acao_id,
@@ -22863,6 +23172,27 @@ def api_recusar_acao_empresarial(acao_id):
             acao_id,
             "recusada"
         )
+
+        dados_decisao = request.get_json(
+            silent=True
+        ) or {}
+
+        try:
+            registrar_memoria_decisao_ia(
+                acao_id=acao_id,
+                decisao="recusada",
+                motivo_decisao=(
+                    dados_decisao.get(
+                        "motivo_decisao"
+                    )
+                ),
+                decidido_por="direcao"
+            )
+        except Exception as erro_memoria:
+            print(
+                "ERRO REGISTRAR MEMÓRIA DE RECUSA:",
+                repr(erro_memoria)
+            )
 
         return jsonify({
             "success": True,
