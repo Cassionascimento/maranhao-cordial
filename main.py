@@ -5,6 +5,8 @@ from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from flask_socketio import SocketIO, emit
 import os
+import threading
+import time
 import base64
 from email.message import EmailMessage
 import json
@@ -18337,6 +18339,37 @@ def enviar_briefing_executivo_email(forcar=False):
 
 
 # =====================================================
+# IA EMPRESARIAL — AGENDADOR LEVE DE BRIEFING
+# =====================================================
+
+def executar_agendador_briefing_executivo():
+    intervalo_segundos = 6 * 60 * 60
+
+    while True:
+        try:
+            resultado = enviar_briefing_executivo_email(
+                forcar=False
+            )
+
+            print(
+                "AGENDADOR BRIEFING EXECUTIVO:",
+                {
+                    "success": resultado.get("success"),
+                    "enviado": resultado.get("enviado"),
+                    "motivo": resultado.get("motivo")
+                }
+            )
+
+        except Exception as erro:
+            print(
+                "ERRO AGENDADOR BRIEFING EXECUTIVO:",
+                repr(erro)
+            )
+
+        time.sleep(intervalo_segundos)
+
+
+# =====================================================
 # IA EMPRESARIAL — DISPARAR BRIEFING EXECUTIVO
 # =====================================================
 
@@ -23783,3 +23816,38 @@ except Exception as erro:
         erro
     )
 
+
+# =====================================================
+# IA EMPRESARIAL — INICIALIZAÇÃO DO BRIEFING AUTOMÁTICO
+# =====================================================
+
+def iniciar_briefing_executivo_automatico():
+    if os.getenv("RENDER_SERVICE_TYPE") != "web":
+        return
+
+    if not EMAIL_BRIEFING_DIRECAO:
+        print(
+            "BRIEFING AUTOMÁTICO NÃO INICIADO: "
+            "destinatário não configurado."
+        )
+        return
+
+    thread = threading.Thread(
+        target=executar_agendador_briefing_executivo,
+        name="briefing-executivo-ia",
+        daemon=True
+    )
+    thread.start()
+
+    print(
+        "✓ BRIEFING EXECUTIVO AUTOMÁTICO INICIALIZADO"
+    )
+
+
+try:
+    iniciar_briefing_executivo_automatico()
+except Exception as erro:
+    print(
+        "ERRO AO INICIALIZAR BRIEFING AUTOMÁTICO:",
+        repr(erro)
+    )
