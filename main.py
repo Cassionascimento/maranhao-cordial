@@ -6129,11 +6129,38 @@ def admin_analytics():
             paginas_mais_acessadas,
         )
 
+        resumo = resumo_geral(7)
+        origens = origens_trafego(30)
+        paginas = paginas_mais_acessadas(30)
+
+        traducao_executiva = None
+
+        try:
+            resultado_ia = analisar_google_analytics_empresarial(
+                (
+                    "Traduza estes dados para a direção em português simples. "
+                    "Explique o que os números significam para a empresa. "
+                    "Destaque crescimento, queda, recorrência de visitantes, "
+                    "qualidade da navegação e origem do tráfego quando os dados "
+                    "permitirem. Não repita apenas os números. "
+                    "Termine dizendo se há alguma ação prática recomendada."
+                )
+            )
+
+            traducao_executiva = resultado_ia.get("resposta")
+
+        except Exception as erro_ia:
+            print(
+                "ERRO TRADUÇÃO EXECUTIVA ANALYTICS:",
+                erro_ia
+            )
+
         return jsonify({
             "success": True,
-            "resumo_7_dias": resumo_geral(7),
-            "origens_30_dias": origens_trafego(30),
-            "paginas_30_dias": paginas_mais_acessadas(30),
+            "resumo_7_dias": resumo,
+            "origens_30_dias": origens,
+            "paginas_30_dias": paginas,
+            "traducao_executiva": traducao_executiva,
         }), 200
 
     except Exception as erro:
