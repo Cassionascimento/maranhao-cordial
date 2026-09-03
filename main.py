@@ -1608,6 +1608,7 @@ def inicializar_banco():
 
                         resultado TEXT,
                         avaliacao_resultado VARCHAR(30),
+                        aprendizado_resultado TEXT,
 
                         decidido_por VARCHAR(180)
                             NOT NULL DEFAULT 'direcao',
@@ -1618,6 +1619,11 @@ def inicializar_banco():
                         atualizado_em TIMESTAMPTZ
                             NOT NULL DEFAULT NOW()
                     )
+                """)
+
+                cur.execute("""
+                    ALTER TABLE memoria_decisoes_ia
+                    ADD COLUMN IF NOT EXISTS aprendizado_resultado TEXT
                 """)
 
                 cur.execute("""
@@ -3320,7 +3326,32 @@ def executar_acao_controlada(acao):
                 "Tipo de execução não autorizado."
         }
 
-    return executor(acao)
+    resultado = executor(acao)
+
+    if resultado.get("success"):
+        try:
+            memoria = sincronizar_resultado_acao_com_memoria(
+                acao.get("id")
+            )
+
+            if memoria.get("memoria_atualizada"):
+                avaliacao = avaliar_resultado_acao_com_ia(
+                    acao.get("id")
+                )
+
+                if not avaliacao.get("success"):
+                    print(
+                        "AVALIAÇÃO RESULTADO NÃO REALIZADA:",
+                        avaliacao.get("motivo")
+                    )
+
+        except Exception as erro_memoria:
+            print(
+                "ERRO PROCESSAR RESULTADO COM MEMÓRIA:",
+                repr(erro_memoria)
+            )
+
+    return resultado
 
 
 def executar_mensagem_instagram(acao):
@@ -17551,6 +17582,7 @@ def carregar_memoria_decisoes_ia(
                             motivo_decisao,
                             resultado,
                             avaliacao_resultado,
+                            aprendizado_resultado,
                             decidido_por,
                             decidido_em
                         FROM memoria_decisoes_ia
@@ -17576,6 +17608,7 @@ def carregar_memoria_decisoes_ia(
                             motivo_decisao,
                             resultado,
                             avaliacao_resultado,
+                            aprendizado_resultado,
                             decidido_por,
                             decidido_em
                         FROM memoria_decisoes_ia
@@ -17605,6 +17638,8 @@ def carregar_memoria_decisoes_ia(
                 f"{memoria['resultado'] or 'ainda não informado'}\n"
                 f"Avaliação do resultado: "
                 f"{memoria['avaliacao_resultado'] or 'não informada'}\n"
+                f"Aprendizado obtido: "
+                f"{memoria['aprendizado_resultado'] or 'não informado'}\n"
                 f"Data da decisão: {memoria['decidido_em']}\n"
             )
 
@@ -23333,6 +23368,263 @@ def registrar_memoria_decisao_ia(
         conn.close()
 
 
+
+def sincronizar_resultado_acao_com_memoria(acao_id):
+    """
+    Sincroniza o resultado real de uma ação executada
+    com a memória de decisões da IA.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        resultado
+                    FROM acoes_empresariais
+                    WHERE id = %s
+                    LIMIT 1
+                """, (acao_id,))
+
+                acao = cur.fetchone()
+
+                if not acao:
+                    raise ValueError(
+                        f"Ação empresarial não encontrada: {acao_id}"
+                    )
+
+                cur.execute("""
+                    UPDATE memoria_decisoes_ia
+                    SET
+                        resultado = %s,
+                        atualizado_em = NOW()
+                    WHERE acao_id = %s
+                    RETURNING id
+                """, (
+                    acao["resultado"],
+                    acao["id"]
+                ))
+
+                memoria = cur.fetchone()
+
+        return {
+            "success": True,
+            "memoria_atualizada": bool(memoria)
+        }
+
+    finally:
+        conn.close()
+
+
+
+def avaliar_resultado_acao_com_ia(acao_id):
+    """
+    Avalia o resultado real de uma ação executada
+    e transforma o resultado em aprendizado operacional.
+
+    A avaliação é consultiva:
+    não altera decisões estratégicas e não executa ações.
+    """
+
+    if not openai_client:
+        raise RuntimeError("OpenAI indisponível.")
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+
+            cur.execute("""
+                SELECT
+                    id,
+                    titulo,
+                    descricao,
+                    area,
+                    prioridade,
+                    status,
+                    estado_execucao,
+                    resultado,
+                    ultimo_erro,
+                    executado_em
+                FROM acoes_empresariais
+                WHERE id = %s
+                LIMIT 1
+            """, (acao_id,))
+
+            acao = cur.fetchone()
+
+            if not acao:
+                raise ValueError(
+                    f"Ação empresarial não encontrada: {acao_id}"
+                )
+
+            cur.execute("""
+                SELECT
+                    id,
+                    decisao,
+                    motivo_decisao
+                FROM memoria_decisoes_ia
+                WHERE acao_id = %s
+                LIMIT 1
+            """, (acao_id,))
+
+            memoria = cur.fetchone()
+
+            if not memoria:
+                return {
+                    "success": False,
+                    "avaliada": False,
+                    "motivo": (
+                        "Ação ainda não possui decisão humana "
+                        "registrada na memória."
+                    )
+                }
+
+            if not acao["resultado"]:
+                return {
+                    "success": False,
+                    "avaliada": False,
+                    "motivo": (
+                        "Ação ainda não possui resultado real."
+                    )
+                }
+
+    finally:
+        conn.close()
+
+    contexto = json.dumps(
+        {
+            "acao_id": str(acao["id"]),
+            "titulo": acao["titulo"],
+            "descricao": acao["descricao"],
+            "area": acao["area"],
+            "prioridade": acao["prioridade"],
+            "status": acao["status"],
+            "estado_execucao": acao["estado_execucao"],
+            "resultado": acao["resultado"],
+            "decisao_humana": memoria["decisao"],
+            "motivo_decisao": memoria["motivo_decisao"],
+            "executado_em": str(
+                acao["executado_em"] or ""
+            )
+        },
+        ensure_ascii=False,
+        default=str
+    )
+
+    resposta = openai_client.responses.create(
+        model="gpt-5-mini",
+
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "avaliacao_resultado_acao",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "avaliacao_resultado": {
+                            "type": "string",
+                            "enum": [
+                                "positivo",
+                                "neutro",
+                                "negativo",
+                                "inconclusivo"
+                            ]
+                        },
+                        "aprendizado_resultado": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "avaliacao_resultado",
+                        "aprendizado_resultado"
+                    ],
+                    "additionalProperties": False
+                }
+            }
+        },
+
+        instructions=(
+            "Você é a inteligência empresarial privada "
+            "da Maranhão Cordial. "
+
+            "Avalie exclusivamente o resultado real de "
+            "uma ação empresarial já executada. "
+
+            "Não invente fatos. "
+            "Não transforme ausência de informação em sucesso. "
+            "Se as evidências forem insuficientes, use "
+            "'inconclusivo'. "
+
+            "O aprendizado deve ser curto, objetivo e útil "
+            "para orientar decisões futuras. "
+
+            "Não autorize novas ações. "
+            "Não altere objetivos estratégicos. "
+            "Não faça recomendações fora do resultado analisado."
+        ),
+
+        input=(
+            "AÇÃO EMPRESARIAL E RESULTADO REAL:\n"
+            + contexto
+        )
+    )
+
+    texto = (
+        resposta.output_text
+        or ""
+    ).strip()
+
+    avaliacao = json.loads(texto)
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    UPDATE memoria_decisoes_ia
+                    SET
+                        resultado = %s,
+                        avaliacao_resultado = %s,
+                        aprendizado_resultado = %s,
+                        atualizado_em = NOW()
+                    WHERE acao_id = %s
+                    RETURNING id
+                """, (
+                    acao["resultado"],
+                    avaliacao["avaliacao_resultado"],
+                    avaliacao["aprendizado_resultado"],
+                    acao_id
+                ))
+
+                atualizada = cur.fetchone()
+
+        return {
+            "success": True,
+            "avaliada": bool(atualizada),
+            "avaliacao_resultado":
+                avaliacao["avaliacao_resultado"],
+            "aprendizado_resultado":
+                avaliacao["aprendizado_resultado"]
+        }
+
+    finally:
+        conn.close()
+
+
 def listar_acoes_empresariais(
     status="aguardando_aprovacao"
 ):
@@ -23356,7 +23648,15 @@ def listar_acoes_empresariais(
                     aprovado_em,
                     executado_em,
                     resultado,
-                    erro
+                    erro,
+                    modo_execucao,
+                    estado_execucao,
+                    executor,
+                    tentativas_execucao,
+                    tipo_execucao,
+                    autorizado_em,
+                    autorizado_por,
+                    ultimo_erro
                 FROM acoes_empresariais
                 WHERE
                     (%s = 'todas' OR status = %s)
@@ -23410,7 +23710,15 @@ def obter_acao_empresarial(acao_id):
                     recusado_em,
                     executado_em,
                     resultado,
-                    erro
+                    erro,
+                    modo_execucao,
+                    estado_execucao,
+                    executor,
+                    tentativas_execucao,
+                    tipo_execucao,
+                    autorizado_em,
+                    autorizado_por,
+                    ultimo_erro
                 FROM acoes_empresariais
                 WHERE id = %s
             """, (acao_id,))
