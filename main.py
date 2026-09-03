@@ -6109,6 +6109,42 @@ def admin():
     return renderizar_html("admin.html")
 
 
+@app.route("/api/admin/analytics", methods=["GET"])
+def admin_analytics():
+    chave_recebida = request.headers.get("X-Admin-Key")
+
+    if (
+        not ADMIN_API_KEY
+        or chave_recebida != ADMIN_API_KEY
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        from analytics_service import (
+            resumo_geral,
+            origens_trafego,
+            paginas_mais_acessadas,
+        )
+
+        return jsonify({
+            "success": True,
+            "resumo_7_dias": resumo_geral(7),
+            "origens_30_dias": origens_trafego(30),
+            "paginas_30_dias": paginas_mais_acessadas(30),
+        }), 200
+
+    except Exception as erro:
+        print("ERRO ADMIN ANALYTICS:", erro)
+
+        return jsonify({
+            "success": False,
+            "error": "Não foi possível consultar o Google Analytics."
+        }), 500
+
+
 @app.route("/favicon.ico")
 def favicon():
     return "", 204

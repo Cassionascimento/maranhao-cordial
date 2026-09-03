@@ -189,6 +189,114 @@
             display: block;
         }
 
+
+        /* ===== IA EMPRESARIAL — REDESIGN 2026 ===== */
+
+        :root {
+            --bg: #090a09;
+            --panel: #101210;
+            --panel-soft: #141714;
+            --text: #f1efe8;
+            --muted: #8d938b;
+            --gold: #a8b8a4;
+            --mineral: #82977f;
+            --line: rgba(168,184,164,.14);
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 82% 4%, rgba(130,151,127,.08), transparent 28%),
+                var(--bg);
+        }
+
+        .admin-shell {
+            max-width: 1320px;
+            padding-top: 38px;
+        }
+
+        .card {
+            background: linear-gradient(145deg, rgba(20,23,20,.96), rgba(13,15,13,.96));
+            border: 1px solid rgba(255,255,255,.065);
+            border-radius: 14px;
+            box-shadow: 0 18px 50px rgba(0,0,0,.14);
+        }
+
+        [data-panel="ia-empresarial"] .card {
+            min-width: 0;
+        }
+
+        #iaResumoExecutivo .card {
+            min-height: 116px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        #iaResumoExecutivo .card small {
+            color: #8f968d;
+            letter-spacing: 1.35px;
+        }
+
+        #iaResumoExecutivo .card strong {
+            font-size: 34px;
+            color: #f3f1ea;
+        }
+
+        #iaEmpresarialPergunta {
+            transition: border-color .2s ease, background .2s ease;
+        }
+
+        #iaEmpresarialPergunta:focus {
+            border-color: rgba(168,184,164,.45) !important;
+            background: rgba(255,255,255,.025) !important;
+        }
+
+        #iaEmpresarialEnviar {
+            background: #d9ded5;
+            color: #111411;
+            border-color: #d9ded5;
+            border-radius: 8px;
+            width: auto;
+            font-weight: 600;
+        }
+
+        #iaEmpresarialMicrofone,
+        #iaAtualizarDecisoes {
+            width: auto;
+            border-radius: 8px;
+            color: #b7c4b3;
+            border-color: rgba(168,184,164,.24);
+        }
+
+        #iaCentralDecisoes {
+            border-left-color: var(--mineral) !important;
+        }
+
+        @media (max-width: 720px) {
+            .admin-shell {
+                padding: 26px 16px 60px;
+            }
+
+            h1 {
+                font-size: 32px;
+            }
+
+            .admin-tabs {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding-bottom: 8px;
+            }
+
+            .admin-tab {
+                flex: 0 0 auto;
+            }
+
+            #iaResumoExecutivo {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+        }
+
     </style>
 </head>
 
@@ -1078,6 +1186,18 @@
                     </div>
                 </div>
 
+                <div id="iaAnalyticsResumo" style="margin-bottom:22px;">
+                    <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;opacity:.55;margin-bottom:10px;">
+                        Google Analytics · últimos 7 dias
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+                        <div class="card"><small>Usuários ativos</small><strong id="iaGaUsuarios">—</strong></div>
+                        <div class="card"><small>Novos usuários</small><strong id="iaGaNovosUsuarios">—</strong></div>
+                        <div class="card"><small>Sessões</small><strong id="iaGaSessoes">—</strong></div>
+                        <div class="card"><small>Visualizações</small><strong id="iaGaVisualizacoes">—</strong></div>
+                    </div>
+                </div>
+
                 <div class="card" style="
                     padding:24px;
                     border:1px solid rgba(255,255,255,.10);
@@ -1749,6 +1869,8 @@
 
                     carregarAcoesEmpresariais();
 
+                    carregarAnalytics();
+
                     keyInput.value = "";
 
                 } catch (error) {
@@ -1785,6 +1907,58 @@
                     }
                 }
             );
+
+            async function carregarAnalytics() {
+
+                if (!adminKeyAtual) {
+                    return null;
+                }
+
+                try {
+                    const response = await fetch(
+                        "/api/admin/analytics",
+                        {
+                            headers: {
+                                "X-Admin-Key": adminKeyAtual
+                            },
+                            cache: "no-store"
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao carregar Google Analytics."
+                        );
+                    }
+
+                    const resumo = data.resumo_7_dias || {};
+
+                    document.getElementById("iaGaUsuarios").textContent =
+                        resumo.usuarios_ativos ?? "—";
+
+                    document.getElementById("iaGaNovosUsuarios").textContent =
+                        resumo.novos_usuarios ?? "—";
+
+                    document.getElementById("iaGaSessoes").textContent =
+                        resumo.sessoes ?? "—";
+
+                    document.getElementById("iaGaVisualizacoes").textContent =
+                        resumo.visualizacoes ?? "—";
+
+                    return data;
+
+                } catch (error) {
+                    console.error(
+                        "Erro Google Analytics:",
+                        error
+                    );
+                    return null;
+                }
+            }
+
 
             async function carregarDocumentos() {
 
