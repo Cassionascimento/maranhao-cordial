@@ -8,6 +8,7 @@ import os
 import base64
 from email.message import EmailMessage
 import json
+from datetime import datetime, timezone, timedelta
 import hashlib
 import io
 import uuid
@@ -28,6 +29,8 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+EMAIL_BRIEFING_DIRECAO = os.getenv("EMAIL_BRIEFING_DIRECAO")
 
 CONTEXTO_MARANHAO = """
 IDENTIDADE CENTRAL DA MARANHÃO CORDIAL
@@ -1631,6 +1634,51 @@ def inicializar_banco():
                     CREATE INDEX IF NOT EXISTS
                     idx_memoria_decisoes_ia_decisao
                     ON memoria_decisoes_ia(decisao)
+                """)
+
+                # ==========================================
+                # BRIEFINGS EXECUTIVOS DA IA
+                # Histórico e controle de envio à direção
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS briefings_executivos_ia (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+                        destinatario VARCHAR(320) NOT NULL,
+                        situacao_geral VARCHAR(30),
+
+                        assunto TEXT,
+                        corpo TEXT,
+
+                        status VARCHAR(30)
+                            NOT NULL DEFAULT 'gerado',
+
+                        gmail_id VARCHAR(255),
+                        gmail_thread_id VARCHAR(255),
+
+                        gerado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        enviado_em TIMESTAMPTZ,
+
+                        erro TEXT,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_briefings_executivos_enviado_em
+                    ON briefings_executivos_ia(enviado_em DESC)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_briefings_executivos_status
+                    ON briefings_executivos_ia(status)
                 """)
 
                 # ==========================================
@@ -17808,6 +17856,526 @@ def obter_resumo_empresarial_postgres():
 
     finally:
         conn.close()
+
+
+
+# =====================================================
+# IA EMPRESARIAL — CONTEXTO DO BRIEFING EXECUTIVO
+# =====================================================
+
+def carregar_contexto_briefing_executivo():
+    """
+    Consolida o estado atual da empresa para geração
+    do briefing executivo da direção.
+
+    Esta função apenas lê e organiza informações.
+    Não envia e-mail e não executa ações.
+    """
+
+    resumo = obter_resumo_empresarial_postgres()
+    evidencias = carregar_evidencias_para_ia()
+    decisoes = carregar_decisoes_para_ia(limite=20)
+    acoes = carregar_acoes_para_ia(limite=30)
+    insights = carregar_insights_para_ia(limite=20)
+    memoria = carregar_memoria_decisoes_ia(limite=20)
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        titulo,
+                        descricao,
+                        area,
+                        prioridade,
+                        status,
+                        criado_em
+                    FROM acoes_empresariais
+                    WHERE status = 'aguardando_aprovacao'
+                    ORDER BY
+                        CASE prioridade
+                            WHEN 'critica' THEN 1
+                            WHEN 'alta' THEN 2
+                            WHEN 'media' THEN 3
+                            WHEN 'baixa' THEN 4
+                            ELSE 5
+                        END,
+                        criado_em ASC
+                    LIMIT 20
+                """)
+
+                pendentes = [
+                    dict(item)
+                    for item in cur.fetchall()
+                ]
+
+                cur.execute("""
+                    SELECT COUNT(*)
+                    FROM acoes_empresariais
+                    WHERE status = 'aguardando_aprovacao'
+                """)
+
+                total_pendentes = cur.fetchone()["count"]
+
+                cur.execute("""
+                    SELECT COUNT(*)
+                    FROM acoes_empresariais
+                    WHERE status = 'aguardando_aprovacao'
+                      AND prioridade = 'critica'
+                """)
+
+                total_criticas = cur.fetchone()["count"]
+
+    finally:
+        conn.close()
+
+    contexto_textual = (
+        (evidencias.get("contexto") or "")
+        + (decisoes.get("contexto") or "")
+        + (acoes.get("contexto") or "")
+        + (insights.get("contexto") or "")
+        + (memoria.get("contexto") or "")
+    )
+
+    return {
+        "gerado_em": datetime.now(timezone.utc).isoformat(),
+        "resumo": resumo,
+        "total_acoes_pendentes": total_pendentes,
+        "total_acoes_criticas": total_criticas,
+        "acoes_pendentes": pendentes,
+        "contexto_textual": contexto_textual,
+        "total_memorias_decisao":
+            memoria.get("total_memorias", 0),
+        "total_decisoes_ativas":
+            decisoes.get("total_decisoes", 0)
+    }
+
+
+
+# =====================================================
+# IA EMPRESARIAL — GERAR BRIEFING EXECUTIVO
+# =====================================================
+
+def gerar_briefing_executivo_ia():
+    """
+    Gera um briefing executivo curto para a direção.
+
+    Não envia e-mail e não executa ações.
+    """
+
+    if not openai_client:
+        return {
+            "success": False,
+            "error": "OpenAI não configurada."
+        }
+
+    dados = carregar_contexto_briefing_executivo()
+
+    contexto_estruturado = json.dumps(
+        {
+            "gerado_em": dados["gerado_em"],
+            "resumo": dados["resumo"],
+            "total_acoes_pendentes":
+                dados["total_acoes_pendentes"],
+            "total_acoes_criticas":
+                dados["total_acoes_criticas"],
+            "acoes_pendentes":
+                dados["acoes_pendentes"]
+        },
+        ensure_ascii=False,
+        default=str
+    )
+
+    resposta = openai_client.responses.create(
+        model="gpt-5-mini",
+
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "briefing_executivo_empresarial",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "situacao_geral": {
+                            "type": "string",
+                            "enum": [
+                                "estavel",
+                                "atencao",
+                                "critica"
+                            ]
+                        },
+                        "resumo_executivo": {
+                            "type": "string"
+                        },
+                        "pontos_atencao": {
+                            "type": "array",
+                            "maxItems": 5,
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "mudancas_relevantes": {
+                            "type": "array",
+                            "maxItems": 5,
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "recomendacao_ia": {
+                            "type": "string"
+                        },
+                        "decisoes_pendentes": {
+                            "type": "array",
+                            "maxItems": 5,
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "sem_necessidade_acao": {
+                            "type": "array",
+                            "maxItems": 5,
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": [
+                        "situacao_geral",
+                        "resumo_executivo",
+                        "pontos_atencao",
+                        "mudancas_relevantes",
+                        "recomendacao_ia",
+                        "decisoes_pendentes",
+                        "sem_necessidade_acao"
+                    ],
+                    "additionalProperties": False
+                }
+            }
+        },
+
+        instructions=(
+            "Você é o assessor executivo privado da direção "
+            "da Maranhão Cordial. "
+
+            "Produza um briefing extremamente objetivo, útil "
+            "e fácil de ler em menos de dois minutos. "
+
+            "Priorize somente o que realmente merece atenção "
+            "da direção. Não sobrecarregue o usuário com "
+            "informações rotineiras. "
+
+            "Use exclusivamente as informações fornecidas. "
+            "Não invente vendas, receitas, clientes, problemas, "
+            "resultados, causas ou urgências. "
+
+            "Ausência de informação não significa problema. "
+            "Pendência não significa automaticamente risco. "
+
+            "Diferencie fatos, insights e recomendações. "
+            "Quando houver incerteza, preserve a incerteza. "
+
+            "Uma ação aguardando aprovação deve aparecer em "
+            "decisoes_pendentes apenas quando for relevante "
+            "para a direção. "
+
+            "Classifique situacao_geral como critica somente "
+            "quando houver evidência concreta de questão crítica. "
+
+            "Não execute nenhuma ação. "
+            "Não autorize pagamentos, contratos, preços, "
+            "descontos ou compromissos empresariais. "
+
+            + CONTEXTO_MARANHAO
+            + CONTEXTO_EMPRESARIAL_INTERNO
+            + HIERARQUIA_DECISAO_EMPRESARIAL
+            + POLITICA_LINGUAGEM_NATURAL_IA
+        ),
+
+        input=(
+            "DADOS ESTRUTURADOS DO ESTADO ATUAL:\n"
+            + contexto_estruturado
+            + "\n\nCONTEXTO EMPRESARIAL CONSOLIDADO:\n"
+            + dados["contexto_textual"]
+        )
+    )
+
+    texto_bruto = (
+        resposta.output_text or ""
+    ).strip()
+
+    if not texto_bruto:
+        return {
+            "success": False,
+            "error": "Briefing vazio."
+        }
+
+    try:
+        briefing = json.loads(texto_bruto)
+    except Exception as erro:
+        raise ValueError(
+            "A IA retornou briefing em formato inválido."
+        ) from erro
+
+    return {
+        "success": True,
+        "gerado_em": dados["gerado_em"],
+        "briefing": briefing,
+        "indicadores": dados["resumo"],
+        "total_acoes_pendentes":
+            dados["total_acoes_pendentes"],
+        "total_acoes_criticas":
+            dados["total_acoes_criticas"]
+    }
+
+
+
+# =====================================================
+# IA EMPRESARIAL — ENVIAR BRIEFING EXECUTIVO
+# =====================================================
+
+def enviar_briefing_executivo_email(forcar=False):
+    """
+    Gera e envia o briefing executivo para a direção.
+
+    Por padrão, impede novo envio quando já existe
+    briefing enviado com sucesso nos últimos 3 dias.
+    """
+
+    if not EMAIL_BRIEFING_DIRECAO:
+        return {
+            "success": False,
+            "error":
+                "EMAIL_BRIEFING_DIRECAO não configurado."
+        }
+
+    if not forcar:
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor(
+                    cursor_factory=RealDictCursor
+                ) as cur:
+                    cur.execute("""
+                        SELECT
+                            id,
+                            enviado_em
+                        FROM briefings_executivos_ia
+                        WHERE status = 'enviado'
+                          AND enviado_em IS NOT NULL
+                          AND enviado_em >= NOW() - INTERVAL '3 days'
+                        ORDER BY enviado_em DESC
+                        LIMIT 1
+                    """)
+
+                    ultimo_envio = cur.fetchone()
+
+            if ultimo_envio:
+                return {
+                    "success": True,
+                    "enviado": False,
+                    "motivo":
+                        "Briefing já enviado nos últimos 3 dias.",
+                    "ultimo_envio":
+                        ultimo_envio["enviado_em"].isoformat()
+                }
+
+        finally:
+            conn.close()
+
+    resultado = gerar_briefing_executivo_ia()
+
+    if not resultado.get("success"):
+        return resultado
+
+    briefing = resultado.get("briefing") or {}
+    indicadores = resultado.get("indicadores") or {}
+
+    situacao = str(
+        briefing.get("situacao_geral") or "estavel"
+    ).strip().upper()
+
+    def formatar_lista(itens):
+        itens = itens or []
+
+        if not itens:
+            return "Nenhum ponto relevante identificado."
+
+        return "\n".join(
+            f"{indice}. {item}"
+            for indice, item in enumerate(
+                itens,
+                start=1
+            )
+        )
+
+    valor_pedidos = (
+        int(
+            indicadores.get(
+                "valor_pedidos_centavos",
+                0
+            ) or 0
+        ) / 100
+    )
+
+    corpo = (
+        "MARANHÃO CORDIAL — BRIEFING EXECUTIVO\n"
+        "=====================================\n\n"
+
+        f"SITUAÇÃO GERAL: {situacao}\n\n"
+
+        "RESUMO EXECUTIVO\n"
+        f"{briefing.get('resumo_executivo') or 'Sem resumo disponível.'}\n\n"
+
+        "O QUE MERECE SUA ATENÇÃO\n"
+        f"{formatar_lista(briefing.get('pontos_atencao'))}\n\n"
+
+        "MUDANÇAS RELEVANTES\n"
+        f"{formatar_lista(briefing.get('mudancas_relevantes'))}\n\n"
+
+        "RECOMENDAÇÃO DA IA\n"
+        f"{briefing.get('recomendacao_ia') or 'Nenhuma recomendação relevante.'}\n\n"
+
+        "DECISÕES QUE AGUARDAM VOCÊ\n"
+        f"{formatar_lista(briefing.get('decisoes_pendentes'))}\n\n"
+
+        "INDICADORES PRINCIPAIS\n"
+        f"Pedidos: {indicadores.get('total_pedidos', 0)}\n"
+        f"Valor registrado em pedidos: R$ {valor_pedidos:,.2f}\n"
+        f"Contatos B2B: {indicadores.get('total_b2b', 0)}\n"
+        f"Solicitações de degustação: {indicadores.get('total_degustacoes', 0)}\n"
+        f"Atendimentos SAC: {indicadores.get('total_atendimentos', 0)}\n"
+        f"Ações aguardando decisão: {resultado.get('total_acoes_pendentes', 0)}\n"
+        f"Ações críticas: {resultado.get('total_acoes_criticas', 0)}\n\n"
+
+        "SEM NECESSIDADE DE AÇÃO\n"
+        f"{formatar_lista(briefing.get('sem_necessidade_acao'))}\n\n"
+
+        "— Maranhão Cordial IA Empresarial\n"
+    )
+
+    assunto = (
+        f"Maranhão Cordial — Briefing Executivo — {situacao}"
+    )
+
+    envio = gmail_enviar_email(
+        EMAIL_BRIEFING_DIRECAO,
+        assunto,
+        corpo
+    )
+
+    sucesso_envio = bool(
+        envio.get("success")
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO briefings_executivos_ia (
+                        destinatario,
+                        situacao_geral,
+                        assunto,
+                        corpo,
+                        status,
+                        gmail_id,
+                        gmail_thread_id,
+                        enviado_em,
+                        erro
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s,
+                        CASE
+                            WHEN %s THEN NOW()
+                            ELSE NULL
+                        END,
+                        %s
+                    )
+                """, (
+                    EMAIL_BRIEFING_DIRECAO,
+                    briefing.get("situacao_geral"),
+                    assunto,
+                    corpo,
+                    (
+                        "enviado"
+                        if sucesso_envio
+                        else "falhou"
+                    ),
+                    envio.get("gmail_id"),
+                    envio.get("thread_id"),
+                    sucesso_envio,
+                    (
+                        None
+                        if sucesso_envio
+                        else envio.get("error")
+                    )
+                ))
+    finally:
+        conn.close()
+
+    return {
+        "success": sucesso_envio,
+        "destinatario":
+            EMAIL_BRIEFING_DIRECAO,
+        "situacao_geral":
+            briefing.get("situacao_geral"),
+        "gerado_em":
+            resultado.get("gerado_em"),
+        "gmail":
+            envio
+    }
+
+
+# =====================================================
+# IA EMPRESARIAL — DISPARAR BRIEFING EXECUTIVO
+# =====================================================
+
+@app.route(
+    "/api/admin/ia-empresarial/briefing-executivo",
+    methods=["POST"]
+)
+def admin_enviar_briefing_executivo():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        resultado = enviar_briefing_executivo_email(
+            forcar=False
+        )
+
+        codigo_http = (
+            200
+            if resultado.get("success")
+            else 500
+        )
+
+        return jsonify(resultado), codigo_http
+
+    except Exception as erro:
+        print(
+            "ERRO BRIEFING EXECUTIVO:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Falha ao processar briefing executivo."
+        }), 500
 
 
 @app.route(
