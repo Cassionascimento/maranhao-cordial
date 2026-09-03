@@ -1196,6 +1196,31 @@
                         <div class="card"><small>Sessões</small><strong id="iaGaSessoes">—</strong></div>
                         <div class="card"><small>Visualizações</small><strong id="iaGaVisualizacoes">—</strong></div>
                     </div>
+
+                    <div class="card" style="
+                        margin-top:14px;
+                        padding:18px 20px;
+                        border:1px solid rgba(255,255,255,.08);
+                        background:rgba(255,255,255,.025);
+                    ">
+                        <div style="
+                            font-size:10px;
+                            letter-spacing:1.2px;
+                            text-transform:uppercase;
+                            opacity:.5;
+                            margin-bottom:8px;
+                        ">
+                            Leitura executiva da IA
+                        </div>
+
+                        <div id="iaGaTraducao" style="
+                            font-size:14px;
+                            line-height:1.65;
+                            opacity:.82;
+                        ">
+                            Analisando os dados do negócio...
+                        </div>
+                    </div>
                 </div>
 
                 <div class="card" style="
@@ -1935,6 +1960,14 @@
                     }
 
                     const resumo = data.resumo_7_dias || {};
+
+                    const traducao = document.getElementById("iaGaTraducao");
+
+                    if (traducao) {
+                        traducao.textContent =
+                            data.traducao_executiva ||
+                            "Ainda não há dados suficientes para uma leitura executiva.";
+                    }
 
                     document.getElementById("iaGaUsuarios").textContent =
                         resumo.usuarios_ativos ?? "—";
