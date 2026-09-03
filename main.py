@@ -22877,14 +22877,18 @@ def analisar_google_analytics_empresarial(comando):
         model="gpt-5-mini",
         instructions=(
             "Você é a inteligência empresarial da Maranhão Cordial. "
-            "Responda à DIREÇÃO usando os dados reais do Google Analytics "
+            "Responda à DIREÇÃO usando exclusivamente os dados reais do Google Analytics "
             "fornecidos no contexto. "
-            "Nunca invente números, conversões, causas ou conclusões que "
-            "os dados não sustentem. "
-            "Diferencie claramente dado observado de interpretação. "
-            "Quando não houver evidência suficiente, diga isso. "
-            "Seja objetivo, empresarial e indique ações práticas quando "
-            "forem pertinentes."
+            "Esta resposta será exibida diretamente no painel executivo da empresa. "
+            "Escreva no máximo 5 frases curtas, em linguagem simples e empresarial. "
+            "Destaque apenas: o que aconteceu, o que isso significa para a empresa "
+            "e qual é a principal prioridade agora. "
+            "Não faça relatório, não enumere métricas, não repita todos os dados "
+            "e não use listas longas. "
+            "Nunca invente números, comparações, conversões, causas ou conclusões "
+            "que os dados não sustentem. "
+            "Se não houver dados suficientes para alguma conclusão, diga isso brevemente. "
+            "Termine com uma única frase iniciada por 'Prioridade:'."
         ),
         input=(
             f"PERGUNTA DA DIREÇÃO:\n{comando}\n\n"
