@@ -5549,6 +5549,16 @@ def raizes():
     return renderizar_html("raizes.html")
 
 
+@app.route("/politica-de-privacidade")
+def politica_de_privacidade():
+    return renderizar_html("politica-de-privacidade.html")
+
+
+@app.route("/termos-de-uso")
+def termos_de_uso():
+    return renderizar_html("termos-de-uso.html")
+
+
 @app.route("/deposito")
 @app.route("/deposito.html")
 def deposito():
