@@ -21502,6 +21502,100 @@ def obter_tiktok_access_token():
         conn.close()
 
 
+def obter_perfil_tiktok():
+
+    access_token = obter_tiktok_access_token()
+
+    resposta = requests.get(
+        "https://open.tiktokapis.com/v2/user/info/",
+        params={
+            "fields": ",".join([
+                "display_name",
+                "username",
+                "profile_deep_link",
+                "avatar_url",
+                "is_verified",
+                "follower_count",
+                "following_count",
+                "likes_count",
+                "video_count"
+            ])
+        },
+        headers={
+            "Authorization": f"Bearer {access_token}"
+        },
+        timeout=30
+    )
+
+    dados = resposta.json()
+
+    if not resposta.ok:
+        raise RuntimeError(
+            "Não foi possível consultar o perfil do TikTok."
+        )
+
+    erro = dados.get("error") or {}
+
+    if erro.get("code") not in (None, "", "ok"):
+        raise RuntimeError(
+            "TikTok retornou erro ao consultar o perfil."
+        )
+
+    return (
+        dados.get("data", {})
+        .get("user", {})
+    )
+
+
+def listar_videos_tiktok(limite=20):
+
+    access_token = obter_tiktok_access_token()
+
+    resposta = requests.post(
+        "https://open.tiktokapis.com/v2/video/list/",
+        params={
+            "fields": ",".join([
+                "id",
+                "create_time",
+                "share_url",
+                "video_description",
+                "title",
+                "like_count",
+                "comment_count",
+                "share_count",
+                "view_count"
+            ])
+        },
+        json={
+            "max_count": limite
+        },
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        },
+        timeout=30
+    )
+
+    dados = resposta.json()
+
+    if not resposta.ok:
+        raise RuntimeError(
+            "Não foi possível consultar os vídeos do TikTok."
+        )
+
+    erro = dados.get("error") or {}
+
+    if erro.get("code") not in (None, "", "ok"):
+        raise RuntimeError(
+            "TikTok retornou erro ao consultar os vídeos."
+        )
+
+    return (
+        dados.get("data", {})
+        .get("videos", [])
+    )
+
+
 def instagram_config():
 
     token = (
@@ -22348,6 +22442,80 @@ def admin_instagram_analytics():
                 if posts else None,
             "demografia_genero":
                 genero
+        }), 200
+
+    except Exception as erro:
+
+        return jsonify({
+            "success": False,
+            "error": str(erro)
+        }), 500
+
+
+@app.route(
+    "/api/admin/tiktok/analytics",
+    methods=["GET"]
+)
+def admin_tiktok_analytics():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+
+        perfil = obter_perfil_tiktok()
+        videos = listar_videos_tiktok()
+
+        visualizacoes = sum(
+            int(video.get("view_count") or 0)
+            for video in videos
+        )
+
+        curtidas = sum(
+            int(video.get("like_count") or 0)
+            for video in videos
+        )
+
+        comentarios = sum(
+            int(video.get("comment_count") or 0)
+            for video in videos
+        )
+
+        compartilhamentos = sum(
+            int(video.get("share_count") or 0)
+            for video in videos
+        )
+
+        interacoes = (
+            curtidas
+            + comentarios
+            + compartilhamentos
+        )
+
+        top_video = (
+            max(
+                videos,
+                key=lambda video:
+                    int(video.get("view_count") or 0)
+            )
+            if videos else None
+        )
+
+        return jsonify({
+            "success": True,
+            "perfil": perfil,
+            "total_videos": len(videos),
+            "visualizacoes_somadas": visualizacoes,
+            "curtidas_somadas": curtidas,
+            "comentarios_somados": comentarios,
+            "compartilhamentos_somados":
+                compartilhamentos,
+            "interacoes_somadas": interacoes,
+            "videos": videos,
+            "top_video": top_video
         }), 200
 
     except Exception as erro:

@@ -2194,6 +2194,129 @@
             }
 
 
+            async function carregarTikTokPresencaDigital() {
+
+                if (!adminKeyAtual) {
+                    return null;
+                }
+
+                const status =
+                    document.getElementById("pdTiktokStatus");
+
+                try {
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/tiktok/analytics",
+                        {
+                            headers: {
+                                "X-Admin-Key": adminKeyAtual
+                            },
+                            cache: "no-store"
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao carregar TikTok."
+                        );
+                    }
+
+                    const perfil = data.perfil || {};
+                    const topVideo = data.top_video || null;
+
+                    if (status) {
+                        status.innerHTML = `
+                            <div style="
+                                display:grid;
+                                grid-template-columns:repeat(2,1fr);
+                                gap:10px;
+                                margin-top:14px;
+                            ">
+                                <div>
+                                    <small>Vídeos</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(data.total_videos ?? 0)}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <small>Visualizações somadas</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(
+                                            Number(
+                                                data.visualizacoes_somadas || 0
+                                            ).toLocaleString("pt-BR")
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <small>Seguidores</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(
+                                            Number(
+                                                perfil.follower_count || 0
+                                            ).toLocaleString("pt-BR")
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <small>Interações</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(
+                                            Number(
+                                                data.interacoes_somadas || 0
+                                            ).toLocaleString("pt-BR")
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            ${
+                                topVideo
+                                ? `
+                                    <div style="
+                                        margin-top:14px;
+                                        padding-top:12px;
+                                        border-top:1px solid rgba(255,255,255,.08);
+                                        font-size:12px;
+                                        opacity:.7;
+                                    ">
+                                        Vídeo de maior visualização:
+                                        ${escapar(
+                                            Number(
+                                                topVideo.view_count || 0
+                                            ).toLocaleString("pt-BR")
+                                        )}
+                                        visualizações.
+                                    </div>
+                                `
+                                : ""
+                            }
+                        `;
+                    }
+
+                    return data;
+
+                } catch (error) {
+                    console.error(
+                        "Erro TikTok Presença Digital:",
+                        error
+                    );
+
+                    if (status) {
+                        status.textContent =
+                            "Não foi possível consultar o TikTok agora.";
+                    }
+
+                    return null;
+                }
+            }
+
+
             async function carregarInstagramPresencaDigital() {
 
                 if (!adminKeyAtual) {
@@ -5114,6 +5237,7 @@
                     if (destino === "presenca-digital") {
                         carregarAnalytics();
                         carregarInstagramPresencaDigital();
+                        carregarTikTokPresencaDigital();
                     }
 
                     document.querySelectorAll(
