@@ -318,6 +318,7 @@
             <button class="admin-tab" data-tab="b2b">B2B</button>
             <button class="admin-tab" data-tab="degustacoes">Degustações</button>
             <button class="admin-tab active" data-tab="ia-empresarial">IA Empresarial</button>
+            <button class="admin-tab" data-tab="presenca-digital">Presença Digital</button>
             <button class="admin-tab" data-tab="documentos">Documentos</button>
             <button class="admin-tab" data-tab="acoes">Ações</button>
             <button class="admin-tab" data-tab="crm">CRM</button>
@@ -1106,6 +1107,164 @@
                         style="display:none;"
                     >
                         Nenhum documento cadastrado.
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <section class="tab-panel" data-panel="presenca-digital">
+
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:flex-end;
+                    gap:24px;
+                    flex-wrap:wrap;
+                    margin-bottom:28px;
+                ">
+                    <div>
+                        <div class="eyebrow">PRESENÇA DIGITAL</div>
+
+                        <h2 style="
+                            font-family:Georgia, 'Times New Roman', serif;
+                            font-weight:400;
+                            font-size:34px;
+                            line-height:1.08;
+                            margin:0 0 10px;
+                            max-width:760px;
+                        ">
+                            Como a Maranhão Cordial está se comportando no digital?
+                        </h2>
+
+                        <p class="subtitle" style="
+                            max-width:780px;
+                            margin:0;
+                        ">
+                            Acompanhe audiência, alcance, interações, leads e desempenho dos canais em um único lugar.
+                        </p>
+                    </div>
+
+                    <div style="
+                        font-size:11px;
+                        letter-spacing:1px;
+                        text-transform:uppercase;
+                        opacity:.55;
+                        padding-bottom:4px;
+                    ">
+                        Visão consolidada
+                    </div>
+                </div>
+
+                <div id="presencaResumo" style="
+                    display:grid;
+                    grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+                    gap:12px;
+                    margin-bottom:22px;
+                ">
+                    <div class="card">
+                        <small>Audiência total</small>
+                        <strong id="pdAudiencia">—</strong>
+                    </div>
+
+                    <div class="card">
+                        <small>Alcance</small>
+                        <strong id="pdAlcance">—</strong>
+                    </div>
+
+                    <div class="card">
+                        <small>Interações</small>
+                        <strong id="pdInteracoes">—</strong>
+                    </div>
+
+                    <div class="card">
+                        <small>Leads digitais</small>
+                        <strong id="pdLeads">—</strong>
+                    </div>
+
+                    <div class="card">
+                        <small>Oportunidades</small>
+                        <strong id="pdOportunidades">—</strong>
+                    </div>
+                </div>
+
+                <div class="card" style="
+                    margin-bottom:22px;
+                    padding:20px;
+                ">
+                    <div style="
+                        font-size:10px;
+                        letter-spacing:1.2px;
+                        text-transform:uppercase;
+                        opacity:.5;
+                        margin-bottom:8px;
+                    ">
+                        Leitura executiva da IA
+                    </div>
+
+                    <div id="pdLeituraExecutiva" style="
+                        font-size:14px;
+                        line-height:1.65;
+                        opacity:.82;
+                    ">
+                        Aguardando dados suficientes para analisar a presença digital.
+                    </div>
+                </div>
+
+                <div style="
+                    display:grid;
+                    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+                    gap:14px;
+                ">
+
+                    <div class="card">
+                        <small>Instagram</small>
+                        <h3 style="margin:8px 0 6px;">Instagram</h3>
+                        <div class="subtitle">Seguidores · alcance · interações · mensagens · leads</div>
+                        <div id="pdInstagramStatus" style="margin-top:14px;">Preparando conexão de dados</div>
+                    </div>
+
+                    <div class="card">
+                        <small>Site</small>
+                        <h3 style="margin:8px 0 6px;">Google Analytics</h3>
+                        <div class="subtitle">Usuários · novos usuários · sessões · visualizações</div>
+                        <div id="pdSiteStatus" style="margin-top:14px;">Dados disponíveis</div>
+                    </div>
+
+                    <div class="card">
+                        <small>WhatsApp</small>
+                        <h3 style="margin:8px 0 6px;">WhatsApp</h3>
+                        <div class="subtitle">Conversas · novos contatos · leads · pendências</div>
+                        <div id="pdWhatsappStatus" style="margin-top:14px;">Preparando leitura operacional</div>
+                    </div>
+
+                    <div class="card">
+                        <small>LinkedIn</small>
+                        <h3 style="margin:8px 0 6px;">LinkedIn</h3>
+                        <div class="subtitle">Seguidores · impressões · engajamento · leads</div>
+                        <div id="pdLinkedinStatus" style="margin-top:14px;">Ainda não conectado</div>
+                    </div>
+
+                    <div class="card">
+                        <small>TikTok</small>
+                        <h3 style="margin:8px 0 6px;">TikTok</h3>
+                        <div class="subtitle">Seguidores · visualizações · engajamento · perfil</div>
+                        <div id="pdTiktokStatus" style="margin-top:14px;">Ainda não conectado</div>
+                    </div>
+
+                    <div class="card">
+                        <small>YouTube</small>
+                        <h3 style="margin:8px 0 6px;">YouTube</h3>
+                        <div class="subtitle">Inscritos · visualizações · tempo assistido · conteúdos</div>
+                        <div id="pdYoutubeStatus" style="margin-top:14px;">Ainda não conectado</div>
+                    </div>
+
+                    <div class="card">
+                        <small>X</small>
+                        <h3 style="margin:8px 0 6px;">X</h3>
+                        <div class="subtitle">Seguidores · impressões · engajamento · menções</div>
+                        <div id="pdXStatus" style="margin-top:14px;">Ainda não conectado</div>
                     </div>
 
                 </div>
@@ -1981,6 +2140,48 @@
                     document.getElementById("iaGaVisualizacoes").textContent =
                         resumo.visualizacoes ?? "—";
 
+                    const pdSiteStatus =
+                        document.getElementById("pdSiteStatus");
+
+                    if (pdSiteStatus) {
+                        pdSiteStatus.innerHTML = `
+                            <div style="
+                                display:grid;
+                                grid-template-columns:repeat(2,1fr);
+                                gap:10px;
+                                margin-top:14px;
+                            ">
+                                <div>
+                                    <small>Usuários</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(resumo.usuarios_ativos ?? "—")}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <small>Novos usuários</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(resumo.novos_usuarios ?? "—")}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <small>Sessões</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(resumo.sessoes ?? "—")}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <small>Visualizações</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(resumo.visualizacoes ?? "—")}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
                     return data;
 
                 } catch (error) {
@@ -1988,6 +2189,128 @@
                         "Erro Google Analytics:",
                         error
                     );
+                    return null;
+                }
+            }
+
+
+            async function carregarInstagramPresencaDigital() {
+
+                if (!adminKeyAtual) {
+                    return null;
+                }
+
+                const status =
+                    document.getElementById("pdInstagramStatus");
+
+                try {
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/instagram/analytics",
+                        {
+                            headers: {
+                                "X-Admin-Key": adminKeyAtual
+                            },
+                            cache: "no-store"
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao carregar Instagram."
+                        );
+                    }
+
+                    const posts = data.posts || [];
+                    const topPost = data.top_post || null;
+
+                    let views = 0;
+                    let alcance = 0;
+                    let interacoes = 0;
+
+                    posts.forEach(post => {
+                        const insights = post.insights || {};
+
+                        views += Number(insights.views || 0);
+                        alcance += Number(insights.reach || 0);
+
+                        interacoes +=
+                            Number(post.like_count || 0) +
+                            Number(post.comments_count || 0) +
+                            Number(insights.saved || 0) +
+                            Number(insights.shares || 0);
+                    });
+
+                    if (status) {
+                        status.innerHTML = `
+                            <div style="
+                                display:grid;
+                                grid-template-columns:repeat(2,1fr);
+                                gap:10px;
+                                margin-top:14px;
+                            ">
+                                <div>
+                                    <small>Publicações</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(data.total_posts ?? posts.length)}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <small>Visualizações</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(views.toLocaleString("pt-BR"))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <small>Alcance somado</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(alcance.toLocaleString("pt-BR"))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <small>Interações</small>
+                                    <div style="font-size:22px;margin-top:4px;">
+                                        ${escapar(interacoes.toLocaleString("pt-BR"))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            ${
+                                topPost
+                                ? `
+                                    <div style="
+                                        margin-top:14px;
+                                        padding-top:12px;
+                                        border-top:1px solid rgba(255,255,255,.08);
+                                        font-size:12px;
+                                        opacity:.7;
+                                    ">
+                                        Conteúdo de maior visualização identificado pela IA.
+                                    </div>
+                                `
+                                : ""
+                            }
+                        `;
+                    }
+
+                    return data;
+
+                } catch (error) {
+                    console.error(
+                        "Erro Instagram Presença Digital:",
+                        error
+                    );
+
+                    if (status) {
+                        status.textContent =
+                            "Não foi possível consultar o Instagram agora.";
+                    }
+
                     return null;
                 }
             }
@@ -4786,6 +5109,11 @@
 
                     if (destino === "ia-empresarial") {
                         carregarCentralDecisoes();
+                    }
+
+                    if (destino === "presenca-digital") {
+                        carregarAnalytics();
+                        carregarInstagramPresencaDigital();
                     }
 
                     document.querySelectorAll(
