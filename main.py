@@ -21390,6 +21390,118 @@ def tiktok_config():
     return client_key, client_secret, redirect_uri
 
 
+def obter_tiktok_access_token():
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        access_token,
+                        refresh_token,
+                        expires_in,
+                        atualizado_em
+                    FROM tiktok_oauth_credentials
+                    WHERE id = 1
+                """)
+
+                registro = cur.fetchone()
+
+        if not registro:
+            raise RuntimeError(
+                "TikTok ainda não foi conectado."
+            )
+
+        access_token, refresh_token, expires_in, atualizado_em = registro
+
+        if (
+            access_token
+            and expires_in
+            and atualizado_em
+        ):
+            from datetime import datetime, timezone, timedelta
+
+            expira_em = (
+                atualizado_em
+                + timedelta(seconds=int(expires_in))
+            )
+
+            margem = timedelta(minutes=10)
+
+            if datetime.now(timezone.utc) < expira_em - margem:
+                return access_token
+
+        if not refresh_token:
+            raise RuntimeError(
+                "Refresh token do TikTok não disponível."
+            )
+
+        client_key, client_secret, _ = tiktok_config()
+
+        if not client_key or not client_secret:
+            raise RuntimeError(
+                "Credenciais do TikTok não configuradas."
+            )
+
+        resposta = requests.post(
+            "https://open.tiktokapis.com/v2/oauth/token/",
+            data={
+                "client_key": client_key,
+                "client_secret": client_secret,
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token
+            },
+            headers={
+                "Content-Type":
+                    "application/x-www-form-urlencoded"
+            },
+            timeout=30
+        )
+
+        dados = resposta.json()
+
+        novo_access_token = dados.get("access_token")
+        novo_refresh_token = dados.get("refresh_token")
+
+        if (
+            not resposta.ok
+            or not novo_access_token
+            or not novo_refresh_token
+        ):
+            raise RuntimeError(
+                "Não foi possível renovar o token do TikTok."
+            )
+
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE tiktok_oauth_credentials
+                    SET
+                        access_token = %s,
+                        refresh_token = %s,
+                        open_id = COALESCE(%s, open_id),
+                        scope = COALESCE(%s, scope),
+                        expires_in = %s,
+                        refresh_expires_in = %s,
+                        atualizado_em = NOW()
+                    WHERE id = 1
+                """, (
+                    novo_access_token,
+                    novo_refresh_token,
+                    dados.get("open_id"),
+                    dados.get("scope"),
+                    dados.get("expires_in"),
+                    dados.get("refresh_expires_in")
+                ))
+
+        return novo_access_token
+
+    finally:
+        conn.close()
+
+
 def instagram_config():
 
     token = (
