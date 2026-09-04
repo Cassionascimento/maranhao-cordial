@@ -22145,7 +22145,10 @@ def tiktok_callback():
     if not access_token or not refresh_token:
         return jsonify({
             "success": False,
-            "error": "TikTok não retornou os tokens esperados."
+            "error": "TikTok não retornou os tokens esperados.",
+            "tiktok_error": dados.get("error"),
+            "tiktok_error_description": dados.get("error_description"),
+            "tiktok_log_id": dados.get("log_id")
         }), 502
 
     conn = get_db_connection()
