@@ -5,6 +5,8 @@ from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from flask_socketio import SocketIO, emit
 import os
+import secrets
+from urllib.parse import urlencode
 import threading
 import time
 import base64
@@ -7170,66 +7172,6 @@ def webhook_c6():
 
 
 
-# =====================================================
-# META — PÁGINAS LEGAIS
-# =====================================================
-
-@app.route("/politica-de-privacidade")
-def politica_de_privacidade():
-    return """
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Política de Privacidade - Maranhão Cordial</title>
-    </head>
-    <body style="font-family:Arial,sans-serif;max-width:800px;margin:40px auto;line-height:1.6">
-        <h1>Política de Privacidade</h1>
-
-        <p>A Maranhão Cordial utiliza dados fornecidos por usuários para atendimento,
-        relacionamento comercial, suporte, processamento de solicitações e melhoria
-        dos seus serviços.</p>
-
-        <p>Quando usuários entram em contato por Instagram, WhatsApp ou outros canais
-        integrados, mensagens e dados necessários ao atendimento podem ser processados
-        pelos sistemas da empresa.</p>
-
-        <p>Os dados não são comercializados e são utilizados apenas para as finalidades
-        relacionadas à operação da Maranhão Cordial.</p>
-
-        <p>O titular pode solicitar esclarecimentos, correção ou exclusão de seus dados
-        pelos canais oficiais da empresa.</p>
-
-        <p>Última atualização: 24 de agosto de 2026.</p>
-    </body>
-    </html>
-    """, 200
-
-
-@app.route("/termos-de-servico")
-def termos_de_servico():
-    return """
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Termos de Serviço - Maranhão Cordial</title>
-    </head>
-    <body style="font-family:Arial,sans-serif;max-width:800px;margin:40px auto;line-height:1.6">
-        <h1>Termos de Serviço</h1>
-
-        <p>Os canais digitais da Maranhão Cordial destinam-se ao atendimento,
-        relacionamento comercial, suporte e fornecimento de informações sobre
-        seus produtos e serviços.</p>
-
-        <p>O uso dos canais implica concordância com estes termos e com a
-        Política de Privacidade.</p>
-
-        <p>As informações fornecidas pelos sistemas podem ser atualizadas
-        conforme a operação da empresa.</p>
-
-        <p>Última atualização: 24 de agosto de 2026.</p>
-    </body>
-    </html>
-    """, 200
 
 
 @app.route("/exclusao-de-dados")
@@ -21411,6 +21353,26 @@ def garantir_tabelas_central_comando():
         conn.close()
 
 
+def tiktok_config():
+
+    client_key = (
+        os.getenv("TIKTOK_CLIENT_KEY")
+        or ""
+    ).strip()
+
+    client_secret = (
+        os.getenv("TIKTOK_CLIENT_SECRET")
+        or ""
+    ).strip()
+
+    redirect_uri = (
+        os.getenv("TIKTOK_REDIRECT_URI")
+        or "https://maranhaocordial.com.br/api/tiktok/callback"
+    ).strip()
+
+    return client_key, client_secret, redirect_uri
+
+
 def instagram_config():
 
     token = (
@@ -22052,6 +22014,44 @@ def carregar_feedback_para_ia(
 
     finally:
         conn.close()
+
+
+@app.route(
+    "/api/tiktok/login",
+    methods=["GET"]
+)
+def tiktok_login():
+
+    client_key, _, redirect_uri = tiktok_config()
+
+    if not client_key:
+        return jsonify({
+            "success": False,
+            "error": "TIKTOK_CLIENT_KEY não configurado."
+        }), 500
+
+    state = secrets.token_urlsafe(24)
+    session["tiktok_oauth_state"] = state
+
+    parametros = {
+        "client_key": client_key,
+        "scope": ",".join([
+            "user.info.basic",
+            "user.info.profile",
+            "user.info.stats",
+            "video.list"
+        ]),
+        "response_type": "code",
+        "redirect_uri": redirect_uri,
+        "state": state
+    }
+
+    url = (
+        "https://www.tiktok.com/v2/auth/authorize/?"
+        + urlencode(parametros)
+    )
+
+    return redirect(url)
 
 
 @app.route(
