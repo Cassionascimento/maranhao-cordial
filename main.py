@@ -1486,6 +1486,23 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # TIKTOK — CREDENCIAIS OAUTH
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS tiktok_oauth_credentials (
+                        id INTEGER PRIMARY KEY,
+                        access_token TEXT NOT NULL,
+                        refresh_token TEXT NOT NULL,
+                        open_id TEXT,
+                        scope TEXT,
+                        expires_in INTEGER,
+                        refresh_expires_in INTEGER,
+                        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                # ==========================================
                 # LEADS B2B
                 # ==========================================
 
@@ -22052,6 +22069,135 @@ def tiktok_login():
     )
 
     return redirect(url)
+
+
+@app.route(
+    "/api/tiktok/callback",
+    methods=["GET"]
+)
+def tiktok_callback():
+
+    erro = request.args.get("error")
+    if erro:
+        return jsonify({
+            "success": False,
+            "error": erro
+        }), 400
+
+    code = (request.args.get("code") or "").strip()
+    state_recebido = (request.args.get("state") or "").strip()
+    state_esperado = session.pop("tiktok_oauth_state", None)
+
+    if not code:
+        return jsonify({
+            "success": False,
+            "error": "Código de autorização do TikTok não recebido."
+        }), 400
+
+    if (
+        not state_esperado
+        or not state_recebido
+        or not secrets.compare_digest(
+            state_recebido,
+            state_esperado
+        )
+    ):
+        return jsonify({
+            "success": False,
+            "error": "State OAuth do TikTok inválido."
+        }), 400
+
+    client_key, client_secret, redirect_uri = tiktok_config()
+
+    if not client_key or not client_secret:
+        return jsonify({
+            "success": False,
+            "error": "Credenciais do TikTok não configuradas."
+        }), 500
+
+    resposta = requests.post(
+        "https://open.tiktokapis.com/v2/oauth/token/",
+        data={
+            "client_key": client_key,
+            "client_secret": client_secret,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri
+        },
+        headers={
+            "Content-Type":
+                "application/x-www-form-urlencoded"
+        },
+        timeout=30
+    )
+
+    dados = resposta.json()
+
+    if not resposta.ok:
+        return jsonify({
+            "success": False,
+            "error": "Falha ao obter token do TikTok."
+        }), 502
+
+    access_token = dados.get("access_token")
+    refresh_token = dados.get("refresh_token")
+
+    if not access_token or not refresh_token:
+        return jsonify({
+            "success": False,
+            "error": "TikTok não retornou os tokens esperados."
+        }), 502
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO tiktok_oauth_credentials (
+                        id,
+                        access_token,
+                        refresh_token,
+                        open_id,
+                        scope,
+                        expires_in,
+                        refresh_expires_in,
+                        atualizado_em
+                    )
+                    VALUES (
+                        1,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        NOW()
+                    )
+                    ON CONFLICT (id)
+                    DO UPDATE SET
+                        access_token = EXCLUDED.access_token,
+                        refresh_token = EXCLUDED.refresh_token,
+                        open_id = EXCLUDED.open_id,
+                        scope = EXCLUDED.scope,
+                        expires_in = EXCLUDED.expires_in,
+                        refresh_expires_in = EXCLUDED.refresh_expires_in,
+                        atualizado_em = NOW()
+                """, (
+                    access_token,
+                    refresh_token,
+                    dados.get("open_id"),
+                    dados.get("scope"),
+                    dados.get("expires_in"),
+                    dados.get("refresh_expires_in")
+                ))
+    finally:
+        conn.close()
+
+    return jsonify({
+        "success": True,
+        "message": "TikTok conectado com sucesso."
+    }), 200
 
 
 @app.route(
