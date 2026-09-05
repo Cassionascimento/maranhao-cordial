@@ -5033,6 +5033,65 @@ def processar_interacao_omnichannel_crm(
             )
         )
 
+    # -----------------------------------------
+    # EMAIL EMPRESARIAL -> EVENTO DA IA
+    # -----------------------------------------
+
+    if (
+        canal == "gmail"
+        and classificacao.get("classificacao")
+        in {
+            "financeiro",
+            "fiscal_contabil"
+        }
+    ):
+        area_email = classificacao.get(
+            "classificacao"
+        )
+
+        importancia_email = "normal"
+
+        texto_lower = texto.lower()
+
+        termos_atencao = (
+            "vencimento",
+            "pendência",
+            "pendencia",
+            "irregular",
+            "bloqueio",
+            "bloqueado",
+            "urgente",
+            "prazo",
+            "imposto",
+            "tributo",
+            "pagamento pendente",
+            "ação necessária",
+            "acao necessaria"
+        )
+
+        if any(
+            termo in texto_lower
+            for termo in termos_atencao
+        ):
+            importancia_email = "alta"
+
+        registrar_evento_empresarial(
+            fonte="gmail_empresarial",
+            tipo=area_email,
+            descricao=texto[:2000],
+            external_id=(
+                "gmail:"
+                + interacao_id
+            ),
+            payload={
+                "interacao_id": interacao_id,
+                "remetente": sender_id,
+                "canal": canal,
+                "area": area_email
+            },
+            importancia=importancia_email
+        )
+
     conn = get_db_connection()
 
     try:
