@@ -19070,8 +19070,58 @@ def carregar_contexto_briefing_executivo():
 
                 total_criticas = cur.fetchone()["count"]
 
+                # -----------------------------------------
+                # EVENTOS EMPRESARIAIS RECENTES
+                # -----------------------------------------
+
+                cur.execute("""
+                    SELECT
+                        fonte,
+                        tipo,
+                        descricao,
+                        importancia,
+                        criado_em
+                    FROM eventos_empresariais
+                    WHERE fonte = 'gmail_empresarial'
+                      AND tipo IN (
+                          'financeiro',
+                          'fiscal_contabil'
+                      )
+                    ORDER BY criado_em DESC
+                    LIMIT 20
+                """)
+
+                eventos_email = [
+                    dict(item)
+                    for item in cur.fetchall()
+                ]
+
     finally:
         conn.close()
+
+    contexto_eventos_email = ""
+
+    if eventos_email:
+        linhas_eventos = [
+            "\nEVENTOS EMPRESARIAIS RECEBIDOS POR EMAIL:\n"
+        ]
+
+        for evento in eventos_email:
+            linhas_eventos.append(
+                "- Área: "
+                + str(evento.get("tipo") or "")
+                + " | Importância: "
+                + str(evento.get("importancia") or "normal")
+                + " | Data: "
+                + str(evento.get("criado_em") or "")
+                + "\n  "
+                + str(evento.get("descricao") or "")[:1200]
+                + "\n"
+            )
+
+        contexto_eventos_email = "".join(
+            linhas_eventos
+        )
 
     contexto_textual = (
         (evidencias.get("contexto") or "")
@@ -19079,6 +19129,7 @@ def carregar_contexto_briefing_executivo():
         + (acoes.get("contexto") or "")
         + (insights.get("contexto") or "")
         + (memoria.get("contexto") or "")
+        + contexto_eventos_email
     )
 
     return {
