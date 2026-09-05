@@ -5803,6 +5803,56 @@ function renderizarProfissionaisWorkflow() {
                 profissional.estado
                 || "-";
 
+            const cadastroNome =
+                profissional.cadastro_responsavel
+                || profissional.nome
+                || "-";
+
+            const cadastroEmpresa =
+                profissional.cadastro_empresa
+                || estabelecimento
+                || "-";
+
+            const cadastroSegmento =
+                profissional.cadastro_segmento
+                || profissional.cargo_funcao
+                || "-";
+
+            const cadastroWhatsapp =
+                profissional.cadastro_whatsapp
+                || profissional.whatsapp
+                || "-";
+
+            const cadastroEmail =
+                profissional.cadastro_email
+                || profissional.email
+                || "-";
+
+            const cadastroCidade =
+                profissional.cadastro_cidade
+                || cidade
+                || "-";
+
+            const cadastroInteresse =
+                profissional.cadastro_interesse
+                || "-";
+
+            const cadastroMensagem =
+                profissional.cadastro_mensagem
+                || "-";
+
+            const cadastroOrigem =
+                profissional.cadastro_origem
+                || fonte
+                || "-";
+
+            const cadastroData =
+                profissional.cadastro_criado_em
+                ? new Date(
+                    profissional.cadastro_criado_em
+                ).toLocaleString("pt-BR")
+                : "-";
+
             card.innerHTML = `
                 <div
                     style="
@@ -5858,26 +5908,44 @@ function renderizarProfissionaisWorkflow() {
                         opacity:.80;
                     "
                 >
-                    Função:
-                    ${escaparWF(
-                        profissional.cargo_funcao
-                        || "-"
-                    )}
+                    <strong>Nome:</strong>
+                    ${escaparWF(cadastroNome)}
                     <br>
 
-                    Instagram:
-                    ${escaparWF(
-                        profissional.instagram
-                        || "-"
-                    )}
+                    <strong>Empresa / estabelecimento:</strong>
+                    ${escaparWF(cadastroEmpresa)}
                     <br>
 
-                    Responsável pelos dados:
-                    ${escaparWF(origem)}
+                    <strong>Segmento:</strong>
+                    ${escaparWF(cadastroSegmento)}
                     <br>
 
-                    Fonte:
-                    ${escaparWF(fonte)}
+                    <strong>WhatsApp:</strong>
+                    ${escaparWF(cadastroWhatsapp)}
+                    <br>
+
+                    <strong>E-mail:</strong>
+                    ${escaparWF(cadastroEmail)}
+                    <br>
+
+                    <strong>Cidade:</strong>
+                    ${escaparWF(cadastroCidade)}
+                    <br>
+
+                    <strong>Interesse:</strong>
+                    ${escaparWF(cadastroInteresse)}
+                    <br>
+
+                    <strong>Mensagem:</strong>
+                    ${escaparWF(cadastroMensagem)}
+                    <br>
+
+                    <strong>Origem:</strong>
+                    ${escaparWF(cadastroOrigem)}
+                    <br>
+
+                    <strong>Cadastrado em:</strong>
+                    ${escaparWF(cadastroData)}
                 </div>
 
                 <div
