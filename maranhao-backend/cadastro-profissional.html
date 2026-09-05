@@ -605,15 +605,15 @@ footer {
       </div>
 
       <h1>
-        Vamos conhecer<br>
-        o seu negócio.
+        Maranhão para<br>
+        quem cria.
       </h1>
 
       <p class="lead">
 
-        Cadastre seu estabelecimento para receber
-        informações comerciais, materiais profissionais
-        e condições de fornecimento do Maranhão Cordial.
+        Bartenders, mixologistas e profissionais da gastronomia
+        podem conhecer o Maranhão Cordial, solicitar degustação
+        e receber informações sobre aplicações e fornecimento.
 
       </p>
 
@@ -630,12 +630,12 @@ footer {
           <div>
 
             <h3>
-              Material profissional
+              Conheça o cordial
             </h3>
 
             <p>
-              Acesso a informações de rendimento,
-              aplicações e apresentação comercial.
+              Informações de rendimento, aplicações
+              e possibilidades de uso na coquetelaria.
             </p>
 
           </div>
@@ -652,12 +652,12 @@ footer {
           <div>
 
             <h3>
-              Condições comerciais
+              Experimente Maranhão
             </h3>
 
             <p>
-              Propostas de fornecimento conforme
-              perfil, volume e frequência do estabelecimento.
+              Degustação, apresentação profissional
+              e descoberta de novas aplicações.
             </p>
 
           </div>
@@ -678,8 +678,8 @@ footer {
             </h3>
 
             <p>
-              Atendimento para degustação,
-              fornecimento e futuras recompras.
+              Relacionamento com bartenders, bares, restaurantes,
+              hotéis e profissionais da gastronomia.
             </p>
 
           </div>
@@ -703,12 +703,12 @@ footer {
         </span>
 
         <h2>
-          Cadastre seu estabelecimento.
+          Experimente Maranhão.
         </h2>
 
         <p>
-          As informações abaixo serão utilizadas
-          exclusivamente para atendimento comercial.
+          Conte um pouco sobre você ou sobre o local onde atua.
+          Seus dados serão utilizados exclusivamente para contato profissional.
         </p>
 
       </div>
@@ -720,15 +720,14 @@ footer {
         <div class="field">
 
           <label for="empresa">
-            Estabelecimento
+            Bar, restaurante ou local onde atua (opcional)
           </label>
 
           <input
             id="empresa"
             type="text"
             name="empresa"
-            placeholder="Nome do estabelecimento"
-            required
+            placeholder="Nome do estabelecimento, se houver"
           >
 
         </div>
@@ -740,7 +739,7 @@ footer {
           <div class="field">
 
             <label for="cnpj">
-              CNPJ
+              CNPJ (opcional)
             </label>
 
             <input
@@ -748,7 +747,6 @@ footer {
               type="text"
               name="cnpj"
               placeholder="00.000.000/0000-00"
-              required
             >
 
           </div>
@@ -767,7 +765,15 @@ footer {
             >
 
               <option value="">
-                Selecione
+                Selecione seu perfil
+              </option>
+
+              <option value="bartender">
+                Bartender / Mixologista
+              </option>
+
+              <option value="chef">
+                Chef / Profissional de gastronomia
               </option>
 
               <option value="bar">
@@ -780,6 +786,10 @@ footer {
 
               <option value="hotel">
                 Hotel / Pousada
+              </option>
+
+              <option value="eventos">
+                Eventos / Catering
               </option>
 
               <option value="emporio">
@@ -795,7 +805,7 @@ footer {
               </option>
 
               <option value="outro">
-                Outro
+                Outro profissional do setor
               </option>
 
             </select>
@@ -809,14 +819,14 @@ footer {
         <div class="field">
 
           <label for="responsavel">
-            Responsável comercial
+            Seu nome
           </label>
 
           <input
             id="responsavel"
             type="text"
             name="responsavel"
-            placeholder="Nome do responsável"
+            placeholder="Nome e sobrenome"
             required
           >
 
@@ -846,14 +856,14 @@ footer {
           <div class="field">
 
             <label for="email">
-              E-mail profissional
+              E-mail
             </label>
 
             <input
               id="email"
               type="email"
               name="email"
-              placeholder="contato@empresa.com.br"
+              placeholder="voce@email.com"
               required
             >
 
@@ -893,11 +903,27 @@ footer {
           >
 
             <option value="">
-              Selecione
+              Selecione seu interesse
+            </option>
+
+            <option value="degustacao">
+              Quero experimentar Maranhão
+            </option>
+
+            <option value="aplicacoes">
+              Conhecer aplicações na coquetelaria
             </option>
 
             <option value="servir">
-              Servir no estabelecimento
+              Servir no bar / restaurante
+            </option>
+
+            <option value="parceria">
+              Parceria profissional
+            </option>
+
+            <option value="evento">
+              Utilizar em evento
             </option>
 
             <option value="revender">
@@ -906,10 +932,6 @@ footer {
 
             <option value="distribuir">
               Distribuição
-            </option>
-
-            <option value="degustacao">
-              Solicitar degustação
             </option>
 
             <option value="proposta">
@@ -924,13 +946,13 @@ footer {
         <div class="field">
 
           <label for="mensagem">
-            Sobre o negócio
+            Conte um pouco mais (opcional)
           </label>
 
           <textarea
             id="mensagem"
             name="mensagem"
-            placeholder="Conte brevemente sobre o seu estabelecimento, volume estimado ou como gostaria de trabalhar com Maranhão Cordial."
+            placeholder="Onde você atua, seu trabalho ou como gostaria de experimentar Maranhão."
           ></textarea>
 
         </div>
@@ -956,12 +978,12 @@ footer {
           type="submit"
           class="btn"
         >
-          Solicitar acesso profissional
+          Quero experimentar Maranhão
         </button>
 
 
         <div class="form-note">
-          Cadastro destinado a empresas e profissionais do setor.
+          Para bartenders, mixologistas, bares, restaurantes, hotéis e profissionais da gastronomia.
         </div>
 
 
@@ -1003,6 +1025,9 @@ form.addEventListener("submit", async function(event) {
 
   const dados = Object.fromEntries(new FormData(form).entries());
   dados.consentimento = form.querySelector('[name="consentimento"]').checked;
+
+  const parametros = new URLSearchParams(window.location.search);
+  dados.origem = parametros.get("origem") || "cadastro_profissional_direto";
 
   botao.disabled = true;
   const textoOriginal = botao.textContent;

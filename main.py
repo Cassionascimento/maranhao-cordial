@@ -1509,8 +1509,8 @@ def inicializar_banco():
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS cadastros_profissionais (
                         id UUID PRIMARY KEY,
-                        empresa VARCHAR(180) NOT NULL,
-                        cnpj VARCHAR(30) NOT NULL,
+                        empresa VARCHAR(180),
+                        cnpj VARCHAR(30),
                         segmento VARCHAR(80) NOT NULL,
                         responsavel VARCHAR(180) NOT NULL,
                         whatsapp VARCHAR(40) NOT NULL,
@@ -1520,8 +1520,28 @@ def inicializar_banco():
                         mensagem TEXT,
                         consentimento BOOLEAN NOT NULL DEFAULT FALSE,
                         status VARCHAR(40) NOT NULL DEFAULT 'novo_lead',
+                        origem VARCHAR(100),
                         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
+                """)
+
+                # ==========================================
+                # EVOLUÇÃO CADASTROS PROFISSIONAIS
+                # ==========================================
+
+                cur.execute("""
+                    ALTER TABLE cadastros_profissionais
+                    ALTER COLUMN empresa DROP NOT NULL
+                """)
+
+                cur.execute("""
+                    ALTER TABLE cadastros_profissionais
+                    ALTER COLUMN cnpj DROP NOT NULL
+                """)
+
+                cur.execute("""
+                    ALTER TABLE cadastros_profissionais
+                    ADD COLUMN IF NOT EXISTS origem VARCHAR(100)
                 """)
 
                 # ==========================================
@@ -5625,7 +5645,7 @@ def cadastrar_empresa():
     dados = request.get_json(silent=True) or {}
 
     obrigatorios = [
-        "empresa", "cnpj", "segmento", "responsavel",
+        "segmento", "responsavel",
         "whatsapp", "email", "cidade", "interesse"
     ]
 
@@ -5658,17 +5678,17 @@ def cadastrar_empresa():
                         INSERT INTO cadastros_profissionais (
                             id, empresa, cnpj, segmento, responsavel,
                             whatsapp, email, cidade, interesse, mensagem,
-                            consentimento, status
+                            consentimento, status, origem
                         )
                         VALUES (
                             %s, %s, %s, %s, %s,
                             %s, %s, %s, %s, %s,
-                            %s, %s
+                            %s, %s, %s
                         )
                     """, (
                         cadastro_id,
-                        str(dados["empresa"]).strip(),
-                        str(dados["cnpj"]).strip(),
+                        str(dados.get("empresa", "")).strip() or None,
+                        str(dados.get("cnpj", "")).strip() or None,
                         str(dados["segmento"]).strip(),
                         str(dados["responsavel"]).strip(),
                         str(dados["whatsapp"]).strip(),
@@ -5677,7 +5697,8 @@ def cadastrar_empresa():
                         str(dados["interesse"]).strip(),
                         str(dados.get("mensagem", "")).strip() or None,
                         True,
-                        "novo_lead"
+                        "novo_lead",
+                        str(dados.get("origem", "cadastro_profissional_direto")).strip()
                     ))
         finally:
             conn.close()
