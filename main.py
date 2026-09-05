@@ -18152,7 +18152,7 @@ def atualizar_processos_aprendidos_ia(area=None, limite=80):
                             atualizado_em
                         FROM memoria_decisoes_ia
                         WHERE area = %s
-                        ORDER BY decidido_em ASC
+                        ORDER BY decidido_em DESC
                         LIMIT %s
                     """, (
                         area,
@@ -18178,13 +18178,17 @@ def atualizar_processos_aprendidos_ia(area=None, limite=80):
                             decidido_em,
                             atualizado_em
                         FROM memoria_decisoes_ia
-                        ORDER BY decidido_em ASC
+                        ORDER BY decidido_em DESC
                         LIMIT %s
                     """, (
                         limite,
                     ))
 
                 memorias = cur.fetchall()
+
+        # Busca as memorias mais recentes, mas entrega
+        # a historia para a IA em ordem cronologica.
+        memorias = list(reversed(memorias))
 
         if not memorias:
             return {
