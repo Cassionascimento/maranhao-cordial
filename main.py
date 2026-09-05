@@ -1689,6 +1689,38 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # PROCESSOS APRENDIDOS PELA IA
+                # Funis vivos derivados da experiencia real
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS processos_aprendidos_ia (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        processo VARCHAR(120) NOT NULL,
+                        area VARCHAR(80) NOT NULL,
+                        funil_observado JSONB NOT NULL DEFAULT '[]'::jsonb,
+                        funil_oficial JSONB NOT NULL DEFAULT '[]'::jsonb,
+                        funil_sugerido JSONB NOT NULL DEFAULT '[]'::jsonb,
+                        padroes_identificados JSONB NOT NULL DEFAULT '[]'::jsonb,
+                        proxima_acao_recomendada TEXT,
+                        justificativa TEXT,
+                        confianca VARCHAR(30) NOT NULL DEFAULT 'baixa',
+                        total_evidencias INTEGER NOT NULL DEFAULT 0,
+                        status VARCHAR(30) NOT NULL DEFAULT 'observando',
+                        versao INTEGER NOT NULL DEFAULT 1,
+                        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        UNIQUE (processo, area)
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_processos_aprendidos_ia_area
+                    ON processos_aprendidos_ia(area)
+                """)
+
+                # ==========================================
                 # BRIEFINGS EXECUTIVOS DA IA
                 # Histórico e controle de envio à direção
                 # ==========================================
@@ -17796,6 +17828,19 @@ def processar_insights_empresariais():
         if not item.get("sucesso")
     )
 
+    # Atualiza a leitura dos processos reais da empresa.
+    # Esta camada aprende com a memoria operacional,
+    # mas uma falha nela nao interrompe os insights.
+    try:
+        processos_aprendidos = (
+            atualizar_processos_aprendidos_ia()
+        )
+    except Exception as erro_processos:
+        processos_aprendidos = {
+            "success": False,
+            "erro": str(erro_processos)
+        }
+
     return {
         "resposta": (
             f"{len(candidatos)} candidatos processados: "
@@ -17803,6 +17848,7 @@ def processar_insights_empresariais():
             f"{rejeitados} rejeitados e "
             f"{erros} erros."
         ),
+        "processos_aprendidos": processos_aprendidos,
         "candidatos": len(candidatos),
         "aprovados": aprovados,
         "criados": sum(
@@ -18058,6 +18104,441 @@ def carregar_memoria_decisoes_ia(
             "contexto": contexto,
             "total_memorias": len(usadas),
             "memorias_usadas": usadas
+        }
+
+    finally:
+        conn.close()
+
+
+
+def atualizar_processos_aprendidos_ia(area=None, limite=80):
+    """
+    Aprende a estrutura operacional da empresa a partir
+    das decisoes humanas e dos resultados reais.
+
+    Nao altera o funil oficial automaticamente.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                if area:
+                    cur.execute("""
+                        SELECT
+                            id,
+                            acao_id,
+                            evento_origem_id,
+                            titulo_acao,
+                            descricao_acao,
+                            area,
+                            prioridade,
+                            decisao,
+                            motivo_decisao,
+                            resultado,
+                            avaliacao_resultado,
+                            aprendizado_resultado,
+                            decidido_por,
+                            decidido_em,
+                            atualizado_em
+                        FROM memoria_decisoes_ia
+                        WHERE area = %s
+                        ORDER BY decidido_em ASC
+                        LIMIT %s
+                    """, (
+                        area,
+                        limite
+                    ))
+
+                else:
+                    cur.execute("""
+                        SELECT
+                            id,
+                            acao_id,
+                            evento_origem_id,
+                            titulo_acao,
+                            descricao_acao,
+                            area,
+                            prioridade,
+                            decisao,
+                            motivo_decisao,
+                            resultado,
+                            avaliacao_resultado,
+                            aprendizado_resultado,
+                            decidido_por,
+                            decidido_em,
+                            atualizado_em
+                        FROM memoria_decisoes_ia
+                        ORDER BY decidido_em ASC
+                        LIMIT %s
+                    """, (
+                        limite,
+                    ))
+
+                memorias = cur.fetchall()
+
+        if not memorias:
+            return {
+                "success": True,
+                "processos_atualizados": 0,
+                "motivo": "Nenhuma memoria operacional disponivel."
+            }
+
+        por_area = {}
+
+        for memoria in memorias:
+            nome_area = (
+                memoria.get("area")
+                or "geral"
+            )
+
+            por_area.setdefault(
+                nome_area,
+                []
+            ).append(memoria)
+
+        resultados = []
+
+        for nome_area, itens in por_area.items():
+
+            evidencias = []
+
+            for item in itens:
+                evidencias.append({
+                    "memoria_id": str(item["id"]),
+                    "acao_id": str(item["acao_id"]),
+                    "evento_origem_id":
+                        item["evento_origem_id"],
+                    "acao":
+                        item["titulo_acao"],
+                    "descricao":
+                        item["descricao_acao"],
+                    "decisao":
+                        item["decisao"],
+                    "motivo":
+                        item["motivo_decisao"],
+                    "resultado":
+                        item["resultado"],
+                    "avaliacao_resultado":
+                        item["avaliacao_resultado"],
+                    "aprendizado":
+                        item["aprendizado_resultado"],
+                    "data":
+                        str(item["decidido_em"])
+                })
+
+            contexto = json.dumps(
+                {
+                    "area": nome_area,
+                    "historico": evidencias
+                },
+                ensure_ascii=False,
+                default=str
+            )
+
+            resposta = openai_client.responses.create(
+                model="gpt-5-mini",
+
+                text={
+                    "format": {
+                        "type": "json_schema",
+                        "name": "processo_aprendido",
+                        "strict": True,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "processo": {
+                                    "type": "string"
+                                },
+                                "funil_observado": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "funil_sugerido": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "padroes_identificados": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "proxima_acao_recomendada": {
+                                    "type": "string"
+                                },
+                                "justificativa": {
+                                    "type": "string"
+                                },
+                                "confianca": {
+                                    "type": "string",
+                                    "enum": [
+                                        "baixa",
+                                        "media",
+                                        "alta"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "processo",
+                                "funil_observado",
+                                "funil_sugerido",
+                                "padroes_identificados",
+                                "proxima_acao_recomendada",
+                                "justificativa",
+                                "confianca"
+                            ],
+                            "additionalProperties": False
+                        }
+                    }
+                },
+
+                instructions=(
+                    "Voce organiza os processos internos "
+                    "da Maranhao Cordial a partir da memoria "
+                    "operacional real da empresa. "
+
+                    "Reconstrua somente etapas sustentadas "
+                    "pelos acontecimentos fornecidos. "
+
+                    "Nao invente etapas futuras apenas porque "
+                    "sao comuns em outras empresas. "
+
+                    "O funil_observado representa exclusivamente "
+                    "o que realmente apareceu no historico. "
+
+                    "O funil_sugerido pode organizar melhor as "
+                    "etapas observadas, mas deve permanecer "
+                    "conservador quando houver poucos dados. "
+
+                    "A proxima_acao_recomendada deve ser apenas "
+                    "uma proxima acao plausivel, nunca uma cadeia "
+                    "de varias acoes futuras. "
+
+                    "Aprenda com decisoes humanas, resultados "
+                    "e aprendizados registrados. "
+
+                    "Se houver pouca evidencia, use confianca baixa. "
+
+                    "Nao altere regras empresariais, nao execute "
+                    "acoes e nao transforme sugestoes em decisoes."
+                ),
+
+                input=(
+                    "HISTORICO OPERACIONAL REAL:\n"
+                    + contexto
+                )
+            )
+
+            analise = json.loads(
+                (
+                    resposta.output_text
+                    or ""
+                ).strip()
+            )
+
+            conn = get_db_connection()
+
+            try:
+                with conn:
+                    with conn.cursor(
+                        cursor_factory=RealDictCursor
+                    ) as cur:
+
+                        cur.execute("""
+                            INSERT INTO processos_aprendidos_ia (
+                                processo,
+                                area,
+                                funil_observado,
+                                funil_sugerido,
+                                padroes_identificados,
+                                proxima_acao_recomendada,
+                                justificativa,
+                                confianca,
+                                total_evidencias,
+                                status
+                            )
+                            VALUES (
+                                %s,
+                                %s,
+                                %s::jsonb,
+                                %s::jsonb,
+                                %s::jsonb,
+                                %s,
+                                %s,
+                                %s,
+                                %s,
+                                'observando'
+                            )
+                            ON CONFLICT (processo, area)
+                            DO UPDATE SET
+                                funil_observado =
+                                    EXCLUDED.funil_observado,
+                                funil_sugerido =
+                                    EXCLUDED.funil_sugerido,
+                                padroes_identificados =
+                                    EXCLUDED.padroes_identificados,
+                                proxima_acao_recomendada =
+                                    EXCLUDED.proxima_acao_recomendada,
+                                justificativa =
+                                    EXCLUDED.justificativa,
+                                confianca =
+                                    EXCLUDED.confianca,
+                                total_evidencias =
+                                    EXCLUDED.total_evidencias,
+                                versao =
+                                    processos_aprendidos_ia.versao + 1,
+                                atualizado_em = NOW()
+                            RETURNING
+                                id,
+                                processo,
+                                area,
+                                versao
+                        """, (
+                            analise["processo"],
+                            nome_area,
+                            json.dumps(
+                                analise["funil_observado"],
+                                ensure_ascii=False
+                            ),
+                            json.dumps(
+                                analise["funil_sugerido"],
+                                ensure_ascii=False
+                            ),
+                            json.dumps(
+                                analise["padroes_identificados"],
+                                ensure_ascii=False
+                            ),
+                            analise[
+                                "proxima_acao_recomendada"
+                            ],
+                            analise["justificativa"],
+                            analise["confianca"],
+                            len(evidencias)
+                        ))
+
+                        processo_salvo = cur.fetchone()
+
+                resultados.append({
+                    "success": True,
+                    "processo":
+                        processo_salvo["processo"],
+                    "area":
+                        processo_salvo["area"],
+                    "versao":
+                        processo_salvo["versao"],
+                    "evidencias":
+                        len(evidencias),
+                    "confianca":
+                        analise["confianca"],
+                    "proxima_acao":
+                        analise[
+                            "proxima_acao_recomendada"
+                        ]
+                })
+
+            finally:
+                conn.close()
+
+        return {
+            "success": True,
+            "processos_atualizados":
+                len(resultados),
+            "resultados":
+                resultados
+        }
+
+    finally:
+        conn.close()
+
+
+def carregar_processos_aprendidos_para_ia():
+    """
+    Entrega a memoria atual dos processos para
+    o restante da IA Empresarial.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+
+            cur.execute("""
+                SELECT
+                    id,
+                    processo,
+                    area,
+                    funil_observado,
+                    funil_oficial,
+                    funil_sugerido,
+                    padroes_identificados,
+                    proxima_acao_recomendada,
+                    justificativa,
+                    confianca,
+                    total_evidencias,
+                    status,
+                    versao,
+                    atualizado_em
+                FROM processos_aprendidos_ia
+                ORDER BY atualizado_em DESC
+            """)
+
+            processos = cur.fetchall()
+
+        if not processos:
+            return {
+                "contexto": "",
+                "processos": []
+            }
+
+        partes = []
+
+        for processo in processos:
+
+            partes.append(
+                "\n=== PROCESSO APRENDIDO PELA IA ===\n"
+                f"Processo: {processo['processo']}\n"
+                f"Area: {processo['area']}\n"
+                f"Funil observado: "
+                f"{processo['funil_observado']}\n"
+                f"Funil oficial: "
+                f"{processo['funil_oficial']}\n"
+                f"Funil sugerido: "
+                f"{processo['funil_sugerido']}\n"
+                f"Padroes: "
+                f"{processo['padroes_identificados']}\n"
+                f"Proxima acao sugerida: "
+                f"{processo['proxima_acao_recomendada']}\n"
+                f"Confianca: {processo['confianca']}\n"
+                f"Evidencias: "
+                f"{processo['total_evidencias']}\n"
+                f"Versao: {processo['versao']}\n"
+            )
+
+        return {
+            "contexto": (
+                "\n\nMEMORIA DE PROCESSOS DA EMPRESA:\n"
+                "Use esta memoria para compreender como "
+                "os processos realmente estao evoluindo. "
+                "O funil oficial tem prioridade sobre "
+                "sugestoes da IA. Nao invente etapas "
+                "sem evidencia operacional.\n"
+                + "".join(partes)
+            ),
+            "processos": [
+                dict(item)
+                for item in processos
+            ]
         }
 
     finally:
