@@ -16879,6 +16879,9 @@ def carregar_leads_crm_para_ia(limite=50):
                         proximo_followup,
                         atualizado_em
                     FROM leads_crm
+                    WHERE
+                        valido_para_ia = TRUE
+                        AND cadastro_teste = FALSE
                     ORDER BY
                         CASE estagio
                             WHEN 'negociacao' THEN 1
