@@ -1545,6 +1545,11 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # ARQUIVAMENTO SEGURO — CADASTROS
+                cur.execute("ALTER TABLE cadastros_profissionais ADD COLUMN IF NOT EXISTS arquivado BOOLEAN NOT NULL DEFAULT FALSE")
+                cur.execute("ALTER TABLE cadastros_profissionais ADD COLUMN IF NOT EXISTS arquivado_em TIMESTAMPTZ")
+                cur.execute("ALTER TABLE cadastros_profissionais ADD COLUMN IF NOT EXISTS arquivado_por VARCHAR(220)")
+
                 # SOLICITAÇÕES DE DEGUSTAÇÃO
                 # ==========================================
 
@@ -2131,6 +2136,11 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # ARQUIVAMENTO SEGURO — MENSAGENS
+                cur.execute("ALTER TABLE interacoes_omnichannel ADD COLUMN IF NOT EXISTS arquivado BOOLEAN NOT NULL DEFAULT FALSE")
+                cur.execute("ALTER TABLE interacoes_omnichannel ADD COLUMN IF NOT EXISTS arquivado_em TIMESTAMPTZ")
+                cur.execute("ALTER TABLE interacoes_omnichannel ADD COLUMN IF NOT EXISTS arquivado_por VARCHAR(220)")
+
                 # OMNICHANNEL — FILA DE RESPOSTAS
                 # ==========================================
 
@@ -2481,6 +2491,11 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # ARQUIVAMENTO SEGURO — REDE PROFISSIONAL
+                cur.execute("ALTER TABLE profissionais_rede ADD COLUMN IF NOT EXISTS arquivado BOOLEAN NOT NULL DEFAULT FALSE")
+                cur.execute("ALTER TABLE profissionais_rede ADD COLUMN IF NOT EXISTS arquivado_em TIMESTAMPTZ")
+                cur.execute("ALTER TABLE profissionais_rede ADD COLUMN IF NOT EXISTS arquivado_por VARCHAR(220)")
+
                 # CENARIOS FISCAIS / CUSTO TRIBUTARIO
                 # ==========================================
 
@@ -7415,6 +7430,10 @@ def admin_listar_respostas_omnichannel():
         )
     ).strip().lower()
 
+    mostrar_arquivados = str(
+        request.args.get("arquivados", "false")
+    ).strip().lower() == "true"
+
     limite_raw = request.args.get(
         "limite",
         "100"
@@ -7458,10 +7477,12 @@ def admin_listar_respostas_omnichannel():
                         JOIN interacoes_omnichannel i
                             ON i.id = f.interacao_id
                         WHERE f.status = %s
+                        AND COALESCE(i.arquivado, FALSE) = %s
                         ORDER BY f.criado_em DESC
                         LIMIT %s
                     """, (
                         status,
+                        mostrar_arquivados,
                         limite
                     ))
 
@@ -7479,9 +7500,11 @@ def admin_listar_respostas_omnichannel():
                         FROM fila_respostas_omnichannel f
                         JOIN interacoes_omnichannel i
                             ON i.id = f.interacao_id
+                        WHERE COALESCE(i.arquivado, FALSE) = %s
                         ORDER BY f.criado_em DESC
                         LIMIT %s
                     """, (
+                        mostrar_arquivados,
                         limite,
                     ))
 
@@ -13659,6 +13682,10 @@ def admin_listar_profissionais():
             "error": "Não autorizado."
         }), 401
 
+    mostrar_arquivados = str(
+        request.args.get("arquivados", "false")
+    ).strip().lower() == "true"
+
     conn = get_db_connection()
 
     try:
@@ -13707,6 +13734,7 @@ def admin_listar_profissionais():
                         ORDER BY c.criado_em DESC
                         LIMIT 1
                     ) cp ON TRUE
+                    WHERE COALESCE(pr.arquivado, FALSE) = %s
                     ORDER BY
                         CASE pr.status_fluxo
                             WHEN 'ativo' THEN 1
@@ -13719,7 +13747,9 @@ def admin_listar_profissionais():
                             ELSE 8
                         END,
                         pr.atualizado_em DESC
-                """)
+                """, (
+                    mostrar_arquivados,
+                ))
 
                 profissionais = cur.fetchall()
 
@@ -13740,6 +13770,126 @@ def admin_listar_profissionais():
             "success": False,
             "error":
                 "Erro ao listar profissionais."
+        }), 500
+
+    finally:
+        conn.close()
+
+
+# =====================================================
+# OMNICHANNEL — ARQUIVAR / RESTAURAR MENSAGEM
+# =====================================================
+
+@app.route(
+    "/api/admin/omnichannel/interacoes/<interacao_id>/arquivamento",
+    methods=["PATCH"]
+)
+def admin_arquivamento_interacao(interacao_id):
+    if not validar_admin_omnichannel():
+        return jsonify({"success": False, "error": "Não autorizado."}), 401
+
+    dados = request.get_json(silent=True) or {}
+    arquivar = bool(dados.get("arquivado", True))
+    responsavel = str(dados.get("responsavel", "admin")).strip() or "admin"
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT * FROM interacoes_omnichannel WHERE id = %s FOR UPDATE",
+                    (interacao_id,)
+                )
+                interacao = cur.fetchone()
+
+                if not interacao:
+                    return jsonify({"success": False, "error": "Mensagem não encontrada."}), 404
+
+                if arquivar:
+                    cur.execute(
+                        "UPDATE interacoes_omnichannel SET arquivado = TRUE, arquivado_em = NOW(), arquivado_por = %s, atualizado_em = NOW() WHERE id = %s RETURNING *",
+                        (responsavel, interacao_id)
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE interacoes_omnichannel SET arquivado = FALSE, arquivado_em = NULL, arquivado_por = NULL, atualizado_em = NOW() WHERE id = %s RETURNING *",
+                        (interacao_id,)
+                    )
+
+                atualizada = cur.fetchone()
+
+        return jsonify({
+            "success": True,
+            "arquivado": arquivar,
+            "interacao": atualizada
+        }), 200
+
+    except Exception as erro:
+        print("ERRO ARQUIVAMENTO OMNICHANNEL:", repr(erro))
+        return jsonify({
+            "success": False,
+            "error": "Erro ao alterar arquivamento da mensagem."
+        }), 500
+
+    finally:
+        conn.close()
+
+
+# =====================================================
+# REDE PROFISSIONAL — ARQUIVAR / RESTAURAR
+# =====================================================
+
+@app.route(
+    "/api/admin/profissionais/<profissional_id>/arquivamento",
+    methods=["PATCH"]
+)
+def admin_arquivamento_profissional(profissional_id):
+    if not validar_admin_request():
+        return jsonify({"success": False, "error": "Não autorizado."}), 401
+
+    dados = request.get_json(silent=True) or {}
+    arquivar = bool(dados.get("arquivado", True))
+    responsavel = str(dados.get("responsavel", "admin")).strip() or "admin"
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT * FROM profissionais_rede WHERE id = %s FOR UPDATE",
+                    (profissional_id,)
+                )
+                profissional = cur.fetchone()
+
+                if not profissional:
+                    return jsonify({"success": False, "error": "Profissional não encontrado."}), 404
+
+                if arquivar:
+                    cur.execute(
+                        "UPDATE profissionais_rede SET arquivado = TRUE, arquivado_em = NOW(), arquivado_por = %s, disponivel_ia = FALSE, atualizado_em = NOW() WHERE id = %s RETURNING *",
+                        (responsavel, profissional_id)
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE profissionais_rede SET arquivado = FALSE, arquivado_em = NULL, arquivado_por = NULL, disponivel_ia = FALSE, atualizado_em = NOW() WHERE id = %s RETURNING *",
+                        (profissional_id,)
+                    )
+
+                atualizado = cur.fetchone()
+
+        return jsonify({
+            "success": True,
+            "arquivado": arquivar,
+            "profissional": atualizado
+        }), 200
+
+    except Exception as erro:
+        print("ERRO ARQUIVAMENTO PROFISSIONAL:", repr(erro))
+        return jsonify({
+            "success": False,
+            "error": "Erro ao alterar arquivamento."
         }), 500
 
     finally:
@@ -13858,6 +14008,12 @@ def admin_workflow_profissional(
                         "error":
                             "Profissional não encontrado."
                     }), 404
+
+                if profissional.get("arquivado"):
+                    return jsonify({
+                        "success": False,
+                        "error": "Profissional arquivado. Restaure antes de alterar o workflow."
+                    }), 400
 
                 status_atual = (
                     profissional.get(
