@@ -5704,10 +5704,149 @@ def cadastrar_empresa():
         finally:
             conn.close()
 
+        # -------------------------------------------------
+        # SINCRONIZA COM A REDE PROFISSIONAL
+        # -------------------------------------------------
+
+        cidade_original = str(
+            dados["cidade"]
+        ).strip()
+
+        cidade_rede = cidade_original
+        estado_rede = ""
+
+        if "/" in cidade_original:
+            possivel_cidade, possivel_uf = (
+                cidade_original.rsplit("/", 1)
+            )
+
+            if len(possivel_uf.strip()) == 2:
+                cidade_rede = (
+                    possivel_cidade.strip()
+                    or cidade_original
+                )
+                estado_rede = (
+                    possivel_uf.strip().upper()
+                )
+
+        elif (
+            len(cidade_original) == 2
+            and cidade_original.isalpha()
+        ):
+            estado_rede = cidade_original.upper()
+
+        empresa = str(
+            dados.get("empresa") or ""
+        ).strip()
+
+        segmento = str(
+            dados["segmento"]
+        ).strip()
+
+        mensagem = str(
+            dados.get("mensagem") or ""
+        ).strip()
+
+        interesse = str(
+            dados["interesse"]
+        ).strip()
+
+        origem = str(
+            dados.get("origem")
+            or "cadastro_profissional_direto"
+        ).strip()
+
+        observacoes = (
+            f"Interesse: {interesse}."
+            + (
+                f" {mensagem}"
+                if mensagem
+                else ""
+            )
+        )
+
+        dados_rede = {
+            "nome":
+                str(dados["responsavel"]).strip(),
+            "nome_profissional":
+                str(dados["responsavel"]).strip(),
+            "cidade":
+                cidade_rede,
+            "estado":
+                estado_rede,
+            "estabelecimento_nome":
+                empresa or None,
+            "estabelecimento_tipo":
+                segmento,
+            "cargo_funcao":
+                segmento,
+            "whatsapp":
+                str(dados["whatsapp"]).strip(),
+            "email":
+                str(dados["email"]).strip().lower(),
+            "fonte_dados":
+                origem,
+            "responsavel_dados_nome":
+                str(dados["responsavel"]).strip(),
+            "responsavel_dados_empresa":
+                empresa or "Cadastro público",
+            "responsavel_dados_cargo":
+                segmento,
+            "responsavel_dados_email":
+                str(dados["email"]).strip().lower(),
+            "responsavel_dados_whatsapp":
+                str(dados["whatsapp"]).strip(),
+            "observacoes":
+                observacoes
+        }
+
+        profissional_id = None
+        rede_profissional = "erro"
+
+        try:
+            resposta_rede = (
+                parceiro_cadastrar_profissional(
+                    dados_rede
+                )
+            )
+
+            if isinstance(resposta_rede, tuple):
+                corpo_rede, status_rede = resposta_rede
+            else:
+                corpo_rede = resposta_rede
+                status_rede = getattr(
+                    resposta_rede,
+                    "status_code",
+                    200
+                )
+
+            retorno_rede = (
+                corpo_rede.get_json(silent=True)
+                if hasattr(corpo_rede, "get_json")
+                else {}
+            ) or {}
+
+            profissional_id = retorno_rede.get(
+                "profissional_id"
+            )
+
+            if status_rede == 201:
+                rede_profissional = "cadastrado"
+            elif status_rede == 409:
+                rede_profissional = "existente"
+
+        except Exception as erro_rede:
+            print(
+                "ERRO SINCRONIZAR REDE PROFISSIONAL:",
+                repr(erro_rede)
+            )
+
         return jsonify({
             "success": True,
             "message": "Cadastro profissional recebido.",
-            "empresa_id": str(cadastro_id)
+            "empresa_id": str(cadastro_id),
+            "rede_profissional": rede_profissional,
+            "profissional_id": profissional_id
         }), 201
 
     except Exception as erro:
@@ -13090,11 +13229,14 @@ def admin_workflow_fabrica(fabrica_id):
     "/api/parceiros/profissionais/cadastro",
     methods=["POST"]
 )
-def parceiro_cadastrar_profissional():
+def parceiro_cadastrar_profissional(dados_override=None):
 
-    dados = request.get_json(
-        silent=True
-    ) or {}
+    if dados_override is None:
+        dados = request.get_json(
+            silent=True
+        ) or {}
+    else:
+        dados = dados_override
 
     nome = str(
         dados.get("nome", "")
