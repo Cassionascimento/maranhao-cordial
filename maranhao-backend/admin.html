@@ -1674,7 +1674,7 @@
             const iaResumoAtendimentos =
                 document.getElementById("iaResumoAtendimentos");
 
-            let adminKeyAtual = "";
+            window.adminKeyAtual = "";
 
             const docNome =
                 document.getElementById("docNome");
@@ -2020,7 +2020,7 @@
                         "show"
                     );
 
-                    adminKeyAtual = chave;
+                    window.adminKeyAtual = chave;
 
                     carregarAnalytics();
 
@@ -5672,7 +5672,7 @@ async function carregarProfissionaisWorkflow() {
             "profissionaisWorkflowResumo"
         );
 
-    if (!adminKeyAtual) {
+    if (!window.adminKeyAtual) {
         return;
     }
 
@@ -5689,7 +5689,7 @@ async function carregarProfissionaisWorkflow() {
                 {
                     headers: {
                         "X-Admin-Key":
-                            adminKeyAtual
+                            window.adminKeyAtual
                     }
                 }
             );
