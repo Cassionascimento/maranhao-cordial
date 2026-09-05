@@ -4941,14 +4941,49 @@ def classificar_email_empresarial(
     )
 
     # -----------------------------------------
-    # C6 BANK — FINANCEIRO
+    # C6 BANK — SEGURANCA / AUTENTICACAO
+    # Nao envia codigos de seguranca para a IA.
     # -----------------------------------------
 
-    if (
+    eh_c6 = (
         "c6bank" in conjunto
         or "c6 bank" in conjunto
         or "@c6bank.com" in conjunto
+    )
+
+    termos_seguranca = (
+        "codigo para validacao",
+        "código para validação",
+        "codigo de seguranca",
+        "código de segurança",
+        "codigo de verificacao",
+        "código de verificação",
+        "token de seguranca",
+        "token de segurança",
+        "digite o codigo",
+        "digite o código"
+    )
+
+    if (
+        eh_c6
+        and any(
+            termo in conjunto
+            for termo in termos_seguranca
+        )
     ):
+        return {
+            "relevante_crm": False,
+            "tipo_lead": None,
+            "classificacao": "seguranca_rotina",
+            "interesse": None,
+            "estagio": None
+        }
+
+    # -----------------------------------------
+    # C6 BANK — FINANCEIRO
+    # -----------------------------------------
+
+    if eh_c6:
         return {
             "relevante_crm": False,
             "tipo_lead": None,
