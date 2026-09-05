@@ -5819,7 +5819,7 @@ function renderizarProfissionaisWorkflow() {
                                 font-weight:600;
                             "
                         >
-                            ${escapar(
+                            ${escaparWF(
                                 profissional.nome || "-"
                             )}
                         </div>
@@ -5831,9 +5831,9 @@ function renderizarProfissionaisWorkflow() {
                                 font-size:13px;
                             "
                         >
-                            ${escapar(estabelecimento)}
+                            ${escaparWF(estabelecimento)}
                             ·
-                            ${escapar(cidade)}/${escapar(estado)}
+                            ${escaparWF(cidade)}/${escaparWF(estado)}
                         </div>
                     </div>
 
@@ -5843,7 +5843,7 @@ function renderizarProfissionaisWorkflow() {
                             opacity:.75;
                         "
                     >
-                        ${escapar(
+                        ${escaparWF(
                             profissional.status_fluxo
                             || "mapeado"
                         )}
@@ -5859,25 +5859,25 @@ function renderizarProfissionaisWorkflow() {
                     "
                 >
                     Função:
-                    ${escapar(
+                    ${escaparWF(
                         profissional.cargo_funcao
                         || "-"
                     )}
                     <br>
 
                     Instagram:
-                    ${escapar(
+                    ${escaparWF(
                         profissional.instagram
                         || "-"
                     )}
                     <br>
 
                     Responsável pelos dados:
-                    ${escapar(origem)}
+                    ${escaparWF(origem)}
                     <br>
 
                     Fonte:
-                    ${escapar(fonte)}
+                    ${escaparWF(fonte)}
                 </div>
 
                 <div
