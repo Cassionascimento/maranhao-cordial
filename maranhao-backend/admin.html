@@ -297,7 +297,93 @@
             }
         }
 
-    </style>
+    /* ===== MARANHAO CORDIAL — QUIET ADMIN ===== */
+:root{
+    --bg:#0a0a09;
+    --panel:#0d0e0c;
+    --text:#eeeae2;
+    --muted:#817f78;
+    --gold:#b3a078;
+    --line:rgba(238,234,226,.09);
+}
+body{
+    background:var(--bg);
+    letter-spacing:.01em;
+}
+.admin-shell{
+    max-width:1180px;
+    padding:56px 34px 100px;
+}
+h1{
+    font-size:34px;
+    letter-spacing:-.8px;
+}
+.subtitle{
+    color:var(--muted);
+}
+.card,
+.login-panel,
+.table-wrap{
+    background:transparent;
+    border-color:var(--line);
+    border-radius:0;
+    box-shadow:none;
+}
+.card{
+    padding:22px 0;
+    border-left:0;
+    border-right:0;
+    border-top:0;
+}
+.summary{
+    gap:32px;
+    margin:42px 0;
+}
+.summary .card{
+    flex:1;
+    min-width:140px;
+}
+button{
+    border-color:var(--line);
+    color:var(--text);
+    letter-spacing:.04em;
+}
+.admin-tabs{
+    gap:24px;
+    border-bottom:1px solid var(--line);
+}
+.admin-tab{
+    border:0;
+    padding:10px 0 14px;
+    opacity:.48;
+}
+.admin-tab.active{
+    background:transparent;
+    border:0;
+    color:var(--text);
+    opacity:1;
+}
+input,textarea,select{
+    border-color:var(--line) !important;
+    border-radius:0 !important;
+    background:rgba(255,255,255,.018) !important;
+}
+details{
+    border:0;
+}
+summary{
+    color:var(--muted);
+}
+#profissionaisWorkflowSection,
+#iaCentralDecisoes{
+    background:transparent !important;
+    box-shadow:none !important;
+}
+@media(max-width:700px){
+    .admin-shell{padding:32px 20px 70px;}
+    .summary{gap:12px;}
+}
+</style>
 </head>
 
 <body>
