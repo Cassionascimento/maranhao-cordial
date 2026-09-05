@@ -6862,9 +6862,6 @@ async function carregarFabricasWorkflow() {
                             "
                         >
                             ${escaparWF(cidadeUf)}
-                            ·
-                            CNPJ:
-                            ${escaparWF(textoWF(fabrica.cnpj))}
                         </div>
                     </div>
 
@@ -6886,18 +6883,14 @@ async function carregarFabricasWorkflow() {
                             ${escaparWF(labelStatusWF(status))}
                         </span>
 
-                        <span
-                            style="
-                                padding:6px 9px;
-                                border-radius:999px;
-                                border:1px solid rgba(255,255,255,.14);
-                                font-size:11px;
-                            "
-                        >
-                            IA: ${ia ? "LIBERADA" : "BLOQUEADA"}
-                        </span>
+
                     </div>
                 </div>
+
+                <details style="margin-top:14px;">
+                    <summary style="cursor:pointer;font-size:12px;opacity:.72;margin-bottom:16px;">
+                        Ver cadastro
+                    </summary>
 
                 <div
                     style="
@@ -7035,6 +7028,7 @@ async function carregarFabricasWorkflow() {
                         </span>
                     `}
                 </div>
+                </details>
             </article>
         `;
     }
