@@ -8790,7 +8790,10 @@ def gmail_buscar_mensagens(access_token, limite=20):
             "duplicada": bool(
                 registro.get("duplicada")
             ),
-            "processamento": processamento
+            "processado": bool(
+                processamento
+                and processamento.get("success")
+            )
         })
 
     return {
