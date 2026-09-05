@@ -5554,6 +5554,48 @@
     </div>
 
     <div
+        style="
+            display:flex;
+            gap:18px;
+            align-items:center;
+            margin:4px 0 18px;
+            font-size:13px;
+        "
+    >
+        <button
+            id="profissionaisBtnAtuais"
+            type="button"
+            onclick="alternarProfissionaisArquivados(false)"
+            style="
+                width:auto;
+                margin:0;
+                padding:6px 0;
+                border:0;
+                background:transparent;
+                opacity:1;
+            "
+        >
+            Atuais
+        </button>
+
+        <button
+            id="profissionaisBtnArquivados"
+            type="button"
+            onclick="alternarProfissionaisArquivados(true)"
+            style="
+                width:auto;
+                margin:0;
+                padding:6px 0;
+                border:0;
+                background:transparent;
+                opacity:.45;
+            "
+        >
+            Arquivados
+        </button>
+    </div>
+
+    <div
         id="profissionaisWorkflowResumo"
         style="
             margin-bottom:16px;
@@ -5659,6 +5701,27 @@
 
 
 let profissionaisWorkflowDados = [];
+let profissionaisWorkflowArquivados = false;
+
+async function alternarProfissionaisArquivados(mostrar) {
+    profissionaisWorkflowArquivados = Boolean(mostrar);
+
+    const btnAtuais = document.getElementById("profissionaisBtnAtuais");
+    const btnArquivados = document.getElementById("profissionaisBtnArquivados");
+
+    if (btnAtuais) {
+        btnAtuais.style.opacity =
+            profissionaisWorkflowArquivados ? ".45" : "1";
+    }
+
+    if (btnArquivados) {
+        btnArquivados.style.opacity =
+            profissionaisWorkflowArquivados ? "1" : ".45";
+    }
+
+    await carregarProfissionaisWorkflow();
+}
+
 
 async function carregarProfissionaisWorkflow() {
 
@@ -5685,7 +5748,7 @@ async function carregarProfissionaisWorkflow() {
 
         const response =
             await fetch(
-                "https://maranhao-cordial-api.onrender.com/api/admin/profissionais",
+                "https://maranhao-cordial-api.onrender.com/api/admin/profissionais" + (profissionaisWorkflowArquivados ? "?arquivados=true" : ""),
                 {
                     headers: {
                         "X-Admin-Key":
@@ -5881,9 +5944,7 @@ function renderizarProfissionaisWorkflow() {
                                 font-size:13px;
                             "
                         >
-                            ${escaparWF(estabelecimento)}
-                            ·
-                            ${escaparWF(cidade)}/${escaparWF(estado)}
+                            ${escaparWF(cadastroSegmento)}
                         </div>
                     </div>
 
@@ -5900,14 +5961,27 @@ function renderizarProfissionaisWorkflow() {
                     </div>
                 </div>
 
-                <div
-                    style="
-                        margin-top:14px;
-                        font-size:13px;
-                        line-height:1.6;
-                        opacity:.80;
-                    "
-                >
+                <details style="margin-top:14px;">
+                    <summary
+                        style="
+                            cursor:pointer;
+                            font-size:13px;
+                            opacity:.78;
+                            user-select:none;
+                            padding:6px 0;
+                        "
+                    >
+                        Ver cadastro
+                    </summary>
+
+                    <div
+                        style="
+                            margin-top:14px;
+                            font-size:13px;
+                            line-height:1.7;
+                            opacity:.80;
+                        "
+                    >
                     <strong>Nome:</strong>
                     ${escaparWF(cadastroNome)}
                     <br>
@@ -5956,10 +6030,41 @@ function renderizarProfissionaisWorkflow() {
                         margin-top:16px;
                     "
                 >
-                    ${botoesWorkflowProfissional(
-                        profissional
-                    )}
+                    ${
+                        profissionaisWorkflowArquivados
+                        ? `
+                            <button
+                                type="button"
+                                onclick="restaurarProfissionalWorkflow('${profissional.id}')"
+                                style="
+                                    width:auto;
+                                    padding:8px 12px;
+                                    margin:0;
+                                "
+                            >
+                                Restaurar
+                            </button>
+                        `
+                        : `
+                            ${botoesWorkflowProfissional(profissional)}
+
+                            <button
+                                type="button"
+                                onclick="arquivarProfissionalWorkflow('${profissional.id}')"
+                                style="
+                                    width:auto;
+                                    padding:8px 12px;
+                                    margin:0;
+                                    opacity:.65;
+                                "
+                            >
+                                Arquivar
+                            </button>
+                        `
+                    }
                 </div>
+
+                </details>
             `;
 
             lista.appendChild(card);
@@ -6045,6 +6150,96 @@ function botoesWorkflowProfissional(
             `
         )
         .join("");
+}
+
+
+async function arquivarProfissionalWorkflow(profissionalId) {
+
+    if (!window.adminKeyAtual) {
+        alert("Sessão administrativa não autorizada.");
+        return;
+    }
+
+    if (!confirm("Arquivar este cadastro? Ele poderá ser restaurado depois.")) {
+        return;
+    }
+
+    const responsavel =
+        document.getElementById("profissionaisWorkflowResponsavel")?.value
+        || "admin";
+
+    try {
+        const response = await fetch(
+            "https://maranhaocordial-api.onrender.com/api/admin/profissionais/"
+            + profissionalId
+            + "/arquivamento",
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Admin-Key": window.adminKeyAtual
+                },
+                body: JSON.stringify({
+                    arquivado: true,
+                    responsavel: responsavel
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Não foi possível arquivar.");
+        }
+
+        await carregarProfissionaisWorkflow();
+
+    } catch (erro) {
+        alert("Erro ao arquivar: " + erro.message);
+    }
+}
+
+
+async function restaurarProfissionalWorkflow(profissionalId) {
+
+    if (!window.adminKeyAtual) {
+        alert("Sessão administrativa não autorizada.");
+        return;
+    }
+
+    const responsavel =
+        document.getElementById("profissionaisWorkflowResponsavel")?.value
+        || "admin";
+
+    try {
+        const response = await fetch(
+            "https://maranhaocordial-api.onrender.com/api/admin/profissionais/"
+            + profissionalId
+            + "/arquivamento",
+            {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Admin-Key": window.adminKeyAtual
+                },
+                body: JSON.stringify({
+                    arquivado: false,
+                    responsavel: responsavel
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Não foi possível restaurar.");
+        }
+
+        await carregarProfissionaisWorkflow();
+
+    } catch (erro) {
+        alert("Erro ao restaurar: " + erro.message);
+    }
 }
 
 
