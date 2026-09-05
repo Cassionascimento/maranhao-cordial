@@ -8783,7 +8783,15 @@ def gmail_buscar_mensagens(access_token, limite=20):
         resultados.append({
             "gmail_id": gmail_id,
             "remetente": remetente,
-            "assunto": assunto,
+            "assunto": (
+                "[conteudo sensivel ocultado]"
+                if (
+                    "code:" in assunto.lower()
+                    or "código" in assunto.lower()
+                    or "codigo" in assunto.lower()
+                )
+                else assunto
+            ),
             "registrado": bool(
                 registro.get("success")
             ),
