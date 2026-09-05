@@ -13668,11 +13668,47 @@ def admin_listar_profissionais():
             ) as cur:
 
                 cur.execute("""
-                    SELECT *
-                    FROM profissionais_rede
-
+                    SELECT
+                        pr.*,
+                        cp.id AS cadastro_original_id,
+                        cp.empresa AS cadastro_empresa,
+                        cp.cnpj AS cadastro_cnpj,
+                        cp.segmento AS cadastro_segmento,
+                        cp.responsavel AS cadastro_responsavel,
+                        cp.whatsapp AS cadastro_whatsapp,
+                        cp.email AS cadastro_email,
+                        cp.cidade AS cadastro_cidade,
+                        cp.interesse AS cadastro_interesse,
+                        cp.mensagem AS cadastro_mensagem,
+                        cp.consentimento AS cadastro_consentimento,
+                        cp.status AS cadastro_status,
+                        cp.origem AS cadastro_origem,
+                        cp.criado_em AS cadastro_criado_em
+                    FROM profissionais_rede pr
+                    LEFT JOIN LATERAL (
+                        SELECT c.*
+                        FROM cadastros_profissionais c
+                        WHERE
+                            (
+                                pr.email IS NOT NULL
+                                AND c.email IS NOT NULL
+                                AND TRIM(pr.email) <> ''
+                                AND TRIM(c.email) <> ''
+                                AND LOWER(TRIM(c.email)) = LOWER(TRIM(pr.email))
+                            )
+                            OR
+                            (
+                                pr.whatsapp IS NOT NULL
+                                AND c.whatsapp IS NOT NULL
+                                AND regexp_replace(pr.whatsapp,'[^0-9]','','g') <> ''
+                                AND regexp_replace(c.whatsapp,'[^0-9]','','g')
+                                    = regexp_replace(pr.whatsapp,'[^0-9]','','g')
+                            )
+                        ORDER BY c.criado_em DESC
+                        LIMIT 1
+                    ) cp ON TRUE
                     ORDER BY
-                        CASE status_fluxo
+                        CASE pr.status_fluxo
                             WHEN 'ativo' THEN 1
                             WHEN 'relacionamento' THEN 2
                             WHEN 'qualificado' THEN 3
@@ -13682,7 +13718,7 @@ def admin_listar_profissionais():
                             WHEN 'rejeitado' THEN 7
                             ELSE 8
                         END,
-                        atualizado_em DESC
+                        pr.atualizado_em DESC
                 """)
 
                 profissionais = cur.fetchall()
