@@ -5059,8 +5059,54 @@ def processar_interacao_omnichannel_crm(
             )
         )
 
-    # Se nao for um fluxo empresarial conhecido,
-    # utiliza normalmente o classificador comercial.
+    # E-mails claramente automaticos nao devem
+    # alimentar o CRM comercial.
+    if (
+        canal == "gmail"
+        and not classificacao
+    ):
+        conjunto_email = (
+            sender_id
+            + " "
+            + texto
+        ).lower()
+
+        termos_automaticos = (
+            "unsubscribe",
+            "descadastrar",
+            "cancelar inscrição",
+            "cancelar inscricao",
+            "newsletter",
+            "don’t forget",
+            "don't forget",
+            "boost engagement"
+        )
+
+        remetente_automatico = (
+            "no-reply@" in conjunto_email
+            or "noreply@" in conjunto_email
+            or "hello@ma.linktr.ee" in conjunto_email
+        )
+
+        if (
+            remetente_automatico
+            or any(
+                termo in conjunto_email
+                for termo in termos_automaticos
+            )
+        ):
+            classificacao = {
+                "relevante_crm": False,
+                "tipo_lead": None,
+                "classificacao":
+                    "comunicacao_automatica",
+                "interesse": None,
+                "estagio": None
+            }
+
+    # Se nao for um fluxo empresarial conhecido
+    # nem comunicacao automatica, utiliza o
+    # classificador comercial normalmente.
     if not classificacao:
         classificacao = (
             classificar_interacao_comercial(
@@ -8738,7 +8784,12 @@ def gmail_buscar_mensagens(access_token, limite=20):
             "gmail_id": gmail_id,
             "remetente": remetente,
             "assunto": assunto,
-            "registro": registro,
+            "registrado": bool(
+                registro.get("success")
+            ),
+            "duplicada": bool(
+                registro.get("duplicada")
+            ),
             "processamento": processamento
         })
 
