@@ -18350,6 +18350,23 @@ def atualizar_processos_aprendidos_ia(area=None, limite=80):
                 ).strip()
             )
 
+            # O identificador do processo precisa ser estavel.
+            # A IA aprende o conteudo do processo, nao renomeia
+            # arbitrariamente a memoria a cada processamento.
+            analise["processo"] = (
+                f"Processo de {nome_area}"
+            )
+
+            # Com pouca evidencia, organizamos somente o que
+            # realmente aconteceu. Ainda nao projetamos um
+            # funil futuro nem forçamos uma proxima acao.
+            if len(evidencias) < 3:
+                analise["funil_sugerido"] = (
+                    analise["funil_observado"]
+                )
+                analise["proxima_acao_recomendada"] = ""
+                analise["confianca"] = "baixa"
+
             conn = get_db_connection()
 
             try:
