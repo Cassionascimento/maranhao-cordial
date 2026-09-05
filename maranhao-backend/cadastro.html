@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Conecte-se | Maranhão Cordial</title>
+
+<meta
+  name="description"
+  content="Conecte-se ao universo profissional Maranhão Cordial."
+>
+
+<style>
+:root {
+  --bg:#090807;
+  --bg-soft:#11100e;
+  --text:#f1ece3;
+  --soft:#b9b0a3;
+  --muted:#81786c;
+  --gold:#b79a64;
+  --gold-light:#c8aa70;
+  --line:rgba(183,154,100,.22);
+  --max:1180px;
+}
+
+* {
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+html {
+  scroll-behavior:smooth;
+}
+
+body {
+  min-height:100vh;
+
+  background:
+    radial-gradient(
+      circle at 15% 0%,
+      rgba(100,75,40,.17),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 90% 50%,
+      rgba(70,52,30,.10),
+      transparent 30%
+    ),
+    var(--bg);
+
+  color:var(--text);
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+
+  line-height:1.6;
+}
+
+a {
+  color:inherit;
+  text-decoration:none;
+}
+
+button,
+input,
+select,
+textarea {
+  font:inherit;
+}
+
+.container {
+  width:min(90%,var(--max));
+  margin:auto;
+}
+
+
+/* HEADER */
+
+header {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:50;
+
+  background:rgba(9,8,7,.86);
+  backdrop-filter:blur(14px);
+
+  border-bottom:
+    1px solid rgba(255,255,255,.04);
+}
+
+.nav {
+  height:76px;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.brand {
+  font-size:13px;
+  letter-spacing:.25em;
+  text-transform:uppercase;
+}
+
+.voltar {
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+}
+
+
+/* INTRO */
+
+main {
+  padding-top:76px;
+}
+
+.intro {
+  padding:90px 0 55px;
+  max-width:820px;
+}
+
+.eyebrow {
+  color:var(--gold);
+  font-size:10px;
+  letter-spacing:.30em;
+  text-transform:uppercase;
+  margin-bottom:22px;
+}
+
+h1 {
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-weight:400;
+
+  font-size:
+    clamp(46px,7vw,84px);
+
+  line-height:1;
+  letter-spacing:-.04em;
+
+  margin-bottom:28px;
+}
+
+.lead {
+  color:var(--soft);
+  font-size:18px;
+  font-weight:300;
+  max-width:700px;
+}
+
+
+/* PERFIS */
+
+.perfis {
+  display:grid;
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap:18px;
+
+  padding-bottom:90px;
+}
+
+.perfil {
+  min-height:190px;
+
+  position:relative;
+
+  padding:30px;
+
+  text-align:left;
+
+  color:var(--text);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.024),
+      rgba(183,154,100,.02)
+    );
+
+  border:
+    1px solid var(--line);
+
+  cursor:pointer;
+
+  transition:.25s;
+}
+
+.perfil:hover {
+  transform:translateY(-2px);
+
+  border-color:
+    rgba(183,154,100,.58);
+
+  background:
+    rgba(183,154,100,.035);
+}
+
+.perfil-numero {
+  color:var(--gold);
+  font-size:10px;
+  letter-spacing:.18em;
+}
+
+.perfil h2 {
+  margin-top:35px;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size:27px;
+  font-weight:400;
+}
+
+.perfil p {
+  margin-top:8px;
+
+  color:var(--muted);
+
+  font-size:13px;
+
+  max-width:420px;
+}
+
+
+/* ÁREA FORMULÁRIO */
+
+.area-form {
+  display:none;
+
+  padding:
+    20px 0 110px;
+}
+
+.area-form.ativo {
+  display:block;
+}
+
+.top-form {
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:30px;
+
+  margin-bottom:35px;
+}
+
+.top-form h2 {
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size:
+    clamp(34px,5vw,52px);
+
+  font-weight:400;
+}
+
+.trocar {
+  border:0;
+  background:none;
+
+  color:var(--gold);
+
+  cursor:pointer;
+
+  font-size:10px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+}
+
+.form-card {
+  max-width:820px;
+
+  border:
+    1px solid var(--line);
+
+  padding:45px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.025),
+      rgba(183,154,100,.025)
+    );
+}
+
+.form-row {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+}
+
+.field {
+  display:grid;
+  gap:8px;
+
+  margin-bottom:18px;
+}
+
+label {
+  font-size:10px;
+  color:var(--muted);
+
+  text-transform:uppercase;
+  letter-spacing:.13em;
+}
+
+input,
+select,
+textarea {
+  width:100%;
+
+  color:var(--text);
+
+  background:
+    rgba(255,255,255,.015);
+
+  border:
+    1px solid rgba(255,255,255,.11);
+
+  padding:16px;
+
+  outline:none;
+
+  transition:.2s;
+}
+
+select {
+  background-color:var(--bg-soft);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color:var(--gold);
+}
+
+textarea {
+  min-height:110px;
+  resize:vertical;
+}
+
+::placeholder {
+  color:#69635b;
+}
+
+.consent {
+  display:flex;
+  gap:12px;
+
+  align-items:flex-start;
+
+  margin:5px 0 20px;
+
+  color:var(--muted);
+
+  font-size:12px;
+}
+
+.consent input {
+  width:auto;
+  margin-top:4px;
+  accent-color:var(--gold);
+}
+
+.btn {
+  width:100%;
+  min-height:56px;
+
+  border:
+    1px solid var(--gold);
+
+  background:var(--gold);
+  color:#0b0907;
+
+  cursor:pointer;
+
+  font-size:11px;
+  font-weight:600;
+
+  letter-spacing:.17em;
+  text-transform:uppercase;
+}
+
+.btn:hover {
+  background:var(--gold-light);
+}
+
+.btn:disabled {
+  opacity:.5;
+  cursor:wait;
+}
+
+.resultado {
+  display:none;
+
+  margin-top:18px;
+  padding:15px;
+
+  border:
+    1px solid var(--line);
+
+  font-size:13px;
+}
+
+.resultado.ok,
+.resultado.erro {
+  display:block;
+}
+
+.resultado.ok {
+  color:#d8e9dc;
+}
+
+.resultado.erro {
+  color:#efb9b9;
+}
+
+.oculto {
+  display:none !important;
+}
+
+
+/* MOBILE */
+
+@media(max-width:760px) {
+
+  .intro {
+    padding-top:65px;
+  }
+
+  .perfis {
+    grid-template-columns:1fr;
+  }
+
+  .perfil {
+    min-height:165px;
+  }
+
+  .form-card {
+    padding:30px 22px;
+  }
+
+  .form-row {
+    grid-template-columns:1fr;
+  }
+
+  .top-form {
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .voltar {
+    display:none;
+  }
+}
+</style>
+</head>
+
+
+<body>
+
+<header>
+  <div class="container nav">
+
+    <a href="/" class="brand">
+      Maranhão Cordial
+    </a>
+
+    <a href="/" class="voltar">
+      ← Voltar
+    </a>
+
+  </div>
+</header>
+
+
+<main>
+
+<div class="container">
+
+  <section
+    id="escolhaPerfil"
+  >
+
+    <div class="intro">
+
+      <div class="eyebrow">
+        Universo Maranhão
+      </div>
+
+      <h1>
+        Como você quer<br>
+        se conectar?
+      </h1>
+
+      <p class="lead">
+        Selecione seu perfil.
+        A experiência será adaptada ao tipo de relacionamento
+        que você deseja construir com Maranhão.
+      </p>
+
+    </div>
+
+
+    <div class="perfis">
+
+      <button
+        class="perfil"
+        data-perfil="profissional"
+      >
+        <span class="perfil-numero">
+          01
+        </span>
+
+        <h2>
+          Profissional
+        </h2>
+
+        <p>
+          Bartenders, mixologistas, chefs
+          e profissionais da gastronomia.
+        </p>
+      </button>
+
+
+      <button
+        class="perfil"
+        data-perfil="estabelecimento"
+      >
+        <span class="perfil-numero">
+          02
+        </span>
+
+        <h2>
+          Bar · Restaurante · Hotel
+        </h2>
+
+        <p>
+          Estabelecimentos interessados em experimentar,
+          servir ou conhecer Maranhão.
+        </p>
+      </button>
+
+
+      <button
+        class="perfil"
+        data-perfil="fabrica"
+      >
+        <span class="perfil-numero">
+          03
+        </span>
+
+        <h2>
+          Fábrica · Indústria
+        </h2>
+
+        <p>
+          Indústrias e parceiros de produção
+          interessados em integrar nossa rede.
+        </p>
+      </button>
+
+
+      <button
+        class="perfil"
+        data-perfil="distribuidor"
+      >
+        <span class="perfil-numero">
+          04
+        </span>
+
+        <h2>
+          Distribuição · Parceria
+        </h2>
+
+        <p>
+          Distribuidores, representantes
+          e parceiros comerciais.
+        </p>
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- PROFISSIONAL / ESTABELECIMENTO / DISTRIBUIDOR -->
+
+  <section
+    id="areaProfissional"
+    class="area-form"
+  >
+
+    <div class="top-form">
+
+      <div>
+        <div class="eyebrow">
+          Maranhão Profissional
+        </div>
+
+        <h2 id="tituloProfissional">
+          Experimente Maranhão.
+        </h2>
+      </div>
+
+      <button
+        class="trocar"
+        type="button"
+        onclick="voltarPerfis()"
+      >
+        ← trocar perfil
+      </button>
+
+    </div>
+
+
+    <div class="form-card">
+
+      <form id="formProfissional">
+
+        <input
+          type="hidden"
+          id="perfilSelecionado"
+        >
+
+
+        <div class="field">
+
+          <label>
+            Bar, restaurante ou local onde atua
+          </label>
+
+          <input
+            name="empresa"
+            id="empresaProfissional"
+            placeholder="Nome do estabelecimento, se houver"
+          >
+
+        </div>
+
+
+        <div class="form-row">
+
+          <div class="field">
+
+            <label>
+              CNPJ (opcional)
+            </label>
+
+            <input
+              name="cnpj"
+              placeholder="00.000.000/0000-00"
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              Perfil
+            </label>
+
+            <select
+              name="segmento"
+              id="segmentoProfissional"
+              required
+            >
+
+              <option value="">
+                Selecione
+              </option>
+
+              <option value="bartender">
+                Bartender / Mixologista
+              </option>
+
+              <option value="chef">
+                Chef / Gastronomia
+              </option>
+
+              <option value="bar">
+                Bar
+              </option>
+
+              <option value="restaurante">
+                Restaurante
+              </option>
+
+              <option value="hotel">
+                Hotel / Pousada
+              </option>
+
+              <option value="eventos">
+                Eventos / Catering
+              </option>
+
+              <option value="emporio">
+                Empório
+              </option>
+
+              <option value="mercado">
+                Mercado
+              </option>
+
+              <option value="distribuidor">
+                Distribuidor
+              </option>
+
+              <option value="outro">
+                Outro profissional do setor
+              </option>
+
+            </select>
+
+          </div>
+
+        </div>
+
+
+        <div class="field">
+
+          <label>
+            Seu nome
+          </label>
+
+          <input
+            name="responsavel"
+            placeholder="Nome e sobrenome"
+            required
+          >
+
+        </div>
+
+
+        <div class="form-row">
+
+          <div class="field">
+
+            <label>
+              WhatsApp
+            </label>
+
+            <input
+              name="whatsapp"
+              type="tel"
+              placeholder="(11) 99999-9999"
+              required
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              E-mail
+            </label>
+
+            <input
+              name="email"
+              type="email"
+              placeholder="voce@email.com"
+              required
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="form-row">
+
+          <div class="field">
+
+            <label>
+              Cidade
+            </label>
+
+            <input
+              id="cidadeProfissional"
+              placeholder="São Paulo"
+              required
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              UF
+            </label>
+
+            <input
+              id="estadoProfissional"
+              maxlength="2"
+              placeholder="SP"
+              required
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="field">
+
+          <label>
+            Interesse principal
+          </label>
+
+          <select
+            name="interesse"
+            id="interesseProfissional"
+            required
+          >
+
+            <option value="">
+              Selecione
+            </option>
+
+            <option value="degustacao">
+              Quero experimentar Maranhão
+            </option>
+
+            <option value="aplicacoes">
+              Conhecer aplicações
+            </option>
+
+            <option value="servir">
+              Servir no estabelecimento
+            </option>
+
+            <option value="parceria">
+              Parceria profissional
+            </option>
+
+            <option value="evento">
+              Utilizar em evento
+            </option>
+
+            <option value="revender">
+              Revender Maranhão Cordial
+            </option>
+
+            <option value="distribuir">
+              Distribuição
+            </option>
+
+            <option value="proposta">
+              Receber proposta comercial
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <div class="field">
+
+          <label>
+            Conte um pouco mais (opcional)
+          </label>
+
+          <textarea
+            name="mensagem"
+            placeholder="Conte como gostaria de se conectar com Maranhão."
+          ></textarea>
+
+        </div>
+
+
+        <label class="consent">
+
+          <input
+            type="checkbox"
+            name="consentimento"
+            required
+          >
+
+          <span>
+            Autorizo o contato da equipe Maranhão Cordial
+            relacionado a esta solicitação profissional.
+          </span>
+
+        </label>
+
+
+        <button
+          type="submit"
+          class="btn"
+          id="btnProfissional"
+        >
+          Enviar cadastro
+        </button>
+
+
+        <div
+          id="resultadoProfissional"
+          class="resultado"
+        ></div>
+
+      </form>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- FÁBRICA -->
+
+  <section
+    id="areaFabrica"
+    class="area-form"
+  >
+
+    <div class="top-form">
+
+      <div>
+        <div class="eyebrow">
+          Rede Industrial
+        </div>
+
+        <h2>
+          Conecte sua indústria.
+        </h2>
+      </div>
+
+      <button
+        class="trocar"
+        type="button"
+        onclick="voltarPerfis()"
+      >
+        ← trocar perfil
+      </button>
+
+    </div>
+
+
+    <div class="form-card">
+
+      <form id="formFabricaUnificado">
+
+        <div class="form-row">
+
+          <div class="field">
+
+            <label>
+              Nome da fábrica
+            </label>
+
+            <input
+              name="nome"
+              required
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              Razão social
+            </label>
+
+            <input
+              name="razao_social"
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="form-row">
+
+          <div class="field">
+
+            <label>
+              CNPJ
+            </label>
+
+            <input
+              name="cnpj"
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              Site
+            </label>
+
+            <input
+              name="site"
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="form-row">
+
+          <div class="field">
+
+            <label>
+              Cidade
+            </label>
+
+            <input
+              name="cidade"
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              UF
+            </label>
+
+            <input
+              name="estado"
+              maxlength="2"
+              placeholder="SP"
+              required
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="field">
+
+          <label>
+            Responsável comercial ou técnico
+          </label>
+
+          <input
+            name="contato_nome"
+          >
+
+        </div>
+
+
+        <div class="form-row">
+
+          <div class="field">
+
+            <label>
+              WhatsApp / telefone
+            </label>
+
+            <input
+              name="contato_whatsapp"
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              E-mail
+            </label>
+
+            <input
+              name="contato_email"
+              type="email"
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="form-row">
+
+          <div class="field">
+
+            <label>
+              Lote mínimo — unidades
+            </label>
+
+            <input
+              name="lote_minimo_unidades"
+              type="number"
+              min="0"
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              Lote mínimo — litros
+            </label>
+
+            <input
+              name="lote_minimo_litros"
+              type="number"
+              min="0"
+              step="0.01"
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="field">
+
+          <label>
+            Segmentos atendidos
+          </label>
+
+          <input
+            id="segmentosIndustria"
+            placeholder="Ex.: bebidas, xaropes, concentrados"
+          >
+
+        </div>
+
+
+        <div class="form-row">
+
+          <div class="field">
+
+            <label>
+              Envasa vidro?
+            </label>
+
+            <select name="embalagem_vidro">
+
+              <option value="">
+                Não informado
+              </option>
+
+              <option value="true">
+                Sim
+              </option>
+
+              <option value="false">
+                Não
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              Trabalha com copack / private label?
+            </label>
+
+            <select name="pode_copack">
+
+              <option value="">
+                Não informado
+              </option>
+
+              <option value="true">
+                Sim
+              </option>
+
+              <option value="false">
+                Não
+              </option>
+
+            </select>
+
+          </div>
+
+        </div>
+
+
+        <div class="field">
+
+          <label>
+            Observações
+          </label>
+
+          <textarea
+            name="observacoes"
+            placeholder="Capacidade, processos, certificações ou outras informações relevantes."
+          ></textarea>
+
+        </div>
+
+
+        <button
+          type="submit"
+          class="btn"
+          id="btnFabrica"
+        >
+          Enviar para validação
+        </button>
+
+
+        <div
+          id="resultadoFabrica"
+          class="resultado"
+        ></div>
+
+      </form>
+
+    </div>
+
+  </section>
+
+</div>
+
+</main>
+
+
+<script>
+const escolhaPerfil =
+  document.getElementById("escolhaPerfil");
+
+const areaProfissional =
+  document.getElementById("areaProfissional");
+
+const areaFabrica =
+  document.getElementById("areaFabrica");
+
+const parametros =
+  new URLSearchParams(window.location.search);
+
+const origem =
+  parametros.get("origem")
+  || "cadastro_unificado_direto";
+
+
+function mostrarPerfil(perfil) {
+
+  escolhaPerfil.style.display = "none";
+
+  areaProfissional.classList.remove("ativo");
+  areaFabrica.classList.remove("ativo");
+
+  if (perfil === "fabrica") {
+
+    areaFabrica.classList.add("ativo");
+
+  } else {
+
+    areaProfissional.classList.add("ativo");
+
+    configurarPerfilProfissional(perfil);
+  }
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
+}
+
+
+function voltarPerfis() {
+
+  areaProfissional.classList.remove("ativo");
+  areaFabrica.classList.remove("ativo");
+
+  escolhaPerfil.style.display = "block";
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
+}
+
+
+function configurarPerfilProfissional(perfil) {
+
+  const segmento =
+    document.getElementById(
+      "segmentoProfissional"
+    );
+
+  const interesse =
+    document.getElementById(
+      "interesseProfissional"
+    );
+
+  const titulo =
+    document.getElementById(
+      "tituloProfissional"
+    );
+
+  document.getElementById(
+    "perfilSelecionado"
+  ).value = perfil;
+
+
+  if (perfil === "profissional") {
+
+    titulo.textContent =
+      "Experimente Maranhão.";
+
+    segmento.value =
+      "bartender";
+
+    interesse.value =
+      "degustacao";
+
+  }
+
+
+  if (perfil === "estabelecimento") {
+
+    titulo.textContent =
+      "Leve Maranhão ao seu espaço.";
+
+    segmento.value =
+      "bar";
+
+    interesse.value =
+      "servir";
+
+  }
+
+
+  if (perfil === "distribuidor") {
+
+    titulo.textContent =
+      "Construa mercado com Maranhão.";
+
+    segmento.value =
+      "distribuidor";
+
+    interesse.value =
+      "distribuir";
+
+  }
+}
+
+
+document
+  .querySelectorAll("[data-perfil]")
+  .forEach(botao => {
+
+    botao.addEventListener(
+      "click",
+      () => {
+
+        mostrarPerfil(
+          botao.dataset.perfil
+        );
+      }
+    );
+  });
+
+
+
+/* PROFISSIONAL */
+
+document
+  .getElementById("formProfissional")
+  .addEventListener(
+    "submit",
+    async function(event) {
+
+      event.preventDefault();
+
+      const form =
+        event.target;
+
+      const botao =
+        document.getElementById(
+          "btnProfissional"
+        );
+
+      const resultado =
+        document.getElementById(
+          "resultadoProfissional"
+        );
+
+      const dados =
+        Object.fromEntries(
+          new FormData(form).entries()
+        );
+
+      const cidade =
+        document.getElementById(
+          "cidadeProfissional"
+        ).value.trim();
+
+      const estado =
+        document.getElementById(
+          "estadoProfissional"
+        ).value
+        .trim()
+        .toUpperCase();
+
+      dados.cidade =
+        cidade + " - " + estado;
+
+      dados.consentimento =
+        form.querySelector(
+          '[name="consentimento"]'
+        ).checked;
+
+      dados.origem =
+        origem;
+
+      botao.disabled = true;
+      botao.textContent =
+        "ENVIANDO...";
+
+      resultado.className =
+        "resultado";
+
+      resultado.style.display =
+        "none";
+
+      try {
+
+        const resposta =
+          await fetch(
+            "https://maranhao-cordial-api.onrender.com/api/profissional/cadastro",
+            {
+              method:"POST",
+
+              headers:{
+                "Content-Type":
+                  "application/json",
+
+                "Accept":
+                  "application/json"
+              },
+
+              body:
+                JSON.stringify(dados)
+            }
+          );
+
+        const retorno =
+          await resposta.json();
+
+        if (!resposta.ok) {
+
+          throw new Error(
+            retorno.error
+            || "Não foi possível enviar o cadastro."
+          );
+        }
+
+        resultado.className =
+          "resultado ok";
+
+        resultado.textContent =
+          "Cadastro recebido. Maranhão entrará em contato.";
+
+        form.reset();
+
+      } catch (erro) {
+
+        resultado.className =
+          "resultado erro";
+
+        resultado.textContent =
+          erro.message
+          || "Não foi possível enviar agora.";
+
+      } finally {
+
+        botao.disabled = false;
+
+        botao.textContent =
+          "Enviar cadastro";
+      }
+    }
+  );
+
+
+
+/* FÁBRICA */
+
+function valorOuNull(valor) {
+
+  const texto =
+    String(valor || "").trim();
+
+  return texto === ""
+    ? null
+    : texto;
+}
+
+
+function numeroOuNull(valor) {
+
+  const texto =
+    String(valor || "").trim();
+
+  if (!texto) {
+    return null;
+  }
+
+  const numero =
+    Number(texto);
+
+  return Number.isFinite(numero)
+    ? numero
+    : null;
+}
+
+
+function booleanoOuNull(valor) {
+
+  if (valor === "true") {
+    return true;
+  }
+
+  if (valor === "false") {
+    return false;
+  }
+
+  return null;
+}
+
+
+function listaSeparada(valor) {
+
+  return String(valor || "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+
+document
+  .getElementById(
+    "formFabricaUnificado"
+  )
+  .addEventListener(
+    "submit",
+    async function(event) {
+
+      event.preventDefault();
+
+      const form =
+        event.target;
+
+      const botao =
+        document.getElementById(
+          "btnFabrica"
+        );
+
+      const resultado =
+        document.getElementById(
+          "resultadoFabrica"
+        );
+
+      const formData =
+        new FormData(form);
+
+      const dados = {};
+
+      for (
+        const [chave,valor]
+        of formData.entries()
+      ) {
+
+        dados[chave] =
+          valorOuNull(valor);
+      }
+
+
+      [
+        "lote_minimo_unidades",
+        "lote_minimo_litros"
+      ].forEach(campo => {
+
+        dados[campo] =
+          numeroOuNull(
+            formData.get(campo)
+          );
+      });
+
+
+      [
+        "embalagem_vidro",
+        "pode_copack"
+      ].forEach(campo => {
+
+        dados[campo] =
+          booleanoOuNull(
+            formData.get(campo)
+          );
+      });
+
+
+      dados.segmentos_atendidos =
+        listaSeparada(
+          document.getElementById(
+            "segmentosIndustria"
+          ).value
+        );
+
+      dados.origem =
+        origem;
+
+      botao.disabled = true;
+
+      botao.textContent =
+        "ENVIANDO...";
+
+      resultado.className =
+        "resultado";
+
+      resultado.style.display =
+        "none";
+
+      try {
+
+        const resposta =
+          await fetch(
+            "https://maranhao-cordial-api.onrender.com/api/parceiros/fabricas/cadastro",
+            {
+              method:"POST",
+
+              headers:{
+                "Content-Type":
+                  "application/json"
+              },
+
+              body:
+                JSON.stringify(dados)
+            }
+          );
+
+        const retorno =
+          await resposta.json();
+
+        if (!resposta.ok) {
+
+          throw new Error(
+            retorno.error
+            || "Não foi possível enviar o cadastro."
+          );
+        }
+
+        resultado.className =
+          "resultado ok";
+
+        resultado.textContent =
+          "Cadastro recebido. A indústria entrou na etapa de validação Maranhão.";
+
+        form.reset();
+
+      } catch (erro) {
+
+        resultado.className =
+          "resultado erro";
+
+        resultado.textContent =
+          erro.message
+          || "Não foi possível enviar agora.";
+
+      } finally {
+
+        botao.disabled = false;
+
+        botao.textContent =
+          "Enviar para validação";
+      }
+    }
+  );
+</script>
+
+</body>
+</html>
