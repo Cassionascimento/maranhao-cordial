@@ -1696,7 +1696,7 @@ def inicializar_banco():
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS processos_aprendidos_ia (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        processo VARCHAR(120) NOT NULL,
+                        processo TEXT NOT NULL,
                         area VARCHAR(80) NOT NULL,
                         funil_observado JSONB NOT NULL DEFAULT '[]'::jsonb,
                         funil_oficial JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -1712,6 +1712,11 @@ def inicializar_banco():
                         atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         UNIQUE (processo, area)
                     )
+                """)
+
+                cur.execute("""
+                    ALTER TABLE processos_aprendidos_ia
+                    ALTER COLUMN processo TYPE TEXT
                 """)
 
                 cur.execute("""
