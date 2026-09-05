@@ -5300,23 +5300,48 @@ def processar_interacao_omnichannel_crm(
 
                 # -----------------------------------------
                 # PROCURA LEAD EXISTENTE
-                # canal + sender_id
+                # identidade por canal + fallback legado
                 # -----------------------------------------
 
-                cur.execute("""
-                    SELECT *
-                    FROM leads_crm
-                    WHERE
-                        canal = %s
-                        AND contato = %s
-                    ORDER BY criado_em DESC
-                    LIMIT 1
-                """, (
-                    canal,
-                    sender_id
-                ))
+                campo_identidade = {
+                    "gmail": "email",
+                    "whatsapp": "telefone",
+                    "instagram": "instagram"
+                }.get(canal)
 
-                lead = cur.fetchone()
+                lead = None
+
+                if campo_identidade:
+                    cur.execute(
+                        f"""
+                        SELECT *
+                        FROM leads_crm
+                        WHERE {campo_identidade} = %s
+                        ORDER BY criado_em DESC
+                        LIMIT 1
+                        """,
+                        (
+                            sender_id,
+                        )
+                    )
+
+                    lead = cur.fetchone()
+
+                if not lead:
+                    cur.execute("""
+                        SELECT *
+                        FROM leads_crm
+                        WHERE
+                            canal = %s
+                            AND contato = %s
+                        ORDER BY criado_em DESC
+                        LIMIT 1
+                    """, (
+                        canal,
+                        sender_id
+                    ))
+
+                    lead = cur.fetchone()
 
                 lead_criado = False
                 lead_atualizado = False
@@ -5326,6 +5351,28 @@ def processar_interacao_omnichannel_crm(
                 # -----------------------------------------
 
                 if lead:
+
+                    if campo_identidade:
+                        cur.execute(
+                            f"""
+                            UPDATE leads_crm
+                            SET
+                                {campo_identidade} =
+                                    COALESCE(
+                                        {campo_identidade},
+                                        %s
+                                    ),
+                                atualizado_em = NOW()
+                            WHERE id = %s
+                            RETURNING *
+                            """,
+                            (
+                                sender_id,
+                                lead["id"]
+                            )
+                        )
+
+                        lead = cur.fetchone()
 
                     observacao_nova = (
                         "["
@@ -5395,6 +5442,24 @@ def processar_interacao_omnichannel_crm(
                         + texto[:1500]
                     )
 
+                    email_lead = (
+                        sender_id
+                        if canal == "gmail"
+                        else None
+                    )
+
+                    telefone_lead = (
+                        sender_id
+                        if canal == "whatsapp"
+                        else None
+                    )
+
+                    instagram_lead = (
+                        sender_id
+                        if canal == "instagram"
+                        else None
+                    )
+
                     cur.execute("""
                         INSERT INTO leads_crm (
                             id,
@@ -5404,6 +5469,9 @@ def processar_interacao_omnichannel_crm(
                             origem,
                             canal,
                             contato,
+                            email,
+                            telefone,
+                            instagram,
                             interesse,
                             estagio,
                             receita_acumulada_centavos,
@@ -5412,7 +5480,8 @@ def processar_interacao_omnichannel_crm(
                         VALUES (
                             %s, %s, %s, %s,
                             %s, %s, %s, %s,
-                            %s, %s, %s
+                            %s, %s, %s, %s,
+                            %s, %s
                         )
                         RETURNING *
                     """, (
@@ -5425,6 +5494,9 @@ def processar_interacao_omnichannel_crm(
                         canal,
                         canal,
                         sender_id,
+                        email_lead,
+                        telefone_lead,
+                        instagram_lead,
                         classificacao[
                             "interesse"
                         ],
