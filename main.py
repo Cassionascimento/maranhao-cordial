@@ -3838,6 +3838,17 @@ def executar_atualizacao_lead_crm(acao):
         "estagio",
         "responsavel",
         "proximo_followup",
+
+        "email",
+        "telefone",
+        "instagram",
+        "status",
+        "prioridade",
+        "proxima_acao",
+        "motivo_proxima_acao",
+        "valido_para_ia",
+        "cadastro_teste",
+
         "observacoes"
     }
 
@@ -12567,6 +12578,44 @@ def admin_atualizar_lead_crm(lead_id):
                 return jsonify({
                     "success": False,
                     "error": "Estágio inválido."
+                }), 400
+
+        if campo == "status":
+            valor = str(valor).strip().lower()
+
+            if valor not in {
+                "ativo",
+                "inativo",
+                "descartado"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Status inválido."
+                }), 400
+
+        if campo == "prioridade":
+            valor = str(valor).strip().lower()
+
+            if valor not in {
+                "baixa",
+                "normal",
+                "alta",
+                "urgente"
+            }:
+                return jsonify({
+                    "success": False,
+                    "error": "Prioridade inválida."
+                }), 400
+
+        if campo in {
+            "valido_para_ia",
+            "cadastro_teste"
+        }:
+            if not isinstance(valor, bool):
+                return jsonify({
+                    "success": False,
+                    "error":
+                        f"{campo} deve ser booleano."
                 }), 400
 
         if campo in {
