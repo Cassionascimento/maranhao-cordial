@@ -18518,6 +18518,7 @@ def carregar_processos_aprendidos_para_ia():
                     versao,
                     atualizado_em
                 FROM processos_aprendidos_ia
+                WHERE processo = ('Processo de ' || area)
                 ORDER BY atualizado_em DESC
             """)
 
