@@ -16717,6 +16717,7 @@ def analisar_contexto_empresarial_para_insights():
     acoes_ia = carregar_acoes_para_ia()
     insights_atuais = carregar_insights_para_ia()
     objetivos_contexto = carregar_objetivos_estrategicos_para_ia()
+    processos_ia = carregar_processos_aprendidos_para_ia()
 
     contexto = (
         (evidencias_ia.get("contexto") or "")
@@ -16724,6 +16725,7 @@ def analisar_contexto_empresarial_para_insights():
         + (acoes_ia.get("contexto") or "")
         + (insights_atuais.get("contexto") or "")
         + (objetivos_contexto or "")
+        + (processos_ia.get("contexto") or "")
     )
 
     if not contexto.strip():
