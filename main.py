@@ -2104,6 +2104,26 @@ def inicializar_banco():
                         receita_acumulada_centavos BIGINT NOT NULL DEFAULT 0,
                         responsavel VARCHAR(180),
                         proximo_followup TIMESTAMPTZ,
+
+                        email VARCHAR(220),
+                        telefone VARCHAR(80),
+                        instagram VARCHAR(180),
+
+                        status VARCHAR(40)
+                            NOT NULL DEFAULT 'ativo',
+
+                        prioridade VARCHAR(20)
+                            NOT NULL DEFAULT 'normal',
+
+                        proxima_acao TEXT,
+                        motivo_proxima_acao TEXT,
+
+                        valido_para_ia BOOLEAN
+                            NOT NULL DEFAULT TRUE,
+
+                        cadastro_teste BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
                         observacoes TEXT,
                         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -2155,6 +2175,55 @@ def inicializar_banco():
                     idx_interacoes_omnichannel_message_id
                     ON interacoes_omnichannel(message_id)
                     WHERE message_id IS NOT NULL
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS email VARCHAR(220)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS telefone VARCHAR(80)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS instagram VARCHAR(180)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS status VARCHAR(40)
+                    NOT NULL DEFAULT 'ativo'
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS prioridade VARCHAR(20)
+                    NOT NULL DEFAULT 'normal'
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS proxima_acao TEXT
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS motivo_proxima_acao TEXT
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS valido_para_ia BOOLEAN
+                    NOT NULL DEFAULT TRUE
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS cadastro_teste BOOLEAN
+                    NOT NULL DEFAULT FALSE
                 """)
 
                 cur.execute("""
