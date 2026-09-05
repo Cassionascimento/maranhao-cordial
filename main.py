@@ -4919,6 +4919,64 @@ def classificar_interacao_comercial(texto):
 
 
 # =====================================================
+# OMNICHANNEL — CLASSIFICACAO DE EMAIL EMPRESARIAL
+# =====================================================
+
+def classificar_email_empresarial(
+    remetente,
+    texto
+):
+    remetente_normalizado = str(
+        remetente or ""
+    ).lower()
+
+    texto_normalizado = str(
+        texto or ""
+    ).lower()
+
+    conjunto = (
+        remetente_normalizado
+        + " "
+        + texto_normalizado
+    )
+
+    # -----------------------------------------
+    # C6 BANK — FINANCEIRO
+    # -----------------------------------------
+
+    if (
+        "c6bank" in conjunto
+        or "c6 bank" in conjunto
+        or "@c6bank.com" in conjunto
+    ):
+        return {
+            "relevante_crm": False,
+            "tipo_lead": None,
+            "classificacao": "financeiro",
+            "interesse": "financeiro",
+            "estagio": None
+        }
+
+    # -----------------------------------------
+    # AGILIZE — FISCAL / CONTABIL
+    # -----------------------------------------
+
+    if (
+        "agilize" in conjunto
+        or "@agilize.com.br" in conjunto
+    ):
+        return {
+            "relevante_crm": False,
+            "tipo_lead": None,
+            "classificacao": "fiscal_contabil",
+            "interesse": "contabilidade",
+            "estagio": None
+        }
+
+    return None
+
+
+# =====================================================
 # OMNICHANNEL — PROCESSAR PARA CRM
 # =====================================================
 
@@ -4954,11 +5012,26 @@ def processar_interacao_omnichannel_crm(
             "erro": "Interação sem ID."
         }
 
-    classificacao = (
-        classificar_interacao_comercial(
-            texto
+    classificacao = None
+
+    # E-mails empresariais conhecidos sao primeiro
+    # classificados pela area interna da empresa.
+    if canal == "gmail":
+        classificacao = (
+            classificar_email_empresarial(
+                sender_id,
+                texto
+            )
         )
-    )
+
+    # Se nao for um fluxo empresarial conhecido,
+    # utiliza normalmente o classificador comercial.
+    if not classificacao:
+        classificacao = (
+            classificar_interacao_comercial(
+                texto
+            )
+        )
 
     conn = get_db_connection()
 
