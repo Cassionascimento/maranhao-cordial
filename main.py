@@ -18242,6 +18242,41 @@ def atualizar_processos_aprendidos_ia(area=None, limite=80):
                         str(item["decidido_em"])
                 })
 
+            # Nao reaprende o mesmo processo quando nenhuma
+            # nova memoria operacional apareceu.
+            processo_canonico = f"Processo de {nome_area}"
+
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+                cur.execute("""
+                    SELECT total_evidencias
+                    FROM processos_aprendidos_ia
+                    WHERE processo = %s
+                      AND area = %s
+                    LIMIT 1
+                """, (
+                    processo_canonico,
+                    nome_area
+                ))
+
+                processo_existente = cur.fetchone()
+
+            if (
+                processo_existente
+                and processo_existente["total_evidencias"]
+                    == len(evidencias)
+            ):
+                resultados.append({
+                    "success": True,
+                    "processo": processo_canonico,
+                    "area": nome_area,
+                    "evidencias": len(evidencias),
+                    "atualizado": False,
+                    "motivo": "Nenhuma nova memoria operacional."
+                })
+                continue
+
             contexto = json.dumps(
                 {
                     "area": nome_area,
