@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Admin — Maranhão Cordial</title>
+    <title>Central Empresarial — Maranhão Cordial</title>
 
     <style>
         :root {
@@ -391,23 +391,18 @@ summary{
 
         <div class="eyebrow">Maranhão Cordial</div>
 
-        <h1>IA Empresarial</h1>
+        <h1>Central Empresarial</h1>
 
         <p class="subtitle">
             Sua central de decisão, acompanhamento e ação da Maranhão Cordial.
         </p>
 
         <nav class="admin-tabs" id="adminTabs">
-            <button class="admin-tab" data-tab="visao-geral">Visão Geral</button>
-            <button class="admin-tab" data-tab="pedidos">Pedidos</button>
-            <button class="admin-tab" data-tab="sac">SAC</button>
-            <button class="admin-tab" data-tab="b2b">B2B</button>
-            <button class="admin-tab" data-tab="degustacoes">Degustações</button>
-            <button class="admin-tab active" data-tab="ia-empresarial">IA Empresarial</button>
-            <button class="admin-tab" data-tab="presenca-digital">Presença Digital</button>
-            <button class="admin-tab" data-tab="documentos">Documentos</button>
-            <button class="admin-tab" data-tab="acoes">Ações</button>
-            <button class="admin-tab" data-tab="crm">CRM</button>
+            <button class="admin-tab" data-tab="visao-geral">Início</button>
+            <button class="admin-tab" data-tab="crm">Contatos</button>
+            <button class="admin-tab" data-tab="b2b">Oportunidades</button>
+            <button class="admin-tab" data-tab="empresa">Empresa</button>
+            <button class="admin-tab active" data-tab="ia-empresarial">IA</button>
         </nav>
 
         <section class="login-panel" id="loginPanel">
@@ -423,7 +418,7 @@ summary{
                 id="entrarAdmin"
                 type="button"
             >
-                Acessar pedidos
+                Acessar Central
             </button>
 
             <div
@@ -1352,6 +1347,76 @@ summary{
                         <div class="subtitle">Seguidores · impressões · engajamento · menções</div>
                         <div id="pdXStatus" style="margin-top:14px;">Ainda não conectado</div>
                     </div>
+
+                </div>
+
+            </section>
+
+
+            <section class="tab-panel" data-panel="empresa">
+
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:flex-end;
+                    gap:24px;
+                    flex-wrap:wrap;
+                    margin-bottom:28px;
+                ">
+                    <div>
+                        <div class="eyebrow">EMPRESA</div>
+
+                        <h2 style="
+                            font-family:Georgia, 'Times New Roman', serif;
+                            font-weight:400;
+                            font-size:34px;
+                            line-height:1.08;
+                            margin:0 0 10px;
+                        ">
+                            Operação da Maranhão Cordial
+                        </h2>
+
+                        <p class="subtitle" style="margin:0;">
+                            Acesse somente quando precisar aprofundar a operação.
+                        </p>
+                    </div>
+                </div>
+
+                <div style="
+                    display:grid;
+                    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+                    gap:14px;
+                ">
+
+                    <button type="button" class="empresa-link card" data-destino="pedidos">
+                        <small>Comercial</small>
+                        <strong style="font-size:20px;">Pedidos</strong>
+                    </button>
+
+                    <button type="button" class="empresa-link card" data-destino="degustacoes">
+                        <small>Experiência</small>
+                        <strong style="font-size:20px;">Degustações</strong>
+                    </button>
+
+                    <button type="button" class="empresa-link card" data-destino="sac">
+                        <small>Relacionamento</small>
+                        <strong style="font-size:20px;">Atendimento</strong>
+                    </button>
+
+                    <button type="button" class="empresa-link card" data-destino="documentos">
+                        <small>Gestão</small>
+                        <strong style="font-size:20px;">Documentos</strong>
+                    </button>
+
+                    <button type="button" class="empresa-link card" data-destino="presenca-digital">
+                        <small>Marca</small>
+                        <strong style="font-size:20px;">Presença digital</strong>
+                    </button>
+
+                    <button type="button" class="empresa-link card" data-destino="acoes">
+                        <small>Operação</small>
+                        <strong style="font-size:20px;">Ações</strong>
+                    </button>
 
                 </div>
 
@@ -5479,6 +5544,36 @@ summary{
 
             const tabs =
                  document.querySelectorAll(".admin-tab");
+
+            document.querySelectorAll(
+                ".empresa-link"
+            ).forEach(link => {
+                link.addEventListener("click", () => {
+
+                    const destino =
+                        link.dataset.destino;
+
+                    document.querySelectorAll(
+                        ".tab-panel"
+                    ).forEach(panel => {
+                        panel.classList.toggle(
+                            "active",
+                            panel.dataset.panel === destino
+                        );
+                    });
+
+                    if (destino === "acoes") {
+                        carregarAcoesEmpresariais();
+                    }
+
+                    if (destino === "presenca-digital") {
+                        carregarAnalytics();
+                        carregarInstagramPresencaDigital();
+                        carregarTikTokPresencaDigital();
+                    }
+                });
+            });
+
 
             tabs.forEach(tab => {
                 tab.addEventListener("click", () => {
