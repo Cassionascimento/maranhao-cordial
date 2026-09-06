@@ -5665,7 +5665,7 @@ def montar_contexto_conversas_instagram(
                     ORDER BY criado_em DESC
                     LIMIT 1
                 ) f ON TRUE
-                WHERE LOWER(i.canal) = 'instagram'
+                WHERE LOWER(i.canal) IN ('instagram', 'whatsapp')
                 {filtro_sender}
                 ORDER BY i.criado_em DESC
                 LIMIT %s
@@ -17403,12 +17403,15 @@ def admin_enviar_resposta_omnichannel(
                     fila.get("canal") or ""
                 ).strip().lower()
 
-                if canal != "instagram":
+                if canal not in {
+                    "instagram",
+                    "whatsapp"
+                }:
 
                     return jsonify({
                         "success": False,
                         "error":
-                            "Este endpoint envia somente mensagens do Instagram."
+                            "Canal não suportado para envio."
                     }), 400
 
                 # Marca ANTES da chamada externa.
@@ -17428,12 +17431,31 @@ def admin_enviar_resposta_omnichannel(
 
                 fila_envio = cur.fetchone()
 
-                resultado = enviar_resposta_instagram(
-                    {
-                        **dict(fila_envio),
-                        "status": "aprovada"
-                    }
-                )
+                fila_envio_dict = {
+                    **dict(fila_envio),
+                    "status": "aprovada"
+                }
+
+                if canal == "instagram":
+
+                    resultado = (
+                        enviar_resposta_instagram(
+                            fila_envio_dict
+                        )
+                    )
+
+                else:
+
+                    resultado = (
+                        enviar_mensagem_whatsapp_cloud(
+                            fila_envio_dict.get(
+                                "destinatario_id"
+                            ),
+                            fila_envio_dict.get(
+                                "resposta_sugerida"
+                            )
+                        )
+                    )
 
                 meta = (
                     resultado.get("meta")
@@ -17444,11 +17466,43 @@ def admin_enviar_resposta_omnichannel(
                 message_id = ""
 
                 if isinstance(meta, dict):
+
                     message_id = str(
                         meta.get("message_id")
                         or meta.get("message")
                         or ""
                     ).strip()
+
+                    if not message_id:
+
+                        mensagens_meta = (
+                            meta.get("messages")
+                            or []
+                        )
+
+                        if (
+                            isinstance(
+                                mensagens_meta,
+                                list
+                            )
+                            and mensagens_meta
+                        ):
+
+                            primeira_mensagem = (
+                                mensagens_meta[0]
+                                or {}
+                            )
+
+                            if isinstance(
+                                primeira_mensagem,
+                                dict
+                            ):
+                                message_id = str(
+                                    primeira_mensagem.get(
+                                        "id"
+                                    )
+                                    or ""
+                                ).strip()
 
                 confirmado = bool(
                     resultado.get("success")
