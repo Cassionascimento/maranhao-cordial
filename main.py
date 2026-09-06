@@ -2131,6 +2131,47 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # AI-NATIVE — CICLO DE RELACIONAMENTO
+                # ==========================================
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS objetivo_relacionamento TEXT
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS ultimo_resultado TEXT
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS ultima_interacao_em TIMESTAMPTZ
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS ultima_compra_em TIMESTAMPTZ
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS proxima_recompra_em TIMESTAMPTZ
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS quantidade_compras INTEGER
+                    NOT NULL DEFAULT 0
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS nivel_relacionamento VARCHAR(30)
+                    NOT NULL DEFAULT 'novo'
+                """)
+
+                # ==========================================
                 # OMNICHANNEL — INTERAÇÕES META
                 # ==========================================
 
@@ -5204,12 +5245,24 @@ def obter_ou_criar_contato_central(
 
     categorias_validas = {
         "lead",
-        "estrategico",
-        "profissional",
+        "consumidor",
+        "bartender",
+        "restaurante",
+        "bar",
+        "hotel",
         "empresa",
-        "criador",
+        "distribuidor",
+        "revendedor",
         "fornecedor",
-        "parceiro"
+        "fabrica",
+        "profissional",
+        "criador",
+        "influenciador",
+        "imprensa",
+        "jornalista",
+        "investidor",
+        "parceiro",
+        "estrategico"
     }
 
     if categoria_contato not in categorias_validas:
@@ -5410,6 +5463,505 @@ def obter_ou_criar_contato_central(
 
         print(
             "ERRO CONTATO CENTRAL:",
+            str(e)
+        )
+
+        return {
+            "success": False,
+            "erro": str(e)
+        }
+
+    finally:
+        conn.close()
+
+
+def inferir_categoria_relacionamento(
+    classificacao=None,
+    texto=""
+):
+    """
+    Infere o papel empresarial do contato sem substituir
+    categorias já conhecidas por uma classificação mais fraca.
+
+    É uma camada inicial determinística. A IA poderá
+    enriquecer essa classificação posteriormente.
+    """
+
+    classificacao = classificacao or {}
+
+    tipo_lead = str(
+        classificacao.get("tipo_lead") or ""
+    ).strip().lower()
+
+    classe = str(
+        classificacao.get("classificacao") or ""
+    ).strip().lower()
+
+    interesse = str(
+        classificacao.get("interesse") or ""
+    ).strip().lower()
+
+    conteudo = " ".join([
+        tipo_lead,
+        classe,
+        interesse,
+        str(texto or "").lower()
+    ])
+
+    categorias_diretas = {
+        "consumidor": "consumidor",
+        "bartender": "bartender",
+        "restaurante": "restaurante",
+        "bar": "bar",
+        "hotel": "hotel",
+        "empresa": "empresa",
+        "distribuidor": "distribuidor",
+        "revendedor": "revendedor",
+        "fornecedor": "fornecedor",
+        "fabrica": "fabrica",
+        "fábrica": "fabrica",
+        "profissional": "profissional",
+        "criador": "criador",
+        "influenciador": "influenciador",
+        "imprensa": "imprensa",
+        "jornalista": "jornalista",
+        "investidor": "investidor",
+        "parceiro": "parceiro",
+        "estrategico": "estrategico",
+        "estratégico": "estrategico"
+    }
+
+    for valor in (
+        tipo_lead,
+        classe
+    ):
+        if valor in categorias_diretas:
+            return categorias_diretas[valor]
+
+    regras = (
+        (
+            "bartender",
+            (
+                "bartender",
+                "mixologista",
+                "mixology"
+            )
+        ),
+        (
+            "restaurante",
+            (
+                "restaurante",
+                "restaurant"
+            )
+        ),
+        (
+            "hotel",
+            (
+                "hotel",
+                "hotelaria"
+            )
+        ),
+        (
+            "distribuidor",
+            (
+                "distribuidor",
+                "distribuição",
+                "distribuicao"
+            )
+        ),
+        (
+            "revendedor",
+            (
+                "revendedor",
+                "revenda"
+            )
+        ),
+        (
+            "fabrica",
+            (
+                "fábrica",
+                "fabrica",
+                "envase",
+                "fabricante"
+            )
+        ),
+        (
+            "jornalista",
+            (
+                "jornalista",
+                "reportagem",
+                "editorial"
+            )
+        ),
+        (
+            "imprensa",
+            (
+                "imprensa",
+                "assessoria de imprensa",
+                "mídia",
+                "midia"
+            )
+        ),
+        (
+            "influenciador",
+            (
+                "influenciador",
+                "influencer",
+                "criador de conteúdo",
+                "criador de conteudo"
+            )
+        ),
+        (
+            "investidor",
+            (
+                "investidor",
+                "investimento",
+                "aporte"
+            )
+        ),
+        (
+            "fornecedor",
+            (
+                "fornecedor",
+                "fornecimento"
+            )
+        ),
+        (
+            "consumidor",
+            (
+                "consumidor final",
+                "cliente final"
+            )
+        )
+    )
+
+    for categoria, termos in regras:
+        if any(
+            termo in conteudo
+            for termo in termos
+        ):
+            return categoria
+
+    return "lead"
+
+
+def definir_proximo_passo_relacionamento(
+    contato,
+    classificacao=None,
+    texto="",
+    canal=None
+):
+    """
+    Define um próximo passo operacional inicial.
+
+    Não executa ações.
+    Não envia mensagens.
+    Apenas organiza o relacionamento para acompanhamento.
+    """
+
+    classificacao = classificacao or {}
+
+    categoria = (
+        contato.get("categoria_contato")
+        or "lead"
+    )
+
+    texto_lower = str(
+        texto or ""
+    ).lower()
+
+    interesse = str(
+        classificacao.get("interesse")
+        or contato.get("interesse")
+        or ""
+    ).strip()
+
+    proxima_acao = "avaliar interação e definir continuidade"
+    motivo = "Nova interação registrada no relacionamento."
+    dias_followup = 3
+    nivel = contato.get("nivel_relacionamento") or "novo"
+
+    # -----------------------------------------
+    # INTENÇÃO COMERCIAL MAIS FORTE
+    # -----------------------------------------
+
+    termos_preco = (
+        "preço",
+        "preco",
+        "valor",
+        "orçamento",
+        "orcamento",
+        "quanto custa",
+        "tabela"
+    )
+
+    termos_amostra = (
+        "amostra",
+        "degustação",
+        "degustacao",
+        "experimentar",
+        "provar o produto"
+    )
+
+    termos_compra = (
+        "quero comprar",
+        "como comprar",
+        "fazer pedido",
+        "fechar pedido",
+        "comprar o produto"
+    )
+
+    if any(
+        termo in texto_lower
+        for termo in termos_compra
+    ):
+        proxima_acao = (
+            "acompanhar intenção de compra e orientar fechamento"
+        )
+        motivo = (
+            "A interação contém sinal explícito de intenção de compra."
+        )
+        dias_followup = 1
+        nivel = "alta_intencao"
+
+    elif any(
+        termo in texto_lower
+        for termo in termos_preco
+    ):
+        proxima_acao = (
+            "avaliar necessidade comercial e preparar resposta de preço"
+        )
+        motivo = (
+            "O contato demonstrou interesse em preço, valor ou orçamento."
+        )
+        dias_followup = 1
+        nivel = "interessado"
+
+    elif any(
+        termo in texto_lower
+        for termo in termos_amostra
+    ):
+        proxima_acao = (
+            "avaliar envio ou organização de amostra/degustação"
+        )
+        motivo = (
+            "A interação demonstrou interesse em experimentar o produto."
+        )
+        dias_followup = 2
+        nivel = "interessado"
+
+    # -----------------------------------------
+    # RELACIONAMENTOS NÃO COMERCIAIS
+    # -----------------------------------------
+
+    elif categoria in {
+        "fabrica",
+        "fornecedor"
+    }:
+        proxima_acao = (
+            "avaliar pendência operacional e definir continuidade"
+        )
+        motivo = (
+            "Relacionamento operacional com fábrica ou fornecedor."
+        )
+        dias_followup = 2
+        nivel = (
+            "ativo"
+            if nivel == "novo"
+            else nivel
+        )
+
+    elif categoria in {
+        "imprensa",
+        "jornalista",
+        "influenciador",
+        "criador"
+    }:
+        proxima_acao = (
+            "avaliar oportunidade de relacionamento e resposta"
+        )
+        motivo = (
+            "Contato com potencial de comunicação ou influência."
+        )
+        dias_followup = 3
+        nivel = (
+            "em_contato"
+            if nivel == "novo"
+            else nivel
+        )
+
+    elif categoria == "investidor":
+        proxima_acao = (
+            "avaliar interesse institucional e próxima conversa"
+        )
+        motivo = (
+            "Relacionamento classificado como potencial investidor."
+        )
+        dias_followup = 2
+        nivel = (
+            "em_contato"
+            if nivel == "novo"
+            else nivel
+        )
+
+    else:
+        if nivel == "novo":
+            nivel = "em_contato"
+
+    return {
+        "categoria_contato": categoria,
+        "objetivo_relacionamento":
+            interesse or None,
+        "proxima_acao": proxima_acao,
+        "motivo_proxima_acao": motivo,
+        "dias_followup": dias_followup,
+        "nivel_relacionamento": nivel,
+        "canal": canal
+    }
+
+
+def atualizar_relacionamento_por_interacao(
+    contato_id,
+    classificacao=None,
+    texto="",
+    canal=None
+):
+    """
+    Atualiza a memória operacional do relacionamento
+    a partir de uma nova interação omnichannel.
+
+    Este método não executa ações externas.
+    """
+
+    if not contato_id:
+        return {
+            "success": False,
+            "erro": "Contato não informado."
+        }
+
+    classificacao = classificacao or {}
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    contato_id,
+                ))
+
+                contato = cur.fetchone()
+
+                if not contato:
+                    return {
+                        "success": False,
+                        "erro": "Contato central não encontrado."
+                    }
+
+                contato = dict(contato)
+
+                categoria_inferida = (
+                    inferir_categoria_relacionamento(
+                        classificacao=classificacao,
+                        texto=texto
+                    )
+                )
+
+                categoria_atual = str(
+                    contato.get("categoria_contato")
+                    or "lead"
+                ).strip().lower()
+
+                # Não rebaixa uma categoria já conhecida
+                # para o genérico "lead".
+                if (
+                    categoria_atual != "lead"
+                    and categoria_inferida == "lead"
+                ):
+                    categoria_final = categoria_atual
+                else:
+                    categoria_final = categoria_inferida
+
+                contato["categoria_contato"] = (
+                    categoria_final
+                )
+
+                proximo_passo = (
+                    definir_proximo_passo_relacionamento(
+                        contato=contato,
+                        classificacao=classificacao,
+                        texto=texto,
+                        canal=canal
+                    )
+                )
+
+                cur.execute("""
+                    UPDATE leads_crm
+                    SET
+                        categoria_contato = %s,
+
+                        objetivo_relacionamento =
+                            COALESCE(
+                                objetivo_relacionamento,
+                                %s
+                            ),
+
+                        ultima_interacao_em = NOW(),
+
+                        proxima_acao = %s,
+
+                        motivo_proxima_acao = %s,
+
+                        proximo_followup =
+                            NOW()
+                            + (%s * INTERVAL '1 day'),
+
+                        nivel_relacionamento = %s,
+
+                        atualizado_em = NOW()
+
+                    WHERE id = %s
+
+                    RETURNING *
+                """, (
+                    categoria_final,
+                    proximo_passo.get(
+                        "objetivo_relacionamento"
+                    ),
+                    proximo_passo.get(
+                        "proxima_acao"
+                    ),
+                    proximo_passo.get(
+                        "motivo_proxima_acao"
+                    ),
+                    proximo_passo.get(
+                        "dias_followup"
+                    ) or 3,
+                    proximo_passo.get(
+                        "nivel_relacionamento"
+                    ) or "em_contato",
+                    contato_id
+                ))
+
+                atualizado = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "contato": dict(atualizado),
+                    "proximo_passo": proximo_passo
+                }
+
+    except Exception as e:
+        print(
+            "ERRO ATUALIZAR RELACIONAMENTO:",
             str(e)
         )
 
@@ -5649,6 +6201,61 @@ def processar_interacao_omnichannel_crm(
                                 "contato"
                             )
                         )
+
+                        # =====================================
+                        # AI-NATIVE — ATUALIZA RELACIONAMENTO
+                        # =====================================
+                        #
+                        # Toda nova interação relevante passa
+                        # a atualizar a memória operacional do
+                        # contato:
+                        #
+                        # - categoria/papel;
+                        # - última interação;
+                        # - nível de relacionamento;
+                        # - próxima ação;
+                        # - motivo;
+                        # - próximo follow-up.
+                        #
+                        # Este passo NÃO executa mensagens.
+                        # =====================================
+
+                        if (
+                            contato_central
+                            and contato_central.get("id")
+                        ):
+                            resultado_relacionamento = (
+                                atualizar_relacionamento_por_interacao(
+                                    contato_id=contato_central.get(
+                                        "id"
+                                    ),
+                                    classificacao=classificacao,
+                                    texto=texto,
+                                    canal=canal
+                                )
+                            )
+
+                            if resultado_relacionamento.get(
+                                "success"
+                            ):
+                                contato_atualizado = (
+                                    resultado_relacionamento.get(
+                                        "contato"
+                                    )
+                                )
+
+                                if contato_atualizado:
+                                    contato_central = (
+                                        contato_atualizado
+                                    )
+
+                            else:
+                                print(
+                                    "AVISO RELACIONAMENTO:",
+                                    resultado_relacionamento.get(
+                                        "erro"
+                                    )
+                                )
 
                 else:
                     resultado_contato = {
