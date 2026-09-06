@@ -4231,6 +4231,22 @@ def executar_acao_controlada(acao):
             executor = executar_mensagem_whatsapp
         else:
             executor = None
+
+    elif tipo == "publicar_conteudo":
+        canal = str(
+            acao.get("canal") or ""
+        ).strip().lower()
+
+        if canal in {
+            "x",
+            "pinterest",
+            "youtube",
+            "linkedin"
+        }:
+            executor = executar_publicacao_canal_digital
+        else:
+            executor = None
+
     else:
         executor = executores.get(tipo)
 
@@ -4268,6 +4284,236 @@ def executar_acao_controlada(acao):
 
     return resultado
 
+
+
+
+def executar_publicacao_canal_digital(acao):
+    """
+    Executor controlado de publicações externas.
+
+    A IA pode preparar a ação, mas a publicação somente
+    ocorre depois de autorização explícita no motor universal.
+    """
+
+    if not acao:
+        return {
+            "success": False,
+            "erro": "Ação inexistente."
+        }
+
+    acao_id = str(
+        acao.get("id") or ""
+    ).strip()
+
+    if not acao_id:
+        return {
+            "success": False,
+            "erro": "Ação sem ID."
+        }
+
+    canal = str(
+        acao.get("canal") or ""
+    ).strip().lower()
+
+    canais_permitidos = {
+        "x",
+        "pinterest",
+        "youtube",
+        "linkedin"
+    }
+
+    if canal not in canais_permitidos:
+        return {
+            "success": False,
+            "erro":
+                "Canal não autorizado para publicação digital."
+        }
+
+    estado = str(
+        acao.get("estado_execucao") or ""
+    ).strip().lower()
+
+    if estado != "autorizada":
+        return {
+            "success": False,
+            "erro":
+                "Publicação ainda não autorizada."
+        }
+
+    conteudo = str(
+        acao.get("conteudo") or ""
+    ).strip()
+
+    if not conteudo:
+        return {
+            "success": False,
+            "erro":
+                "Conteúdo da publicação ausente."
+        }
+
+    # ---------------------------------------------
+    # RESERVA ATÔMICA
+    # Evita publicação duplicada por dois cliques.
+    # ---------------------------------------------
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE acoes_empresariais
+                    SET
+                        estado_execucao = 'executando',
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                      AND estado_execucao = 'autorizada'
+                    RETURNING id
+                """, (
+                    acao_id,
+                ))
+
+                reservado = cur.fetchone()
+
+                if not reservado:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Ação já executada ou em execução."
+                    }
+
+    finally:
+        conn.close()
+
+    # ---------------------------------------------
+    # EXECUÇÃO PELO ADAPTADOR DO CANAL
+    # ---------------------------------------------
+
+    try:
+        from canais_digitais_adapters import (
+            executar_publicacao_canal
+        )
+
+        dados_publicacao = {}
+
+        justificativa = str(
+            acao.get("justificativa") or ""
+        ).strip()
+
+        # Os canais simples usam diretamente conteudo.
+        # Pinterest/YouTube receberão metadados estruturados
+        # em etapa própria antes da ativação real.
+        resultado = executar_publicacao_canal(
+            canal=canal,
+            conteudo=conteudo,
+            **dados_publicacao
+        )
+
+    except Exception as erro:
+        resultado = {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    # ---------------------------------------------
+    # PERSISTÊNCIA DO RESULTADO
+    # ---------------------------------------------
+
+    import json
+
+    resultado_serializado = json.dumps(
+        resultado,
+        ensure_ascii=False,
+        default=str
+    )
+
+    sucesso = bool(
+        resultado.get("success")
+    )
+
+    post_id = str(
+        resultado.get("post_id") or ""
+    ).strip()
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                if sucesso:
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET
+                            status = 'executada',
+                            estado_execucao = 'concluida',
+                            executor = %s,
+                            tentativas_execucao =
+                                COALESCE(
+                                    tentativas_execucao,
+                                    0
+                                ) + 1,
+                            executado_em = NOW(),
+                            resultado_execucao = %s,
+                            erro_execucao = NULL,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        canal,
+                        resultado_serializado,
+                        acao_id
+                    ))
+
+                else:
+                    erro_resultado = str(
+                        resultado.get("erro")
+                        or resultado.get("meta")
+                        or "Falha na publicação."
+                    )[:4000]
+
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET
+                            status = 'falhou',
+                            estado_execucao = 'falhou',
+                            executor = %s,
+                            tentativas_execucao =
+                                COALESCE(
+                                    tentativas_execucao,
+                                    0
+                                ) + 1,
+                            resultado_execucao = %s,
+                            erro_execucao = %s,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        canal,
+                        resultado_serializado,
+                        erro_resultado,
+                        acao_id
+                    ))
+
+    finally:
+        conn.close()
+
+    if sucesso:
+        try:
+            registrar_auditoria(
+                acao="publicacao_canal_digital",
+                entidade="acao_empresarial",
+                entidade_id=acao_id,
+                detalhes={
+                    "canal": canal,
+                    "post_id": post_id or None
+                }
+            )
+        except Exception as erro_auditoria:
+            print(
+                "ERRO AUDITORIA PUBLICAÇÃO:",
+                repr(erro_auditoria)
+            )
+
+    return resultado
 
 
 def enviar_mensagem_whatsapp_cloud(destinatario, conteudo):
