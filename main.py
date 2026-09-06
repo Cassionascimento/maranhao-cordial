@@ -32421,6 +32421,212 @@ def registrar_identidade_externa_contato(
         conn.close()
 
 
+def sincronizar_identidades_instagram_historicas(
+    limite=None
+):
+    """
+    Resolve e registra as identidades históricas
+    dos remetentes do Instagram.
+
+    Segurança:
+    - não cria contatos;
+    - não funde contatos;
+    - não altera interações;
+    - não envia mensagens;
+    - preserva vínculos já confirmados.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                query = """
+                    SELECT
+                        sender_id,
+                        COUNT(*) AS quantidade_interacoes
+                    FROM interacoes_omnichannel
+                    WHERE
+                        LOWER(canal) = 'instagram'
+                        AND sender_id IS NOT NULL
+                        AND TRIM(sender_id) <> ''
+                    GROUP BY sender_id
+                    ORDER BY
+                        COUNT(*) DESC,
+                        sender_id
+                """
+
+                parametros = []
+
+                if limite is not None:
+                    query += """
+                        LIMIT %s
+                    """
+                    parametros.append(
+                        int(limite)
+                    )
+
+                cur.execute(
+                    query,
+                    parametros
+                )
+
+                remetentes = cur.fetchall()
+
+        resumo = {
+            "success": True,
+            "total": len(remetentes),
+            "resolvidas": 0,
+            "registradas": 0,
+            "vinculos_preservados": 0,
+            "falhas": 0,
+            "erros": []
+        }
+
+        for remetente in remetentes:
+
+            sender_id = str(
+                remetente.get("sender_id")
+                or ""
+            ).strip()
+
+            if not sender_id:
+                continue
+
+            identidade_meta = (
+                resolver_identidade_instagram(
+                    sender_id
+                )
+            )
+
+            if not identidade_meta.get(
+                "success"
+            ):
+                resumo["falhas"] += 1
+                resumo["erros"].append({
+                    "sender_id": sender_id,
+                    "erro":
+                        identidade_meta.get(
+                            "erro"
+                        )
+                })
+                continue
+
+            resumo["resolvidas"] += 1
+
+            existente = None
+
+            conn_existente = (
+                get_db_connection()
+            )
+
+            try:
+                with conn_existente:
+                    with conn_existente.cursor(
+                        cursor_factory=RealDictCursor
+                    ) as cur:
+
+                        cur.execute("""
+                            SELECT *
+                            FROM
+                                identidades_externas_contato
+                            WHERE
+                                canal = 'instagram'
+                                AND identificador_externo = %s
+                            LIMIT 1
+                        """, (
+                            sender_id,
+                        ))
+
+                        existente = (
+                            cur.fetchone()
+                        )
+
+            finally:
+                conn_existente.close()
+
+            contato_central_id = None
+            status = "resolvida"
+            criterio_vinculo = None
+            confianca = None
+
+            if existente:
+
+                contato_central_id = (
+                    existente.get(
+                        "contato_central_id"
+                    )
+                )
+
+                status = (
+                    existente.get("status")
+                    or "resolvida"
+                )
+
+                criterio_vinculo = (
+                    existente.get(
+                        "criterio_vinculo"
+                    )
+                )
+
+                confianca = (
+                    existente.get(
+                        "confianca"
+                    )
+                )
+
+                if contato_central_id:
+                    resumo[
+                        "vinculos_preservados"
+                    ] += 1
+
+            resultado = (
+                registrar_identidade_externa_contato(
+                    canal="instagram",
+                    identificador_externo=sender_id,
+                    username_publico=
+                        identidade_meta.get(
+                            "username"
+                        ),
+                    nome_exibicao=
+                        identidade_meta.get(
+                            "nome"
+                        ),
+                    contato_central_id=
+                        contato_central_id,
+                    status=status,
+                    criterio_vinculo=
+                        criterio_vinculo,
+                    confianca=confianca
+                )
+            )
+
+            if resultado.get("success"):
+                resumo["registradas"] += 1
+            else:
+                resumo["falhas"] += 1
+                resumo["erros"].append({
+                    "sender_id": sender_id,
+                    "erro":
+                        resultado.get("erro")
+                })
+
+        return resumo
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
 
 def resolver_identidade_instagram(sender_id):
     """
