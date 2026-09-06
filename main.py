@@ -29062,6 +29062,42 @@ def gerar_painel_executivo_hoje():
     return painel
 
 
+# =====================================================
+# IA EMPRESARIAL — PAINEL EXECUTIVO HOJE
+# =====================================================
+
+@app.route(
+    "/api/admin/ia-empresarial/hoje",
+    methods=["GET"]
+)
+def admin_painel_executivo_hoje():
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        painel = gerar_painel_executivo_hoje()
+
+        return jsonify(painel), 200
+
+    except Exception as erro:
+        print(
+            "ERRO PAINEL EXECUTIVO HOJE:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Erro ao gerar painel executivo."
+        }), 500
+
+
+
+
 
 def carregar_contexto_briefing_executivo():
     """
