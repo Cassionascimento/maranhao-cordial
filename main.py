@@ -7750,6 +7750,668 @@ def executar_proxima_pesquisa_rede():
         conn.close()
 
 
+def preparar_prospectos_para_aprovacao(
+    limite=50
+):
+    """
+    Pega prospectos já qualificados pela IA,
+    calcula a estratégia comercial recomendada
+    e os deixa aguardando decisão humana.
+
+    NÃO cria mensagem.
+    NÃO envia contato.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM prospectos_rede
+                    WHERE
+                        valid_for_ai = TRUE
+                        AND score_qualidade >= 55
+                        AND (
+                            status = 'qualificado'
+                            OR status = 'descoberto'
+                        )
+                    ORDER BY
+                        score_qualidade DESC,
+                        criado_em ASC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                prospectos = cur.fetchall()
+
+        preparados = []
+        erros = []
+
+        for prospecto in prospectos:
+
+            prospecto_id = prospecto.get("id")
+
+            # ------------------------------------------
+            # EVITA RECRIAR ESTRATÉGIA
+            # ------------------------------------------
+
+            conn_check = get_db_connection()
+
+            try:
+                with conn_check:
+                    with conn_check.cursor(
+                        cursor_factory=RealDictCursor
+                    ) as cur:
+
+                        cur.execute("""
+                            SELECT *
+                            FROM estrategias_prospeccao_rede
+                            WHERE prospecto_id = %s
+                            ORDER BY criado_em DESC
+                            LIMIT 1
+                        """, (
+                            prospecto_id,
+                        ))
+
+                        estrategia = cur.fetchone()
+
+            finally:
+                conn_check.close()
+
+            if not estrategia:
+
+                resultado = (
+                    planejar_estrategia_prospeccao_rede(
+                        prospecto_id
+                    )
+                )
+
+                if not resultado.get("success"):
+
+                    erros.append({
+                        "prospecto_id":
+                            str(prospecto_id),
+                        "erro":
+                            resultado.get("erro")
+                            or resultado.get("motivo")
+                    })
+
+                    continue
+
+                estrategia = (
+                    resultado.get("estrategia")
+                    or {}
+                )
+
+            conn_update = get_db_connection()
+
+            try:
+                with conn_update:
+                    with conn_update.cursor() as cur:
+
+                        cur.execute("""
+                            UPDATE prospectos_rede
+                            SET
+                                status =
+                                    'aguardando_aprovacao_prospeccao',
+                                requer_aprovacao = TRUE,
+                                atualizado_em = NOW()
+                            WHERE id = %s
+                        """, (
+                            prospecto_id,
+                        ))
+
+            finally:
+                conn_update.close()
+
+            preparados.append({
+                "prospecto_id":
+                    str(prospecto_id),
+                "nome":
+                    prospecto.get("nome"),
+                "empresa":
+                    prospecto.get("empresa"),
+                "cargo":
+                    prospecto.get("cargo"),
+                "categoria":
+                    prospecto.get(
+                        "categoria_sugerida"
+                    ),
+                "score":
+                    prospecto.get(
+                        "score_qualidade"
+                    ),
+                "tipo_estrategia":
+                    estrategia.get(
+                        "tipo_estrategia"
+                    ),
+                "instrumento":
+                    estrategia.get(
+                        "instrumento"
+                    )
+            })
+
+        return {
+            "success": True,
+            "quantidade":
+                len(preparados),
+            "prospectos":
+                preparados,
+            "erros":
+                erros
+        }
+
+    except Exception as erro:
+
+        print(
+            "ERRO PREPARAR PROSPECTOS "
+            "PARA APROVAÇÃO:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def listar_prospectos_para_aprovacao(
+    limite=100
+):
+    """
+    Retorna exatamente o que o administrador
+    precisa enxergar antes de aprovar:
+
+    quem é,
+    por que interessa,
+    score,
+    evidência,
+    canais disponíveis,
+    estratégia recomendada.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        p.id,
+                        p.nome,
+                        p.empresa,
+                        p.cargo,
+                        p.categoria_sugerida,
+                        p.email_publico,
+                        p.telefone_publico,
+                        p.instagram_publico,
+                        p.linkedin_publico,
+                        p.site_publico,
+                        p.tema_interesse,
+                        p.motivo_estrategico,
+                        p.fonte_tipo,
+                        p.fonte_url,
+                        p.evidencia,
+                        p.confianca,
+                        p.score_qualidade,
+                        p.classificacao_qualidade,
+                        p.motivo_qualificacao,
+                        p.potencial_relacionamento,
+                        p.status,
+                        p.criado_em,
+
+                        e.id
+                            AS estrategia_id,
+
+                        e.tipo_estrategia,
+
+                        e.objetivo
+                            AS objetivo_estrategia,
+
+                        e.instrumento,
+
+                        e.descricao_estrategia,
+
+                        e.gancho,
+
+                        e.publico_contextual,
+
+                        e.intermediario_tipo,
+
+                        e.intermediario_descricao,
+
+                        e.conteudo_sugerido,
+
+                        e.sinal_esperado,
+
+                        e.criterio_conversao,
+
+                        e.custo_estimado,
+
+                        e.score_adequacao,
+
+                        e.justificativa
+                            AS justificativa_estrategia
+
+                    FROM prospectos_rede p
+
+                    LEFT JOIN LATERAL (
+                        SELECT *
+                        FROM estrategias_prospeccao_rede x
+                        WHERE
+                            x.prospecto_id = p.id
+                        ORDER BY
+                            x.criado_em DESC
+                        LIMIT 1
+                    ) e ON TRUE
+
+                    WHERE
+                        p.valid_for_ai = TRUE
+                        AND p.status IN (
+                            'aguardando_aprovacao_prospeccao',
+                            'aprovado_para_prospeccao'
+                        )
+
+                    ORDER BY
+                        p.score_qualidade DESC,
+                        p.criado_em DESC
+
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                linhas = cur.fetchall()
+
+        prospectos = []
+
+        for linha in linhas:
+
+            item = dict(linha)
+
+            # ------------------------------------------
+            # RESUMO ADMINISTRATIVO
+            # ------------------------------------------
+
+            canais = []
+
+            if item.get("email_publico"):
+                canais.append("email")
+
+            if item.get("instagram_publico"):
+                canais.append("instagram")
+
+            if item.get("telefone_publico"):
+                canais.append("whatsapp")
+
+            if item.get("linkedin_publico"):
+                canais.append("linkedin")
+
+            item["canais_disponiveis"] = canais
+
+            item["resumo_acao_sugerida"] = {
+                "tipo":
+                    item.get(
+                        "tipo_estrategia"
+                    ),
+                "instrumento":
+                    item.get(
+                        "instrumento"
+                    ),
+                "objetivo":
+                    item.get(
+                        "objetivo_estrategia"
+                    ),
+                "gancho":
+                    item.get(
+                        "gancho"
+                    ),
+                "score":
+                    item.get(
+                        "score_adequacao"
+                    )
+            }
+
+            prospectos.append(item)
+
+        return {
+            "success": True,
+            "quantidade":
+                len(prospectos),
+            "prospectos":
+                prospectos
+        }
+
+    except Exception as erro:
+
+        print(
+            "ERRO LISTAR PROSPECTOS "
+            "PARA APROVAÇÃO:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def decidir_aprovacao_prospecto_rede(
+    prospecto_id,
+    aprovado
+):
+    """
+    Primeira aprovação humana.
+
+    aprovado=False:
+        prospecto é descartado.
+
+    aprovado=True:
+        IA prepara a próxima ação.
+
+    Ainda NÃO executa contato externo.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM prospectos_rede
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    prospecto_id,
+                ))
+
+                prospecto = cur.fetchone()
+
+        if not prospecto:
+            return {
+                "success": False,
+                "erro":
+                    "Prospecto não encontrado."
+            }
+
+        if not aprovado:
+
+            conn_rejeita = get_db_connection()
+
+            try:
+                with conn_rejeita:
+                    with conn_rejeita.cursor() as cur:
+
+                        cur.execute("""
+                            UPDATE prospectos_rede
+                            SET
+                                status = 'rejeitado',
+                                requer_aprovacao = FALSE,
+                                atualizado_em = NOW()
+                            WHERE id = %s
+                        """, (
+                            prospecto_id,
+                        ))
+
+            finally:
+                conn_rejeita.close()
+
+            return {
+                "success": True,
+                "aprovado": False,
+                "status": "rejeitado"
+            }
+
+        # ----------------------------------------------
+        # APROVADO PARA PROSPECÇÃO
+        # ----------------------------------------------
+
+        conn_aprova = get_db_connection()
+
+        try:
+            with conn_aprova:
+                with conn_aprova.cursor() as cur:
+
+                    cur.execute("""
+                        UPDATE prospectos_rede
+                        SET
+                            status =
+                                'aprovado_para_prospeccao',
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        prospecto_id,
+                    ))
+
+        finally:
+            conn_aprova.close()
+
+        # ----------------------------------------------
+        # BUSCA ESTRATÉGIA JÁ CALCULADA
+        # ----------------------------------------------
+
+        conn_estrategia = get_db_connection()
+
+        try:
+            with conn_estrategia:
+                with conn_estrategia.cursor(
+                    cursor_factory=RealDictCursor
+                ) as cur:
+
+                    cur.execute("""
+                        SELECT *
+                        FROM estrategias_prospeccao_rede
+                        WHERE prospecto_id = %s
+                        ORDER BY criado_em DESC
+                        LIMIT 1
+                    """, (
+                        prospecto_id,
+                    ))
+
+                    estrategia = cur.fetchone()
+
+        finally:
+            conn_estrategia.close()
+
+        if not estrategia:
+
+            planejamento = (
+                planejar_estrategia_prospeccao_rede(
+                    prospecto_id
+                )
+            )
+
+            if not planejamento.get("success"):
+                return planejamento
+
+            estrategia = (
+                planejamento.get("estrategia")
+                or {}
+            )
+
+        tipo = (
+            estrategia.get(
+                "tipo_estrategia"
+            )
+        )
+
+        # ----------------------------------------------
+        # DIRETA
+        # Agora pode pesquisar individualmente,
+        # redigir e colocar a mensagem na fila
+        # para a SEGUNDA aprovação.
+        # ----------------------------------------------
+
+        if tipo == "direta":
+
+            resultado = (
+                gerar_e_preparar_abordagem_prospecto(
+                    prospecto_id
+                )
+            )
+
+            return {
+                "success":
+                    resultado.get(
+                        "success",
+                        False
+                    ),
+                "aprovado":
+                    True,
+                "tipo_estrategia":
+                    "direta",
+                "proxima_etapa":
+                    "aprovacao_mensagem",
+                "resultado":
+                    resultado
+            }
+
+        # ----------------------------------------------
+        # INDIRETA / HÍBRIDA
+        # Prepara a ação sugerida para aprovação.
+        # ----------------------------------------------
+
+        resultado = (
+            preparar_acao_prospeccao_indireta(
+                estrategia.get("id")
+            )
+        )
+
+        return {
+            "success":
+                resultado.get(
+                    "success",
+                    False
+                ),
+            "aprovado":
+                True,
+            "tipo_estrategia":
+                tipo,
+            "proxima_etapa":
+                "aprovacao_acao_indireta",
+            "resultado":
+                resultado
+        }
+
+    except Exception as erro:
+
+        print(
+            "ERRO DECISÃO PROSPECTO:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def executar_ciclo_prospeccao_rede_existente(
+    limite_pesquisas=3,
+    limite_aprovacao=30
+):
+    """
+    Ciclo controlado:
+
+    contatos existentes
+        -> tarefas de pesquisa
+        -> pesquisa pública
+        -> novos prospectos
+        -> qualificação
+        -> estratégia sugerida
+        -> fila de aprovação humana
+
+    NÃO envia mensagem.
+    """
+
+    fila = preparar_fila_pesquisa_rede(
+        limite=limite_pesquisas
+    )
+
+    pesquisas_executadas = []
+
+    for _ in range(limite_pesquisas):
+
+        resultado = (
+            executar_proxima_pesquisa_rede()
+        )
+
+        if not resultado:
+            break
+
+        # Se não houver mais tarefa pendente,
+        # não insiste indefinidamente.
+        if (
+            isinstance(resultado, dict)
+            and not resultado.get("success")
+            and (
+                resultado.get("motivo")
+                or resultado.get("erro")
+            )
+        ):
+            pesquisas_executadas.append(
+                resultado
+            )
+
+            break
+
+        pesquisas_executadas.append(
+            resultado
+        )
+
+    aprovacao = (
+        preparar_prospectos_para_aprovacao(
+            limite=limite_aprovacao
+        )
+    )
+
+    lista = (
+        listar_prospectos_para_aprovacao(
+            limite=limite_aprovacao
+        )
+    )
+
+    return {
+        "success": True,
+        "fila":
+            fila,
+        "pesquisas_executadas":
+            pesquisas_executadas,
+        "preparacao_aprovacao":
+            aprovacao,
+        "prospectos":
+            lista
+    }
+
+
 def planejar_estrategia_prospeccao_rede(
     prospecto_id
 ):
@@ -8696,6 +9358,10 @@ def gerar_abordagem_contextual_prospecto(
                 prospecto.get(
                     "email_publico"
                 ),
+            "telefone_profissional":
+                prospecto.get(
+                    "telefone_publico"
+                ),
             "instagram_profissional":
                 prospecto.get(
                     "instagram_publico"
@@ -8810,6 +9476,7 @@ REGRAS OBRIGATÓRIAS:
 12. Escolha apenas entre:
     - email
     - instagram
+    - whatsapp
     - nenhum
 
 13. Prefira Instagram quando o prospecto
@@ -8823,7 +9490,12 @@ REGRAS OBRIGATÓRIAS:
     distribuidor, fornecedor, imprensa,
     fábrica ou relação institucional.
 
-15. Se não houver canal público adequado,
+15. WhatsApp só pode ser escolhido quando
+    existir número profissional/comercial
+    publicamente disponibilizado ou já
+    fornecido legitimamente à empresa.
+
+16. Se não houver canal público adequado,
     escolha "nenhum".
 
 16. Se escolher email, crie também um
@@ -8919,6 +9591,7 @@ pessoa ou empresa.
                                 "enum": [
                                     "email",
                                     "instagram",
+                                    "whatsapp",
                                     "nenhum"
                                 ]
                             },
@@ -9060,6 +9733,13 @@ pessoa ou empresa.
                 )
             )
 
+        elif canal == "whatsapp":
+            destinatario = (
+                prospecto.get(
+                    "telefone_publico"
+                )
+            )
+
         else:
             destinatario = None
 
@@ -9070,7 +9750,8 @@ pessoa ou empresa.
         if (
             canal in {
                 "email",
-                "instagram"
+                "instagram",
+                "whatsapp"
             }
             and not destinatario
         ):
@@ -9362,7 +10043,8 @@ def preparar_aprovacao_abordagem_contextual(
 
         if canal not in {
             "email",
-            "instagram"
+            "instagram",
+            "whatsapp"
         }:
             return {
                 "success": False,
