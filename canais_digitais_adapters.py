@@ -321,22 +321,150 @@ def publicar_pinterest(
 # YOUTUBE
 # =====================================================
 
+def _credenciais_youtube():
+    """
+    Monta credenciais OAuth do YouTube.
+
+    Aceita access token temporário e, quando configurado,
+    refresh token para renovação automática.
+    """
+
+    token = str(
+        os.getenv("YOUTUBE_ACCESS_TOKEN")
+        or ""
+    ).strip() or None
+
+    refresh_token = str(
+        os.getenv("YOUTUBE_REFRESH_TOKEN")
+        or ""
+    ).strip() or None
+
+    client_id = str(
+        os.getenv("YOUTUBE_CLIENT_ID")
+        or ""
+    ).strip() or None
+
+    client_secret = str(
+        os.getenv("YOUTUBE_CLIENT_SECRET")
+        or ""
+    ).strip() or None
+
+    if not token and not refresh_token:
+        return None, (
+            "Configure YOUTUBE_ACCESS_TOKEN ou "
+            "YOUTUBE_REFRESH_TOKEN."
+        )
+
+    if refresh_token and not (
+        client_id and client_secret
+    ):
+        return None, (
+            "YOUTUBE_REFRESH_TOKEN exige "
+            "YOUTUBE_CLIENT_ID e "
+            "YOUTUBE_CLIENT_SECRET."
+        )
+
+    try:
+        from google.oauth2.credentials import (
+            Credentials
+        )
+
+        credenciais = Credentials(
+            token=token,
+            refresh_token=refresh_token,
+            token_uri=(
+                "https://oauth2.googleapis.com/token"
+            ),
+            client_id=client_id,
+            client_secret=client_secret,
+            scopes=[
+                (
+                    "https://www.googleapis.com/"
+                    "auth/youtube.upload"
+                )
+            ]
+        )
+
+        return credenciais, None
+
+    except Exception as erro:
+        return None, str(erro)
+
+
+def _resolver_video_youtube(arquivo_video):
+    """
+    Impede a IA/ação de fornecer caminho arbitrário
+    do filesystem do servidor.
+
+    Somente arquivos dentro de YOUTUBE_UPLOAD_ROOT
+    podem ser publicados.
+    """
+
+    raiz_texto = str(
+        os.getenv("YOUTUBE_UPLOAD_ROOT")
+        or ""
+    ).strip()
+
+    if not raiz_texto:
+        return None, (
+            "YOUTUBE_UPLOAD_ROOT não configurado. "
+            "Upload de vídeo permanece bloqueado."
+        )
+
+    arquivo_texto = str(
+        arquivo_video or ""
+    ).strip()
+
+    if not arquivo_texto:
+        return None, (
+            "Arquivo de vídeo não informado."
+        )
+
+    try:
+        raiz = Path(
+            raiz_texto
+        ).expanduser().resolve()
+
+        caminho = Path(
+            arquivo_texto
+        ).expanduser().resolve()
+
+        caminho.relative_to(raiz)
+
+    except Exception:
+        return None, (
+            "Arquivo de vídeo fora do diretório "
+            "permitido para uploads."
+        )
+
+    if not caminho.is_file():
+        return None, (
+            "Arquivo de vídeo não encontrado "
+            "no servidor."
+        )
+
+    extensoes_validas = {
+        ".mp4",
+        ".mov",
+        ".m4v",
+        ".webm"
+    }
+
+    if caminho.suffix.lower() not in extensoes_validas:
+        return None, (
+            "Formato de vídeo não permitido "
+            "para upload."
+        )
+
+    return caminho, None
+
+
 def publicar_youtube(
     arquivo_video,
     titulo,
     descricao="",
     privacidade="private"
 ):
-    token = os.getenv(
-        "YOUTUBE_ACCESS_TOKEN"
-    )
-
-    caminho = Path(
-        str(
-            arquivo_video or ""
-        )
-    ).expanduser()
-
     titulo = str(
         titulo or ""
     ).strip()
@@ -349,14 +477,6 @@ def publicar_youtube(
         privacidade or "private"
     ).strip().lower()
 
-    if not token:
-        return {
-            "success": False,
-            "erro":
-                "YOUTUBE_ACCESS_TOKEN "
-                "não configurado."
-        }
-
     if not titulo:
         return {
             "success": False,
@@ -364,12 +484,26 @@ def publicar_youtube(
                 "Título do vídeo ausente."
         }
 
-    if not caminho.is_file():
+    caminho, erro_caminho = (
+        _resolver_video_youtube(
+            arquivo_video
+        )
+    )
+
+    if erro_caminho:
         return {
             "success": False,
-            "erro":
-                "Arquivo de vídeo não "
-                "encontrado no servidor."
+            "erro": erro_caminho
+        }
+
+    credenciais, erro_credenciais = (
+        _credenciais_youtube()
+    )
+
+    if erro_credenciais:
+        return {
+            "success": False,
+            "erro": erro_credenciais
         }
 
     if privacidade not in {
@@ -380,20 +514,12 @@ def publicar_youtube(
         privacidade = "private"
 
     try:
-        from google.oauth2.credentials import (
-            Credentials
-        )
-
         from googleapiclient.discovery import (
             build
         )
 
         from googleapiclient.http import (
             MediaFileUpload
-        )
-
-        credenciais = Credentials(
-            token=token
         )
 
         youtube = build(
@@ -406,8 +532,7 @@ def publicar_youtube(
         corpo = {
             "snippet": {
                 "title": titulo,
-                "description":
-                    descricao,
+                "description": descricao,
                 "categoryId": "22"
             },
             "status": {
@@ -432,9 +557,7 @@ def publicar_youtube(
         resposta = requisicao.execute()
 
         video_id = str(
-            (resposta or {}).get(
-                "id"
-            )
+            (resposta or {}).get("id")
             or ""
         ).strip()
 
