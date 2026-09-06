@@ -8021,7 +8021,7 @@ def listar_prospectos_para_aprovacao(
                     ) e ON TRUE
 
                     WHERE
-                        p.valid_for_ai = TRUE
+                        p.valido_para_ia = TRUE
                         AND p.status IN (
                             'aguardando_aprovacao_prospeccao',
                             'aprovado_para_prospeccao'
@@ -27225,7 +27225,7 @@ def carregar_contexto_briefing_executivo():
                     ) e ON TRUE
 
                     WHERE
-                        p.valid_for_ai = TRUE
+                        p.valido_para_ia = TRUE
                         AND p.score_qualidade >= 55
                         AND p.status NOT IN (
                             'arquivado',
