@@ -5150,6 +5150,278 @@ def classificar_email_empresarial(
 # OMNICHANNEL — PROCESSAR PARA CRM
 # =====================================================
 
+
+# =====================================================
+# CONTATO CENTRAL — IDENTIDADE EMPRESARIAL UNIFICADA
+# =====================================================
+
+def obter_ou_criar_contato_central(
+    nome=None,
+    empresa=None,
+    email=None,
+    telefone=None,
+    instagram=None,
+    canal=None,
+    origem=None,
+    categoria_contato="lead",
+    interesse=None,
+    observacoes=None
+):
+    """
+    Localiza ou cria uma identidade central em leads_crm.
+
+    Regras de identidade:
+    - e-mail exato;
+    - telefone exato;
+    - Instagram exato;
+    - nome + empresa exatos, somente quando ambos existirem.
+
+    Nunca funde automaticamente apenas por nome.
+    """
+
+    def limpar(valor):
+        if valor is None:
+            return None
+
+        valor = str(valor).strip()
+
+        return valor or None
+
+    nome = limpar(nome)
+    empresa = limpar(empresa)
+    email = limpar(email)
+    telefone = limpar(telefone)
+    instagram = limpar(instagram)
+    canal = limpar(canal)
+    origem = limpar(origem) or canal or "identidade_central"
+    interesse = limpar(interesse)
+    observacoes = limpar(observacoes)
+
+    categoria_contato = (
+        limpar(categoria_contato)
+        or "lead"
+    ).lower()
+
+    categorias_validas = {
+        "lead",
+        "estrategico",
+        "profissional",
+        "empresa",
+        "criador",
+        "fornecedor",
+        "parceiro"
+    }
+
+    if categoria_contato not in categorias_validas:
+        categoria_contato = "lead"
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                contato = None
+                criterio_identidade = None
+
+                # -----------------------------------------
+                # IDENTIFICADORES CONFIÁVEIS
+                # -----------------------------------------
+
+                identificadores = (
+                    ("email", email),
+                    ("telefone", telefone),
+                    ("instagram", instagram)
+                )
+
+                for campo, valor in identificadores:
+
+                    if not valor:
+                        continue
+
+                    cur.execute(
+                        f"""
+                        SELECT *
+                        FROM leads_crm
+                        WHERE LOWER({campo}) = LOWER(%s)
+                        ORDER BY atualizado_em DESC
+                        LIMIT 1
+                        """,
+                        (valor,)
+                    )
+
+                    contato = cur.fetchone()
+
+                    if contato:
+                        criterio_identidade = campo
+                        break
+
+                # -----------------------------------------
+                # NOME + EMPRESA
+                # Não unir automaticamente somente por nome
+                # -----------------------------------------
+
+                if (
+                    not contato
+                    and nome
+                    and empresa
+                ):
+                    cur.execute("""
+                        SELECT *
+                        FROM leads_crm
+                        WHERE
+                            LOWER(nome) = LOWER(%s)
+                            AND LOWER(empresa) = LOWER(%s)
+                        ORDER BY atualizado_em DESC
+                        LIMIT 1
+                    """, (
+                        nome,
+                        empresa
+                    ))
+
+                    contato = cur.fetchone()
+
+                    if contato:
+                        criterio_identidade = "nome_empresa"
+
+                # -----------------------------------------
+                # ENRIQUECE CONTATO EXISTENTE
+                # Sem apagar informação já registrada
+                # -----------------------------------------
+
+                if contato:
+
+                    cur.execute("""
+                        UPDATE leads_crm
+                        SET
+                            nome = COALESCE(nome, %s),
+                            empresa = COALESCE(empresa, %s),
+                            email = COALESCE(email, %s),
+                            telefone = COALESCE(telefone, %s),
+                            instagram = COALESCE(instagram, %s),
+                            canal = COALESCE(canal, %s),
+                            interesse = COALESCE(interesse, %s),
+                            observacoes = COALESCE(
+                                observacoes,
+                                %s
+                            ),
+                            categoria_contato =
+                                CASE
+                                    WHEN categoria_contato = 'lead'
+                                         AND %s <> 'lead'
+                                    THEN %s
+                                    ELSE categoria_contato
+                                END,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                        RETURNING *
+                    """, (
+                        nome,
+                        empresa,
+                        email,
+                        telefone,
+                        instagram,
+                        canal,
+                        interesse,
+                        observacoes,
+                        categoria_contato,
+                        categoria_contato,
+                        contato["id"]
+                    ))
+
+                    contato = cur.fetchone()
+
+                    return {
+                        "success": True,
+                        "criado": False,
+                        "criterio_identidade":
+                            criterio_identidade,
+                        "contato": dict(contato)
+                    }
+
+                # -----------------------------------------
+                # CRIA NOVA IDENTIDADE CENTRAL
+                # -----------------------------------------
+
+                contato_id = str(
+                    uuid.uuid4()
+                )
+
+                contato_principal = (
+                    email
+                    or telefone
+                    or instagram
+                )
+
+                cur.execute("""
+                    INSERT INTO leads_crm (
+                        id,
+                        nome,
+                        empresa,
+                        tipo_lead,
+                        origem,
+                        canal,
+                        contato,
+                        email,
+                        telefone,
+                        instagram,
+                        interesse,
+                        estagio,
+                        receita_acumulada_centavos,
+                        categoria_contato,
+                        observacoes
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s
+                    )
+                    RETURNING *
+                """, (
+                    contato_id,
+                    nome,
+                    empresa,
+                    "outro",
+                    origem,
+                    canal,
+                    contato_principal,
+                    email,
+                    telefone,
+                    instagram,
+                    interesse,
+                    "novo",
+                    0,
+                    categoria_contato,
+                    observacoes
+                ))
+
+                contato = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "criado": True,
+                    "criterio_identidade": "novo",
+                    "contato": dict(contato)
+                }
+
+    except Exception as e:
+
+        print(
+            "ERRO CONTATO CENTRAL:",
+            str(e)
+        )
+
+        return {
+            "success": False,
+            "erro": str(e)
+        }
+
+    finally:
+        conn.close()
+
+
 def processar_interacao_omnichannel_crm(
     interacao
 ):
