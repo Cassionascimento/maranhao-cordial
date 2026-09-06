@@ -7946,5 +7946,33 @@ async function carregarFabricasWorkflow() {
 </script>
 <!-- ===== FIM FASE 5 — PAINEL HOJE ===== -->
 
+
+<!-- FASE55_GOVERNANCA -->
+<section id="fase55Governanca" style="max-width:1200px;margin:18px auto;padding:0 16px">
+<div style="border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:16px;background:rgba(255,255,255,.02)">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+<div><div style="font-size:11px;opacity:.5;letter-spacing:.12em;text-transform:uppercase">Autonomia empresarial</div>
+<div style="font-size:18px;margin-top:4px">Só o que realmente precisa de você</div></div>
+<button onclick="carregarFase55()" style="width:auto;margin:0;padding:8px 11px">Atualizar</button>
+</div>
+<div id="fase55Resumo" style="margin-top:14px;font-size:13px;opacity:.8">Carregando...</div>
+<div id="fase55Decisoes" style="margin-top:12px"></div>
+</div>
+</section>
+<script>
+async function carregarFase55(){
+const resumo=document.getElementById("fase55Resumo"),decisoes=document.getElementById("fase55Decisoes");
+try{
+const headers={};const chave=(localStorage.getItem("adminKey")||localStorage.getItem("admin_key")||"");if(chave)headers["X-Admin-Key"]=chave;
+const r=await fetch("/api/admin/ia-empresarial/fase55",{headers});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||"Falha");
+const a=d.autonomia||{},p=d.precisa_de_mim||{};
+resumo.innerHTML="<strong>"+(p.total_relevantes||0)+"</strong> decisões relevantes · <strong>"+(p.operacionais_que_nao_precisam_da_direcao||0)+"</strong> operacionais filtradas · dependência da direção: <strong>"+(a.indice_dependencia_direcao_pct??"-")+"%</strong>";
+const itens=(p.relevantes||[]).slice(0,6);
+decisoes.innerHTML=itens.length?itens.map(x=>"<div style='padding:10px 0;border-top:1px solid rgba(255,255,255,.07)'><div style='font-size:13px'>"+(x.tipo||x.tipo_execucao||"Decisão")+"</div><div style='font-size:11px;opacity:.55;margin-top:3px'>"+((x.triagem_fase54||{}).motivo||"Requer direção")+"</div></div>").join(""):"<div style='font-size:12px;opacity:.55'>Nenhuma decisão crítica agora.</div>";
+}catch(e){resumo.textContent="Governança indisponível no momento.";decisoes.innerHTML=""}
+}
+setTimeout(carregarFase55,800);
+</script>
+
 </body>
 </html>
