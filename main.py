@@ -7774,7 +7774,7 @@ def preparar_prospectos_para_aprovacao(
                     SELECT *
                     FROM prospectos_rede
                     WHERE
-                        valid_for_ai = TRUE
+                        valido_para_ia = TRUE
                         AND score_qualidade >= 55
                         AND (
                             status = 'qualificado'
