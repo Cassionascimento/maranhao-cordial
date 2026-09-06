@@ -4214,16 +4214,25 @@ def executar_acao_controlada(acao):
             executar_registro_analise_interna,
 
         "atualizar_lead_crm":
-            executar_atualizacao_lead_crm,
-
-        "responder_mensagem":
-            executar_mensagem_instagram,
-
-        "enviar_mensagem":
-            executar_mensagem_instagram
+            executar_atualizacao_lead_crm
     }
 
-    executor = executores.get(tipo)
+    if tipo in {
+        "responder_mensagem",
+        "enviar_mensagem"
+    }:
+        canal = str(
+            acao.get("canal") or ""
+        ).strip().lower()
+
+        if canal == "instagram":
+            executor = executar_mensagem_instagram
+        elif canal == "whatsapp":
+            executor = executar_mensagem_whatsapp
+        else:
+            executor = None
+    else:
+        executor = executores.get(tipo)
 
     if not executor:
         return {
@@ -4259,6 +4268,304 @@ def executar_acao_controlada(acao):
 
     return resultado
 
+
+
+def enviar_mensagem_whatsapp_cloud(destinatario, conteudo):
+    """
+    Envia mensagem de texto pelo WhatsApp Cloud API.
+    Não decide nem autoriza ações.
+    """
+
+    destinatario = str(destinatario or "").strip()
+    conteudo = str(conteudo or "").strip()
+
+    if not WHATSAPP_ACCESS_TOKEN:
+        return {
+            "success": False,
+            "erro": "WHATSAPP_ACCESS_TOKEN não configurado."
+        }
+
+    if not WHATSAPP_PHONE_NUMBER_ID:
+        return {
+            "success": False,
+            "erro": "WHATSAPP_PHONE_NUMBER_ID não configurado."
+        }
+
+    if not destinatario or not conteudo:
+        return {
+            "success": False,
+            "erro": "Destinatário ou conteúdo ausente."
+        }
+
+    url = (
+        "https://graph.facebook.com/v23.0/"
+        + str(WHATSAPP_PHONE_NUMBER_ID)
+        + "/messages"
+    )
+
+    headers = {
+        "Authorization":
+            "Bearer " + WHATSAPP_ACCESS_TOKEN,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": destinatario,
+        "type": "text",
+        "text": {
+            "preview_url": False,
+            "body": conteudo
+        }
+    }
+
+    try:
+        resposta = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=20
+        )
+
+        try:
+            dados = resposta.json()
+        except Exception:
+            dados = {
+                "texto": resposta.text[:2000]
+            }
+
+        if 200 <= resposta.status_code < 300:
+            return {
+                "success": True,
+                "status_code": resposta.status_code,
+                "meta": dados
+            }
+
+        return {
+            "success": False,
+            "status_code": resposta.status_code,
+            "erro": dados
+        }
+
+    except Exception as erro:
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+
+def executar_mensagem_whatsapp(acao):
+    """
+    Executor controlado de mensagens WhatsApp.
+
+    Exige autorização prévia, evita execução duplicada
+    e persiste o resultado real retornado pela Meta.
+    """
+
+    if not acao:
+        return {
+            "success": False,
+            "erro": "Ação inexistente."
+        }
+
+    acao_id = str(
+        acao.get("id") or ""
+    ).strip()
+
+    if not acao_id:
+        return {
+            "success": False,
+            "erro": "Ação sem ID."
+        }
+
+    canal = str(
+        acao.get("canal") or ""
+    ).strip().lower()
+
+    if canal != "whatsapp":
+        return {
+            "success": False,
+            "erro":
+                "Ação não pertence ao canal WhatsApp."
+        }
+
+    estado = str(
+        acao.get("estado_execucao") or ""
+    ).strip().lower()
+
+    if estado != "autorizada":
+        return {
+            "success": False,
+            "erro":
+                "Ação WhatsApp ainda não autorizada."
+        }
+
+    destinatario = str(
+        acao.get("destinatario") or ""
+    ).strip()
+
+    conteudo = str(
+        acao.get("conteudo") or ""
+    ).strip()
+
+    destinatarios_invalidos = {
+        "",
+        "cliente",
+        "cliente genérico",
+        "cliente generico",
+        "não especificado",
+        "nao especificado",
+        "não informado",
+        "nao informado",
+        "destinatário não especificado",
+        "destinatario nao especificado"
+    }
+
+    if destinatario.lower() in destinatarios_invalidos:
+        return {
+            "success": False,
+            "erro":
+                "Destinatário WhatsApp real não informado."
+        }
+
+    if not conteudo:
+        return {
+            "success": False,
+            "erro":
+                "Conteúdo da mensagem WhatsApp ausente."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE acoes_empresariais
+                    SET
+                        estado_execucao = 'executando',
+                        atualizado_em = NOW()
+                    WHERE
+                        id = %s
+                        AND estado_execucao = 'autorizada'
+                    RETURNING id
+                """, (
+                    acao_id,
+                ))
+
+                reservada = cur.fetchone()
+
+        if not reservada:
+            return {
+                "success": False,
+                "erro":
+                    "Ação não está disponível para execução."
+            }
+
+    finally:
+        conn.close()
+
+    resultado = enviar_mensagem_whatsapp_cloud(
+        destinatario,
+        conteudo
+    )
+
+    resultado_serializado = json.dumps(
+        resultado,
+        ensure_ascii=False,
+        default=str
+    )
+
+    if resultado.get("success"):
+
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE acoes_empresariais
+                        SET
+                            estado_execucao = 'executada',
+                            status = 'concluida',
+                            executor = 'whatsapp',
+                            tentativas_execucao =
+                                tentativas_execucao + 1,
+                            executado_em = NOW(),
+                            resultado = %s,
+                            ultimo_erro = NULL,
+                            atualizado_em = NOW()
+                        WHERE
+                            id = %s
+                            AND estado_execucao = 'executando'
+                    """, (
+                        resultado_serializado,
+                        acao_id
+                    ))
+        finally:
+            conn.close()
+
+        try:
+            registrar_auditoria(
+                categoria="execucao",
+                acao="mensagem_whatsapp_enviada",
+                ator_tipo="sistema",
+                ator_id="backend",
+                origem="motor_execucao",
+                entidade_tipo="acao_empresarial",
+                entidade_id=acao_id,
+                status="executada",
+                dados_saida={
+                    "status_code":
+                        resultado.get("status_code"),
+                    "meta":
+                        resultado.get("meta")
+                }
+            )
+        except Exception as erro_auditoria:
+            print(
+                "ERRO AUDITORIA WHATSAPP:",
+                erro_auditoria
+            )
+
+        return resultado
+
+    erro_resultado = resultado.get("erro")
+
+    if not isinstance(erro_resultado, str):
+        erro_resultado = json.dumps(
+            erro_resultado,
+            ensure_ascii=False,
+            default=str
+        )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE acoes_empresariais
+                    SET
+                        estado_execucao = 'falhou',
+                        tentativas_execucao =
+                            tentativas_execucao + 1,
+                        resultado = %s,
+                        ultimo_erro = %s,
+                        atualizado_em = NOW()
+                    WHERE
+                        id = %s
+                        AND estado_execucao = 'executando'
+                """, (
+                    resultado_serializado,
+                    erro_resultado,
+                    acao_id
+                ))
+    finally:
+        conn.close()
+
+    return resultado
 
 def executar_mensagem_instagram(acao):
     """
