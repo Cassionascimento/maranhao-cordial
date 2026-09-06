@@ -2172,6 +2172,61 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # AI-NATIVE — HISTÓRICO ECONÔMICO
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    compras_relacionamento (
+                        id UUID PRIMARY KEY
+                            DEFAULT gen_random_uuid(),
+
+                        contato_id UUID NOT NULL,
+
+                        referencia_externa TEXT NOT NULL,
+
+                        origem VARCHAR(80),
+
+                        valor_centavos BIGINT,
+
+                        quantidade_itens INTEGER
+                            NOT NULL DEFAULT 1,
+
+                        status VARCHAR(30)
+                            NOT NULL DEFAULT 'confirmada',
+
+                        comprado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        UNIQUE (
+                            origem,
+                            referencia_externa
+                        ),
+
+                        CONSTRAINT
+                            fk_compra_relacionamento_contato
+                        FOREIGN KEY (contato_id)
+                        REFERENCES leads_crm(id)
+                        ON DELETE CASCADE
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_compras_relacionamento_contato
+                    ON compras_relacionamento(contato_id)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_compras_relacionamento_data
+                    ON compras_relacionamento(comprado_em)
+                """)
+
+                # ==========================================
                 # OMNICHANNEL — INTERAÇÕES META
                 # ==========================================
 
@@ -5475,6 +5530,376 @@ def obter_ou_criar_contato_central(
         conn.close()
 
 
+def registrar_compra_relacionamento(
+    contato_id,
+    referencia_externa,
+    origem="sistema",
+    valor_centavos=None,
+    quantidade_itens=1,
+    comprado_em=None,
+    dias_recompra=30
+):
+    """
+    Registra uma compra REAL relacionada a um contato.
+
+    Proteções:
+    - exige referência externa;
+    - não duplica a mesma compra;
+    - atualiza quantidade de compras;
+    - atualiza receita acumulada;
+    - agenda acompanhamento/recompra.
+
+    Não deve ser chamada apenas porque alguém escreveu
+    "comprei" em uma mensagem.
+    """
+
+    contato_id = str(
+        contato_id or ""
+    ).strip()
+
+    referencia_externa = str(
+        referencia_externa or ""
+    ).strip()
+
+    origem = str(
+        origem or "sistema"
+    ).strip().lower()
+
+    if not contato_id:
+        return {
+            "success": False,
+            "erro": "Contato não informado."
+        }
+
+    if not referencia_externa:
+        return {
+            "success": False,
+            "erro": "Referência da compra não informada."
+        }
+
+    try:
+        quantidade_itens = max(
+            1,
+            int(quantidade_itens or 1)
+        )
+    except Exception:
+        quantidade_itens = 1
+
+    try:
+        dias_recompra = max(
+            1,
+            int(dias_recompra or 30)
+        )
+    except Exception:
+        dias_recompra = 30
+
+    if valor_centavos is not None:
+        try:
+            valor_centavos = max(
+                0,
+                int(valor_centavos)
+            )
+        except Exception:
+            valor_centavos = None
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                # -----------------------------------------
+                # CONFIRMA CONTATO
+                # -----------------------------------------
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        categoria_contato,
+                        estagio,
+                        quantidade_compras,
+                        receita_acumulada_centavos
+                    FROM leads_crm
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    contato_id,
+                ))
+
+                contato = cur.fetchone()
+
+                if not contato:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Contato central não encontrado."
+                    }
+
+                # -----------------------------------------
+                # REGISTRO IDEMPOTENTE DA COMPRA
+                # -----------------------------------------
+
+                if comprado_em:
+                    cur.execute("""
+                        INSERT INTO compras_relacionamento (
+                            contato_id,
+                            referencia_externa,
+                            origem,
+                            valor_centavos,
+                            quantidade_itens,
+                            comprado_em
+                        )
+                        VALUES (
+                            %s, %s, %s, %s, %s, %s
+                        )
+                        ON CONFLICT (
+                            origem,
+                            referencia_externa
+                        )
+                        DO NOTHING
+                        RETURNING id
+                    """, (
+                        contato_id,
+                        referencia_externa,
+                        origem,
+                        valor_centavos,
+                        quantidade_itens,
+                        comprado_em
+                    ))
+                else:
+                    cur.execute("""
+                        INSERT INTO compras_relacionamento (
+                            contato_id,
+                            referencia_externa,
+                            origem,
+                            valor_centavos,
+                            quantidade_itens
+                        )
+                        VALUES (
+                            %s, %s, %s, %s, %s
+                        )
+                        ON CONFLICT (
+                            origem,
+                            referencia_externa
+                        )
+                        DO NOTHING
+                        RETURNING id
+                    """, (
+                        contato_id,
+                        referencia_externa,
+                        origem,
+                        valor_centavos,
+                        quantidade_itens
+                    ))
+
+                compra = cur.fetchone()
+
+                # Compra já existia: não incrementa novamente.
+                if not compra:
+                    cur.execute("""
+                        SELECT
+                            id,
+                            contato_id,
+                            referencia_externa,
+                            origem,
+                            valor_centavos,
+                            quantidade_itens,
+                            comprado_em
+                        FROM compras_relacionamento
+                        WHERE
+                            origem = %s
+                            AND referencia_externa = %s
+                        LIMIT 1
+                    """, (
+                        origem,
+                        referencia_externa
+                    ))
+
+                    existente = cur.fetchone()
+
+                    return {
+                        "success": True,
+                        "registrada": False,
+                        "duplicada": True,
+                        "compra": (
+                            dict(existente)
+                            if existente
+                            else None
+                        )
+                    }
+
+                # -----------------------------------------
+                # DEFINE NOVO ESTADO ECONÔMICO
+                # -----------------------------------------
+
+                compras_anteriores = int(
+                    contato.get(
+                        "quantidade_compras"
+                    ) or 0
+                )
+
+                nova_quantidade = (
+                    compras_anteriores + 1
+                )
+
+                categoria = str(
+                    contato.get(
+                        "categoria_contato"
+                    ) or "lead"
+                ).lower()
+
+                if categoria in {
+                    "restaurante",
+                    "bar",
+                    "hotel",
+                    "empresa",
+                    "distribuidor",
+                    "revendedor"
+                }:
+                    if nova_quantidade >= 3:
+                        novo_estagio = "recorrente"
+                        novo_nivel = "recorrente"
+                    elif nova_quantidade >= 2:
+                        novo_estagio = "recompra"
+                        novo_nivel = "cliente_ativo"
+                    else:
+                        novo_estagio = "cliente"
+                        novo_nivel = "cliente"
+
+                elif categoria == "consumidor":
+                    if nova_quantidade >= 3:
+                        novo_estagio = "fiel"
+                        novo_nivel = "fiel"
+                    elif nova_quantidade >= 2:
+                        novo_estagio = "recompra"
+                        novo_nivel = "cliente_ativo"
+                    else:
+                        novo_estagio = "cliente"
+                        novo_nivel = "cliente"
+
+                else:
+                    novo_estagio = (
+                        contato.get("estagio")
+                        or "ativo"
+                    )
+
+                    novo_nivel = "ativo"
+
+                if nova_quantidade == 1:
+                    proxima_acao = (
+                        "realizar acompanhamento "
+                        "pós-venda e confirmar experiência"
+                    )
+
+                    motivo = (
+                        "Primeira compra confirmada. "
+                        "É necessário acompanhar a "
+                        "experiência com o produto."
+                    )
+
+                    dias_followup = 5
+
+                else:
+                    proxima_acao = (
+                        "acompanhar consumo e preparar "
+                        "próxima recompra"
+                    )
+
+                    motivo = (
+                        "Cliente possui histórico de compra "
+                        "e deve ser acompanhado para recompra."
+                    )
+
+                    dias_followup = min(
+                        dias_recompra,
+                        15
+                    )
+
+                # -----------------------------------------
+                # ATUALIZA CRM
+                # -----------------------------------------
+
+                cur.execute("""
+                    UPDATE leads_crm
+                    SET
+                        quantidade_compras =
+                            quantidade_compras + 1,
+
+                        receita_acumulada_centavos =
+                            receita_acumulada_centavos
+                            + COALESCE(%s, 0),
+
+                        ultima_compra_em =
+                            COALESCE(%s, NOW()),
+
+                        proxima_recompra_em =
+                            COALESCE(%s, NOW())
+                            + (%s * INTERVAL '1 day'),
+
+                        estagio = %s,
+
+                        nivel_relacionamento = %s,
+
+                        ultimo_resultado =
+                            'compra_confirmada',
+
+                        proxima_acao = %s,
+
+                        motivo_proxima_acao = %s,
+
+                        proximo_followup =
+                            NOW()
+                            + (%s * INTERVAL '1 day'),
+
+                        atualizado_em = NOW()
+
+                    WHERE id = %s
+
+                    RETURNING *
+                """, (
+                    valor_centavos,
+                    comprado_em,
+                    comprado_em,
+                    dias_recompra,
+                    novo_estagio,
+                    novo_nivel,
+                    proxima_acao,
+                    motivo,
+                    dias_followup,
+                    contato_id
+                ))
+
+                atualizado = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "registrada": True,
+                    "duplicada": False,
+                    "compra_id": str(
+                        compra["id"]
+                    ),
+                    "contato": dict(
+                        atualizado
+                    )
+                }
+
+    except Exception as e:
+        print(
+            "ERRO REGISTRAR COMPRA RELACIONAMENTO:",
+            str(e)
+        )
+
+        return {
+            "success": False,
+            "erro": str(e)
+        }
+
+    finally:
+        conn.close()
+
+
 def inferir_categoria_relacionamento(
     classificacao=None,
     texto=""
@@ -5643,6 +6068,575 @@ def inferir_categoria_relacionamento(
             return categoria
 
     return "lead"
+
+
+def definir_estagio_relacionamento(
+    contato,
+    categoria,
+    texto="",
+    classificacao=None
+):
+    """
+    Define o estágio do relacionamento de acordo com
+    o tipo de contato.
+
+    Regra importante:
+    - o sistema pode avançar automaticamente;
+    - não regride estágio automaticamente;
+    - encerramentos/perdas continuam preservados.
+    """
+
+    classificacao = classificacao or {}
+
+    texto_lower = " ".join([
+        str(texto or "").lower(),
+        str(
+            classificacao.get("classificacao")
+            or ""
+        ).lower(),
+        str(
+            classificacao.get("interesse")
+            or ""
+        ).lower()
+    ])
+
+    estagio_atual = str(
+        contato.get("estagio") or "novo"
+    ).strip().lower()
+
+    categoria = str(
+        categoria or "lead"
+    ).strip().lower()
+
+    # Estados que não devem ser reabertos automaticamente.
+    if estagio_atual in {
+        "perdido",
+        "encerrado",
+        "inativo",
+        "descartado"
+    }:
+        return estagio_atual
+
+    # ========================================================
+    # BARTENDER
+    # novo -> contato -> amostra -> testando -> ativo
+    # -> embaixador
+    # ========================================================
+
+    if categoria == "bartender":
+
+        ordem = [
+            "novo",
+            "contato",
+            "amostra",
+            "testando",
+            "ativo",
+            "embaixador"
+        ]
+
+        candidato = "contato"
+
+        if any(
+            termo in texto_lower
+            for termo in (
+                "embaixador",
+                "indiquei",
+                "indicação",
+                "indicacao",
+                "apresentei para",
+                "levei para",
+                "cliente meu",
+                "meus clientes"
+            )
+        ):
+            candidato = "embaixador"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "criei uma receita",
+                "criei receita",
+                "usei no drink",
+                "usei no coquetel",
+                "estou usando",
+                "já estou usando",
+                "ja estou usando"
+            )
+        ):
+            candidato = "ativo"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "testei",
+                "provando",
+                "experimentando",
+                "vou testar",
+                "recebi a amostra",
+                "recebi amostra"
+            )
+        ):
+            candidato = "testando"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "amostra",
+                "degustação",
+                "degustacao",
+                "enviar produto",
+                "mandar produto"
+            )
+        ):
+            candidato = "amostra"
+
+        return avancar_estagio_sem_regredir(
+            atual=estagio_atual,
+            candidato=candidato,
+            ordem=ordem
+        )
+
+    # ========================================================
+    # B2B
+    # novo -> qualificado -> degustacao -> negociacao
+    # -> cliente -> recompra -> recorrente
+    # ========================================================
+
+    if categoria in {
+        "restaurante",
+        "bar",
+        "hotel",
+        "empresa",
+        "distribuidor",
+        "revendedor"
+    }:
+
+        ordem = [
+            "novo",
+            "qualificado",
+            "degustacao",
+            "negociacao",
+            "cliente",
+            "recompra",
+            "recorrente"
+        ]
+
+        candidato = "qualificado"
+
+        if any(
+            termo in texto_lower
+            for termo in (
+                "pedido recorrente",
+                "compra recorrente",
+                "todo mês",
+                "todo mes",
+                "reposição frequente",
+                "reposicao frequente"
+            )
+        ):
+            candidato = "recorrente"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "recompra",
+                "novo pedido",
+                "reposição",
+                "reposicao",
+                "comprar novamente"
+            )
+        ):
+            candidato = "recompra"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "pedido confirmado",
+                "pedido fechado",
+                "compramos",
+                "compra realizada",
+                "pagamento confirmado"
+            )
+        ):
+            candidato = "cliente"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "preço",
+                "preco",
+                "cotação",
+                "cotacao",
+                "proposta",
+                "condição comercial",
+                "condicao comercial",
+                "negociar",
+                "negociação",
+                "negociacao"
+            )
+        ):
+            candidato = "negociacao"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "degustação",
+                "degustacao",
+                "amostra",
+                "experimentar",
+                "provar produto"
+            )
+        ):
+            candidato = "degustacao"
+
+        return avancar_estagio_sem_regredir(
+            atual=estagio_atual,
+            candidato=candidato,
+            ordem=ordem
+        )
+
+    # ========================================================
+    # B2C
+    # novo -> interessado -> cliente -> pos_venda
+    # -> recompra -> fiel
+    # ========================================================
+
+    if categoria == "consumidor":
+
+        ordem = [
+            "novo",
+            "interessado",
+            "cliente",
+            "pos_venda",
+            "recompra",
+            "fiel"
+        ]
+
+        candidato = "interessado"
+
+        if any(
+            termo in texto_lower
+            for termo in (
+                "sempre compro",
+                "cliente fiel",
+                "compro sempre",
+                "já comprei várias",
+                "ja comprei varias"
+            )
+        ):
+            candidato = "fiel"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "recompra",
+                "comprei novamente",
+                "comprar novamente",
+                "novo pedido"
+            )
+        ):
+            candidato = "recompra"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "recebi meu pedido",
+                "produto chegou",
+                "gostei do produto",
+                "experiência",
+                "experiencia"
+            )
+        ):
+            candidato = "pos_venda"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "comprei",
+                "pedido confirmado",
+                "pagamento confirmado",
+                "compra realizada"
+            )
+        ):
+            candidato = "cliente"
+
+        return avancar_estagio_sem_regredir(
+            atual=estagio_atual,
+            candidato=candidato,
+            ordem=ordem
+        )
+
+    # ========================================================
+    # FABRICANTE / FORNECEDOR
+    # prospeccao -> teste -> homologado -> producao
+    # -> avaliacao -> otimizacao
+    # ========================================================
+
+    if categoria in {
+        "fabrica",
+        "fornecedor"
+    }:
+
+        ordem = [
+            "prospeccao",
+            "teste",
+            "homologado",
+            "producao",
+            "avaliacao",
+            "otimizacao"
+        ]
+
+        candidato = "prospeccao"
+
+        if any(
+            termo in texto_lower
+            for termo in (
+                "reduzir custo",
+                "redução de custo",
+                "reducao de custo",
+                "melhorar prazo",
+                "renegociar",
+                "otimizar",
+                "melhoria de processo"
+            )
+        ):
+            candidato = "otimizacao"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "qualidade",
+                "atraso",
+                "prazo real",
+                "avaliação",
+                "avaliacao",
+                "problema no lote",
+                "não conformidade",
+                "nao conformidade"
+            )
+        ):
+            candidato = "avaliacao"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "produção",
+                "producao",
+                "fabricando",
+                "envase",
+                "lote",
+                "linha de produção",
+                "linha de producao"
+            )
+        ):
+            candidato = "producao"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "homologado",
+                "aprovado para produção",
+                "aprovado para producao",
+                "fornecedor aprovado"
+            )
+        ):
+            candidato = "homologado"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "teste",
+                "piloto",
+                "amostra técnica",
+                "amostra tecnica",
+                "bancada"
+            )
+        ):
+            candidato = "teste"
+
+        return avancar_estagio_sem_regredir(
+            atual=estagio_atual,
+            candidato=candidato,
+            ordem=ordem
+        )
+
+    # ========================================================
+    # COMUNICAÇÃO / INFLUÊNCIA
+    # novo -> contato -> oportunidade -> ativo -> parceiro
+    # ========================================================
+
+    if categoria in {
+        "imprensa",
+        "jornalista",
+        "influenciador",
+        "criador"
+    }:
+
+        ordem = [
+            "novo",
+            "contato",
+            "oportunidade",
+            "ativo",
+            "parceiro"
+        ]
+
+        candidato = "contato"
+
+        if any(
+            termo in texto_lower
+            for termo in (
+                "parceria contínua",
+                "parceria continua",
+                "parceiro",
+                "projeto conjunto"
+            )
+        ):
+            candidato = "parceiro"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "publicado",
+                "publiquei",
+                "matéria publicada",
+                "materia publicada",
+                "vídeo publicado",
+                "video publicado"
+            )
+        ):
+            candidato = "ativo"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "pauta",
+                "matéria",
+                "materia",
+                "conteúdo",
+                "conteudo",
+                "proposta",
+                "entrevista"
+            )
+        ):
+            candidato = "oportunidade"
+
+        return avancar_estagio_sem_regredir(
+            atual=estagio_atual,
+            candidato=candidato,
+            ordem=ordem
+        )
+
+    # ========================================================
+    # INVESTIDOR
+    # novo -> contato -> interessado -> diligencia
+    # -> negociacao -> investidor
+    # ========================================================
+
+    if categoria == "investidor":
+
+        ordem = [
+            "novo",
+            "contato",
+            "interessado",
+            "diligencia",
+            "negociacao",
+            "investidor"
+        ]
+
+        candidato = "contato"
+
+        if any(
+            termo in texto_lower
+            for termo in (
+                "aporte realizado",
+                "investimento realizado",
+                "investiu"
+            )
+        ):
+            candidato = "investidor"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "termos",
+                "valuation",
+                "participação",
+                "participacao",
+                "negociação",
+                "negociacao"
+            )
+        ):
+            candidato = "negociacao"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "documentos",
+                "due diligence",
+                "diligência",
+                "diligencia"
+            )
+        ):
+            candidato = "diligencia"
+
+        elif any(
+            termo in texto_lower
+            for termo in (
+                "interesse em investir",
+                "interessado em investir",
+                "aporte"
+            )
+        ):
+            candidato = "interessado"
+
+        return avancar_estagio_sem_regredir(
+            atual=estagio_atual,
+            candidato=candidato,
+            ordem=ordem
+        )
+
+    # Relacionamento genérico.
+    if estagio_atual == "novo":
+        return "contato"
+
+    return estagio_atual
+
+
+def avancar_estagio_sem_regredir(
+    atual,
+    candidato,
+    ordem
+):
+    """
+    Permite avanço automático no funil,
+    mas impede regressão automática.
+    """
+
+    atual = str(
+        atual or ordem[0]
+    ).strip().lower()
+
+    candidato = str(
+        candidato or ordem[0]
+    ).strip().lower()
+
+    if atual not in ordem:
+        # Sistemas antigos podem possuir outros estágios.
+        # Só substituímos se houver avanço concreto.
+        if candidato != ordem[0]:
+            return candidato
+        return atual
+
+    if candidato not in ordem:
+        return atual
+
+    indice_atual = ordem.index(atual)
+    indice_candidato = ordem.index(candidato)
+
+    if indice_candidato > indice_atual:
+        return candidato
+
+    return atual
 
 
 def definir_proximo_passo_relacionamento(
@@ -5894,6 +6888,15 @@ def atualizar_relacionamento_por_interacao(
                     categoria_final
                 )
 
+                estagio_final = (
+                    definir_estagio_relacionamento(
+                        contato=contato,
+                        categoria=categoria_final,
+                        texto=texto,
+                        classificacao=classificacao
+                    )
+                )
+
                 proximo_passo = (
                     definir_proximo_passo_relacionamento(
                         contato=contato,
@@ -5907,6 +6910,7 @@ def atualizar_relacionamento_por_interacao(
                     UPDATE leads_crm
                     SET
                         categoria_contato = %s,
+                        estagio = %s,
 
                         objetivo_relacionamento =
                             COALESCE(
@@ -5933,6 +6937,7 @@ def atualizar_relacionamento_por_interacao(
                     RETURNING *
                 """, (
                     categoria_final,
+                    estagio_final,
                     proximo_passo.get(
                         "objetivo_relacionamento"
                     ),
@@ -7704,6 +8709,153 @@ def favicon():
 # FUNÇÕES COMUNS — PAGAMENTO / C6 / LOGÍSTICA
 # =====================================================
 
+def sincronizar_pedido_pago_com_relacionamento(
+    pedido,
+    origem_pagamento
+):
+    """
+    Conecta uma compra confirmada ao Contato Central.
+
+    Regras:
+    - pagamento continua independente do CRM;
+    - não cria compra sem identidade mínima;
+    - código do pedido é a referência única;
+    - repetição de webhook não duplica compra.
+    """
+
+    try:
+        if not pedido:
+            return {
+                "success": False,
+                "ignorado": True,
+                "motivo": "pedido_ausente"
+            }
+
+        codigo = str(
+            pedido.get("code") or ""
+        ).strip()
+
+        email = str(
+            pedido.get("cliente_email") or ""
+        ).strip() or None
+
+        telefone = str(
+            pedido.get("cliente_whatsapp") or ""
+        ).strip() or None
+
+        if not codigo:
+            return {
+                "success": False,
+                "ignorado": True,
+                "motivo": "codigo_ausente"
+            }
+
+        # Sem email ou telefone não fazemos associação
+        # automática para evitar contato incorreto.
+        if not email and not telefone:
+            return {
+                "success": False,
+                "ignorado": True,
+                "motivo":
+                    "cliente_sem_identidade_suficiente"
+            }
+
+        # --------------------------------------------
+        # LOCALIZA OU CRIA CONTATO CENTRAL
+        # --------------------------------------------
+
+        resultado_contato = (
+            obter_ou_criar_contato_central(
+                email=email,
+                telefone=telefone,
+                instagram=None,
+                canal="checkout",
+                origem="pedido_pago",
+                categoria_contato="consumidor",
+                interesse="compra_confirmada"
+            )
+        )
+
+        if not resultado_contato.get("success"):
+            return {
+                "success": False,
+                "erro":
+                    resultado_contato.get(
+                        "erro"
+                    )
+                    or
+                    "Não foi possível obter contato."
+            }
+
+        contato = (
+            resultado_contato.get("contato")
+            or {}
+        )
+
+        contato_id = contato.get("id")
+
+        if not contato_id:
+            return {
+                "success": False,
+                "erro":
+                    "Contato Central sem identificador."
+            }
+
+        # --------------------------------------------
+        # REGISTRA EVENTO ECONÔMICO
+        # --------------------------------------------
+        #
+        # origem='pedido' propositalmente:
+        # a mesma venda não muda de identidade caso
+        # tenha sido observada por webhook, consulta
+        # C6 ou qualquer outro mecanismo.
+        # --------------------------------------------
+
+        resultado_compra = (
+            registrar_compra_relacionamento(
+                contato_id=contato_id,
+                referencia_externa=codigo,
+                origem="pedido",
+                valor_centavos=pedido.get(
+                    "amount"
+                ),
+                quantidade_itens=pedido.get(
+                    "quantity"
+                ) or 1
+            )
+        )
+
+        if not resultado_compra.get("success"):
+            return resultado_compra
+
+        return {
+            "success": True,
+            "contato_id": str(contato_id),
+            "codigo": codigo,
+            "origem_pagamento":
+                origem_pagamento,
+            "compra_registrada":
+                resultado_compra.get(
+                    "registrada"
+                ),
+            "compra_duplicada":
+                resultado_compra.get(
+                    "duplicada"
+                )
+        }
+
+    except Exception as erro:
+        print(
+            "ERRO SINCRONIZAR PEDIDO COM RELACIONAMENTO:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+
 def finalizar_pedido_pago(codigo, origem_pagamento):
     """
     Centraliza a liberação operacional do pedido.
@@ -7715,8 +8867,34 @@ def finalizar_pedido_pago(codigo, origem_pagamento):
     if not pedido:
         return False
 
-    # Idempotência: webhook repetido não dispara tudo de novo.
+    # Idempotência operacional:
+    # pedido já pago não repete logística/persistência,
+    # mas a sincronização de relacionamento pode ser
+    # tentada novamente porque ela também é idempotente.
     if pedido.get("status") == "pago":
+
+        try:
+            resultado_relacionamento = (
+                sincronizar_pedido_pago_com_relacionamento(
+                    pedido,
+                    origem_pagamento
+                )
+            )
+
+            if not resultado_relacionamento.get(
+                "success"
+            ):
+                print(
+                    "AVISO SINCRONIZAÇÃO PEDIDO/CRM:",
+                    resultado_relacionamento
+                )
+
+        except Exception as erro:
+            print(
+                "ERRO SINCRONIZAÇÃO PEDIDO/CRM:",
+                erro
+            )
+
         return True
 
     pedido["status"] = "pago"
@@ -7729,6 +8907,42 @@ def finalizar_pedido_pago(codigo, origem_pagamento):
         salvar_pedido_postgres(pedido)
     except Exception as erro:
         print("ERRO PERSISTIR PEDIDO PAGO:", erro)
+
+    # ---------------------------------------------
+    # AI-NATIVE — COMPRA -> RELACIONAMENTO
+    # ---------------------------------------------
+    #
+    # Falha desta camada não desfaz pagamento.
+    # A sincronização pode ser repetida com segurança.
+    # ---------------------------------------------
+
+    try:
+        resultado_relacionamento = (
+            sincronizar_pedido_pago_com_relacionamento(
+                pedido,
+                origem_pagamento
+            )
+        )
+
+        if resultado_relacionamento.get(
+            "success"
+        ):
+            print(
+                "✓ COMPRA SINCRONIZADA COM RELACIONAMENTO",
+                codigo,
+                resultado_relacionamento
+            )
+        else:
+            print(
+                "AVISO SINCRONIZAÇÃO PEDIDO/CRM:",
+                resultado_relacionamento
+            )
+
+    except Exception as erro:
+        print(
+            "ERRO SINCRONIZAÇÃO PEDIDO/CRM:",
+            erro
+        )
 
     emit(
         "to_admin",
