@@ -28125,7 +28125,6 @@ def gerar_painel_executivo_hoje():
                         p.classificacao_qualidade,
                         p.motivo_qualificacao,
                         p.potencial_relacionamento,
-                        p.motivo,
                         p.fonte_url,
                         p.evidencia,
                         p.email,
@@ -28203,7 +28202,7 @@ def gerar_painel_executivo_hoje():
                             prospecto.get(
                                 "motivo_qualificacao"
                             )
-                            or prospecto.get("motivo")
+                            or prospecto.get("evidencia")
                         ),
                         "potencial": prospecto.get(
                             "potencial_relacionamento"
