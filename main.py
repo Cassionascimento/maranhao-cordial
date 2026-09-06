@@ -21430,6 +21430,13 @@ def admin_atualizar_lead_crm(lead_id):
             "error": "Nenhum campo válido informado."
         }), 400
 
+    if dados.get("cadastro_teste") is True:
+        atualizacoes.extend([
+            "valido_para_ia = FALSE",
+            "expandir_rede = FALSE",
+            "status = 'inativo'"
+        ])
+
     atualizacoes.append(
         "atualizado_em = NOW()"
     )
