@@ -584,3 +584,316 @@ def instalar_fase5(namespace):
             )
 
     return {"success": True, "fase": 5, "acao_externa_automatica": False}
+
+# ===== FASE 5.1 — PROSPECCAO ATIVA =====
+
+def obter_radar_prospeccao_fase51(limite=20):
+    """Radar interno: prioriza onde a IA deve pesquisar mais, sem contatar ninguém."""
+    conn = _conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT
+                    COALESCE(NULLIF(TRIM(categoria_contato),''),'nao_classificado') categoria,
+                    COUNT(*)::INTEGER total,
+                    COUNT(*) FILTER (
+                        WHERE COALESCE(TRIM(proxima_acao),'') <> ''
+                    )::INTEGER com_acao,
+                    COUNT(*) FILTER (
+                        WHERE ultima_interacao_em >= NOW() - INTERVAL '30 days'
+                    )::INTEGER ativos_30d
+                FROM leads_crm
+                WHERE COALESCE(valido_para_ia, TRUE)=TRUE
+                  AND COALESCE(cadastro_teste,FALSE)=FALSE
+                  AND COALESCE(contato_interno,FALSE)=FALSE
+                  AND COALESCE(arquivado,FALSE)=FALSE
+                GROUP BY 1
+                ORDER BY COUNT(*) ASC, 1
+            """)
+            carteira = [dict(x) for x in cur.fetchall()]
+
+            cur.execute("""
+                SELECT
+                    COUNT(*)::INTEGER total,
+                    COUNT(*) FILTER (
+                        WHERE COALESCE(status,'') IN (
+                            'novo','pendente','qualificado','aprovado'
+                        )
+                    )::INTEGER abertos
+                FROM prospectos_rede
+            """)
+            prospectos = dict(cur.fetchone() or {})
+    finally:
+        conn.close()
+
+    alvos = {
+        "bar": 8, "restaurante": 8, "hotel": 5,
+        "bartender": 8, "distribuidor": 4, "revendedor": 4,
+    }
+    atuais = {x["categoria"]: int(x["total"] or 0) for x in carteira}
+    radar = []
+    for categoria, alvo in alvos.items():
+        atual = atuais.get(categoria, 0)
+        lacuna = max(alvo - atual, 0)
+        if lacuna:
+            radar.append({
+                "categoria": categoria,
+                "atual": atual,
+                "alvo_operacional_sugerido": alvo,
+                "lacuna": lacuna,
+                "prioridade_prospeccao": (
+                    "alta" if atual == 0 or lacuna >= 5 else "media"
+                ),
+                "acao_ia": (
+                    "pesquisar fontes profissionais públicas, qualificar e "
+                    "registrar candidatos sem enviar contato externo"
+                ),
+            })
+    radar.sort(key=lambda x: (-x["lacuna"], x["categoria"]))
+    return {
+        "carteira": carteira,
+        "prospectos": {
+            "total": int(prospectos.get("total") or 0),
+            "abertos": int(prospectos.get("abertos") or 0),
+        },
+        "radar": radar[:max(1, min(int(limite or 20), 50))],
+    }
+
+
+def listar_oportunidades_prospeccao_fase51(limite=12):
+    """Exibe prospectos existentes de maior qualidade; não cria nem envia mensagens."""
+    conn = _conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT *
+                FROM prospectos_rede
+                ORDER BY
+                    CASE COALESCE(status,'')
+                        WHEN 'aprovado' THEN 0
+                        WHEN 'qualificado' THEN 1
+                        WHEN 'novo' THEN 2
+                        WHEN 'pendente' THEN 3
+                        ELSE 4
+                    END,
+                    criado_em DESC
+                LIMIT %s
+            """, (max(1, min(int(limite or 12), 50)),))
+            dados = [dict(x) for x in cur.fetchall()]
+    finally:
+        conn.close()
+
+    for x in dados:
+        for k, v in list(x.items()):
+            if hasattr(v, "isoformat"):
+                x[k] = v.isoformat()
+            elif k == "id" and v is not None:
+                x[k] = str(v)
+    return dados
+
+
+def obter_aprendizado_acelerado_fase51(limite=12):
+    """
+    Aprende cedo sem fingir certeza:
+    - resultado real pesa mais;
+    - rejeição humana corrige imediatamente;
+    - pouca amostra gera confiança baixa;
+    - nunca autoriza ação externa.
+    """
+    padroes = obter_padroes_aprendidos_fase5(limite=limite)
+    for p in padroes:
+        total = int(p.get("total_decisoes") or 0)
+        avaliados = int(p.get("resultados_avaliados") or 0)
+        recusas = int(p.get("recusas") or 0)
+        positivos = int(p.get("positivos") or 0)
+        negativos = int(p.get("negativos") or 0)
+
+        bruto = (
+            1.20 * positivos
+            - 1.35 * negativos
+            - 0.70 * recusas
+            + 0.20 * int(p.get("aprovacoes") or 0)
+        )
+        evidencia = total + (2 * avaliados)
+        fator = min(evidencia / 10.0, 1.0)
+        p["score_adaptativo"] = round(
+            max(-1.0, min(1.0, (bruto / max(evidencia, 1)) * fator)),
+            3,
+        )
+        p["evidencias_ponderadas"] = evidencia
+        p["usar_para"] = (
+            "ajustar prioridade e recomendação"
+            if evidencia >= 2
+            else "observar; evidência ainda muito pequena"
+        )
+        p["autoriza_execucao_externa"] = False
+    return padroes
+
+
+def obter_trabalho_autonomo_fase51():
+    """Mede trabalho interno resolvido/preparado pela IA."""
+    conn = _conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT
+                    COUNT(*) FILTER (
+                        WHERE COALESCE(valido_para_ia,TRUE)=TRUE
+                          AND COALESCE(cadastro_teste,FALSE)=FALSE
+                          AND COALESCE(contato_interno,FALSE)=FALSE
+                          AND COALESCE(TRIM(proxima_acao),'') <> ''
+                    )::INTEGER relacionamentos_preparados,
+                    COUNT(*) FILTER (
+                        WHERE COALESCE(valido_para_ia,TRUE)=TRUE
+                          AND COALESCE(cadastro_teste,FALSE)=FALSE
+                          AND COALESCE(contato_interno,FALSE)=FALSE
+                          AND proximo_followup <= NOW()
+                    )::INTEGER followups_vencidos
+                FROM leads_crm
+            """)
+            rel = dict(cur.fetchone() or {})
+
+            cur.execute("""
+                SELECT
+                    COUNT(*)::INTEGER total,
+                    COUNT(*) FILTER (
+                        WHERE status='aguardando_aprovacao'
+                    )::INTEGER precisa_direcao
+                FROM acoes_empresariais
+            """)
+            acoes = dict(cur.fetchone() or {})
+
+            cur.execute("""
+                SELECT
+                    COUNT(*)::INTEGER total,
+                    COUNT(*) FILTER (
+                        WHERE lead_id IS NOT NULL
+                    )::INTEGER vinculadas
+                FROM interacoes_omnichannel
+            """)
+            inter = dict(cur.fetchone() or {})
+    finally:
+        conn.close()
+
+    return {
+        "relacionamentos_preparados": int(
+            rel.get("relacionamentos_preparados") or 0
+        ),
+        "followups_vencidos": int(rel.get("followups_vencidos") or 0),
+        "acoes_total": int(acoes.get("total") or 0),
+        "precisa_direcao": int(acoes.get("precisa_direcao") or 0),
+        "interacoes_vinculadas": int(inter.get("vinculadas") or 0),
+        "interacoes_total": int(inter.get("total") or 0),
+    }
+
+
+def montar_painel_operacional_fase51():
+    return {
+        "success": True,
+        "gerado_em": datetime.now(timezone.utc).isoformat(),
+        "precisa_de_mim": {
+            "acoes_aguardando_aprovacao":
+                obter_status_fase5()["acoes_aguardando_aprovacao"],
+        },
+        "ia_trabalhando": obter_trabalho_autonomo_fase51(),
+        "prospeccao": obter_radar_prospeccao_fase51(),
+        "oportunidades": listar_oportunidades_prospeccao_fase51(),
+        "followups": listar_fila_ativa_fase5(20),
+        "aprendizado": obter_aprendizado_acelerado_fase51(),
+        "seguranca": {
+            "pesquisa_publica_automatica": True,
+            "qualificacao_automatica": True,
+            "envio_externo_automatico": False,
+            "publicacao_automatica": False,
+            "preco_pagamento_contrato_automatico": False,
+        },
+    }
+
+
+def instalar_fase51(namespace):
+    app = namespace.get("app")
+    validar = (
+        namespace.get("validar_admin_request")
+        or namespace.get("validar_admin_omnichannel")
+    )
+    jsonify = namespace.get("jsonify")
+
+    original_ciclo = namespace.get("executar_ciclo_fase5")
+    planejar = (
+        namespace.get("planejar_expansao_rede")
+        or namespace.get("planejar_pesquisas_rede")
+        or namespace.get("planejar_pesquisa_rede")
+    )
+    executar_pesquisa = namespace.get("executar_proxima_pesquisa_rede")
+
+    if callable(original_ciclo) and not getattr(original_ciclo, "_fase51", False):
+        def ciclo_ativo(*args, **kwargs):
+            resultado = original_ciclo(*args, **kwargs)
+            ativo = {"planejamento": None, "pesquisa": None}
+            try:
+                if callable(planejar):
+                    ativo["planejamento"] = planejar()
+            except Exception as erro:
+                ativo["planejamento"] = {"success": False, "error": str(erro)}
+            try:
+                if callable(executar_pesquisa):
+                    ativo["pesquisa"] = executar_pesquisa()
+            except Exception as erro:
+                ativo["pesquisa"] = {"success": False, "error": str(erro)}
+            if isinstance(resultado, dict):
+                resultado = dict(resultado)
+                resultado["prospeccao_ativa"] = ativo
+            return resultado
+        ciclo_ativo._fase51 = True
+        namespace["executar_ciclo_fase5"] = ciclo_ativo
+
+    original_painel = namespace.get("gerar_painel_executivo_hoje")
+    if callable(original_painel) and not getattr(original_painel, "_fase51", False):
+        def painel51(*args, **kwargs):
+            base = original_painel(*args, **kwargs)
+            if not isinstance(base, dict):
+                return base
+            base = dict(base)
+            try:
+                base["fase51"] = montar_painel_operacional_fase51()
+            except Exception as erro:
+                base["fase51"] = {
+                    "success": False,
+                    "error": str(erro),
+                }
+            return base
+        painel51._fase51 = True
+        namespace["gerar_painel_executivo_hoje"] = painel51
+
+    if app and callable(validar) and callable(jsonify):
+        endpoint = "admin_ia_empresarial_fase51"
+        if endpoint not in app.view_functions:
+            def status51():
+                if not validar():
+                    return jsonify({
+                        "success": False,
+                        "error": "Não autorizado.",
+                    }), 401
+                return jsonify(montar_painel_operacional_fase51()), 200
+
+            app.add_url_rule(
+                "/api/admin/ia-empresarial/fase51",
+                endpoint=endpoint,
+                view_func=status51,
+                methods=["GET"],
+            )
+
+    return {
+        "success": True,
+        "fase": "5.1",
+        "prospeccao_interna_ativa": True,
+        "acao_externa_automatica": False,
+    }
+
+# ===== FIM FASE 5.1 =====
+
+
+try:
+    instalar_fase51(globals())
+except Exception as erro_fase51:
+    print("ERRO AO INSTALAR FASE 5.1:", repr(erro_fase51))
