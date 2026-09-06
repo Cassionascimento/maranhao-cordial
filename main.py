@@ -34339,3 +34339,502 @@ except Exception as erro:
         "ERRO AO INICIALIZAR BRIEFING AUTOMÁTICO:",
         repr(erro)
     )
+
+
+# ============================================================
+# MAPA VIVO DE REDE DE RELACIONAMENTOS
+# ============================================================
+
+def obter_mapa_rede_contato(
+    contato_id,
+    profundidade=3,
+    limite_por_no=100
+):
+    """
+    Monta o mapa de expansão de rede a partir de um contato
+    da Central de Contatos.
+
+    Exemplo conceitual:
+
+        Waldir
+          ↓
+        Ilha Drinks
+          ↓
+        Marlon
+          ↓
+        hotéis / bartenders / imprensa / parceiros
+
+    A função NÃO pesquisa a internet.
+    A função NÃO envia mensagens.
+    A função NÃO aprova prospectos.
+
+    Ela apenas lê o que a IA já descobriu e preserva:
+    - origem
+    - destino
+    - evidência
+    - fonte
+    - score
+    - status
+    - vínculo com Contact Central
+    """
+
+    try:
+        profundidade = max(
+            1,
+            min(
+                int(profundidade or 1),
+                6
+            )
+        )
+    except Exception:
+        profundidade = 3
+
+    try:
+        limite_por_no = max(
+            1,
+            min(
+                int(limite_por_no or 100),
+                500
+            )
+        )
+    except Exception:
+        limite_por_no = 100
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                # ------------------------------------------------
+                # CONTATO RAIZ
+                # ------------------------------------------------
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        empresa,
+                        categoria_contato,
+                        interesse,
+                        estagio,
+                        nivel_relacionamento,
+                        origem,
+                        canal
+                    FROM leads_crm
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    contato_id,
+                ))
+
+                raiz = cur.fetchone()
+
+                if not raiz:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Contato raiz não encontrado."
+                    }
+
+                nos = {}
+                arestas = []
+
+                raiz_id = str(
+                    raiz.get("id")
+                )
+
+                nos[
+                    f"contato:{raiz_id}"
+                ] = {
+                    "id":
+                        raiz_id,
+                    "tipo_no":
+                        "contato_central",
+                    "nome":
+                        raiz.get("nome"),
+                    "empresa":
+                        raiz.get("empresa"),
+                    "categoria":
+                        raiz.get(
+                            "categoria_contato"
+                        ),
+                    "interesse":
+                        raiz.get("interesse"),
+                    "estagio":
+                        raiz.get("estagio"),
+                    "nivel_relacionamento":
+                        raiz.get(
+                            "nivel_relacionamento"
+                        ),
+                    "origem":
+                        raiz.get("origem"),
+                    "canal":
+                        raiz.get("canal"),
+                    "profundidade":
+                        0
+                }
+
+                contatos_visitados = {
+                    raiz_id
+                }
+
+                fronteira = [
+                    raiz_id
+                ]
+
+                # ------------------------------------------------
+                # EXPANSÃO DO MAPA
+                # ------------------------------------------------
+
+                for nivel in range(
+                    1,
+                    profundidade + 1
+                ):
+
+                    if not fronteira:
+                        break
+
+                    proxima_fronteira = []
+
+                    for origem_id in fronteira:
+
+                        cur.execute("""
+                            SELECT
+                                id,
+                                contato_origem_id,
+                                contato_central_id,
+                                relacionamento_rede_id,
+
+                                nome,
+                                empresa,
+                                cargo,
+                                categoria_sugerida,
+
+                                email_publico,
+                                telefone_publico,
+                                instagram_publico,
+                                linkedin_publico,
+                                site_publico,
+
+                                tema_interesse,
+                                motivo_estrategico,
+
+                                fonte_tipo,
+                                fonte_url,
+                                evidencia,
+                                confianca,
+
+                                score_qualidade,
+                                classificacao_qualidade,
+                                potencial_relacionamento,
+
+                                status,
+                                valido_para_ia,
+                                criado_em
+                            FROM prospectos_rede
+                            WHERE
+                                contato_origem_id = %s
+                                AND valido_para_ia = TRUE
+                            ORDER BY
+                                score_qualidade DESC,
+                                criado_em ASC
+                            LIMIT %s
+                        """, (
+                            origem_id,
+                            limite_por_no
+                        ))
+
+                        prospectos = cur.fetchall()
+
+                        for prospecto in prospectos:
+
+                            prospecto_id = str(
+                                prospecto.get("id")
+                            )
+
+                            chave_prospecto = (
+                                f"prospecto:{prospecto_id}"
+                            )
+
+                            if chave_prospecto not in nos:
+
+                                nos[
+                                    chave_prospecto
+                                ] = {
+                                    "id":
+                                        prospecto_id,
+                                    "tipo_no":
+                                        "prospecto",
+                                    "nome":
+                                        prospecto.get(
+                                            "nome"
+                                        ),
+                                    "empresa":
+                                        prospecto.get(
+                                            "empresa"
+                                        ),
+                                    "cargo":
+                                        prospecto.get(
+                                            "cargo"
+                                        ),
+                                    "categoria":
+                                        prospecto.get(
+                                            "categoria_sugerida"
+                                        ),
+                                    "score":
+                                        prospecto.get(
+                                            "score_qualidade"
+                                        ),
+                                    "classificacao":
+                                        prospecto.get(
+                                            "classificacao_qualidade"
+                                        ),
+                                    "potencial":
+                                        prospecto.get(
+                                            "potencial_relacionamento"
+                                        ),
+                                    "status":
+                                        prospecto.get(
+                                            "status"
+                                        ),
+                                    "tema":
+                                        prospecto.get(
+                                            "tema_interesse"
+                                        ),
+                                    "motivo":
+                                        prospecto.get(
+                                            "motivo_estrategico"
+                                        ),
+                                    "fonte_tipo":
+                                        prospecto.get(
+                                            "fonte_tipo"
+                                        ),
+                                    "fonte_url":
+                                        prospecto.get(
+                                            "fonte_url"
+                                        ),
+                                    "evidencia":
+                                        prospecto.get(
+                                            "evidencia"
+                                        ),
+                                    "confianca":
+                                        prospecto.get(
+                                            "confianca"
+                                        ),
+                                    "email_publico":
+                                        prospecto.get(
+                                            "email_publico"
+                                        ),
+                                    "telefone_publico":
+                                        prospecto.get(
+                                            "telefone_publico"
+                                        ),
+                                    "instagram_publico":
+                                        prospecto.get(
+                                            "instagram_publico"
+                                        ),
+                                    "linkedin_publico":
+                                        prospecto.get(
+                                            "linkedin_publico"
+                                        ),
+                                    "site_publico":
+                                        prospecto.get(
+                                            "site_publico"
+                                        ),
+                                    "contato_central_id":
+                                        str(
+                                            prospecto.get(
+                                                "contato_central_id"
+                                            )
+                                        )
+                                        if prospecto.get(
+                                            "contato_central_id"
+                                        )
+                                        else None,
+                                    "profundidade":
+                                        nivel
+                                }
+
+                            arestas.append({
+                                "origem":
+                                    f"contato:{origem_id}",
+                                "destino":
+                                    chave_prospecto,
+                                "tipo":
+                                    "descoberta_publica",
+                                "tema":
+                                    prospecto.get(
+                                        "tema_interesse"
+                                    ),
+                                "fonte":
+                                    prospecto.get(
+                                        "fonte_url"
+                                    ),
+                                "evidencia":
+                                    prospecto.get(
+                                        "evidencia"
+                                    ),
+                                "score":
+                                    prospecto.get(
+                                        "score_qualidade"
+                                    ),
+                                "profundidade":
+                                    nivel
+                            })
+
+                            # ------------------------------------
+                            # PROSPECTO JÁ VIROU CONTATO CENTRAL
+                            # ------------------------------------
+
+                            central_id = (
+                                prospecto.get(
+                                    "contato_central_id"
+                                )
+                            )
+
+                            if not central_id:
+                                continue
+
+                            central_id = str(
+                                central_id
+                            )
+
+                            cur.execute("""
+                                SELECT
+                                    id,
+                                    nome,
+                                    empresa,
+                                    categoria_contato,
+                                    interesse,
+                                    estagio,
+                                    nivel_relacionamento,
+                                    origem,
+                                    canal
+                                FROM leads_crm
+                                WHERE id = %s
+                                LIMIT 1
+                            """, (
+                                central_id,
+                            ))
+
+                            contato_central = (
+                                cur.fetchone()
+                            )
+
+                            if not contato_central:
+                                continue
+
+                            chave_contato = (
+                                f"contato:{central_id}"
+                            )
+
+                            if chave_contato not in nos:
+
+                                nos[
+                                    chave_contato
+                                ] = {
+                                    "id":
+                                        central_id,
+                                    "tipo_no":
+                                        "contato_central",
+                                    "nome":
+                                        contato_central.get(
+                                            "nome"
+                                        ),
+                                    "empresa":
+                                        contato_central.get(
+                                            "empresa"
+                                        ),
+                                    "categoria":
+                                        contato_central.get(
+                                            "categoria_contato"
+                                        ),
+                                    "interesse":
+                                        contato_central.get(
+                                            "interesse"
+                                        ),
+                                    "estagio":
+                                        contato_central.get(
+                                            "estagio"
+                                        ),
+                                    "nivel_relacionamento":
+                                        contato_central.get(
+                                            "nivel_relacionamento"
+                                        ),
+                                    "origem":
+                                        contato_central.get(
+                                            "origem"
+                                        ),
+                                    "canal":
+                                        contato_central.get(
+                                            "canal"
+                                        ),
+                                    "profundidade":
+                                        nivel
+                                }
+
+                            arestas.append({
+                                "origem":
+                                    chave_prospecto,
+                                "destino":
+                                    chave_contato,
+                                "tipo":
+                                    "convertido_em_contato",
+                                "profundidade":
+                                    nivel
+                            })
+
+                            if (
+                                central_id
+                                not in contatos_visitados
+                            ):
+                                contatos_visitados.add(
+                                    central_id
+                                )
+
+                                proxima_fronteira.append(
+                                    central_id
+                                )
+
+                    fronteira = (
+                        proxima_fronteira
+                    )
+
+        return {
+            "success": True,
+            "contato_raiz":
+                dict(raiz),
+            "quantidade_nos":
+                len(nos),
+            "quantidade_arestas":
+                len(arestas),
+            "profundidade":
+                profundidade,
+            "nos":
+                list(
+                    nos.values()
+                ),
+            "arestas":
+                arestas
+        }
+
+    except Exception as erro:
+
+        print(
+            "ERRO MAPA REDE CONTATO:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
