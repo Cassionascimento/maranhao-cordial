@@ -28241,6 +28241,8 @@ def gerar_painel_executivo_hoje():
                     """
                 )
 
+                prospectos_executivos = {}
+
                 for prospecto in cur.fetchall():
 
                     canais = []
@@ -28265,7 +28267,65 @@ def gerar_painel_executivo_hoje():
                         or prospecto.get("origem_empresa")
                     )
 
-                    painel["novos_prospectos"].append({
+                    identificador = None
+
+                    if prospecto.get("site_publico"):
+                        identificador = (
+                            "site",
+                            prospecto.get(
+                                "site_publico"
+                            ).strip().lower(),
+                        )
+
+                    elif prospecto.get("email_publico"):
+                        identificador = (
+                            "email",
+                            prospecto.get(
+                                "email_publico"
+                            ).strip().lower(),
+                        )
+
+                    elif prospecto.get("telefone_publico"):
+                        telefone = "".join(
+                            caractere
+                            for caractere in prospecto.get(
+                                "telefone_publico"
+                            )
+                            if caractere.isdigit()
+                        )
+
+                        if telefone:
+                            identificador = (
+                                "telefone",
+                                telefone,
+                            )
+
+                    elif prospecto.get("instagram_publico"):
+                        instagram = prospecto.get(
+                            "instagram_publico"
+                        ).strip().lower().lstrip("@")
+
+                        if instagram:
+                            identificador = (
+                                "instagram",
+                                instagram,
+                            )
+
+                    if identificador is None:
+                        identificador = (
+                            "prospecto",
+                            str(prospecto.get("id")),
+                        )
+
+                    quantidade_dados_publicos = sum([
+                        bool(prospecto.get("email_publico")),
+                        bool(prospecto.get("telefone_publico")),
+                        bool(prospecto.get("instagram_publico")),
+                        bool(prospecto.get("linkedin_publico")),
+                        bool(prospecto.get("site_publico")),
+                    ])
+
+                    card = {
                         "prospecto_id": str(
                             prospecto.get("id")
                         ),
@@ -28291,6 +28351,11 @@ def gerar_painel_executivo_hoje():
                             "potencial_relacionamento"
                         ),
                         "origem_rede": origem,
+                        "origens_rede": (
+                            [origem]
+                            if origem
+                            else []
+                        ),
                         "fonte_url": prospecto.get(
                             "fonte_url"
                         ),
@@ -28308,7 +28373,64 @@ def gerar_painel_executivo_hoje():
                             )
                             else None
                         ),
-                    })
+                        "_quantidade_dados_publicos": (
+                            quantidade_dados_publicos
+                        ),
+                    }
+
+                    existente = prospectos_executivos.get(
+                        identificador
+                    )
+
+                    if existente is None:
+                        prospectos_executivos[
+                            identificador
+                        ] = card
+                        continue
+
+                    origens = list(
+                        existente.get(
+                            "origens_rede",
+                            []
+                        )
+                    )
+
+                    if origem and origem not in origens:
+                        origens.append(origem)
+
+                    melhor_card = existente
+
+                    if (
+                        quantidade_dados_publicos
+                        > existente.get(
+                            "_quantidade_dados_publicos",
+                            0
+                        )
+                    ):
+                        melhor_card = card
+
+                    melhor_card["origens_rede"] = origens
+
+                    if len(origens) == 1:
+                        melhor_card["origem_rede"] = origens[0]
+                    elif origens:
+                        melhor_card["origem_rede"] = " / ".join(
+                            origens
+                        )
+
+                    prospectos_executivos[
+                        identificador
+                    ] = melhor_card
+
+                for card in prospectos_executivos.values():
+                    card.pop(
+                        "_quantidade_dados_publicos",
+                        None
+                    )
+
+                    painel[
+                        "novos_prospectos"
+                    ].append(card)
 
                 # ==================================================
                 # 4. INTERAÇÕES REAIS DAS ÚLTIMAS 24 HORAS
