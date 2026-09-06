@@ -2227,6 +2227,419 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # AI-NATIVE — REDE DE RELACIONAMENTOS
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    relacionamentos_rede (
+                        id UUID PRIMARY KEY
+                            DEFAULT gen_random_uuid(),
+
+                        contato_origem_id UUID NOT NULL,
+
+                        contato_destino_id UUID,
+
+                        nome_externo VARCHAR(220),
+
+                        empresa_externa VARCHAR(220),
+
+                        tipo_relacao VARCHAR(80),
+
+                        tema_relacao TEXT,
+
+                        fonte_tipo VARCHAR(80),
+
+                        fonte_url TEXT,
+
+                        evidencia TEXT,
+
+                        confianca NUMERIC(5,2)
+                            NOT NULL DEFAULT 0.50,
+
+                        grau_separacao INTEGER
+                            NOT NULL DEFAULT 1,
+
+                        relevancia_estrategica TEXT,
+
+                        status VARCHAR(30)
+                            NOT NULL DEFAULT 'identificada',
+
+                        valido_para_ia BOOLEAN
+                            NOT NULL DEFAULT TRUE,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT
+                            fk_rede_contato_origem
+                        FOREIGN KEY (contato_origem_id)
+                        REFERENCES leads_crm(id)
+                        ON DELETE CASCADE,
+
+                        CONSTRAINT
+                            fk_rede_contato_destino
+                        FOREIGN KEY (contato_destino_id)
+                        REFERENCES leads_crm(id)
+                        ON DELETE SET NULL
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_rede_contato_origem
+                    ON relacionamentos_rede(
+                        contato_origem_id
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_rede_contato_destino
+                    ON relacionamentos_rede(
+                        contato_destino_id
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_rede_status
+                    ON relacionamentos_rede(status)
+                """)
+
+                # ------------------------------------------
+                # PROSPECTOS DESCOBERTOS PELA REDE
+                # ------------------------------------------
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    prospectos_rede (
+                        id UUID PRIMARY KEY
+                            DEFAULT gen_random_uuid(),
+
+                        contato_origem_id UUID,
+
+                        relacionamento_rede_id UUID,
+
+                        nome VARCHAR(220),
+
+                        empresa VARCHAR(220),
+
+                        cargo VARCHAR(180),
+
+                        categoria_sugerida VARCHAR(80),
+
+                        email_publico VARCHAR(220),
+
+                        telefone_publico VARCHAR(100),
+
+                        instagram_publico VARCHAR(180),
+
+                        linkedin_publico TEXT,
+
+                        site_publico TEXT,
+
+                        tema_interesse TEXT,
+
+                        motivo_estrategico TEXT,
+
+                        fonte_tipo VARCHAR(80),
+
+                        fonte_url TEXT,
+
+                        evidencia TEXT,
+
+                        confianca NUMERIC(5,2)
+                            NOT NULL DEFAULT 0.50,
+
+                        status VARCHAR(40)
+                            NOT NULL DEFAULT 'descoberto',
+
+                        contato_central_id UUID,
+
+                        requer_aprovacao BOOLEAN
+                            NOT NULL DEFAULT TRUE,
+
+                        valido_para_ia BOOLEAN
+                            NOT NULL DEFAULT TRUE,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT
+                            fk_prospecto_origem
+                        FOREIGN KEY (contato_origem_id)
+                        REFERENCES leads_crm(id)
+                        ON DELETE SET NULL,
+
+                        CONSTRAINT
+                            fk_prospecto_relacao
+                        FOREIGN KEY (relacionamento_rede_id)
+                        REFERENCES relacionamentos_rede(id)
+                        ON DELETE SET NULL,
+
+                        CONSTRAINT
+                            fk_prospecto_contato
+                        FOREIGN KEY (contato_central_id)
+                        REFERENCES leads_crm(id)
+                        ON DELETE SET NULL
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_prospectos_rede_status
+                    ON prospectos_rede(status)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_prospectos_rede_origem
+                    ON prospectos_rede(
+                        contato_origem_id
+                    )
+                """)
+
+                # ==========================================
+                # AI-NATIVE — QUALIDADE DA REDE
+                # ==========================================
+
+                cur.execute("""
+                    ALTER TABLE prospectos_rede
+                    ADD COLUMN IF NOT EXISTS
+                    score_qualidade INTEGER
+                """)
+
+                cur.execute("""
+                    ALTER TABLE prospectos_rede
+                    ADD COLUMN IF NOT EXISTS
+                    classificacao_qualidade VARCHAR(30)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE prospectos_rede
+                    ADD COLUMN IF NOT EXISTS
+                    motivo_qualificacao TEXT
+                """)
+
+                cur.execute("""
+                    ALTER TABLE prospectos_rede
+                    ADD COLUMN IF NOT EXISTS
+                    potencial_relacionamento VARCHAR(30)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE prospectos_rede
+                    ADD COLUMN IF NOT EXISTS
+                    ultima_avaliacao_em TIMESTAMPTZ
+                """)
+
+                # ==========================================
+                # AI-NATIVE — EXPANSÃO SISTEMÁTICA DA REDE
+                # ==========================================
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS
+                    expandir_rede BOOLEAN
+                    NOT NULL DEFAULT FALSE
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS
+                    prioridade_rede VARCHAR(20)
+                    NOT NULL DEFAULT 'normal'
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS
+                    profundidade_rede INTEGER
+                    NOT NULL DEFAULT 1
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS
+                    limite_prospectos_rede INTEGER
+                    NOT NULL DEFAULT 20
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS
+                    ultima_analise_rede_em TIMESTAMPTZ
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS
+                    proxima_analise_rede_em TIMESTAMPTZ
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS
+                    motivo_expansao_rede TEXT
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS
+                    temas_expansao_rede TEXT
+                """)
+
+                # ==========================================
+                # AI-NATIVE — PESQUISA DE REDE PÚBLICA
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    pesquisas_rede (
+                        id UUID PRIMARY KEY
+                            DEFAULT gen_random_uuid(),
+
+                        contato_id UUID NOT NULL,
+
+                        tipo_pesquisa VARCHAR(80)
+                            NOT NULL,
+
+                        consulta TEXT NOT NULL,
+
+                        temas TEXT,
+
+                        fonte_preferencial VARCHAR(80),
+
+                        profundidade INTEGER
+                            NOT NULL DEFAULT 1,
+
+                        limite_resultados INTEGER
+                            NOT NULL DEFAULT 20,
+
+                        status VARCHAR(30)
+                            NOT NULL DEFAULT 'pendente',
+
+                        prioridade VARCHAR(20)
+                            NOT NULL DEFAULT 'normal',
+
+                        tentativas INTEGER
+                            NOT NULL DEFAULT 0,
+
+                        resultado_resumo TEXT,
+
+                        erro TEXT,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        iniciado_em TIMESTAMPTZ,
+
+                        concluido_em TIMESTAMPTZ,
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT fk_pesquisa_rede_contato
+                        FOREIGN KEY (contato_id)
+                        REFERENCES leads_crm(id)
+                        ON DELETE CASCADE
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_pesquisas_rede_status
+                    ON pesquisas_rede(status)
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_pesquisas_rede_contato
+                    ON pesquisas_rede(contato_id)
+                """)
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    descobertas_rede_publica (
+                        id UUID PRIMARY KEY
+                            DEFAULT gen_random_uuid(),
+
+                        pesquisa_id UUID,
+
+                        contato_origem_id UUID,
+
+                        nome VARCHAR(220),
+
+                        empresa VARCHAR(220),
+
+                        cargo VARCHAR(180),
+
+                        categoria_sugerida VARCHAR(80),
+
+                        email_publico VARCHAR(220),
+
+                        telefone_publico VARCHAR(100),
+
+                        instagram_publico VARCHAR(180),
+
+                        linkedin_publico TEXT,
+
+                        site_publico TEXT,
+
+                        fonte_tipo VARCHAR(80),
+
+                        fonte_url TEXT,
+
+                        evidencia TEXT,
+
+                        tema_interesse TEXT,
+
+                        motivo_estrategico TEXT,
+
+                        confianca NUMERIC(5,2)
+                            NOT NULL DEFAULT 0.50,
+
+                        processado BOOLEAN
+                            NOT NULL DEFAULT FALSE,
+
+                        prospecto_rede_id UUID,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT fk_descoberta_pesquisa
+                        FOREIGN KEY (pesquisa_id)
+                        REFERENCES pesquisas_rede(id)
+                        ON DELETE SET NULL,
+
+                        CONSTRAINT fk_descoberta_origem
+                        FOREIGN KEY (contato_origem_id)
+                        REFERENCES leads_crm(id)
+                        ON DELETE SET NULL,
+
+                        CONSTRAINT fk_descoberta_prospecto
+                        FOREIGN KEY (prospecto_rede_id)
+                        REFERENCES prospectos_rede(id)
+                        ON DELETE SET NULL
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_descobertas_rede_processado
+                    ON descobertas_rede_publica(
+                        processado
+                    )
+                """)
+
+                # ==========================================
                 # OMNICHANNEL — INTERAÇÕES META
                 # ==========================================
 
@@ -5894,6 +6307,2511 @@ def registrar_compra_relacionamento(
         return {
             "success": False,
             "erro": str(e)
+        }
+
+    finally:
+        conn.close()
+
+
+def criar_pesquisa_rede_contato(
+    contato_id
+):
+    """
+    Cria uma tarefa concreta para pesquisar
+    a rede profissional pública de um contato.
+
+    Não executa busca externa.
+    Apenas prepara a tarefa.
+    """
+
+    if not contato_id:
+        return {
+            "success": False,
+            "erro": "Contato não informado."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    contato_id,
+                ))
+
+                contato = cur.fetchone()
+
+                if not contato:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Contato não encontrado."
+                    }
+
+                if not contato.get(
+                    "expandir_rede"
+                ):
+                    return {
+                        "success": False,
+                        "ignorado": True,
+                        "motivo":
+                            "Contato não está habilitado "
+                            "para expansão de rede."
+                    }
+
+                nome = (
+                    contato.get("nome")
+                    or ""
+                )
+
+                empresa = (
+                    contato.get("empresa")
+                    or ""
+                )
+
+                categoria = (
+                    contato.get(
+                        "categoria_contato"
+                    )
+                    or ""
+                )
+
+                temas = (
+                    contato.get(
+                        "temas_expansao_rede"
+                    )
+                    or ""
+                )
+
+                partes = [
+                    item
+                    for item in [
+                        nome,
+                        empresa,
+                        categoria,
+                        temas
+                    ]
+                    if item
+                ]
+
+                consulta = " ".join(partes)
+
+                # ------------------------------------------
+                # NÃO DUPLICA PESQUISA ATIVA
+                # ------------------------------------------
+
+                cur.execute("""
+                    SELECT *
+                    FROM pesquisas_rede
+                    WHERE
+                        contato_id = %s
+                        AND status IN (
+                            'pendente',
+                            'processando'
+                        )
+                    ORDER BY criado_em DESC
+                    LIMIT 1
+                """, (
+                    contato_id,
+                ))
+
+                existente = cur.fetchone()
+
+                if existente:
+                    return {
+                        "success": True,
+                        "duplicada": True,
+                        "pesquisa":
+                            dict(existente)
+                    }
+
+                cur.execute("""
+                    INSERT INTO pesquisas_rede (
+                        contato_id,
+                        tipo_pesquisa,
+                        consulta,
+                        temas,
+                        fonte_preferencial,
+                        profundidade,
+                        limite_resultados,
+                        prioridade
+                    )
+                    VALUES (
+                        %s,
+                        'rede_profissional_publica',
+                        %s,
+                        %s,
+                        'web_publica',
+                        %s,
+                        %s,
+                        %s
+                    )
+                    RETURNING *
+                """, (
+                    contato_id,
+                    consulta,
+                    temas,
+                    contato.get(
+                        "profundidade_rede"
+                    ) or 1,
+                    contato.get(
+                        "limite_prospectos_rede"
+                    ) or 20,
+                    contato.get(
+                        "prioridade_rede"
+                    ) or "normal"
+                ))
+
+                pesquisa = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "duplicada": False,
+                    "pesquisa":
+                        dict(pesquisa)
+                }
+
+    except Exception as erro:
+        print(
+            "ERRO CRIAR PESQUISA DE REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def preparar_fila_pesquisa_rede(
+    limite=20
+):
+    """
+    Converte contatos elegíveis em tarefas
+    concretas de pesquisa de rede.
+    """
+
+    resultado = (
+        listar_contatos_para_expansao_rede(
+            limite=limite
+        )
+    )
+
+    if not resultado.get("success"):
+        return resultado
+
+    criadas = []
+    existentes = []
+    erros = []
+
+    for contato in resultado.get(
+        "contatos",
+        []
+    ):
+        resposta = (
+            criar_pesquisa_rede_contato(
+                contato.get("id")
+            )
+        )
+
+        if resposta.get("success"):
+            if resposta.get("duplicada"):
+                existentes.append(
+                    resposta.get("pesquisa")
+                )
+            else:
+                criadas.append(
+                    resposta.get("pesquisa")
+                )
+        else:
+            erros.append({
+                "contato_id":
+                    str(contato.get("id")),
+                "erro":
+                    resposta.get("erro")
+                    or resposta.get("motivo")
+            })
+
+    return {
+        "success": True,
+        "criadas": criadas,
+        "existentes": existentes,
+        "erros": erros,
+        "quantidade_criadas":
+            len(criadas)
+    }
+
+
+def registrar_descoberta_rede_publica(
+    pesquisa_id,
+    contato_origem_id,
+    nome=None,
+    empresa=None,
+    cargo=None,
+    categoria_sugerida=None,
+    email_publico=None,
+    telefone_publico=None,
+    instagram_publico=None,
+    linkedin_publico=None,
+    site_publico=None,
+    fonte_tipo=None,
+    fonte_url=None,
+    evidencia=None,
+    tema_interesse=None,
+    motivo_estrategico=None,
+    confianca=0.50
+):
+    """
+    Guarda uma descoberta proveniente
+    de fonte profissional pública.
+
+    Esta função não cria abordagem.
+    Primeiro a descoberta será qualificada.
+    """
+
+    if not contato_origem_id:
+        return {
+            "success": False,
+            "erro":
+                "Contato de origem não informado."
+        }
+
+    if not any([
+        nome,
+        empresa,
+        email_publico,
+        telefone_publico,
+        instagram_publico,
+        linkedin_publico,
+        site_publico
+    ]):
+        return {
+            "success": False,
+            "erro":
+                "Descoberta sem identidade mínima."
+        }
+
+    try:
+        confianca = float(
+            confianca or 0.50
+        )
+        confianca = max(
+            0,
+            min(1, confianca)
+        )
+    except Exception:
+        confianca = 0.50
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO
+                    descobertas_rede_publica (
+                        pesquisa_id,
+                        contato_origem_id,
+                        nome,
+                        empresa,
+                        cargo,
+                        categoria_sugerida,
+                        email_publico,
+                        telefone_publico,
+                        instagram_publico,
+                        linkedin_publico,
+                        site_publico,
+                        fonte_tipo,
+                        fonte_url,
+                        evidencia,
+                        tema_interesse,
+                        motivo_estrategico,
+                        confianca
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s
+                    )
+                    RETURNING *
+                """, (
+                    pesquisa_id,
+                    contato_origem_id,
+                    nome,
+                    empresa,
+                    cargo,
+                    categoria_sugerida,
+                    email_publico,
+                    telefone_publico,
+                    instagram_publico,
+                    linkedin_publico,
+                    site_publico,
+                    fonte_tipo,
+                    fonte_url,
+                    evidencia,
+                    tema_interesse,
+                    motivo_estrategico,
+                    confianca
+                ))
+
+                descoberta = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "descoberta":
+                        dict(descoberta)
+                }
+
+    except Exception as erro:
+        print(
+            "ERRO REGISTRAR DESCOBERTA DE REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def processar_descoberta_rede_publica(
+    descoberta_id
+):
+    """
+    Transforma uma descoberta pública em
+    prospecto da rede e aplica qualificação.
+
+    Não envia mensagem.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM descobertas_rede_publica
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    descoberta_id,
+                ))
+
+                descoberta = cur.fetchone()
+
+                if not descoberta:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Descoberta não encontrada."
+                    }
+
+                if descoberta.get(
+                    "processado"
+                ):
+                    return {
+                        "success": True,
+                        "duplicado": True,
+                        "prospecto_id":
+                            descoberta.get(
+                                "prospecto_rede_id"
+                            )
+                    }
+
+        resultado = registrar_prospecto_rede(
+            contato_origem_id=
+                descoberta.get(
+                    "contato_origem_id"
+                ),
+            nome=descoberta.get("nome"),
+            empresa=descoberta.get(
+                "empresa"
+            ),
+            cargo=descoberta.get("cargo"),
+            categoria_sugerida=
+                descoberta.get(
+                    "categoria_sugerida"
+                ),
+            email_publico=
+                descoberta.get(
+                    "email_publico"
+                ),
+            telefone_publico=
+                descoberta.get(
+                    "telefone_publico"
+                ),
+            instagram_publico=
+                descoberta.get(
+                    "instagram_publico"
+                ),
+            linkedin_publico=
+                descoberta.get(
+                    "linkedin_publico"
+                ),
+            site_publico=
+                descoberta.get(
+                    "site_publico"
+                ),
+            tema_interesse=
+                descoberta.get(
+                    "tema_interesse"
+                ),
+            motivo_estrategico=
+                descoberta.get(
+                    "motivo_estrategico"
+                ),
+            fonte_tipo=
+                descoberta.get(
+                    "fonte_tipo"
+                ),
+            fonte_url=
+                descoberta.get(
+                    "fonte_url"
+                ),
+            evidencia=
+                descoberta.get(
+                    "evidencia"
+                ),
+            confianca=
+                descoberta.get(
+                    "confianca"
+                )
+        )
+
+        if not resultado.get("success"):
+            return resultado
+
+        prospecto = (
+            resultado.get("prospecto")
+            or {}
+        )
+
+        prospecto_id = (
+            prospecto.get("id")
+        )
+
+        if prospecto_id:
+            resultado_qualificacao = (
+                qualificar_prospecto_rede(
+                    prospecto_id
+                )
+            )
+        else:
+            resultado_qualificacao = {
+                "success": False
+            }
+
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor() as cur:
+
+                    cur.execute("""
+                        UPDATE
+                            descobertas_rede_publica
+                        SET
+                            processado = TRUE,
+                            prospecto_rede_id = %s
+                        WHERE id = %s
+                    """, (
+                        prospecto_id,
+                        descoberta_id
+                    ))
+
+        finally:
+            conn.close()
+
+        return {
+            "success": True,
+            "prospecto_id":
+                str(prospecto_id)
+                if prospecto_id
+                else None,
+            "qualificacao":
+                resultado_qualificacao,
+            "duplicado":
+                resultado.get(
+                    "duplicado",
+                    False
+                )
+        }
+
+    except Exception as erro:
+        print(
+            "ERRO PROCESSAR DESCOBERTA DE REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def executar_pesquisa_rede_publica(
+    pesquisa_id
+):
+    """
+    Executa uma pesquisa profissional pública
+    usando a Responses API + Web Search.
+
+    Regras:
+    - usa somente informação profissional pública;
+    - exige evidência e URL;
+    - não considera simples follow/curtida como relação forte;
+    - não envia mensagens;
+    - registra descobertas para qualificação posterior.
+    """
+
+    if not openai_client:
+        return {
+            "success": False,
+            "erro": "OpenAI não configurada."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        p.*,
+                        l.nome AS contato_nome,
+                        l.empresa AS contato_empresa,
+                        l.categoria_contato,
+                        l.temas_expansao_rede
+                    FROM pesquisas_rede p
+                    JOIN leads_crm l
+                      ON l.id = p.contato_id
+                    WHERE p.id = %s
+                    LIMIT 1
+                """, (
+                    pesquisa_id,
+                ))
+
+                pesquisa = cur.fetchone()
+
+                if not pesquisa:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Pesquisa não encontrada."
+                    }
+
+                if pesquisa.get("status") == "concluida":
+                    return {
+                        "success": True,
+                        "ignorada": True,
+                        "motivo":
+                            "Pesquisa já concluída."
+                    }
+
+                cur.execute("""
+                    UPDATE pesquisas_rede
+                    SET
+                        status = 'processando',
+                        tentativas =
+                            tentativas + 1,
+                        iniciado_em =
+                            COALESCE(
+                                iniciado_em,
+                                NOW()
+                            ),
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                """, (
+                    pesquisa_id,
+                ))
+
+        contato_nome = (
+            pesquisa.get("contato_nome")
+            or ""
+        )
+
+        contato_empresa = (
+            pesquisa.get("contato_empresa")
+            or ""
+        )
+
+        categoria = (
+            pesquisa.get("categoria_contato")
+            or ""
+        )
+
+        temas = (
+            pesquisa.get("temas")
+            or pesquisa.get(
+                "temas_expansao_rede"
+            )
+            or ""
+        )
+
+        consulta = (
+            pesquisa.get("consulta")
+            or ""
+        )
+
+        try:
+            limite = max(
+                1,
+                min(
+                    30,
+                    int(
+                        pesquisa.get(
+                            "limite_resultados"
+                        )
+                        or 20
+                    )
+                )
+            )
+        except Exception:
+            limite = 20
+
+        contexto = {
+            "contato_origem": contato_nome,
+            "empresa_origem": contato_empresa,
+            "categoria_origem": categoria,
+            "temas_prioritarios": temas,
+            "consulta_base": consulta,
+            "limite_resultados": limite
+        }
+
+        prompt = f"""
+Você é o motor de inteligência de rede
+da Maranhão Cordial.
+
+CONTEXTO DO CONTATO DE ORIGEM:
+{json.dumps(
+    contexto,
+    ensure_ascii=False
+)}
+
+OBJETIVO:
+Pesquisar na web pública profissionais,
+empresas e organizações que tenham uma
+relação profissional verificável ou uma
+conexão estratégica plausível com esse
+contato de origem e que possam ser
+relevantes para a Maranhão Cordial.
+
+MARANHÃO CORDIAL TEM INTERESSE PRIORITÁRIO EM:
+- bartenders e mixologistas;
+- chefs;
+- bares;
+- restaurantes;
+- hotéis e grupos hoteleiros;
+- distribuidores e revendedores;
+- fabricantes de bebidas;
+- fornecedores de vidro e embalagem;
+- profissionais regulatórios;
+- imprensa gastronômica e trade;
+- criadores ligados a gastronomia,
+  hospitalidade e cultura;
+- parceiros comerciais estratégicos.
+
+REGRAS DE QUALIDADE:
+1. Use somente fontes públicas.
+2. Não procure nem inclua dados privados.
+3. Não inclua endereço residencial.
+4. Não inclua documentos pessoais.
+5. Não inferir amizade ou relação profissional
+   apenas porque uma pessoa segue outra.
+6. Curtida isolada, comentário isolado ou
+   seguidor isolado não constitui evidência forte.
+7. Prefira relações verificáveis como:
+   empresa em comum, evento profissional,
+   associação, parceria divulgada, entrevista,
+   trabalho conjunto, fornecedor, cliente,
+   equipe, produção, colaboração ou
+   participação institucional.
+8. Email só pode ser incluído se estiver
+   publicado como contato profissional,
+   institucional ou comercial.
+9. Cada candidato precisa ter uma URL pública
+   que sustente a descoberta.
+10. Não invente conexões.
+11. Se não houver evidência suficiente,
+    não inclua o candidato.
+12. Qualidade é mais importante que volume.
+13. Retorne no máximo {limite} candidatos.
+
+Para cada candidato, determine:
+- nome;
+- empresa;
+- cargo;
+- categoria sugerida;
+- email profissional público, se existir;
+- telefone profissional público, se existir;
+- Instagram profissional público, se existir;
+- LinkedIn público, se existir;
+- site público, se existir;
+- tipo de fonte;
+- URL da evidência;
+- evidência resumida;
+- tema de interesse;
+- motivo estratégico para Maranhão Cordial;
+- confiança de 0 a 1.
+
+A confiança deve refletir a força real
+da evidência pública.
+"""
+
+        resposta = openai_client.responses.create(
+            model="gpt-5-mini",
+
+            tools=[
+                {
+                    "type": "web_search"
+                }
+            ],
+
+            tool_choice="auto",
+
+            include=[
+                "web_search_call.action.sources"
+            ],
+
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name":
+                        "descobertas_rede_maranhao",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "resumo": {
+                                "type": "string"
+                            },
+                            "candidatos": {
+                                "type": "array",
+                                "maxItems": 30,
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "nome": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "empresa": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "cargo": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "categoria_sugerida": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "email_publico": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "telefone_publico": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "instagram_publico": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "linkedin_publico": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "site_publico": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "fonte_tipo": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "fonte_url": {
+                                            "type": "string"
+                                        },
+                                        "evidencia": {
+                                            "type": "string"
+                                        },
+                                        "tema_interesse": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ]
+                                        },
+                                        "motivo_estrategico": {
+                                            "type": "string"
+                                        },
+                                        "confianca": {
+                                            "type": "number",
+                                            "minimum": 0,
+                                            "maximum": 1
+                                        }
+                                    },
+                                    "required": [
+                                        "nome",
+                                        "empresa",
+                                        "cargo",
+                                        "categoria_sugerida",
+                                        "email_publico",
+                                        "telefone_publico",
+                                        "instagram_publico",
+                                        "linkedin_publico",
+                                        "site_publico",
+                                        "fonte_tipo",
+                                        "fonte_url",
+                                        "evidencia",
+                                        "tema_interesse",
+                                        "motivo_estrategico",
+                                        "confianca"
+                                    ],
+                                    "additionalProperties":
+                                        False
+                                }
+                            }
+                        },
+                        "required": [
+                            "resumo",
+                            "candidatos"
+                        ],
+                        "additionalProperties":
+                            False
+                    }
+                }
+            },
+
+            input=prompt
+        )
+
+        bruto = (
+            resposta.output_text
+            or ""
+        )
+
+        try:
+            dados = json.loads(bruto)
+        except Exception as erro_json:
+            raise ValueError(
+                "Resposta da pesquisa não veio "
+                "em JSON válido: "
+                + str(erro_json)
+            )
+
+        candidatos = (
+            dados.get("candidatos")
+            or []
+        )[:limite]
+
+        registradas = []
+        erros = []
+
+        for candidato in candidatos:
+
+            fonte_url = str(
+                candidato.get(
+                    "fonte_url"
+                )
+                or ""
+            ).strip()
+
+            evidencia = str(
+                candidato.get(
+                    "evidencia"
+                )
+                or ""
+            ).strip()
+
+            # ------------------------------------------
+            # TRAVA DE QUALIDADE
+            # ------------------------------------------
+
+            if not fonte_url:
+                continue
+
+            if not (
+                fonte_url.startswith("http://")
+                or
+                fonte_url.startswith("https://")
+            ):
+                continue
+
+            if not evidencia:
+                continue
+
+            resultado = (
+                registrar_descoberta_rede_publica(
+                    pesquisa_id=
+                        pesquisa_id,
+                    contato_origem_id=
+                        pesquisa.get(
+                            "contato_id"
+                        ),
+                    nome=
+                        candidato.get("nome"),
+                    empresa=
+                        candidato.get(
+                            "empresa"
+                        ),
+                    cargo=
+                        candidato.get("cargo"),
+                    categoria_sugerida=
+                        candidato.get(
+                            "categoria_sugerida"
+                        ),
+                    email_publico=
+                        candidato.get(
+                            "email_publico"
+                        ),
+                    telefone_publico=
+                        candidato.get(
+                            "telefone_publico"
+                        ),
+                    instagram_publico=
+                        candidato.get(
+                            "instagram_publico"
+                        ),
+                    linkedin_publico=
+                        candidato.get(
+                            "linkedin_publico"
+                        ),
+                    site_publico=
+                        candidato.get(
+                            "site_publico"
+                        ),
+                    fonte_tipo=
+                        candidato.get(
+                            "fonte_tipo"
+                        ),
+                    fonte_url=
+                        fonte_url,
+                    evidencia=
+                        evidencia,
+                    tema_interesse=
+                        candidato.get(
+                            "tema_interesse"
+                        ),
+                    motivo_estrategico=
+                        candidato.get(
+                            "motivo_estrategico"
+                        ),
+                    confianca=
+                        candidato.get(
+                            "confianca"
+                        )
+                )
+            )
+
+            if resultado.get("success"):
+                descoberta = (
+                    resultado.get(
+                        "descoberta"
+                    )
+                    or {}
+                )
+
+                descoberta_id = (
+                    descoberta.get("id")
+                )
+
+                processamento = None
+
+                if descoberta_id:
+                    processamento = (
+                        processar_descoberta_rede_publica(
+                            descoberta_id
+                        )
+                    )
+
+                registradas.append({
+                    "descoberta_id":
+                        str(descoberta_id)
+                        if descoberta_id
+                        else None,
+                    "nome":
+                        candidato.get(
+                            "nome"
+                        ),
+                    "empresa":
+                        candidato.get(
+                            "empresa"
+                        ),
+                    "processamento":
+                        processamento
+                })
+
+            else:
+                erros.append({
+                    "nome":
+                        candidato.get("nome"),
+                    "erro":
+                        resultado.get(
+                            "erro"
+                        )
+                })
+
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor() as cur:
+
+                    cur.execute("""
+                        UPDATE pesquisas_rede
+                        SET
+                            status = 'concluida',
+                            resultado_resumo = %s,
+                            concluido_em = NOW(),
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        dados.get("resumo"),
+                        pesquisa_id
+                    ))
+
+                    cur.execute("""
+                        UPDATE leads_crm
+                        SET
+                            ultima_analise_rede_em =
+                                NOW(),
+                            proxima_analise_rede_em =
+                                NOW()
+                                + (
+                                    CASE
+                                        WHEN prioridade_rede =
+                                            'alta'
+                                        THEN
+                                            INTERVAL '14 days'
+                                        WHEN prioridade_rede =
+                                            'normal'
+                                        THEN
+                                            INTERVAL '30 days'
+                                        ELSE
+                                            INTERVAL '60 days'
+                                    END
+                                ),
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        pesquisa.get(
+                            "contato_id"
+                        ),
+                    ))
+
+        finally:
+            conn.close()
+
+        return {
+            "success": True,
+            "pesquisa_id":
+                str(pesquisa_id),
+            "candidatos_encontrados":
+                len(candidatos),
+            "descobertas_registradas":
+                len(registradas),
+            "registradas":
+                registradas,
+            "erros":
+                erros,
+            "resumo":
+                dados.get("resumo")
+        }
+
+    except Exception as erro:
+        print(
+            "ERRO EXECUTAR PESQUISA DE REDE:",
+            erro
+        )
+
+        try:
+            conn_erro = get_db_connection()
+
+            with conn_erro:
+                with conn_erro.cursor() as cur:
+
+                    cur.execute("""
+                        UPDATE pesquisas_rede
+                        SET
+                            status = 'erro',
+                            erro = %s,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        str(erro),
+                        pesquisa_id
+                    ))
+
+            conn_erro.close()
+
+        except Exception as erro_db:
+            print(
+                "ERRO REGISTRAR FALHA DA PESQUISA:",
+                erro_db
+            )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def executar_proxima_pesquisa_rede():
+    """
+    Executa uma única pesquisa pendente.
+
+    Útil para processamento controlado
+    e para futuro agendador.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM pesquisas_rede
+                    WHERE status = 'pendente'
+                    ORDER BY
+                        CASE prioridade
+                            WHEN 'alta' THEN 1
+                            WHEN 'normal' THEN 2
+                            ELSE 3
+                        END,
+                        criado_em ASC
+                    LIMIT 1
+                """)
+
+                pesquisa = cur.fetchone()
+
+        if not pesquisa:
+            return {
+                "success": True,
+                "executada": False,
+                "motivo":
+                    "Nenhuma pesquisa pendente."
+            }
+
+        return executar_pesquisa_rede_publica(
+            pesquisa.get("id")
+        )
+
+    except Exception as erro:
+        print(
+            "ERRO OBTER PRÓXIMA PESQUISA DE REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def avaliar_potencial_expansao_rede(
+    contato
+):
+    """
+    Decide se um contato merece ter sua rede
+    profissional pública analisada.
+
+    Objetivo:
+    crescer a rede sem transformar todo contato
+    em ponto automático de prospecção.
+    """
+
+    contato = contato or {}
+
+    categoria = str(
+        contato.get("categoria_contato")
+        or ""
+    ).strip().lower()
+
+    nivel = str(
+        contato.get("nivel_relacionamento")
+        or ""
+    ).strip().lower()
+
+    estagio = str(
+        contato.get("estagio")
+        or ""
+    ).strip().lower()
+
+    interesse = str(
+        contato.get("interesse")
+        or ""
+    ).lower()
+
+    objetivo = str(
+        contato.get("objetivo_relacionamento")
+        or ""
+    ).lower()
+
+    observacoes = str(
+        contato.get("observacoes")
+        or ""
+    ).lower()
+
+    score = 0
+    motivos = []
+    temas = []
+
+    # ========================================================
+    # CATEGORIAS COM ALTO EFEITO DE REDE
+    # ========================================================
+
+    pesos_categoria = {
+        "bartender": 30,
+        "profissional": 20,
+        "jornalista": 25,
+        "imprensa": 25,
+        "influenciador": 20,
+        "criador": 15,
+        "parceiro": 25,
+        "estrategico": 30,
+        "fabrica": 25,
+        "fornecedor": 20,
+        "distribuidor": 25,
+        "revendedor": 20,
+        "restaurante": 20,
+        "bar": 20,
+        "hotel": 25,
+        "empresa": 15,
+        "investidor": 20
+    }
+
+    if categoria in pesos_categoria:
+        pontos = pesos_categoria[
+            categoria
+        ]
+
+        score += pontos
+
+        motivos.append(
+            f"categoria com efeito de rede: "
+            f"{categoria}"
+        )
+
+    # ========================================================
+    # RELACIONAMENTO JÁ VALIDADO
+    # ========================================================
+
+    niveis_validos = {
+        "ativo",
+        "em_contato",
+        "interessado",
+        "alta_intencao",
+        "parceiro",
+        "recorrente",
+        "fiel"
+    }
+
+    if nivel in niveis_validos:
+        score += 15
+        motivos.append(
+            "relacionamento já possui sinais reais"
+        )
+
+    estagios_validos = {
+        "contato",
+        "qualificado",
+        "amostra",
+        "testando",
+        "ativo",
+        "embaixador",
+        "degustacao",
+        "negociacao",
+        "cliente",
+        "recompra",
+        "recorrente",
+        "homologado",
+        "producao",
+        "avaliacao",
+        "otimizacao",
+        "oportunidade",
+        "parceiro",
+        "interessado"
+    }
+
+    if estagio in estagios_validos:
+        score += 10
+
+    # ========================================================
+    # SINAIS TEXTUAIS DE CAPACIDADE DE GERAR REDE
+    # ========================================================
+
+    contexto = " ".join([
+        interesse,
+        objetivo,
+        observacoes
+    ])
+
+    sinais = {
+        "bartender": "bartenders e bares",
+        "mixologia": "bartenders e bares",
+        "chef": "chefs e restaurantes",
+        "restaurante": "restaurantes",
+        "hotel": "hotelaria",
+        "hotelaria": "hotelaria",
+        "fábrica": "produção e fornecedores",
+        "fabrica": "produção e fornecedores",
+        "fornecedor": "fornecedores",
+        "vidro": "embalagens e vidro",
+        "embalagem": "embalagens",
+        "mapa": "produção regulada",
+        "imprensa": "mídia e comunicação",
+        "jornalista": "mídia e comunicação",
+        "influenciador": "criadores e audiência",
+        "distribuidor": "distribuição",
+        "revenda": "canais comerciais",
+        "rede": "rede profissional",
+        "associação": "associações profissionais",
+        "associacao": "associações profissionais"
+    }
+
+    for termo, tema in sinais.items():
+        if termo in contexto:
+            score += 5
+
+            if tema not in temas:
+                temas.append(tema)
+
+    # limita bônus textual
+    score = min(
+        score,
+        100
+    )
+
+    # ========================================================
+    # DECISÃO
+    # ========================================================
+
+    if score >= 65:
+        expandir = True
+        prioridade = "alta"
+        dias = 14
+        profundidade = 2
+        limite = 30
+
+    elif score >= 45:
+        expandir = True
+        prioridade = "normal"
+        dias = 30
+        profundidade = 1
+        limite = 20
+
+    else:
+        expandir = False
+        prioridade = "baixa"
+        dias = 60
+        profundidade = 1
+        limite = 10
+
+    return {
+        "score": score,
+        "expandir_rede": expandir,
+        "prioridade_rede": prioridade,
+        "dias_proxima_analise": dias,
+        "profundidade_rede":
+            profundidade,
+        "limite_prospectos_rede":
+            limite,
+        "motivo_expansao_rede":
+            "; ".join(motivos),
+        "temas_expansao_rede":
+            ", ".join(temas)
+    }
+
+
+def planejar_expansao_rede_contato(
+    contato_id
+):
+    """
+    Avalia um contato existente e grava
+    sua política individual de expansão de rede.
+    """
+
+    if not contato_id:
+        return {
+            "success": False,
+            "erro": "Contato não informado."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    contato_id,
+                ))
+
+                contato = cur.fetchone()
+
+                if not contato:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Contato não encontrado."
+                    }
+
+                avaliacao = (
+                    avaliar_potencial_expansao_rede(
+                        dict(contato)
+                    )
+                )
+
+                cur.execute("""
+                    UPDATE leads_crm
+                    SET
+                        expandir_rede = %s,
+                        prioridade_rede = %s,
+                        profundidade_rede = %s,
+                        limite_prospectos_rede = %s,
+                        motivo_expansao_rede = %s,
+                        temas_expansao_rede = %s,
+                        proxima_analise_rede_em =
+                            NOW()
+                            + (
+                                %s
+                                * INTERVAL '1 day'
+                            ),
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING *
+                """, (
+                    avaliacao[
+                        "expandir_rede"
+                    ],
+                    avaliacao[
+                        "prioridade_rede"
+                    ],
+                    avaliacao[
+                        "profundidade_rede"
+                    ],
+                    avaliacao[
+                        "limite_prospectos_rede"
+                    ],
+                    avaliacao[
+                        "motivo_expansao_rede"
+                    ],
+                    avaliacao[
+                        "temas_expansao_rede"
+                    ],
+                    avaliacao[
+                        "dias_proxima_analise"
+                    ],
+                    contato_id
+                ))
+
+                atualizado = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "avaliacao": avaliacao,
+                    "contato":
+                        dict(atualizado)
+                }
+
+    except Exception as erro:
+        print(
+            "ERRO PLANEJAR EXPANSÃO DE REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def listar_contatos_para_expansao_rede(
+    limite=20
+):
+    """
+    Lista os melhores contatos cuja rede
+    deve ser analisada agora.
+
+    Não acessa redes externas.
+    Apenas define a fila interna.
+    """
+
+    try:
+        limite = max(
+            1,
+            min(100, int(limite or 20))
+        )
+    except Exception:
+        limite = 20
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE
+                        expandir_rede = TRUE
+                        AND valido_para_ia = TRUE
+                        AND cadastro_teste = FALSE
+                        AND status = 'ativo'
+                        AND (
+                            proxima_analise_rede_em
+                            IS NULL
+                            OR
+                            proxima_analise_rede_em
+                            <= NOW()
+                        )
+                    ORDER BY
+                        CASE prioridade_rede
+                            WHEN 'alta' THEN 1
+                            WHEN 'normal' THEN 2
+                            ELSE 3
+                        END,
+                        atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite,
+                ))
+
+                contatos = cur.fetchall()
+
+                return {
+                    "success": True,
+                    "quantidade":
+                        len(contatos),
+                    "contatos": [
+                        dict(item)
+                        for item in contatos
+                    ]
+                }
+
+    except Exception as erro:
+        print(
+            "ERRO LISTAR CONTATOS PARA REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def avaliar_qualidade_prospecto_rede(
+    prospecto
+):
+    """
+    Avalia se uma conexão encontrada na rede
+    realmente merece entrar no processo comercial.
+
+    O objetivo é crescer a rede mantendo qualidade.
+
+    Retorna score de 0 a 100.
+    """
+
+    prospecto = prospecto or {}
+
+    categoria = str(
+        prospecto.get(
+            "categoria_sugerida"
+        ) or ""
+    ).strip().lower()
+
+    tema = str(
+        prospecto.get(
+            "tema_interesse"
+        ) or ""
+    ).lower()
+
+    motivo = str(
+        prospecto.get(
+            "motivo_estrategico"
+        ) or ""
+    ).lower()
+
+    evidencia = str(
+        prospecto.get(
+            "evidencia"
+        ) or ""
+    ).lower()
+
+    empresa = str(
+        prospecto.get(
+            "empresa"
+        ) or ""
+    ).lower()
+
+    cargo = str(
+        prospecto.get(
+            "cargo"
+        ) or ""
+    ).lower()
+
+    score = 0
+    motivos = []
+
+    # ========================================================
+    # IDENTIDADE MÍNIMA
+    # ========================================================
+
+    if prospecto.get("nome"):
+        score += 5
+        motivos.append(
+            "identidade nominal disponível"
+        )
+
+    if prospecto.get("empresa"):
+        score += 8
+        motivos.append(
+            "empresa identificada"
+        )
+
+    if prospecto.get("cargo"):
+        score += 7
+        motivos.append(
+            "função profissional identificada"
+        )
+
+    # ========================================================
+    # CANAL PROFISSIONAL PÚBLICO
+    # ========================================================
+
+    if prospecto.get("email_publico"):
+        score += 15
+        motivos.append(
+            "email profissional/público disponível"
+        )
+
+    if prospecto.get("linkedin_publico"):
+        score += 7
+        motivos.append(
+            "presença profissional pública"
+        )
+
+    if prospecto.get("site_publico"):
+        score += 5
+        motivos.append(
+            "site institucional disponível"
+        )
+
+    if prospecto.get("instagram_publico"):
+        score += 3
+
+    # ========================================================
+    # CATEGORIAS DE ALTA ADERÊNCIA
+    # ========================================================
+
+    categorias_prioritarias = {
+        "bartender": 20,
+        "restaurante": 20,
+        "bar": 20,
+        "hotel": 18,
+        "distribuidor": 20,
+        "revendedor": 15,
+        "fabrica": 18,
+        "fornecedor": 15,
+        "jornalista": 12,
+        "imprensa": 12,
+        "influenciador": 10,
+        "criador": 10,
+        "chef": 20,
+        "empresa": 10
+    }
+
+    if categoria in categorias_prioritarias:
+        pontos = categorias_prioritarias[
+            categoria
+        ]
+
+        score += pontos
+
+        motivos.append(
+            f"categoria estratégica: {categoria}"
+        )
+
+    # ========================================================
+    # ADERÊNCIA TEMÁTICA À MARANHÃO CORDIAL
+    # ========================================================
+
+    termos_alta_aderencia = (
+        "bartender",
+        "mixologia",
+        "coquetel",
+        "drinks",
+        "bar",
+        "restaurante",
+        "hotel",
+        "hotelaria",
+        "chef",
+        "gastronomia",
+        "bebidas",
+        "soft drink",
+        "cordial",
+        "guaraná",
+        "guarana",
+        "gengibre",
+        "nordeste",
+        "nordestina",
+        "maranhão",
+        "maranhao",
+        "fornecedor de bebidas",
+        "distribuição de bebidas",
+        "distribuicao de bebidas",
+        "produção de bebidas",
+        "producao de bebidas",
+        "envase",
+        "vidro",
+        "embalagem",
+        "mapa"
+    )
+
+    conjunto_texto = " ".join([
+        tema,
+        motivo,
+        evidencia,
+        empresa,
+        cargo
+    ])
+
+    termos_encontrados = [
+        termo
+        for termo in termos_alta_aderencia
+        if termo in conjunto_texto
+    ]
+
+    if termos_encontrados:
+        pontos = min(
+            20,
+            len(termos_encontrados) * 4
+        )
+
+        score += pontos
+
+        motivos.append(
+            "aderência temática: "
+            + ", ".join(
+                termos_encontrados[:5]
+            )
+        )
+
+    # ========================================================
+    # QUALIDADE DA EVIDÊNCIA
+    # ========================================================
+
+    try:
+        confianca = float(
+            prospecto.get(
+                "confianca"
+            ) or 0
+        )
+    except Exception:
+        confianca = 0
+
+    if confianca >= 0.85:
+        score += 15
+        motivos.append(
+            "evidência de alta confiança"
+        )
+
+    elif confianca >= 0.70:
+        score += 10
+        motivos.append(
+            "evidência confiável"
+        )
+
+    elif confianca >= 0.50:
+        score += 5
+
+    else:
+        score -= 10
+        motivos.append(
+            "evidência fraca"
+        )
+
+    # ========================================================
+    # PENALIDADES
+    # ========================================================
+
+    if not any([
+        prospecto.get("email_publico"),
+        prospecto.get("linkedin_publico"),
+        prospecto.get("site_publico"),
+        prospecto.get("instagram_publico"),
+        prospecto.get("telefone_publico")
+    ]):
+        score -= 15
+        motivos.append(
+            "sem canal profissional verificável"
+        )
+
+    if (
+        not prospecto.get("empresa")
+        and not prospecto.get("cargo")
+        and not categoria
+    ):
+        score -= 15
+        motivos.append(
+            "contexto profissional insuficiente"
+        )
+
+    score = max(
+        0,
+        min(100, int(score))
+    )
+
+    # ========================================================
+    # CLASSIFICAÇÃO
+    # ========================================================
+
+    if score >= 75:
+        classificacao = "alta"
+        potencial = "prioritario"
+
+    elif score >= 55:
+        classificacao = "boa"
+        potencial = "qualificar"
+
+    elif score >= 35:
+        classificacao = "media"
+        potencial = "observar"
+
+    else:
+        classificacao = "baixa"
+        potencial = "arquivar"
+
+    return {
+        "score": score,
+        "classificacao":
+            classificacao,
+        "potencial_relacionamento":
+            potencial,
+        "motivo":
+            "; ".join(motivos)
+    }
+
+
+def qualificar_prospecto_rede(
+    prospecto_id
+):
+    """
+    Aplica o motor de qualidade a um prospecto
+    já descoberto pela rede.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM prospectos_rede
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    prospecto_id,
+                ))
+
+                prospecto = cur.fetchone()
+
+                if not prospecto:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Prospecto não encontrado."
+                    }
+
+                avaliacao = (
+                    avaliar_qualidade_prospecto_rede(
+                        dict(prospecto)
+                    )
+                )
+
+                novo_status = (
+                    "qualificado"
+                    if avaliacao["score"] >= 55
+                    else
+                    "observacao"
+                    if avaliacao["score"] >= 35
+                    else
+                    "arquivado"
+                )
+
+                cur.execute("""
+                    UPDATE prospectos_rede
+                    SET
+                        score_qualidade = %s,
+                        classificacao_qualidade = %s,
+                        motivo_qualificacao = %s,
+                        potencial_relacionamento = %s,
+                        status = %s,
+                        ultima_avaliacao_em = NOW(),
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING *
+                """, (
+                    avaliacao["score"],
+                    avaliacao["classificacao"],
+                    avaliacao["motivo"],
+                    avaliacao[
+                        "potencial_relacionamento"
+                    ],
+                    novo_status,
+                    prospecto_id
+                ))
+
+                atualizado = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "avaliacao":
+                        avaliacao,
+                    "prospecto":
+                        dict(atualizado)
+                }
+
+    except Exception as erro:
+        print(
+            "ERRO QUALIFICAR PROSPECTO REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def preparar_abordagem_prospecto_rede(
+    prospecto_id
+):
+    """
+    Cria uma ação empresarial somente para
+    prospectos suficientemente qualificados.
+
+    Não envia mensagem.
+    A ação entra na fila de aprovação existente.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM prospectos_rede
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    prospecto_id,
+                ))
+
+                prospecto = cur.fetchone()
+
+        if not prospecto:
+            return {
+                "success": False,
+                "erro":
+                    "Prospecto não encontrado."
+            }
+
+        score = int(
+            prospecto.get(
+                "score_qualidade"
+            ) or 0
+        )
+
+        if score < 55:
+            return {
+                "success": False,
+                "ignorado": True,
+                "motivo":
+                    "Prospecto ainda não possui "
+                    "qualidade suficiente.",
+                "score": score
+            }
+
+        email = (
+            prospecto.get(
+                "email_publico"
+            )
+        )
+
+        if not email:
+            return {
+                "success": False,
+                "ignorado": True,
+                "motivo":
+                    "Prospecto qualificado, mas "
+                    "sem email público disponível."
+            }
+
+        nome = (
+            prospecto.get("nome")
+            or "contato"
+        )
+
+        empresa = (
+            prospecto.get("empresa")
+            or ""
+        )
+
+        categoria = (
+            prospecto.get(
+                "categoria_sugerida"
+            )
+            or "contato estratégico"
+        )
+
+        motivo = (
+            prospecto.get(
+                "motivo_estrategico"
+            )
+            or prospecto.get(
+                "tema_interesse"
+            )
+            or "aderência com a Maranhão Cordial"
+        )
+
+        conteudo = (
+            f"Preparar abordagem personalizada "
+            f"para {nome}"
+        )
+
+        if empresa:
+            conteudo += (
+                f", da empresa {empresa}"
+            )
+
+        conteudo += (
+            f". Categoria identificada: "
+            f"{categoria}. "
+            f"Motivo estratégico: {motivo}. "
+            f"Score de qualidade: {score}/100."
+        )
+
+        acao_id = criar_acao_empresarial(
+            tipo="abordagem_rede",
+            canal="email",
+            destinatario=email,
+            conteudo=conteudo,
+            justificativa=(
+                "Prospecto descoberto através "
+                "da rede de relacionamentos e "
+                "qualificado pelo motor AI-native."
+            ),
+            prioridade=(
+                "alta"
+                if score >= 75
+                else "media"
+            ),
+            status="aguardando_aprovacao"
+        )
+
+        return {
+            "success": True,
+            "acao_id": acao_id,
+            "score": score,
+            "requer_aprovacao": True
+        }
+
+    except Exception as erro:
+        print(
+            "ERRO PREPARAR ABORDAGEM REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def registrar_relacionamento_rede(
+    contato_origem_id,
+    contato_destino_id=None,
+    nome_externo=None,
+    empresa_externa=None,
+    tipo_relacao=None,
+    tema_relacao=None,
+    fonte_tipo=None,
+    fonte_url=None,
+    evidencia=None,
+    confianca=0.50,
+    grau_separacao=1,
+    relevancia_estrategica=None
+):
+    """
+    Registra uma conexão entre um contato conhecido
+    e outra pessoa/empresa.
+
+    Pode representar:
+    - conhece;
+    - trabalha com;
+    - fornecedor de;
+    - associado a;
+    - cliente de;
+    - parceiro de;
+    - segue/interage profissionalmente;
+    - pertence à mesma rede.
+
+    A função registra a relação.
+    Não envia mensagem automaticamente.
+    """
+
+    if not contato_origem_id:
+        return {
+            "success": False,
+            "erro": "Contato de origem não informado."
+        }
+
+    try:
+        confianca = float(
+            confianca or 0.50
+        )
+
+        confianca = max(
+            0.0,
+            min(1.0, confianca)
+        )
+
+    except Exception:
+        confianca = 0.50
+
+    try:
+        grau_separacao = max(
+            1,
+            int(grau_separacao or 1)
+        )
+    except Exception:
+        grau_separacao = 1
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO relacionamentos_rede (
+                        contato_origem_id,
+                        contato_destino_id,
+                        nome_externo,
+                        empresa_externa,
+                        tipo_relacao,
+                        tema_relacao,
+                        fonte_tipo,
+                        fonte_url,
+                        evidencia,
+                        confianca,
+                        grau_separacao,
+                        relevancia_estrategica
+                    )
+                    VALUES (
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s
+                    )
+                    RETURNING *
+                """, (
+                    contato_origem_id,
+                    contato_destino_id,
+                    nome_externo,
+                    empresa_externa,
+                    tipo_relacao,
+                    tema_relacao,
+                    fonte_tipo,
+                    fonte_url,
+                    evidencia,
+                    confianca,
+                    grau_separacao,
+                    relevancia_estrategica
+                ))
+
+                relacao = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "relacionamento": dict(
+                        relacao
+                    )
+                }
+
+    except Exception as erro:
+        print(
+            "ERRO REGISTRAR RELACIONAMENTO DE REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def registrar_prospecto_rede(
+    contato_origem_id=None,
+    relacionamento_rede_id=None,
+    nome=None,
+    empresa=None,
+    cargo=None,
+    categoria_sugerida=None,
+    email_publico=None,
+    telefone_publico=None,
+    instagram_publico=None,
+    linkedin_publico=None,
+    site_publico=None,
+    tema_interesse=None,
+    motivo_estrategico=None,
+    fonte_tipo=None,
+    fonte_url=None,
+    evidencia=None,
+    confianca=0.50
+):
+    """
+    Registra um possível novo relacionamento
+    descoberto através da rede de um contato.
+
+    Importante:
+    - apenas armazena a oportunidade;
+    - contato externo continua exigindo aprovação;
+    - não transforma automaticamente a pessoa
+      em cliente/lead ativo;
+    - não envia email ou mensagem.
+    """
+
+    if not any([
+        nome,
+        empresa,
+        email_publico,
+        telefone_publico,
+        instagram_publico,
+        linkedin_publico,
+        site_publico
+    ]):
+        return {
+            "success": False,
+            "erro":
+                "Prospecto sem identidade mínima."
+        }
+
+    try:
+        confianca = float(
+            confianca or 0.50
+        )
+
+        confianca = max(
+            0.0,
+            min(1.0, confianca)
+        )
+
+    except Exception:
+        confianca = 0.50
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                # -----------------------------------------
+                # EVITA DUPLICAÇÃO ÓBVIA
+                # -----------------------------------------
+
+                if email_publico:
+                    cur.execute("""
+                        SELECT *
+                        FROM prospectos_rede
+                        WHERE LOWER(email_publico) =
+                              LOWER(%s)
+                        LIMIT 1
+                    """, (
+                        email_publico,
+                    ))
+
+                    existente = cur.fetchone()
+
+                    if existente:
+                        return {
+                            "success": True,
+                            "duplicado": True,
+                            "prospecto": dict(
+                                existente
+                            )
+                        }
+
+                cur.execute("""
+                    INSERT INTO prospectos_rede (
+                        contato_origem_id,
+                        relacionamento_rede_id,
+                        nome,
+                        empresa,
+                        cargo,
+                        categoria_sugerida,
+                        email_publico,
+                        telefone_publico,
+                        instagram_publico,
+                        linkedin_publico,
+                        site_publico,
+                        tema_interesse,
+                        motivo_estrategico,
+                        fonte_tipo,
+                        fonte_url,
+                        evidencia,
+                        confianca
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s
+                    )
+                    RETURNING *
+                """, (
+                    contato_origem_id,
+                    relacionamento_rede_id,
+                    nome,
+                    empresa,
+                    cargo,
+                    categoria_sugerida,
+                    email_publico,
+                    telefone_publico,
+                    instagram_publico,
+                    linkedin_publico,
+                    site_publico,
+                    tema_interesse,
+                    motivo_estrategico,
+                    fonte_tipo,
+                    fonte_url,
+                    evidencia,
+                    confianca
+                ))
+
+                prospecto = cur.fetchone()
+
+                return {
+                    "success": True,
+                    "duplicado": False,
+                    "prospecto": dict(
+                        prospecto
+                    )
+                }
+
+    except Exception as erro:
+        print(
+            "ERRO REGISTRAR PROSPECTO DA REDE:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
         }
 
     finally:
