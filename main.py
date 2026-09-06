@@ -32181,6 +32181,67 @@ def meta_get_instagram(caminho, params=None):
     return dados
 
 
+def resolver_identidade_instagram(sender_id):
+    """
+    Resolve um ID técnico de remetente do Instagram
+    para identidade pública disponibilizada pela Meta.
+
+    Esta função é somente consulta:
+    - não cria contato;
+    - não altera CRM;
+    - não altera interação;
+    - não envia mensagem.
+    """
+
+    sender_id = str(
+        sender_id or ""
+    ).strip()
+
+    if not sender_id:
+        return {
+            "success": False,
+            "erro": "sender_id ausente."
+        }
+
+    try:
+        dados = meta_get_instagram(
+            sender_id,
+            params={
+                "fields":
+                    "id,username,name"
+            }
+        )
+
+        return {
+            "success": True,
+            "sender_id":
+                str(
+                    dados.get("id")
+                    or sender_id
+                ),
+            "username":
+                str(
+                    dados.get("username")
+                    or ""
+                ).strip(),
+            "nome":
+                str(
+                    dados.get("name")
+                    or ""
+                ).strip(),
+            "dados":
+                dados
+        }
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "sender_id": sender_id,
+            "erro": str(erro)
+        }
+
+
 
 def montar_contexto_analytics_instagram():
     """
