@@ -9112,7 +9112,24 @@ possível estimar responsavelmente.
                             },
 
                             "instrumento": {
-                                "type": "string"
+                                "type": "string",
+                                "enum": [
+                                    "email",
+                                    "instagram",
+                                    "conteudo_organico",
+                                    "colaboracao_bartender",
+                                    "colaboracao_chef",
+                                    "colaboracao_criador",
+                                    "imprensa",
+                                    "evento",
+                                    "degustacao",
+                                    "receita",
+                                    "case_profissional",
+                                    "conteudo_tecnico",
+                                    "publicidade_contextual",
+                                    "relacionamento_institucional",
+                                    "amostra_em_contexto_profissional"
+                                ]
                             },
 
                             "descricao_estrategia": {
@@ -9131,7 +9148,8 @@ possível estimar responsavelmente.
                                 "type": [
                                     "string",
                                     "null"
-                                ]
+                                ],
+                                "maxLength": 60
                             },
 
                             "intermediario_descricao": {
@@ -9225,6 +9243,51 @@ possível estimar responsavelmente.
                     "Tipo de estratégia inválido."
             }
 
+        instrumentos_validos = {
+            "email",
+            "instagram",
+            "conteudo_organico",
+            "colaboracao_bartender",
+            "colaboracao_chef",
+            "colaboracao_criador",
+            "imprensa",
+            "evento",
+            "degustacao",
+            "receita",
+            "case_profissional",
+            "conteudo_tecnico",
+            "publicidade_contextual",
+            "relacionamento_institucional",
+            "amostra_em_contexto_profissional"
+        }
+
+        instrumento = str(
+            dados.get("instrumento")
+            or ""
+        ).strip()
+
+        if instrumento not in instrumentos_validos:
+            return {
+                "success": False,
+                "erro":
+                    "Instrumento de prospecção inválido."
+            }
+
+        intermediario_tipo = (
+            dados.get("intermediario_tipo")
+        )
+
+        if intermediario_tipo is not None:
+            intermediario_tipo = str(
+                intermediario_tipo
+            ).strip()
+
+            if len(intermediario_tipo) > 60:
+                intermediario_tipo = (
+                    intermediario_tipo[:60]
+                    .rstrip()
+                )
+
         adequacao = int(
             dados.get("score_adequacao")
             or 0
@@ -9281,7 +9344,7 @@ possível estimar responsavelmente.
                         prospecto_id,
                         tipo,
                         dados.get("objetivo"),
-                        dados.get("instrumento"),
+                        instrumento,
                         dados.get(
                             "descricao_estrategia"
                         ),
@@ -9289,9 +9352,7 @@ possível estimar responsavelmente.
                         dados.get(
                             "publico_contextual"
                         ),
-                        dados.get(
-                            "intermediario_tipo"
-                        ),
+                        intermediario_tipo,
                         dados.get(
                             "intermediario_descricao"
                         ),
