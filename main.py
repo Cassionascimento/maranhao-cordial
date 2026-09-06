@@ -4799,6 +4799,60 @@ def executar_mensagem_whatsapp(acao):
         finally:
             conn.close()
 
+        # -------------------------------------------------
+        # HISTÓRICO OMNICHANNEL — SAÍDA WHATSAPP
+        # -------------------------------------------------
+        # Registra a mensagem efetivamente aceita pela Meta,
+        # sem reenviá-la ao processamento CRM de entrada.
+        try:
+            meta = resultado.get("meta")
+
+            if not isinstance(meta, dict):
+                meta = {}
+
+            mensagens_meta = meta.get("messages")
+
+            message_id_meta = None
+
+            if (
+                isinstance(mensagens_meta, list)
+                and mensagens_meta
+                and isinstance(
+                    mensagens_meta[0],
+                    dict
+                )
+            ):
+                message_id_meta = str(
+                    mensagens_meta[0].get("id")
+                    or ""
+                ).strip() or None
+
+            phone_number_id = str(
+                os.getenv(
+                    "WHATSAPP_PHONE_NUMBER_ID",
+                    ""
+                )
+            ).strip() or None
+
+            registrar_interacao_omnichannel(
+                canal="whatsapp",
+                sender_id=phone_number_id,
+                recipient_id=destinatario,
+                message_id=message_id_meta,
+                texto=conteudo,
+                plataforma="meta",
+                tipo_interacao="mensagem_saida"
+            )
+
+        except Exception as erro_historico:
+            # O envio real já ocorreu.
+            # Falha no histórico não pode transformar
+            # mensagem enviada em mensagem não enviada.
+            print(
+                "ERRO HISTORICO WHATSAPP OUTBOUND:",
+                erro_historico
+            )
+
         try:
             registrar_auditoria(
                 categoria="execucao",
