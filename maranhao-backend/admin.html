@@ -3363,85 +3363,192 @@ summary{
                                 .join(" / ")
                                 || "Local não informado";
 
+                            const estagioLabel = {
+                                novo: "Novo",
+                                qualificacao: "Qualificação",
+                                degustacao: "Degustação",
+                                proposta: "Proposta",
+                                negociacao: "Negociação",
+                                cliente: "Cliente",
+                                perdido: "Perdido"
+                            }[lead.estagio] || lead.estagio || "Novo";
+
+                            const prioridade =
+                                lead.prioridade || "normal";
+
                             return `
-                                <div
+                                <details
                                     class="admin-card crm-lead-card"
                                     data-lead-id="${lead.id}"
                                     style="
-                                        margin-bottom:14px;
+                                        margin-bottom:8px;
+                                        padding:0;
                                     "
                                 >
-                                    <div
+                                    <summary
                                         style="
-                                            display:flex;
-                                            justify-content:space-between;
-                                            gap:16px;
-                                            align-items:flex-start;
+                                            cursor:pointer;
+                                            list-style:none;
+                                            display:grid;
+                                            grid-template-columns:
+                                                minmax(180px, 2fr)
+                                                minmax(120px, 1fr)
+                                                minmax(110px, 1fr)
+                                                minmax(90px, .7fr)
+                                                24px;
+                                            gap:14px;
+                                            align-items:center;
+                                            padding:16px 18px;
                                         "
                                     >
                                         <div>
                                             <strong>
-                                                ${escapar(empresa)}
-                                            </strong>
-
-                                            <div
-                                                style="
-                                                    margin-top:4px;
-                                                    opacity:.8;
-                                                    font-size:12px;
-                                                "
-                                            >
                                                 ${escapar(nome)}
-                                                ·
-                                                ${escapar(local)}
+                                            </strong>
+                                            <div style="
+                                                margin-top:3px;
+                                                font-size:12px;
+                                                opacity:.65;
+                                            ">
+                                                ${escapar(empresa)}
                                             </div>
                                         </div>
 
-                                        <div
-                                            style="
-                                                font-size:12px;
-                                                text-align:right;
-                                            "
-                                        >
+                                        <div style="
+                                            font-size:12px;
+                                            opacity:.8;
+                                        ">
+                                            ${escapar(local)}
+                                        </div>
+
+                                        <div style="font-size:12px;">
+                                            ${escapar(estagioLabel)}
+                                        </div>
+
+                                        <div style="
+                                            font-size:11px;
+                                            text-transform:uppercase;
+                                            letter-spacing:.08em;
+                                            opacity:.7;
+                                        ">
+                                            ${escapar(prioridade)}
+                                        </div>
+
+                                        <div style="
+                                            text-align:right;
+                                            opacity:.55;
+                                        ">
+                                            ›
+                                        </div>
+                                    </summary>
+
+                                    <div style="
+                                        border-top:1px solid var(--line);
+                                        padding:18px;
+                                    ">
+                                        <div style="
+                                            display:grid;
+                                            grid-template-columns:
+                                                repeat(auto-fit, minmax(160px, 1fr));
+                                            gap:16px;
+                                        ">
                                             <div>
-                                                ${escapar(lead.tipo_lead)}
+                                                <div class="subtitle">Tipo</div>
+                                                <strong>
+                                                    ${escapar(lead.tipo_lead || "Não definido")}
+                                                </strong>
                                             </div>
 
+                                            <div>
+                                                <div class="subtitle">Origem</div>
+                                                <strong>
+                                                    ${escapar(lead.origem || "Não informada")}
+                                                </strong>
+                                            </div>
+
+                                            <div>
+                                                <div class="subtitle">Canal</div>
+                                                <strong>
+                                                    ${escapar(lead.canal || "Não informado")}
+                                                </strong>
+                                            </div>
+
+                                            <div>
+                                                <div class="subtitle">Responsável</div>
+                                                <strong>
+                                                    ${escapar(lead.responsavel || "Não definido")}
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        <div style="margin-top:18px;">
+                                            <div class="subtitle">Interesse / relação</div>
+                                            <div style="margin-top:5px;">
+                                                ${escapar(
+                                                    lead.interesse ||
+                                                    "Não informado"
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div style="
+                                            display:grid;
+                                            grid-template-columns:
+                                                repeat(3, minmax(0, 1fr));
+                                            gap:12px;
+                                            margin-top:18px;
+                                        ">
+                                            <div>
+                                                <div class="subtitle">Potencial</div>
+                                                <strong>${valorPotencial}</strong>
+                                            </div>
+
+                                            <div>
+                                                <div class="subtitle">CAC</div>
+                                                <strong>${cac}</strong>
+                                            </div>
+
+                                            <div>
+                                                <div class="subtitle">Receita</div>
+                                                <strong>${receita}</strong>
+                                            </div>
+                                        </div>
+
+                                        <div style="
+                                            margin-top:18px;
+                                            display:flex;
+                                            gap:10px;
+                                            align-items:center;
+                                            flex-wrap:wrap;
+                                        ">
                                             <select
                                                 class="crm-editar-estagio"
                                                 data-lead-id="${lead.id}"
-                                                style="margin-top:6px;"
                                             >
                                                 <option value="novo"
                                                     ${lead.estagio === "novo" ? "selected" : ""}>
                                                     Novo
                                                 </option>
-
                                                 <option value="qualificacao"
                                                     ${lead.estagio === "qualificacao" ? "selected" : ""}>
                                                     Qualificação
                                                 </option>
-
                                                 <option value="degustacao"
                                                     ${lead.estagio === "degustacao" ? "selected" : ""}>
                                                     Degustação
                                                 </option>
-
                                                 <option value="proposta"
                                                     ${lead.estagio === "proposta" ? "selected" : ""}>
                                                     Proposta
                                                 </option>
-
                                                 <option value="negociacao"
                                                     ${lead.estagio === "negociacao" ? "selected" : ""}>
                                                     Negociação
                                                 </option>
-
                                                 <option value="cliente"
                                                     ${lead.estagio === "cliente" ? "selected" : ""}>
                                                     Cliente
                                                 </option>
-
                                                 <option value="perdido"
                                                     ${lead.estagio === "perdido" ? "selected" : ""}>
                                                     Perdido
@@ -3452,76 +3559,12 @@ summary{
                                                 type="button"
                                                 class="admin-button crm-salvar-estagio"
                                                 data-lead-id="${lead.id}"
-                                                style="margin-top:6px;"
                                             >
                                                 Salvar estágio
                                             </button>
                                         </div>
                                     </div>
-
-                                    <div
-                                        style="
-                                            margin-top:12px;
-                                            font-size:12px;
-                                            opacity:.85;
-                                        "
-                                    >
-                                        <strong>Origem:</strong>
-                                        ${escapar(lead.origem)}
-                                        ${lead.canal
-                                            ? " · " + escapar(lead.canal)
-                                            : ""}
-                                    </div>
-
-                                    <div
-                                        style="
-                                            margin-top:8px;
-                                        "
-                                    >
-                                        ${escapar(
-                                            lead.interesse ||
-                                            "Interesse não informado"
-                                        )}
-                                    </div>
-
-                                    <div
-                                        style="
-                                            display:grid;
-                                            grid-template-columns:
-                                                repeat(3, minmax(0, 1fr));
-                                            gap:12px;
-                                            margin-top:14px;
-                                        "
-                                    >
-                                        <div>
-                                            <strong>Valor potencial</strong>
-                                            <div>${valorPotencial}</div>
-                                        </div>
-
-                                        <div>
-                                            <strong>CAC</strong>
-                                            <div>${cac}</div>
-                                        </div>
-
-                                        <div>
-                                            <strong>Receita</strong>
-                                            <div>${receita}</div>
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        style="
-                                            margin-top:12px;
-                                            font-size:12px;
-                                        "
-                                    >
-                                        <strong>Responsável:</strong>
-                                        ${escapar(
-                                            lead.responsavel ||
-                                            "Não definido"
-                                        )}
-                                    </div>
-                                </div>
+                                </details>
                             `;
                         }).join("");
 
