@@ -5589,7 +5589,53 @@ def processar_interacao_omnichannel_crm(
             ) as cur:
 
                 # -----------------------------------------
+                # IDENTIDADE CENTRAL DO CONTATO
+                # -----------------------------------------
+
+                email_contato = (
+                    sender_id
+                    if canal == "gmail"
+                    else None
+                )
+
+                telefone_contato = (
+                    sender_id
+                    if canal == "whatsapp"
+                    else None
+                )
+
+                instagram_contato = (
+                    sender_id
+                    if canal == "instagram"
+                    else None
+                )
+
+                resultado_contato = (
+                    obter_ou_criar_contato_central(
+                        email=email_contato,
+                        telefone=telefone_contato,
+                        instagram=instagram_contato,
+                        canal=canal,
+                        origem=canal,
+                        categoria_contato="lead",
+                        interesse=classificacao.get(
+                            "interesse"
+                        )
+                    )
+                )
+
+                contato_central = None
+
+                if resultado_contato.get("success"):
+                    contato_central = (
+                        resultado_contato.get(
+                            "contato"
+                        )
+                    )
+
+                # -----------------------------------------
                 # NÃO É LEAD COMERCIAL
+                # Continua armazenado como contato central
                 # -----------------------------------------
 
                 if not classificacao[
@@ -5600,6 +5646,7 @@ def processar_interacao_omnichannel_crm(
                         UPDATE interacoes_omnichannel
                         SET
                             classificacao = %s,
+                            lead_id = %s,
                             processado_ia = TRUE,
                             atualizado_em = NOW()
                         WHERE id = %s
@@ -5608,6 +5655,11 @@ def processar_interacao_omnichannel_crm(
                         classificacao[
                             "classificacao"
                         ],
+                        (
+                            contato_central.get("id")
+                            if contato_central
+                            else None
+                        ),
                         interacao_id
                     ))
 
@@ -5626,8 +5678,7 @@ def processar_interacao_omnichannel_crm(
                     }
 
                 # -----------------------------------------
-                # PROCURA LEAD EXISTENTE
-                # identidade por canal + fallback legado
+                # REUTILIZA A IDENTIDADE CENTRAL
                 # -----------------------------------------
 
                 campo_identidade = {
@@ -5636,41 +5687,12 @@ def processar_interacao_omnichannel_crm(
                     "instagram": "instagram"
                 }.get(canal)
 
-                lead = None
+                lead = contato_central
 
-                if campo_identidade:
-                    cur.execute(
-                        f"""
-                        SELECT *
-                        FROM leads_crm
-                        WHERE {campo_identidade} = %s
-                        ORDER BY criado_em DESC
-                        LIMIT 1
-                        """,
-                        (
-                            sender_id,
-                        )
-                    )
+                lead_criado = bool(
+                    resultado_contato.get("criado")
+                )
 
-                    lead = cur.fetchone()
-
-                if not lead:
-                    cur.execute("""
-                        SELECT *
-                        FROM leads_crm
-                        WHERE
-                            canal = %s
-                            AND contato = %s
-                        ORDER BY criado_em DESC
-                        LIMIT 1
-                    """, (
-                        canal,
-                        sender_id
-                    ))
-
-                    lead = cur.fetchone()
-
-                lead_criado = False
                 lead_atualizado = False
 
                 # -----------------------------------------
@@ -5750,92 +5772,24 @@ def processar_interacao_omnichannel_crm(
                     lead_atualizado = True
 
                 # -----------------------------------------
-                # CRIA NOVO LEAD
+                # FALHA SEGURA DE IDENTIDADE
+                # Não existe criação paralela de contato
                 # -----------------------------------------
 
-                else:
+                if not lead:
 
-                    lead_id = str(
-                        uuid.uuid4()
-                    )
-
-                    observacoes = (
-                        "Lead identificado "
-                        "automaticamente pelo "
-                        "omnichannel.\n"
-                        "["
-                        + canal
-                        + "] "
-                        + texto[:1500]
-                    )
-
-                    email_lead = (
-                        sender_id
-                        if canal == "gmail"
-                        else None
-                    )
-
-                    telefone_lead = (
-                        sender_id
-                        if canal == "whatsapp"
-                        else None
-                    )
-
-                    instagram_lead = (
-                        sender_id
-                        if canal == "instagram"
-                        else None
-                    )
-
-                    cur.execute("""
-                        INSERT INTO leads_crm (
-                            id,
-                            nome,
-                            empresa,
-                            tipo_lead,
-                            origem,
-                            canal,
-                            contato,
-                            email,
-                            telefone,
-                            instagram,
-                            interesse,
-                            estagio,
-                            receita_acumulada_centavos,
-                            observacoes
-                        )
-                        VALUES (
-                            %s, %s, %s, %s,
-                            %s, %s, %s, %s,
-                            %s, %s, %s, %s,
-                            %s, %s
-                        )
-                        RETURNING *
-                    """, (
-                        lead_id,
-                        None,
-                        None,
-                        classificacao[
-                            "tipo_lead"
-                        ],
-                        canal,
-                        canal,
-                        sender_id,
-                        email_lead,
-                        telefone_lead,
-                        instagram_lead,
-                        classificacao[
-                            "interesse"
-                        ],
-                        classificacao[
-                            "estagio"
-                        ],
-                        0,
-                        observacoes
-                    ))
-
-                    lead = cur.fetchone()
-                    lead_criado = True
+                    return {
+                        "success": False,
+                        "erro": (
+                            "Não foi possível obter "
+                            "a identidade central "
+                            "do contato."
+                        ),
+                        "classificacao":
+                            classificacao,
+                        "detalhe_identidade":
+                            resultado_contato
+                    }
 
                 # -----------------------------------------
                 # LIGA INTERAÇÃO AO CRM
