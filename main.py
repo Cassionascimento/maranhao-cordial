@@ -28127,11 +28127,11 @@ def gerar_painel_executivo_hoje():
                         p.potencial_relacionamento,
                         p.fonte_url,
                         p.evidencia,
-                        p.email,
-                        p.telefone,
-                        p.instagram,
-                        p.linkedin,
-                        p.site,
+                        p.email_publico,
+                        p.telefone_publico,
+                        p.instagram_publico,
+                        p.linkedin_publico,
+                        p.site_publico,
                         p.status,
                         p.criado_em,
                         p.contato_origem_id,
@@ -28162,19 +28162,19 @@ def gerar_painel_executivo_hoje():
 
                     canais = []
 
-                    if prospecto.get("email"):
+                    if prospecto.get("email_publico"):
                         canais.append("email")
 
-                    if prospecto.get("instagram"):
+                    if prospecto.get("instagram_publico"):
                         canais.append("instagram")
 
-                    if prospecto.get("linkedin"):
+                    if prospecto.get("linkedin_publico"):
                         canais.append("linkedin")
 
-                    if prospecto.get("telefone"):
+                    if prospecto.get("telefone_publico"):
                         canais.append("telefone")
 
-                    if prospecto.get("site"):
+                    if prospecto.get("site_publico"):
                         canais.append("site")
 
                     origem = (
@@ -38130,7 +38130,7 @@ def identificar_autorreferencia_prospecto(
 
     email_prospecto = normalizar_texto(
         prospecto.get("email_publico")
-        or prospecto.get("email")
+        or prospecto.get("email_publico")
     )
 
     if (
@@ -38150,7 +38150,7 @@ def identificar_autorreferencia_prospecto(
 
     telefone_prospecto = normalizar_digitos(
         prospecto.get("telefone_publico")
-        or prospecto.get("telefone")
+        or prospecto.get("telefone_publico")
     )
 
     if (
@@ -38170,7 +38170,7 @@ def identificar_autorreferencia_prospecto(
 
     instagram_prospecto = normalizar_texto(
         prospecto.get("instagram_publico")
-        or prospecto.get("instagram")
+        or prospecto.get("instagram_publico")
     )
 
     if (
