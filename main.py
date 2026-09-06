@@ -5610,28 +5610,53 @@ def processar_interacao_omnichannel_crm(
                     else None
                 )
 
-                resultado_contato = (
-                    obter_ou_criar_contato_central(
-                        email=email_contato,
-                        telefone=telefone_contato,
-                        instagram=instagram_contato,
-                        canal=canal,
-                        origem=canal,
-                        categoria_contato="lead",
-                        interesse=classificacao.get(
-                            "interesse"
-                        )
-                    )
-                )
-
                 contato_central = None
 
-                if resultado_contato.get("success"):
-                    contato_central = (
-                        resultado_contato.get(
-                            "contato"
+                resultado_contato = {
+                    "success": False,
+                    "ignorado": False
+                }
+
+                # Comunicações automáticas ficam no histórico,
+                # mas não viram pessoas/empresas em Contatos.
+                if (
+                    classificacao.get(
+                        "classificacao"
+                    )
+                    != "comunicacao_automatica"
+                    and sender_id
+                ):
+
+                    resultado_contato = (
+                        obter_ou_criar_contato_central(
+                            email=email_contato,
+                            telefone=telefone_contato,
+                            instagram=instagram_contato,
+                            canal=canal,
+                            origem=canal,
+                            categoria_contato="lead",
+                            interesse=classificacao.get(
+                                "interesse"
+                            )
                         )
                     )
+
+                    if resultado_contato.get(
+                        "success"
+                    ):
+                        contato_central = (
+                            resultado_contato.get(
+                                "contato"
+                            )
+                        )
+
+                else:
+                    resultado_contato = {
+                        "success": True,
+                        "ignorado": True,
+                        "motivo":
+                            "comunicacao_automatica"
+                    }
 
                 # -----------------------------------------
                 # NÃO É LEAD COMERCIAL
