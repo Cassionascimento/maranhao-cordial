@@ -2913,6 +2913,22 @@ def inicializar_banco():
 
                 cur.execute("""
                     ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS arquivado BOOLEAN
+                    NOT NULL DEFAULT FALSE
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS arquivado_em TIMESTAMPTZ
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS arquivado_por VARCHAR(220)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
                     ADD COLUMN IF NOT EXISTS contato_interno BOOLEAN
                     NOT NULL DEFAULT FALSE
                 """)
@@ -21059,9 +21075,14 @@ def admin_listar_leads_crm():
                         responsavel,
                         proximo_followup,
                         observacoes,
+                        cadastro_teste,
+                        arquivado,
+                        contato_interno,
+                        papel_interno,
                         criado_em,
                         atualizado_em
                     FROM leads_crm
+                    WHERE COALESCE(arquivado, FALSE) = FALSE
                     ORDER BY
                         atualizado_em DESC,
                         criado_em DESC
@@ -21315,7 +21336,8 @@ def admin_atualizar_lead_crm(lead_id):
         "receita_acumulada_centavos",
         "responsavel",
         "proximo_followup",
-        "observacoes"
+        "observacoes",
+        "cadastro_teste"
     }
 
     estagios_validos = {
@@ -21451,6 +21473,296 @@ def admin_atualizar_lead_crm(lead_id):
         conn.close()
 
 
+
+# =====================================================
+# CONTACT CENTRAL — ARQUIVAR
+# =====================================================
+
+@app.route(
+    "/api/admin/crm/leads/<lead_id>/arquivamento",
+    methods=["PATCH"]
+)
+def admin_arquivamento_lead_crm(lead_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    dados = request.get_json(
+        silent=True
+    ) or {}
+
+    arquivar = dados.get(
+        "arquivado",
+        True
+    )
+
+    if arquivar is not True:
+        return jsonify({
+            "success": False,
+            "error": "Esta rota realiza somente arquivamento."
+        }), 400
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                if arquivar:
+
+                    cur.execute("""
+                        UPDATE leads_crm
+                        SET
+                            arquivado = TRUE,
+                            arquivado_em = NOW(),
+                            arquivado_por = 'admin',
+                            valido_para_ia = FALSE,
+                            expandir_rede = FALSE,
+                            status = 'inativo',
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                        RETURNING *
+                    """, (
+                        lead_id,
+                    ))
+
+                contato = cur.fetchone()
+
+                if not contato:
+                    return jsonify({
+                        "success": False,
+                        "error": "Contato não encontrado."
+                    }), 404
+
+        return jsonify({
+            "success": True,
+            "arquivado": arquivar,
+            "contato": contato
+        }), 200
+
+    except Exception as erro:
+        print(
+            "ERRO ARQUIVAMENTO CONTACT CENTRAL:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error": "Erro ao alterar arquivamento do contato."
+        }), 500
+
+    finally:
+        conn.close()
+
+
+# =====================================================
+# CONTACT CENTRAL — EXCLUSÃO SEGURA DE TESTE/ERRO
+# =====================================================
+
+@app.route(
+    "/api/admin/crm/leads/<lead_id>",
+    methods=["DELETE"]
+)
+def admin_excluir_lead_crm(lead_id):
+
+    if not validar_admin_request():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        empresa,
+                        cadastro_teste,
+                        contato_interno,
+                        arquivado
+                    FROM leads_crm
+                    WHERE id = %s
+                    FOR UPDATE
+                """, (
+                    lead_id,
+                ))
+
+                contato = cur.fetchone()
+
+                if not contato:
+                    return jsonify({
+                        "success": False,
+                        "error": "Contato não encontrado."
+                    }), 404
+
+                if contato.get("contato_interno"):
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Contato interno não pode ser excluído. "
+                            "Use arquivamento quando necessário."
+                    }), 409
+
+                if not contato.get("cadastro_teste"):
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Exclusão permitida somente para cadastro "
+                            "marcado explicitamente como teste/erro. "
+                            "Contatos reais devem ser arquivados."
+                    }), 409
+
+                cur.execute("""
+                    SELECT
+                        (
+                            SELECT COUNT(*)
+                            FROM interacoes_omnichannel
+                            WHERE lead_id = %s
+                        ) AS interacoes,
+
+                        (
+                            SELECT COUNT(*)
+                            FROM compras_relacionamento
+                            WHERE contato_id = %s
+                        ) AS compras,
+
+                        (
+                            SELECT COUNT(*)
+                            FROM pesquisas_rede
+                            WHERE contato_id = %s
+                        ) AS pesquisas_rede,
+
+                        (
+                            SELECT COUNT(*)
+                            FROM descobertas_rede_publica
+                            WHERE contato_origem_id = %s
+                        ) AS descobertas_rede,
+
+                        (
+                            SELECT COUNT(*)
+                            FROM identidades_externas_contato
+                            WHERE contato_central_id = %s
+                        ) AS identidades_externas,
+
+                        (
+                            SELECT COUNT(*)
+                            FROM profissionais_rede
+                            WHERE lead_id = %s
+                        ) AS profissionais_rede,
+
+                        (
+                            SELECT COUNT(*)
+                            FROM contatos_estrategicos
+                            WHERE lead_id = %s
+                        ) AS contatos_estrategicos,
+
+                        (
+                            SELECT COUNT(*)
+                            FROM prospectos_rede
+                            WHERE
+                                contato_origem_id = %s
+                                OR contato_central_id = %s
+                        ) AS prospectos_rede,
+
+                        (
+                            SELECT COUNT(*)
+                            FROM relacionamentos_rede
+                            WHERE
+                                contato_origem_id = %s
+                                OR contato_destino_id = %s
+                        ) AS relacionamentos_rede
+                """, (
+                    lead_id,
+                    lead_id,
+                    lead_id,
+                    lead_id,
+                    lead_id,
+                    lead_id,
+                    lead_id,
+                    lead_id,
+                    lead_id,
+                    lead_id,
+                    lead_id,
+                ))
+
+                vinculos = dict(
+                    cur.fetchone()
+                    or {}
+                )
+
+                impedimentos = {
+                    chave: int(valor or 0)
+                    for chave, valor in vinculos.items()
+                    if int(valor or 0) > 0
+                }
+
+                if impedimentos:
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "Este cadastro possui histórico vinculado "
+                            "e não pode ser excluído. Arquive-o.",
+                        "impedimentos": impedimentos
+                    }), 409
+
+                cur.execute("""
+                    DELETE FROM leads_crm
+                    WHERE
+                        id = %s
+                        AND cadastro_teste = TRUE
+                        AND COALESCE(
+                            contato_interno,
+                            FALSE
+                        ) = FALSE
+                    RETURNING
+                        id,
+                        nome,
+                        empresa
+                """, (
+                    lead_id,
+                ))
+
+                excluido = cur.fetchone()
+
+                if not excluido:
+                    return jsonify({
+                        "success": False,
+                        "error":
+                            "O contato deixou de atender aos critérios "
+                            "seguros para exclusão."
+                    }), 409
+
+        return jsonify({
+            "success": True,
+            "excluido": True,
+            "contato": excluido
+        }), 200
+
+    except Exception as erro:
+        print(
+            "ERRO EXCLUSAO CONTACT CENTRAL:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error": "Erro ao excluir cadastro de teste."
+        }), 500
+
+    finally:
+        conn.close()
 
 
 @app.route(

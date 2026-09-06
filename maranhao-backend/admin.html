@@ -3563,6 +3563,60 @@ summary{
                                                 Salvar estágio
                                             </button>
                                         </div>
+
+                                        <div style="
+                                            margin-top:18px;
+                                            padding-top:14px;
+                                            border-top:1px solid rgba(255,255,255,.08);
+                                            display:flex;
+                                            gap:10px;
+                                            align-items:center;
+                                            flex-wrap:wrap;
+                                        ">
+                                            <button
+                                                type="button"
+                                                class="admin-button crm-arquivar"
+                                                data-lead-id="${lead.id}"
+                                            >
+                                                Arquivar
+                                            </button>
+
+                                            ${
+                                                lead.contato_interno
+                                                ? `
+                                                    <span
+                                                        class="subtitle"
+                                                        title="${escapar(
+                                                            lead.papel_interno ||
+                                                            "Contato interno"
+                                                        )}"
+                                                    >
+                                                        Contato interno
+                                                    </span>
+                                                `
+                                                : lead.cadastro_teste
+                                                ? `
+                                                    <button
+                                                        type="button"
+                                                        class="admin-button crm-excluir"
+                                                        data-lead-id="${lead.id}"
+                                                        title="Excluir cadastro de teste ou erro"
+                                                        aria-label="Excluir cadastro de teste ou erro"
+                                                    >
+                                                        🗑 Excluir
+                                                    </button>
+                                                `
+                                                : `
+                                                    <button
+                                                        type="button"
+                                                        class="admin-button crm-marcar-teste"
+                                                        data-lead-id="${lead.id}"
+                                                    >
+                                                        Marcar como teste/erro
+                                                    </button>
+                                                `
+                                            }
+                                        </div>
                                     </div>
                                 </details>
                             `;
@@ -3672,13 +3726,206 @@ summary{
             }
 
 
+            async function arquivarLeadCRM(
+                leadId,
+                botao
+            ) {
+
+                if (!adminKeyAtual) {
+                    crmStatus.textContent =
+                        "Autentique-se novamente.";
+                    return;
+                }
+
+                if (!confirm(
+                    "Arquivar este contato? Ele deixará de alimentar a IA e a prospecção."
+                )) {
+                    return;
+                }
+
+                botao.disabled = true;
+                crmStatus.textContent =
+                    "Arquivando contato...";
+
+                try {
+
+                    const response = await fetch(
+                        `https://maranhao-cordial-api.onrender.com/api/admin/crm/leads/${leadId}/arquivamento`,
+                        {
+                            method: "PATCH",
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            },
+                            body: JSON.stringify({
+                                arquivado: true
+                            })
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao arquivar contato."
+                        );
+                    }
+
+                    crmStatus.textContent =
+                        "Contato arquivado.";
+
+                    await carregarLeadsCRM();
+
+                } catch (erro) {
+
+                    crmStatus.textContent =
+                        erro.message ||
+                        "Erro ao arquivar contato.";
+
+                    botao.disabled = false;
+                }
+            }
+
+
+            async function marcarTesteLeadCRM(
+                leadId,
+                botao
+            ) {
+
+                if (!adminKeyAtual) {
+                    crmStatus.textContent =
+                        "Autentique-se novamente.";
+                    return;
+                }
+
+                if (!confirm(
+                    "Marcar este cadastro como teste/erro? Faça isso somente para registros que não representam um contato real."
+                )) {
+                    return;
+                }
+
+                botao.disabled = true;
+                crmStatus.textContent =
+                    "Marcando cadastro como teste/erro...";
+
+                try {
+
+                    const response = await fetch(
+                        `https://maranhao-cordial-api.onrender.com/api/admin/crm/leads/${leadId}`,
+                        {
+                            method: "PATCH",
+                            headers: {
+                                "Content-Type":
+                                    "application/json",
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            },
+                            body: JSON.stringify({
+                                cadastro_teste: true
+                            })
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Erro ao marcar cadastro."
+                        );
+                    }
+
+                    crmStatus.textContent =
+                        "Cadastro marcado como teste/erro.";
+
+                    await carregarLeadsCRM();
+
+                } catch (erro) {
+
+                    crmStatus.textContent =
+                        erro.message ||
+                        "Erro ao marcar cadastro.";
+
+                    botao.disabled = false;
+                }
+            }
+
+
+            async function excluirLeadCRM(
+                leadId,
+                botao
+            ) {
+
+                if (!adminKeyAtual) {
+                    crmStatus.textContent =
+                        "Autentique-se novamente.";
+                    return;
+                }
+
+                if (!confirm(
+                    "Excluir definitivamente este cadastro de teste/erro? Esta ação não pode ser desfeita."
+                )) {
+                    return;
+                }
+
+                botao.disabled = true;
+                crmStatus.textContent =
+                    "Verificando e excluindo cadastro...";
+
+                try {
+
+                    const response = await fetch(
+                        `https://maranhao-cordial-api.onrender.com/api/admin/crm/leads/${leadId}`,
+                        {
+                            method: "DELETE",
+                            headers: {
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            }
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            data.error ||
+                            "Cadastro não pode ser excluído."
+                        );
+                    }
+
+                    crmStatus.textContent =
+                        "Cadastro excluído.";
+
+                    await carregarLeadsCRM();
+
+                } catch (erro) {
+
+                    crmStatus.textContent =
+                        erro.message ||
+                        "Erro ao excluir cadastro.";
+
+                    botao.disabled = false;
+                }
+            }
+
+
             crmLista.addEventListener(
                 "click",
                 event => {
 
                     const botao =
                         event.target.closest(
-                            ".crm-salvar-estagio"
+                            ".crm-salvar-estagio, " +
+                            ".crm-arquivar, " +
+                            ".crm-marcar-teste, " +
+                            ".crm-excluir"
                         );
 
                     if (!botao) {
@@ -3694,10 +3941,52 @@ summary{
                         return;
                     }
 
-                    salvarEstagioLeadCRM(
-                        leadId,
-                        botao
-                    );
+                    if (
+                        botao.classList.contains(
+                            "crm-salvar-estagio"
+                        )
+                    ) {
+                        salvarEstagioLeadCRM(
+                            leadId,
+                            botao
+                        );
+                        return;
+                    }
+
+                    if (
+                        botao.classList.contains(
+                            "crm-arquivar"
+                        )
+                    ) {
+                        arquivarLeadCRM(
+                            leadId,
+                            botao
+                        );
+                        return;
+                    }
+
+                    if (
+                        botao.classList.contains(
+                            "crm-marcar-teste"
+                        )
+                    ) {
+                        marcarTesteLeadCRM(
+                            leadId,
+                            botao
+                        );
+                        return;
+                    }
+
+                    if (
+                        botao.classList.contains(
+                            "crm-excluir"
+                        )
+                    ) {
+                        excluirLeadCRM(
+                            leadId,
+                            botao
+                        );
+                    }
                 }
             );
 
