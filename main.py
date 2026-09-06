@@ -28295,8 +28295,8 @@ def gerar_painel_executivo_hoje():
                         cr.contato_id,
                         cr.referencia_externa,
                         cr.origem,
-                        cr.valor,
-                        cr.quantidade,
+                        cr.valor_centavos,
+                        cr.quantidade_itens,
                         cr.status,
                         cr.comprado_em,
                         c.nome,
@@ -28322,12 +28322,12 @@ def gerar_painel_executivo_hoje():
                             or compra.get("empresa")
                         ),
                         "valor": (
-                            float(compra.get("valor"))
-                            if compra.get("valor") is not None
+                            float(compra.get("valor_centavos")) / 100
+                            if compra.get("valor_centavos") is not None
                             else None
                         ),
                         "quantidade": compra.get(
-                            "quantidade"
+                            "quantidade_itens"
                         ),
                         "origem": compra.get("origem"),
                         "referencia": compra.get(
@@ -28826,8 +28826,8 @@ def carregar_contexto_briefing_executivo():
                         c.nome,
                         c.empresa,
                         cr.origem,
-                        cr.valor,
-                        cr.quantidade,
+                        cr.valor_centavos,
+                        cr.quantidade_itens,
                         cr.status,
                         cr.comprado_em
                     FROM compras_relacionamento cr
