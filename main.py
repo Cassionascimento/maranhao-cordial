@@ -2640,6 +2640,105 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # AI-NATIVE — PROSPECÇÃO INDIRETA
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    estrategias_prospeccao_rede (
+                        id UUID PRIMARY KEY
+                            DEFAULT gen_random_uuid(),
+
+                        prospecto_id UUID NOT NULL,
+
+                        tipo_estrategia VARCHAR(20)
+                            NOT NULL,
+
+                        objetivo TEXT
+                            NOT NULL,
+
+                        instrumento VARCHAR(60)
+                            NOT NULL,
+
+                        descricao_estrategia TEXT
+                            NOT NULL,
+
+                        gancho TEXT,
+
+                        publico_contextual TEXT,
+
+                        intermediario_tipo VARCHAR(60),
+
+                        intermediario_descricao TEXT,
+
+                        conteudo_sugerido TEXT,
+
+                        sinal_esperado TEXT,
+
+                        criterio_conversao TEXT,
+
+                        custo_estimado NUMERIC(12,2),
+
+                        score_adequacao INTEGER
+                            NOT NULL DEFAULT 0,
+
+                        justificativa TEXT,
+
+                        status VARCHAR(30)
+                            NOT NULL DEFAULT 'planejada',
+
+                        requer_aprovacao BOOLEAN
+                            NOT NULL DEFAULT TRUE,
+
+                        acao_empresarial_id UUID,
+
+                        sinal_observado TEXT,
+
+                        resultado_real TEXT,
+
+                        aprendizado TEXT,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT
+                        fk_estrategia_prospeccao_prospecto
+                        FOREIGN KEY (prospecto_id)
+                        REFERENCES prospectos_rede(id)
+                        ON DELETE CASCADE,
+
+                        CONSTRAINT
+                        chk_tipo_estrategia_prospeccao
+                        CHECK (
+                            tipo_estrategia IN (
+                                'direta',
+                                'indireta',
+                                'hibrida'
+                            )
+                        )
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_estrategias_prospeccao_prospecto
+                    ON estrategias_prospeccao_rede(
+                        prospecto_id
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_estrategias_prospeccao_status
+                    ON estrategias_prospeccao_rede(
+                        status
+                    )
+                """)
+
+                # ==========================================
                 # AI-NATIVE — ABORDAGEM CONTEXTUAL
                 # ==========================================
 
@@ -7649,6 +7748,873 @@ def executar_proxima_pesquisa_rede():
 
     finally:
         conn.close()
+
+
+def planejar_estrategia_prospeccao_rede(
+    prospecto_id
+):
+    """
+    Decide se o prospecto deve receber
+    prospecção direta, indireta ou híbrida.
+
+    Apenas PLANEJA.
+    Não envia mensagem.
+    Não publica conteúdo.
+    Não compra mídia.
+    Não aciona terceiros.
+    """
+
+    if not openai_client:
+        return {
+            "success": False,
+            "erro": "OpenAI não configurada."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM prospectos_rede
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    prospecto_id,
+                ))
+
+                prospecto = cur.fetchone()
+
+        if not prospecto:
+            return {
+                "success": False,
+                "erro": "Prospecto não encontrado."
+            }
+
+        score = int(
+            prospecto.get("score_qualidade")
+            or 0
+        )
+
+        if score < 55:
+            return {
+                "success": False,
+                "ignorado": True,
+                "motivo":
+                    "Prospecto ainda não possui "
+                    "qualidade suficiente."
+            }
+
+        contexto = {
+            "nome":
+                prospecto.get("nome"),
+            "empresa":
+                prospecto.get("empresa"),
+            "cargo":
+                prospecto.get("cargo"),
+            "categoria":
+                prospecto.get(
+                    "categoria_sugerida"
+                ),
+            "tema":
+                prospecto.get(
+                    "tema_interesse"
+                ),
+            "motivo":
+                prospecto.get(
+                    "motivo_estrategico"
+                ),
+            "instagram":
+                prospecto.get(
+                    "instagram_publico"
+                ),
+            "email":
+                prospecto.get(
+                    "email_publico"
+                ),
+            "linkedin":
+                prospecto.get(
+                    "linkedin_publico"
+                ),
+            "site":
+                prospecto.get(
+                    "site_publico"
+                ),
+            "fonte":
+                prospecto.get(
+                    "fonte_url"
+                ),
+            "evidencia":
+                prospecto.get(
+                    "evidencia"
+                ),
+            "score_qualidade":
+                score
+        }
+
+        prompt = f"""
+Você é o motor de estratégia comercial
+da Maranhão Cordial.
+
+PROSPECTO:
+{json.dumps(
+    contexto,
+    ensure_ascii=False,
+    default=str
+)}
+
+CONTEXTO DA EMPRESA:
+
+Maranhão Cordial é um projeto brasileiro
+de bebida, gastronomia, hospitalidade
+e cultura.
+
+O produto principal é um cordial premium
+de guaraná com gengibre, sem álcool e
+sem açúcar.
+
+A empresa deseja construir relações
+profissionais reais com bartenders,
+chefs, bares, restaurantes, hotéis,
+distribuidores, fabricantes,
+fornecedores, imprensa, criadores,
+assessores e outros agentes relevantes.
+
+TAREFA:
+
+Escolha a melhor estratégia para aproximar
+esse prospecto da Maranhão Cordial.
+
+TIPOS:
+
+direta:
+email ou Instagram é o melhor primeiro
+movimento.
+
+indireta:
+é melhor criar exposição legítima antes
+de abordar diretamente.
+
+hibrida:
+primeiro exposição/contexto e depois
+abordagem direta quando houver um sinal
+ou momento adequado.
+
+INSTRUMENTOS INDIRETOS PERMITIDOS:
+
+- conteudo_organico
+- colaboracao_bartender
+- colaboracao_chef
+- colaboracao_criador
+- imprensa
+- evento
+- degustacao
+- receita
+- case_profissional
+- conteudo_tecnico
+- publicidade_contextual
+- relacionamento_institucional
+- amostra_em_contexto_profissional
+
+REGRAS:
+
+1. Não invente relacionamento.
+
+2. Não finja indicação.
+
+3. Não peça para alguém fingir interesse.
+
+4. Não crie prova social falsa.
+
+5. Não sugira contas falsas.
+
+6. Não sugira comentários coordenados
+   ou comportamento enganoso.
+
+7. Um intermediário somente pode ser
+   utilizado como parte de uma colaboração
+   profissional legítima.
+
+8. Não revele ao prospecto a genealogia
+   interna da descoberta.
+
+9. Não utilize dados privados.
+
+10. Não proponha microsegmentação invasiva
+    baseada em dados pessoais sensíveis.
+
+11. Publicidade deve usar segmentação
+    profissional/contextual permitida
+    pela plataforma.
+
+12. Não publique nem envie nada.
+    Apenas produza estratégia.
+
+13. O objetivo é aumentar familiaridade,
+    relevância ou confiança antes de uma
+    eventual conversa.
+
+14. Prefira qualidade a volume.
+
+15. A estratégia deve ter um sinal
+    observável que indique quando avançar.
+
+EXEMPLOS DE SINAIS:
+
+- interação com conteúdo;
+- resposta;
+- visita/cadastro quando disponível;
+- interesse em degustação;
+- participação em evento;
+- contato espontâneo;
+- menção profissional;
+- aproximação legítima por colaborador;
+- pedido de informações.
+
+Não invente que um sinal aconteceu.
+
+Explique também o critério para converter
+a estratégia indireta em abordagem direta.
+
+O conteúdo sugerido deve ser específico
+ao contexto profissional encontrado,
+não propaganda genérica.
+
+Custo estimado deve ser 0 quando não for
+possível estimar responsavelmente.
+"""
+
+        resposta = openai_client.responses.create(
+            model="gpt-5-mini",
+
+            tools=[
+                {
+                    "type": "web_search"
+                }
+            ],
+
+            tool_choice="auto",
+
+            include=[
+                "web_search_call.action.sources"
+            ],
+
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name":
+                        "estrategia_prospeccao_maranhao",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+
+                        "properties": {
+
+                            "tipo_estrategia": {
+                                "type": "string",
+                                "enum": [
+                                    "direta",
+                                    "indireta",
+                                    "hibrida"
+                                ]
+                            },
+
+                            "objetivo": {
+                                "type": "string"
+                            },
+
+                            "instrumento": {
+                                "type": "string"
+                            },
+
+                            "descricao_estrategia": {
+                                "type": "string"
+                            },
+
+                            "gancho": {
+                                "type": "string"
+                            },
+
+                            "publico_contextual": {
+                                "type": "string"
+                            },
+
+                            "intermediario_tipo": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+
+                            "intermediario_descricao": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+
+                            "conteudo_sugerido": {
+                                "type": "string"
+                            },
+
+                            "sinal_esperado": {
+                                "type": "string"
+                            },
+
+                            "criterio_conversao": {
+                                "type": "string"
+                            },
+
+                            "custo_estimado": {
+                                "type": "number",
+                                "minimum": 0
+                            },
+
+                            "score_adequacao": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                            },
+
+                            "justificativa": {
+                                "type": "string"
+                            }
+                        },
+
+                        "required": [
+                            "tipo_estrategia",
+                            "objetivo",
+                            "instrumento",
+                            "descricao_estrategia",
+                            "gancho",
+                            "publico_contextual",
+                            "intermediario_tipo",
+                            "intermediario_descricao",
+                            "conteudo_sugerido",
+                            "sinal_esperado",
+                            "criterio_conversao",
+                            "custo_estimado",
+                            "score_adequacao",
+                            "justificativa"
+                        ],
+
+                        "additionalProperties":
+                            False
+                    }
+                }
+            },
+
+            input=prompt
+        )
+
+        try:
+            dados = json.loads(
+                resposta.output_text or ""
+            )
+
+        except Exception as erro_json:
+            return {
+                "success": False,
+                "erro":
+                    "Estratégia retornou JSON "
+                    "inválido: "
+                    + str(erro_json)
+            }
+
+        tipo = (
+            dados.get("tipo_estrategia")
+            or ""
+        )
+
+        if tipo not in {
+            "direta",
+            "indireta",
+            "hibrida"
+        }:
+            return {
+                "success": False,
+                "erro":
+                    "Tipo de estratégia inválido."
+            }
+
+        adequacao = int(
+            dados.get("score_adequacao")
+            or 0
+        )
+
+        if adequacao < 55:
+            return {
+                "success": False,
+                "erro":
+                    "Estratégia rejeitada por "
+                    "baixa adequação.",
+                "score":
+                    adequacao
+            }
+
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor(
+                    cursor_factory=RealDictCursor
+                ) as cur:
+
+                    cur.execute("""
+                        INSERT INTO
+                        estrategias_prospeccao_rede (
+                            prospecto_id,
+                            tipo_estrategia,
+                            objetivo,
+                            instrumento,
+                            descricao_estrategia,
+                            gancho,
+                            publico_contextual,
+                            intermediario_tipo,
+                            intermediario_descricao,
+                            conteudo_sugerido,
+                            sinal_esperado,
+                            criterio_conversao,
+                            custo_estimado,
+                            score_adequacao,
+                            justificativa,
+                            status,
+                            requer_aprovacao
+                        )
+                        VALUES (
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s,
+                            'planejada',
+                            TRUE
+                        )
+                        RETURNING *
+                    """, (
+                        prospecto_id,
+                        tipo,
+                        dados.get("objetivo"),
+                        dados.get("instrumento"),
+                        dados.get(
+                            "descricao_estrategia"
+                        ),
+                        dados.get("gancho"),
+                        dados.get(
+                            "publico_contextual"
+                        ),
+                        dados.get(
+                            "intermediario_tipo"
+                        ),
+                        dados.get(
+                            "intermediario_descricao"
+                        ),
+                        dados.get(
+                            "conteudo_sugerido"
+                        ),
+                        dados.get(
+                            "sinal_esperado"
+                        ),
+                        dados.get(
+                            "criterio_conversao"
+                        ),
+                        dados.get(
+                            "custo_estimado"
+                        )
+                        or 0,
+                        adequacao,
+                        dados.get(
+                            "justificativa"
+                        )
+                    ))
+
+                    estrategia = cur.fetchone()
+
+            return {
+                "success": True,
+                "estrategia":
+                    dict(estrategia)
+            }
+
+        finally:
+            conn.close()
+
+    except Exception as erro:
+
+        print(
+            "ERRO PLANEJAR ESTRATÉGIA "
+            "DE PROSPECÇÃO:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def preparar_acao_prospeccao_indireta(
+    estrategia_id
+):
+    """
+    Coloca a estratégia indireta/híbrida
+    na fila de aprovação humana.
+
+    NÃO executa publicação, mídia,
+    colaboração ou contato.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        e.*,
+                        p.nome,
+                        p.empresa,
+                        p.categoria_sugerida
+                    FROM estrategias_prospeccao_rede e
+                    JOIN prospectos_rede p
+                      ON p.id = e.prospecto_id
+                    WHERE e.id = %s
+                    LIMIT 1
+                """, (
+                    estrategia_id,
+                ))
+
+                estrategia = cur.fetchone()
+
+        if not estrategia:
+            return {
+                "success": False,
+                "erro":
+                    "Estratégia não encontrada."
+            }
+
+        if estrategia.get(
+            "acao_empresarial_id"
+        ):
+            return {
+                "success": True,
+                "duplicada": True,
+                "acao_id":
+                    str(
+                        estrategia.get(
+                            "acao_empresarial_id"
+                        )
+                    )
+            }
+
+        tipo = (
+            estrategia.get(
+                "tipo_estrategia"
+            )
+        )
+
+        if tipo not in {
+            "indireta",
+            "hibrida"
+        }:
+            return {
+                "success": False,
+                "erro":
+                    "Estratégia não é indireta "
+                    "nem híbrida."
+            }
+
+        nome = (
+            estrategia.get("nome")
+            or "prospecto"
+        )
+
+        empresa = (
+            estrategia.get("empresa")
+            or ""
+        )
+
+        alvo = nome
+
+        if empresa:
+            alvo += f" — {empresa}"
+
+        conteudo = (
+            "PROSPECÇÃO INDIRETA\n\n"
+            f"Alvo: {alvo}\n"
+            f"Instrumento: "
+            f"{estrategia.get('instrumento')}\n\n"
+            f"Objetivo:\n"
+            f"{estrategia.get('objetivo')}\n\n"
+            f"Estratégia:\n"
+            f"{estrategia.get('descricao_estrategia')}\n\n"
+            f"Gancho:\n"
+            f"{estrategia.get('gancho')}\n\n"
+            f"Conteúdo/ação sugerida:\n"
+            f"{estrategia.get('conteudo_sugerido')}\n\n"
+            f"Sinal esperado:\n"
+            f"{estrategia.get('sinal_esperado')}\n\n"
+            f"Quando converter para contato direto:\n"
+            f"{estrategia.get('criterio_conversao')}"
+        )
+
+        justificativa = (
+            "Estratégia de prospecção "
+            f"{tipo} para {alvo}. "
+            "Nenhuma ação externa deve ocorrer "
+            "sem aprovação humana."
+        )
+
+        resultado = criar_acao_empresarial(
+            tipo="prospeccao_indireta_rede",
+            canal="operacional",
+            conteudo=conteudo,
+            destinatario="",
+            justificativa=justificativa,
+            prioridade=(
+                "alta"
+                if (
+                    estrategia.get(
+                        "score_adequacao"
+                    )
+                    or 0
+                ) >= 80
+                else "media"
+            ),
+            status="aguardando_aprovacao"
+        )
+
+        if not resultado.get("success"):
+            return resultado
+
+        acao = (
+            resultado.get("acao")
+            or {}
+        )
+
+        acao_id = (
+            acao.get("id")
+            or resultado.get("acao_id")
+            or resultado.get("id")
+        )
+
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor() as cur:
+
+                    cur.execute("""
+                        UPDATE
+                            estrategias_prospeccao_rede
+                        SET
+                            status =
+                                'aguardando_aprovacao',
+                            acao_empresarial_id = %s,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        acao_id,
+                        estrategia_id
+                    ))
+
+        finally:
+            conn.close()
+
+        return {
+            "success": True,
+            "acao_id":
+                str(acao_id)
+                if acao_id
+                else None,
+            "status":
+                "aguardando_aprovacao"
+        }
+
+    except Exception as erro:
+
+        print(
+            "ERRO PREPARAR PROSPECÇÃO "
+            "INDIRETA:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def registrar_sinal_prospeccao_rede(
+    estrategia_id,
+    sinal,
+    resultado=None
+):
+    """
+    Registra um sinal REAL observado.
+
+    Exemplo:
+    interação, resposta, cadastro,
+    interesse em degustação etc.
+
+    Não inventa nem executa ação.
+    """
+
+    if not sinal:
+        return {
+            "success": False,
+            "erro": "Sinal não informado."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    UPDATE
+                        estrategias_prospeccao_rede
+                    SET
+                        sinal_observado = %s,
+                        resultado_real =
+                            COALESCE(%s, resultado_real),
+                        status = 'sinal_observado',
+                        atualizado_em = NOW()
+                    WHERE id = %s
+                    RETURNING *
+                """, (
+                    sinal,
+                    resultado,
+                    estrategia_id
+                ))
+
+                estrategia = cur.fetchone()
+
+        if not estrategia:
+            return {
+                "success": False,
+                "erro":
+                    "Estratégia não encontrada."
+            }
+
+        return {
+            "success": True,
+            "estrategia":
+                dict(estrategia)
+        }
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def decidir_proxima_acao_prospeccao(
+    prospecto_id
+):
+    """
+    Porta única do motor.
+
+    DIRETA:
+        gera abordagem contextual
+        e manda para aprovação.
+
+    INDIRETA:
+        prepara estratégia indireta
+        para aprovação.
+
+    HÍBRIDA:
+        primeiro prepara a ação indireta.
+        A abordagem direta só será criada
+        posteriormente após sinal real.
+    """
+
+    planejamento = (
+        planejar_estrategia_prospeccao_rede(
+            prospecto_id
+        )
+    )
+
+    if not planejamento.get("success"):
+        return planejamento
+
+    estrategia = (
+        planejamento.get("estrategia")
+        or {}
+    )
+
+    tipo = (
+        estrategia.get(
+            "tipo_estrategia"
+        )
+    )
+
+    if tipo == "direta":
+
+        abordagem = (
+            gerar_e_preparar_abordagem_prospecto(
+                prospecto_id
+            )
+        )
+
+        return {
+            "success":
+                abordagem.get(
+                    "success",
+                    False
+                ),
+            "tipo_estrategia":
+                "direta",
+            "estrategia":
+                estrategia,
+            "abordagem":
+                abordagem
+        }
+
+    resultado = (
+        preparar_acao_prospeccao_indireta(
+            estrategia.get("id")
+        )
+    )
+
+    return {
+        "success":
+            resultado.get(
+                "success",
+                False
+            ),
+        "tipo_estrategia":
+            tipo,
+        "estrategia":
+            estrategia,
+        "acao":
+            resultado
+    }
 
 
 def gerar_abordagem_contextual_prospecto(
