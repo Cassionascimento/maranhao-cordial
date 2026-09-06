@@ -2227,6 +2227,12 @@ def inicializar_banco():
                 """)
 
                 cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS categoria_contato VARCHAR(40)
+                    NOT NULL DEFAULT 'lead'
+                """)
+
+                cur.execute("""
                     CREATE INDEX IF NOT EXISTS
                     idx_interacoes_omnichannel_sender
                     ON interacoes_omnichannel(
@@ -3848,6 +3854,7 @@ def executar_atualizacao_lead_crm(acao):
         "motivo_proxima_acao",
         "valido_para_ia",
         "cadastro_teste",
+        "categoria_contato",
 
         "observacoes"
     }
@@ -3860,6 +3867,16 @@ def executar_atualizacao_lead_crm(acao):
         "negociacao",
         "cliente",
         "perdido"
+    }
+
+    categorias_contato_validas = {
+        "lead",
+        "estrategico",
+        "profissional",
+        "empresa",
+        "criador",
+        "fornecedor",
+        "parceiro"
     }
 
     atualizacoes = []
@@ -3885,6 +3902,18 @@ def executar_atualizacao_lead_crm(acao):
                     "success": False,
                     "erro":
                         "Estágio de CRM inválido."
+                }
+
+        if campo == "categoria_contato":
+            valor = str(
+                valor
+            ).strip().lower()
+
+            if valor not in categorias_contato_validas:
+                return {
+                    "success": False,
+                    "erro":
+                        "Categoria de contato inválida."
                 }
 
         if campo in {
