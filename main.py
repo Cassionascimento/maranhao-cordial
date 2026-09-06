@@ -2913,6 +2913,17 @@ def inicializar_banco():
 
                 cur.execute("""
                     ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS contato_interno BOOLEAN
+                    NOT NULL DEFAULT FALSE
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS papel_interno VARCHAR(60)
+                """)
+
+                cur.execute("""
+                    ALTER TABLE leads_crm
                     ADD COLUMN IF NOT EXISTS categoria_contato VARCHAR(40)
                     NOT NULL DEFAULT 'lead'
                 """)
@@ -11144,6 +11155,18 @@ def avaliar_potencial_expansao_rede(
 
     contato = contato or {}
 
+    if bool(contato.get("contato_interno")):
+        return {
+            "score": 0,
+            "expandir_rede": False,
+            "prioridade_rede": "baixa",
+            "profundidade_rede": 1,
+            "limite_prospectos_rede": 0,
+            "intervalo_dias": 90,
+            "motivo": "Contato interno da Maranhão Cordial. Não prospectar nem expandir rede comercial.",
+            "temas": "",
+        }
+
     categoria = str(
         contato.get("categoria_contato")
         or ""
@@ -11560,6 +11583,7 @@ def listar_contatos_para_expansao_rede(
                         expandir_rede = TRUE
                         AND valido_para_ia = TRUE
                         AND cadastro_teste = FALSE
+                        AND COALESCE(contato_interno, FALSE) = FALSE
                         AND status = 'ativo'
                         AND (
                             proxima_analise_rede_em
@@ -28049,6 +28073,7 @@ def gerar_painel_executivo_hoje():
                     WHERE
                         COALESCE(valido_para_ia, TRUE) = TRUE
                         AND COALESCE(cadastro_teste, FALSE) = FALSE
+                        AND COALESCE(contato_interno, FALSE) = FALSE
                         AND (
                             (
                                 proximo_followup IS NOT NULL
