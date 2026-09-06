@@ -26995,27 +26995,53 @@ def obter_resumo_empresarial_postgres():
 
 def carregar_contexto_briefing_executivo():
     """
-    Consolida o estado atual da empresa para geração
-    do briefing executivo da direção.
+    Contexto executivo dos últimos 3 dias.
 
-    Esta função apenas lê e organiza informações.
-    Não envia e-mail e não executa ações.
+    Princípios:
+    - fatos recentes e reais;
+    - excluir testes;
+    - evitar histórico desconexo;
+    - destacar mudanças e decisões;
+    - incluir prospecção;
+    - não repetir informação sem utilidade executiva.
+
+    Apenas leitura.
     """
 
-    resumo = obter_resumo_empresarial_postgres()
-    evidencias = carregar_evidencias_para_ia()
-    decisoes = carregar_decisoes_para_ia(limite=20)
-    acoes = carregar_acoes_para_ia(limite=30)
-    insights = carregar_insights_para_ia(limite=20)
-    memoria = carregar_memoria_decisoes_ia(limite=20)
-
     conn = get_db_connection()
+
+    contexto = {
+        "gerado_em":
+            datetime.now(timezone.utc).isoformat(),
+        "periodo_dias": 3,
+
+        "acoes_pendentes": [],
+        "eventos_recentes": [],
+
+        "prospeccao": {
+            "descobertos": 0,
+            "qualificados": 0,
+            "aguardando_aprovacao": 0,
+            "aprovados": 0,
+            "melhores_oportunidades": []
+        },
+
+        "relacionamentos_recentes": [],
+        "compras_recentes": [],
+
+        "total_acoes_pendentes": 0,
+        "total_acoes_criticas": 0
+    }
 
     try:
         with conn:
             with conn.cursor(
                 cursor_factory=RealDictCursor
             ) as cur:
+
+                # =================================================
+                # AÇÕES QUE REALMENTE AGUARDAM DECISÃO
+                # =================================================
 
                 cur.execute("""
                     SELECT
@@ -27027,7 +27053,8 @@ def carregar_contexto_briefing_executivo():
                         status,
                         criado_em
                     FROM acoes_empresariais
-                    WHERE status = 'aguardando_aprovacao'
+                    WHERE
+                        status = 'aguardando_aprovacao'
                     ORDER BY
                         CASE prioridade
                             WHEN 'critica' THEN 1
@@ -27037,34 +27064,32 @@ def carregar_contexto_briefing_executivo():
                             ELSE 5
                         END,
                         criado_em ASC
-                    LIMIT 20
+                    LIMIT 10
                 """)
 
-                pendentes = [
+                contexto["acoes_pendentes"] = [
                     dict(item)
                     for item in cur.fetchall()
                 ]
 
-                cur.execute("""
-                    SELECT COUNT(*)
-                    FROM acoes_empresariais
-                    WHERE status = 'aguardando_aprovacao'
-                """)
+                contexto["total_acoes_pendentes"] = (
+                    len(
+                        contexto[
+                            "acoes_pendentes"
+                        ]
+                    )
+                )
 
-                total_pendentes = cur.fetchone()["count"]
+                contexto["total_acoes_criticas"] = sum(
+                    1
+                    for item
+                    in contexto["acoes_pendentes"]
+                    if item.get("prioridade") == "critica"
+                )
 
-                cur.execute("""
-                    SELECT COUNT(*)
-                    FROM acoes_empresariais
-                    WHERE status = 'aguardando_aprovacao'
-                      AND prioridade = 'critica'
-                """)
-
-                total_criticas = cur.fetchone()["count"]
-
-                # -----------------------------------------
-                # EVENTOS EMPRESARIAIS RECENTES
-                # -----------------------------------------
+                # =================================================
+                # EVENTOS REAIS DOS ÚLTIMOS 3 DIAS
+                # =================================================
 
                 cur.execute("""
                     SELECT
@@ -27074,69 +27099,254 @@ def carregar_contexto_briefing_executivo():
                         importancia,
                         criado_em
                     FROM eventos_empresariais
-                    WHERE fonte = 'gmail_empresarial'
-                      AND tipo IN (
-                          'financeiro',
-                          'fiscal_contabil'
-                      )
-                    ORDER BY criado_em DESC
-                    LIMIT 20
+                    WHERE
+                        criado_em >=
+                            NOW() - INTERVAL '3 days'
+
+                        AND COALESCE(
+                            LOWER(fonte),
+                            ''
+                        ) NOT LIKE '%teste%'
+
+                        AND COALESCE(
+                            LOWER(tipo),
+                            ''
+                        ) NOT LIKE '%teste%'
+
+                        AND COALESCE(
+                            LOWER(descricao),
+                            ''
+                        ) NOT LIKE '%teste%'
+
+                    ORDER BY
+                        CASE importancia
+                            WHEN 'critica' THEN 1
+                            WHEN 'alta' THEN 2
+                            WHEN 'normal' THEN 3
+                            ELSE 4
+                        END,
+                        criado_em DESC
+
+                    LIMIT 30
                 """)
 
-                eventos_email = [
+                contexto["eventos_recentes"] = [
                     dict(item)
                     for item in cur.fetchall()
                 ]
 
+                # =================================================
+                # PROSPECÇÃO — ESTADO ATUAL
+                # =================================================
+
+                cur.execute("""
+                    SELECT
+                        status,
+                        COUNT(*) AS total
+                    FROM prospectos_rede
+                    WHERE
+                        valid_for_ai = TRUE
+                    GROUP BY status
+                """)
+
+                status_prospectos = {
+                    str(item["status"]):
+                        int(item["total"])
+                    for item in cur.fetchall()
+                }
+
+                contexto["prospeccao"]["descobertos"] = (
+                    status_prospectos.get(
+                        "descoberto",
+                        0
+                    )
+                )
+
+                contexto["prospeccao"]["qualificados"] = (
+                    status_prospectos.get(
+                        "qualificado",
+                        0
+                    )
+                )
+
+                contexto[
+                    "prospeccao"
+                ][
+                    "aguardando_aprovacao"
+                ] = status_prospectos.get(
+                    "aguardando_aprovacao_prospeccao",
+                    0
+                )
+
+                contexto["prospeccao"]["aprovados"] = (
+                    status_prospectos.get(
+                        "aprovado_para_prospeccao",
+                        0
+                    )
+                )
+
+                # =================================================
+                # MELHORES PROSPECTOS PARA A DIREÇÃO
+                # =================================================
+
+                cur.execute("""
+                    SELECT
+                        p.id,
+                        p.nome,
+                        p.empresa,
+                        p.cargo,
+                        p.categoria_sugerida,
+                        p.score_qualidade,
+                        p.classificacao_qualidade,
+                        p.motivo_qualificacao,
+                        p.potencial_relacionamento,
+                        p.status,
+                        p.fonte_url,
+
+                        e.tipo_estrategia,
+                        e.instrumento,
+                        e.objetivo,
+                        e.gancho,
+                        e.score_adequacao
+
+                    FROM prospectos_rede p
+
+                    LEFT JOIN LATERAL (
+                        SELECT
+                            tipo_estrategia,
+                            instrumento,
+                            objetivo,
+                            gancho,
+                            score_adequacao
+                        FROM estrategias_prospeccao_rede
+                        WHERE prospecto_id = p.id
+                        ORDER BY criado_em DESC
+                        LIMIT 1
+                    ) e ON TRUE
+
+                    WHERE
+                        p.valid_for_ai = TRUE
+                        AND p.score_qualidade >= 55
+                        AND p.status NOT IN (
+                            'arquivado',
+                            'rejeitado'
+                        )
+
+                    ORDER BY
+                        p.score_qualidade DESC,
+                        p.criado_em DESC
+
+                    LIMIT 5
+                """)
+
+                contexto[
+                    "prospeccao"
+                ][
+                    "melhores_oportunidades"
+                ] = [
+                    dict(item)
+                    for item in cur.fetchall()
+                ]
+
+                # =================================================
+                # RELACIONAMENTOS REALMENTE MOVIMENTADOS
+                # =================================================
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        empresa,
+                        categoria_contato,
+                        estagio,
+                        objetivo_relacionamento,
+                        ultimo_resultado,
+                        proximo_followup,
+                        ultima_interacao_em,
+                        atualizado_em
+                    FROM leads_crm
+                    WHERE
+                        COALESCE(
+                            valido_para_ia,
+                            TRUE
+                        ) = TRUE
+
+                        AND COALESCE(
+                            cadastro_teste,
+                            FALSE
+                        ) = FALSE
+
+                        AND (
+                            atualizado_em >=
+                                NOW() - INTERVAL '3 days'
+                            OR ultima_interacao_em >=
+                                NOW() - INTERVAL '3 days'
+                        )
+
+                    ORDER BY
+                        GREATEST(
+                            COALESCE(
+                                atualizado_em,
+                                '-infinity'
+                            ),
+                            COALESCE(
+                                ultima_interacao_em,
+                                '-infinity'
+                            )
+                        ) DESC
+
+                    LIMIT 15
+                """)
+
+                contexto[
+                    "relacionamentos_recentes"
+                ] = [
+                    dict(item)
+                    for item in cur.fetchall()
+                ]
+
+                # =================================================
+                # COMPRAS REAIS DO PERÍODO
+                # =================================================
+
+                cur.execute("""
+                    SELECT
+                        c.nome,
+                        c.empresa,
+                        cr.origem,
+                        cr.valor,
+                        cr.quantidade,
+                        cr.status,
+                        cr.comprado_em
+                    FROM compras_relacionamento cr
+
+                    LEFT JOIN leads_crm c
+                        ON c.id = cr.contato_id
+
+                    WHERE
+                        cr.comprado_em >=
+                            NOW() - INTERVAL '3 days'
+
+                        AND COALESCE(
+                            LOWER(cr.status),
+                            ''
+                        ) NOT LIKE '%teste%'
+
+                    ORDER BY
+                        cr.comprado_em DESC
+
+                    LIMIT 20
+                """)
+
+                contexto["compras_recentes"] = [
+                    dict(item)
+                    for item in cur.fetchall()
+                ]
+
+        return contexto
+
     finally:
         conn.close()
-
-    contexto_eventos_email = ""
-
-    if eventos_email:
-        linhas_eventos = [
-            "\nEVENTOS EMPRESARIAIS RECEBIDOS POR EMAIL:\n"
-        ]
-
-        for evento in eventos_email:
-            linhas_eventos.append(
-                "- Área: "
-                + str(evento.get("tipo") or "")
-                + " | Importância: "
-                + str(evento.get("importancia") or "normal")
-                + " | Data: "
-                + str(evento.get("criado_em") or "")
-                + "\n  "
-                + str(evento.get("descricao") or "")[:1200]
-                + "\n"
-            )
-
-        contexto_eventos_email = "".join(
-            linhas_eventos
-        )
-
-    contexto_textual = (
-        (evidencias.get("contexto") or "")
-        + (decisoes.get("contexto") or "")
-        + (acoes.get("contexto") or "")
-        + (insights.get("contexto") or "")
-        + (memoria.get("contexto") or "")
-        + contexto_eventos_email
-    )
-
-    return {
-        "gerado_em": datetime.now(timezone.utc).isoformat(),
-        "resumo": resumo,
-        "total_acoes_pendentes": total_pendentes,
-        "total_acoes_criticas": total_criticas,
-        "acoes_pendentes": pendentes,
-        "contexto_textual": contexto_textual,
-        "total_memorias_decisao":
-            memoria.get("total_memorias", 0),
-        "total_decisoes_ativas":
-            decisoes.get("total_decisoes", 0)
-    }
-
 
 
 # =====================================================
@@ -27145,7 +27355,16 @@ def carregar_contexto_briefing_executivo():
 
 def gerar_briefing_executivo_ia():
     """
-    Gera um briefing executivo curto para a direção.
+    Gera briefing executivo dos últimos 3 dias.
+
+    Foco:
+    - mudanças reais;
+    - decisões;
+    - prospecção;
+    - relacionamentos;
+    - produção/fornecedores;
+    - financeiro;
+    - próximas prioridades.
 
     Não envia e-mail e não executa ações.
     """
@@ -27159,16 +27378,7 @@ def gerar_briefing_executivo_ia():
     dados = carregar_contexto_briefing_executivo()
 
     contexto_estruturado = json.dumps(
-        {
-            "gerado_em": dados["gerado_em"],
-            "resumo": dados["resumo"],
-            "total_acoes_pendentes":
-                dados["total_acoes_pendentes"],
-            "total_acoes_criticas":
-                dados["total_acoes_criticas"],
-            "acoes_pendentes":
-                dados["acoes_pendentes"]
-        },
+        dados,
         ensure_ascii=False,
         default=str
     )
@@ -27179,11 +27389,13 @@ def gerar_briefing_executivo_ia():
         text={
             "format": {
                 "type": "json_schema",
-                "name": "briefing_executivo_empresarial",
+                "name":
+                    "briefing_executivo_maranhao_cordial",
                 "strict": True,
                 "schema": {
                     "type": "object",
                     "properties": {
+
                         "situacao_geral": {
                             "type": "string",
                             "enum": [
@@ -27192,34 +27404,52 @@ def gerar_briefing_executivo_ia():
                                 "critica"
                             ]
                         },
-                        "resumo_executivo": {
+
+                        "situacao_resumo": {
                             "type": "string"
                         },
-                        "pontos_atencao": {
+
+                        "o_que_aconteceu": {
                             "type": "array",
                             "maxItems": 5,
                             "items": {
                                 "type": "string"
                             }
                         },
-                        "mudancas_relevantes": {
+
+                        "precisa_atencao": {
                             "type": "array",
                             "maxItems": 5,
                             "items": {
                                 "type": "string"
                             }
                         },
-                        "recomendacao_ia": {
-                            "type": "string"
-                        },
-                        "decisoes_pendentes": {
+
+                        "comercial_relacionamentos": {
                             "type": "array",
                             "maxItems": 5,
                             "items": {
                                 "type": "string"
                             }
                         },
-                        "sem_necessidade_acao": {
+
+                        "producao_fornecedores": {
+                            "type": "array",
+                            "maxItems": 5,
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+
+                        "financeiro": {
+                            "type": "array",
+                            "maxItems": 5,
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+
+                        "proximos_3_dias": {
                             "type": "array",
                             "maxItems": 5,
                             "items": {
@@ -27227,15 +27457,18 @@ def gerar_briefing_executivo_ia():
                             }
                         }
                     },
+
                     "required": [
                         "situacao_geral",
-                        "resumo_executivo",
-                        "pontos_atencao",
-                        "mudancas_relevantes",
-                        "recomendacao_ia",
-                        "decisoes_pendentes",
-                        "sem_necessidade_acao"
+                        "situacao_resumo",
+                        "o_que_aconteceu",
+                        "precisa_atencao",
+                        "comercial_relacionamentos",
+                        "producao_fornecedores",
+                        "financeiro",
+                        "proximos_3_dias"
                     ],
+
                     "additionalProperties": False
                 }
             }
@@ -27245,29 +27478,58 @@ def gerar_briefing_executivo_ia():
             "Você é o assessor executivo privado da direção "
             "da Maranhão Cordial. "
 
-            "Produza um briefing extremamente objetivo, útil "
-            "e fácil de ler em menos de dois minutos. "
+            "O briefing cobre prioritariamente os últimos "
+            "3 dias e deve ser lido em menos de dois minutos. "
 
-            "Priorize somente o que realmente merece atenção "
-            "da direção. Não sobrecarregue o usuário com "
-            "informações rotineiras. "
+            "Sua função não é reproduzir o banco de dados. "
+            "Sua função é explicar o que mudou, o que importa "
+            "e o que exige decisão. "
+
+            "REGRA CENTRAL: se uma informação não mudou, "
+            "não exige decisão e não altera a situação da "
+            "empresa, não a inclua. "
+
+            "Não repita métricas acumuladas apenas porque "
+            "existem. "
+
+            "Não apresente dados de teste, cadastros de teste, "
+            "testes de API, logs, mensagens técnicas ou "
+            "eventos usados apenas para validar o sistema. "
 
             "Use exclusivamente as informações fornecidas. "
-            "Não invente vendas, receitas, clientes, problemas, "
-            "resultados, causas ou urgências. "
+            "Não invente vendas, clientes, receitas, custos, "
+            "respostas, problemas, prazos ou resultados. "
 
-            "Ausência de informação não significa problema. "
-            "Pendência não significa automaticamente risco. "
+            "Em o_que_aconteceu, registre somente acontecimentos "
+            "empresariais concretos e relevantes. "
 
-            "Diferencie fatos, insights e recomendações. "
-            "Quando houver incerteza, preserve a incerteza. "
+            "Em precisa_atencao, coloque somente decisões, "
+            "riscos, pendências ou follow-ups que merecem ação "
+            "da direção. "
 
-            "Uma ação aguardando aprovação deve aparecer em "
-            "decisoes_pendentes apenas quando for relevante "
-            "para a direção. "
+            "Em comercial_relacionamentos, priorize avanços "
+            "de relacionamento, respostas, mudança de estágio, "
+            "degustação, negociação, cliente, recompra e "
+            "follow-up. "
+
+            "Em producao_fornecedores, use somente fatos "
+            "relacionados a fábrica, produção, embalagem, "
+            "ingredientes, fornecedores, qualidade, prazo "
+            "ou logística. Se não houver fato relevante, "
+            "retorne lista vazia. "
+
+            "Em financeiro, registre somente movimentações "
+            "ou acontecimentos financeiros realmente presentes "
+            "nos dados. Se não houver, retorne lista vazia. "
+
+            "Em proximos_3_dias, escolha de 1 a 5 prioridades "
+            "práticas, em ordem de importância. "
+
+            "Não crie preenchimento artificial para seções "
+            "sem informação. Use lista vazia. "
 
             "Classifique situacao_geral como critica somente "
-            "quando houver evidência concreta de questão crítica. "
+            "com evidência concreta de questão crítica. "
 
             "Não execute nenhuma ação. "
             "Não autorize pagamentos, contratos, preços, "
@@ -27280,10 +27542,9 @@ def gerar_briefing_executivo_ia():
         ),
 
         input=(
-            "DADOS ESTRUTURADOS DO ESTADO ATUAL:\n"
+            "DADOS EMPRESARIAIS DOS ÚLTIMOS 3 DIAS "
+            "E ESTADO ATUAL RELEVANTE:\n"
             + contexto_estruturado
-            + "\n\nCONTEXTO EMPRESARIAL CONSOLIDADO:\n"
-            + dados["contexto_textual"]
         )
     )
 
@@ -27299,6 +27560,7 @@ def gerar_briefing_executivo_ia():
 
     try:
         briefing = json.loads(texto_bruto)
+
     except Exception as erro:
         raise ValueError(
             "A IA retornou briefing em formato inválido."
@@ -27308,13 +27570,18 @@ def gerar_briefing_executivo_ia():
         "success": True,
         "gerado_em": dados["gerado_em"],
         "briefing": briefing,
-        "indicadores": dados["resumo"],
+        "dados_briefing": dados,
         "total_acoes_pendentes":
-            dados["total_acoes_pendentes"],
+            dados.get(
+                "total_acoes_pendentes",
+                0
+            ),
         "total_acoes_criticas":
-            dados["total_acoes_criticas"]
+            dados.get(
+                "total_acoes_criticas",
+                0
+            )
     }
-
 
 
 # =====================================================
@@ -27377,17 +27644,34 @@ def enviar_briefing_executivo_email(forcar=False):
         return resultado
 
     briefing = resultado.get("briefing") or {}
-    indicadores = resultado.get("indicadores") or {}
+
+    dados_briefing = (
+        resultado.get("dados_briefing")
+        or {}
+    )
+
+    prospeccao = (
+        dados_briefing.get("prospeccao")
+        or {}
+    )
 
     situacao = str(
-        briefing.get("situacao_geral") or "estavel"
+        briefing.get("situacao_geral")
+        or "estavel"
     ).strip().upper()
 
-    def formatar_lista(itens):
-        itens = itens or []
+    def formatar_lista(
+        itens,
+        vazio=None
+    ):
+        itens = [
+            str(item).strip()
+            for item in (itens or [])
+            if str(item).strip()
+        ]
 
         if not itens:
-            return "Nenhum ponto relevante identificado."
+            return vazio
 
         return "\n".join(
             f"{indice}. {item}"
@@ -27397,53 +27681,263 @@ def enviar_briefing_executivo_email(forcar=False):
             )
         )
 
-    valor_pedidos = (
-        int(
-            indicadores.get(
-                "valor_pedidos_centavos",
-                0
-            ) or 0
-        ) / 100
+    def adicionar_secao(
+        partes,
+        titulo,
+        itens
+    ):
+        conteudo = formatar_lista(itens)
+
+        if not conteudo:
+            return
+
+        partes.append(
+            titulo
+            + "\n"
+            + conteudo
+            + "\n"
+        )
+
+    partes = [
+        "MARANHÃO CORDIAL — BRIEFING EXECUTIVO\n",
+        "Últimos 3 dias\n",
+        "=====================================\n\n",
+
+        f"SITUAÇÃO: {situacao}\n",
+        (
+            str(
+                briefing.get(
+                    "situacao_resumo"
+                )
+                or ""
+            ).strip()
+            + "\n\n"
+        )
+    ]
+
+    adicionar_secao(
+        partes,
+        "O QUE ACONTECEU",
+        briefing.get(
+            "o_que_aconteceu"
+        )
     )
 
-    corpo = (
-        "MARANHÃO CORDIAL — BRIEFING EXECUTIVO\n"
-        "=====================================\n\n"
+    adicionar_secao(
+        partes,
+        "PRECISA DA SUA ATENÇÃO",
+        briefing.get(
+            "precisa_atencao"
+        )
+    )
 
-        f"SITUAÇÃO GERAL: {situacao}\n\n"
+    # =====================================================
+    # PROSPECÇÃO
+    # =====================================================
 
-        "RESUMO EXECUTIVO\n"
-        f"{briefing.get('resumo_executivo') or 'Sem resumo disponível.'}\n\n"
+    melhores = (
+        prospeccao.get(
+            "melhores_oportunidades"
+        )
+        or []
+    )
 
-        "O QUE MERECE SUA ATENÇÃO\n"
-        f"{formatar_lista(briefing.get('pontos_atencao'))}\n\n"
+    tem_prospeccao = any([
+        prospeccao.get("descobertos"),
+        prospeccao.get("qualificados"),
+        prospeccao.get(
+            "aguardando_aprovacao"
+        ),
+        prospeccao.get("aprovados"),
+        melhores
+    ])
 
-        "MUDANÇAS RELEVANTES\n"
-        f"{formatar_lista(briefing.get('mudancas_relevantes'))}\n\n"
+    if tem_prospeccao:
 
-        "RECOMENDAÇÃO DA IA\n"
-        f"{briefing.get('recomendacao_ia') or 'Nenhuma recomendação relevante.'}\n\n"
+        partes.append(
+            "PROSPECÇÃO\n"
+        )
 
-        "DECISÕES QUE AGUARDAM VOCÊ\n"
-        f"{formatar_lista(briefing.get('decisoes_pendentes'))}\n\n"
+        partes.append(
+            "Descobertos: "
+            + str(
+                prospeccao.get(
+                    "descobertos",
+                    0
+                )
+            )
+            + "\n"
+        )
 
-        "INDICADORES PRINCIPAIS\n"
-        f"Pedidos: {indicadores.get('total_pedidos', 0)}\n"
-        f"Valor registrado em pedidos: R$ {valor_pedidos:,.2f}\n"
-        f"Contatos B2B: {indicadores.get('total_b2b', 0)}\n"
-        f"Solicitações de degustação: {indicadores.get('total_degustacoes', 0)}\n"
-        f"Atendimentos SAC: {indicadores.get('total_atendimentos', 0)}\n"
-        f"Ações aguardando decisão: {resultado.get('total_acoes_pendentes', 0)}\n"
-        f"Ações críticas: {resultado.get('total_acoes_criticas', 0)}\n\n"
+        partes.append(
+            "Qualificados: "
+            + str(
+                prospeccao.get(
+                    "qualificados",
+                    0
+                )
+            )
+            + "\n"
+        )
 
-        "SEM NECESSIDADE DE AÇÃO\n"
-        f"{formatar_lista(briefing.get('sem_necessidade_acao'))}\n\n"
+        partes.append(
+            "Aguardando aprovação: "
+            + str(
+                prospeccao.get(
+                    "aguardando_aprovacao",
+                    0
+                )
+            )
+            + "\n"
+        )
 
+        partes.append(
+            "Aprovados: "
+            + str(
+                prospeccao.get(
+                    "aprovados",
+                    0
+                )
+            )
+            + "\n"
+        )
+
+        if melhores:
+
+            partes.append(
+                "\nMelhores oportunidades:\n"
+            )
+
+            for item in melhores[:5]:
+
+                nome = (
+                    item.get("nome")
+                    or "Nome não informado"
+                )
+
+                cargo = (
+                    item.get("cargo")
+                    or item.get(
+                        "categoria_sugerida"
+                    )
+                    or ""
+                )
+
+                empresa = (
+                    item.get("empresa")
+                    or ""
+                )
+
+                score = (
+                    item.get(
+                        "score_qualidade"
+                    )
+                    or 0
+                )
+
+                tipo = (
+                    item.get(
+                        "tipo_estrategia"
+                    )
+                    or ""
+                )
+
+                instrumento = (
+                    item.get(
+                        "instrumento"
+                    )
+                    or ""
+                )
+
+                linha = (
+                    "• "
+                    + str(nome)
+                )
+
+                complemento = " — ".join(
+                    parte
+                    for parte in [
+                        str(cargo).strip(),
+                        str(empresa).strip()
+                    ]
+                    if parte
+                )
+
+                if complemento:
+                    linha += (
+                        " — "
+                        + complemento
+                    )
+
+                linha += (
+                    " — "
+                    + str(score)
+                    + "/100"
+                )
+
+                partes.append(
+                    linha + "\n"
+                )
+
+                recomendacao = " / ".join(
+                    parte
+                    for parte in [
+                        str(tipo).strip(),
+                        str(instrumento).strip()
+                    ]
+                    if parte
+                )
+
+                if recomendacao:
+                    partes.append(
+                        "  IA recomenda: "
+                        + recomendacao
+                        + "\n"
+                    )
+
+        partes.append("\n")
+
+    adicionar_secao(
+        partes,
+        "COMERCIAL E RELACIONAMENTOS",
+        briefing.get(
+            "comercial_relacionamentos"
+        )
+    )
+
+    adicionar_secao(
+        partes,
+        "PRODUÇÃO / FORNECEDORES",
+        briefing.get(
+            "producao_fornecedores"
+        )
+    )
+
+    adicionar_secao(
+        partes,
+        "FINANCEIRO",
+        briefing.get(
+            "financeiro"
+        )
+    )
+
+    adicionar_secao(
+        partes,
+        "PRÓXIMOS 3 DIAS",
+        briefing.get(
+            "proximos_3_dias"
+        )
+    )
+
+    partes.append(
         "— Maranhão Cordial IA Empresarial\n"
     )
 
+    corpo = "\n".join(partes)
+
     assunto = (
-        f"Maranhão Cordial — Briefing Executivo — {situacao}"
+        "Maranhão Cordial — Briefing 3 dias — "
+        + situacao
     )
 
     envio = gmail_enviar_email(
