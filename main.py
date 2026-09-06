@@ -27989,15 +27989,21 @@ def gerar_painel_executivo_hoje():
                         status,
                         criado_em
                     FROM acoes_empresariais
-                    WHERE status = 'aguardando_aprovacao'
+                    WHERE
+                        status = 'aguardando_aprovacao'
+                        AND (
+                            prioridade = 'critica'
+                            OR criado_em >= NOW() - INTERVAL '3 days'
+                        )
                     ORDER BY
                         CASE prioridade
+                            WHEN 'critica' THEN 0
                             WHEN 'alta' THEN 1
                             WHEN 'media' THEN 2
                             ELSE 3
                         END,
-                        criado_em ASC
-                    LIMIT 20
+                        criado_em DESC
+                    LIMIT 10
                     """
                 )
 
