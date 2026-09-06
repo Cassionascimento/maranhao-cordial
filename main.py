@@ -7190,6 +7190,154 @@ def processar_descoberta_rede_publica(
                             )
                     }
 
+        # -----------------------------------------
+        # RECONCILIAÇÃO COM CONTATO CENTRAL
+        # -----------------------------------------
+
+        contato_existente = (
+            localizar_contato_central_existente(
+                nome=descoberta.get(
+                    "nome"
+                ),
+                empresa=descoberta.get(
+                    "empresa"
+                ),
+                email=descoberta.get(
+                    "email_publico"
+                ),
+                telefone=descoberta.get(
+                    "telefone_publico"
+                ),
+                instagram=descoberta.get(
+                    "instagram_publico"
+                )
+            )
+        )
+
+        if not contato_existente.get(
+            "success"
+        ):
+            return contato_existente
+
+        if contato_existente.get(
+            "encontrado"
+        ):
+            contato_destino = (
+                contato_existente.get(
+                    "contato"
+                )
+                or {}
+            )
+
+            contato_destino_id = (
+                contato_destino.get(
+                    "id"
+                )
+            )
+
+            resultado_relacao = (
+                registrar_relacionamento_rede(
+                    contato_origem_id=
+                        descoberta.get(
+                            "contato_origem_id"
+                        ),
+                    contato_destino_id=
+                        contato_destino_id,
+                    nome_externo=
+                        descoberta.get(
+                            "nome"
+                        ),
+                    empresa_externa=
+                        descoberta.get(
+                            "empresa"
+                        ),
+                    tipo_relacao=
+                        "descoberta_publica",
+                    tema_relacao=
+                        descoberta.get(
+                            "tema_interesse"
+                        ),
+                    fonte_tipo=
+                        descoberta.get(
+                            "fonte_tipo"
+                        ),
+                    fonte_url=
+                        descoberta.get(
+                            "fonte_url"
+                        ),
+                    evidencia=
+                        descoberta.get(
+                            "evidencia"
+                        ),
+                    confianca=
+                        descoberta.get(
+                            "confianca"
+                        ),
+                    grau_separacao=1,
+                    relevancia_estrategica=
+                        descoberta.get(
+                            "motivo_estrategico"
+                        )
+                )
+            )
+
+            if not resultado_relacao.get(
+                "success"
+            ):
+                return resultado_relacao
+
+            relacionamento = (
+                resultado_relacao.get(
+                    "relacionamento"
+                )
+                or {}
+            )
+
+            conn = get_db_connection()
+
+            try:
+                with conn:
+                    with conn.cursor() as cur:
+
+                        cur.execute("""
+                            UPDATE
+                                descobertas_rede_publica
+                            SET
+                                processado = TRUE,
+                                prospecto_rede_id = NULL
+                            WHERE id = %s
+                        """, (
+                            descoberta_id,
+                        ))
+
+            finally:
+                conn.close()
+
+            return {
+                "success": True,
+                "contato_existente": True,
+                "contato_central_id":
+                    str(contato_destino_id)
+                    if contato_destino_id
+                    else None,
+                "criterio_identidade":
+                    contato_existente.get(
+                        "criterio_identidade"
+                    ),
+                "relacionamento_rede_id":
+                    str(
+                        relacionamento.get(
+                            "id"
+                        )
+                    )
+                    if relacionamento.get(
+                        "id"
+                    )
+                    else None,
+                "prospecto_id": None
+            }
+
+
         resultado = registrar_prospecto_rede(
             contato_origem_id=
                 descoberta.get(
