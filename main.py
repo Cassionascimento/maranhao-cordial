@@ -33330,6 +33330,223 @@ def promover_identidade_externa_para_contato(
         conn.close()
 
 
+
+def vincular_interacoes_historicas_por_identidade_externa(
+    identidade_id
+):
+    """
+    Vincula interações omnichannel históricas a um
+    Contact Central já confirmado por identidade externa.
+
+    Segurança:
+    - exige identidade externa vinculada;
+    - exige contato central existente;
+    - vincula somente interações com lead_id vazio;
+    - nunca troca vínculo já existente;
+    - não cria contato;
+    - não envia mensagem;
+    - não inicia prospecção.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        canal,
+                        identificador_externo,
+                        contato_central_id,
+                        status
+                    FROM identidades_externas_contato
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    identidade_id,
+                ))
+
+                identidade = cur.fetchone()
+
+                if not identidade:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Identidade externa não encontrada."
+                    }
+
+                contato_id = identidade.get(
+                    "contato_central_id"
+                )
+
+                if (
+                    not contato_id
+                    or identidade.get("status")
+                    != "vinculada"
+                ):
+                    return {
+                        "success": False,
+                        "erro":
+                            "Identidade ainda não está vinculada "
+                            "a um Contact Central."
+                    }
+
+                canal = str(
+                    identidade.get("canal")
+                    or ""
+                ).strip().lower()
+
+                identificador = str(
+                    identidade.get(
+                        "identificador_externo"
+                    )
+                    or ""
+                ).strip()
+
+                if not canal or not identificador:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Identidade externa incompleta."
+                    }
+
+                cur.execute("""
+                    SELECT
+                        COUNT(*) AS total,
+                        COUNT(*) FILTER (
+                            WHERE lead_id IS NULL
+                        ) AS sem_vinculo,
+                        COUNT(*) FILTER (
+                            WHERE lead_id = %s
+                        ) AS ja_vinculadas,
+                        MAX(criado_em) AS ultima_interacao
+                    FROM interacoes_omnichannel
+                    WHERE
+                        LOWER(canal) = LOWER(%s)
+                        AND sender_id = %s
+                """, (
+                    contato_id,
+                    canal,
+                    identificador
+                ))
+
+                antes = cur.fetchone() or {}
+
+                total = int(
+                    antes.get("total")
+                    or 0
+                )
+
+                if total <= 0:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Nenhuma interação histórica encontrada."
+                    }
+
+                cur.execute("""
+                    UPDATE interacoes_omnichannel
+                    SET
+                        lead_id = %s,
+                        atualizado_em = NOW()
+                    WHERE
+                        LOWER(canal) = LOWER(%s)
+                        AND sender_id = %s
+                        AND lead_id IS NULL
+                    RETURNING id
+                """, (
+                    contato_id,
+                    canal,
+                    identificador
+                ))
+
+                vinculadas_agora = len(
+                    cur.fetchall()
+                )
+
+                cur.execute("""
+                    SELECT
+                        MAX(criado_em) AS ultima_interacao
+                    FROM interacoes_omnichannel
+                    WHERE
+                        LOWER(canal) = LOWER(%s)
+                        AND sender_id = %s
+                        AND lead_id = %s
+                """, (
+                    canal,
+                    identificador,
+                    contato_id
+                ))
+
+                linha_ultima = (
+                    cur.fetchone()
+                    or {}
+                )
+
+                ultima_interacao = (
+                    linha_ultima.get(
+                        "ultima_interacao"
+                    )
+                )
+
+                if ultima_interacao:
+                    cur.execute("""
+                        UPDATE leads_crm
+                        SET
+                            ultima_interacao_em =
+                                CASE
+                                    WHEN ultima_interacao_em IS NULL
+                                        THEN %s
+                                    WHEN ultima_interacao_em < %s
+                                        THEN %s
+                                    ELSE ultima_interacao_em
+                                END,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        ultima_interacao,
+                        ultima_interacao,
+                        ultima_interacao,
+                        contato_id
+                    ))
+
+                return {
+                    "success": True,
+                    "identidade_id":
+                        str(identidade_id),
+                    "contato_central_id":
+                        str(contato_id),
+                    "canal":
+                        canal,
+                    "total_interacoes":
+                        total,
+                    "vinculadas_agora":
+                        vinculadas_agora,
+                    "ja_vinculadas_antes":
+                        int(
+                            antes.get(
+                                "ja_vinculadas"
+                            )
+                            or 0
+                        ),
+                    "ultima_interacao_em":
+                        ultima_interacao
+                }
+
+    except Exception as erro:
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
 def enriquecer_contato_por_identidade_externa(
     identidade_id
 ):
