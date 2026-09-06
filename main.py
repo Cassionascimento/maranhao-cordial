@@ -15446,8 +15446,38 @@ def finalizar_pedido_pago(codigo, origem_pagamento):
 
     pedido = PEDIDOS.get(codigo)
 
+    # Fallback persistente:
+    # após reinício do Render, PEDIDOS pode estar vazio,
+    # mas o pedido continua salvo no PostgreSQL.
     if not pedido:
-        return False
+        pedido_db = buscar_pedido_postgres(codigo)
+
+        if not pedido_db:
+            return False
+
+        pedido = {
+            "code": pedido_db.get("codigo"),
+            "cliente_nome": pedido_db.get("cliente_nome"),
+            "cliente_email": pedido_db.get("cliente_email"),
+            "cliente_whatsapp": pedido_db.get("cliente_whatsapp"),
+            "cpf_cnpj": pedido_db.get("cpf_cnpj"),
+            "address": pedido_db.get("endereco"),
+            "quantity": pedido_db.get("quantidade"),
+            "amount": pedido_db.get("valor_centavos"),
+            "status": pedido_db.get("status"),
+            "payment_origin": pedido_db.get("payment_origin"),
+            "c6_txid": pedido_db.get("c6_txid"),
+            "c6_status": pedido_db.get("c6_status"),
+            "pagarme_id": pedido_db.get("pagarme_id"),
+            "delivery": {
+                "provider": pedido_db.get("transportadora"),
+                "status": pedido_db.get("status_entrega"),
+                "tracking_code": pedido_db.get("tracking_code"),
+                "tracking_url": pedido_db.get("tracking_url")
+            }
+        }
+
+        PEDIDOS[codigo] = pedido
 
     # Idempotência operacional:
     # pedido já pago não repete logística/persistência,
