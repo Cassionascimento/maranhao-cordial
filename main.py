@@ -32932,6 +32932,404 @@ def analisar_reconciliacao_identidades_externas(
         conn.close()
 
 
+
+def promover_identidade_externa_para_contato(
+    identidade_id
+):
+    """
+    Promove uma identidade externa com relacionamento
+    real para o Contact Central.
+
+    Segurança:
+    - exige identidade resolvida;
+    - exige interação histórica real;
+    - não funde por nome parecido;
+    - tenta localizar contato existente por identidade forte;
+    - cria contato somente se não houver correspondência forte;
+    - não envia mensagens;
+    - não inicia prospecção.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM identidades_externas_contato
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    identidade_id,
+                ))
+
+                identidade = cur.fetchone()
+
+                if not identidade:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Identidade externa não encontrada."
+                    }
+
+                if identidade.get(
+                    "contato_central_id"
+                ):
+                    return {
+                        "success": True,
+                        "ja_vinculada": True,
+                        "contato_central_id":
+                            str(
+                                identidade.get(
+                                    "contato_central_id"
+                                )
+                            )
+                    }
+
+                canal = str(
+                    identidade.get("canal")
+                    or ""
+                ).strip().lower()
+
+                identificador = str(
+                    identidade.get(
+                        "identificador_externo"
+                    )
+                    or ""
+                ).strip()
+
+                username = str(
+                    identidade.get(
+                        "username_publico"
+                    )
+                    or ""
+                ).strip().lstrip("@")
+
+                nome = str(
+                    identidade.get(
+                        "nome_exibicao"
+                    )
+                    or ""
+                ).strip()
+
+                if not canal or not identificador:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Identidade externa incompleta."
+                    }
+
+                if canal == "instagram" and not username:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Instagram público não resolvido."
+                    }
+
+                cur.execute("""
+                    SELECT
+                        COUNT(*) AS quantidade
+                    FROM interacoes_omnichannel
+                    WHERE
+                        LOWER(canal) = LOWER(%s)
+                        AND sender_id = %s
+                        AND COALESCE(arquivado, FALSE) = FALSE
+                """, (
+                    canal,
+                    identificador
+                ))
+
+                linha_interacoes = cur.fetchone()
+
+                quantidade_interacoes = int(
+                    (
+                        linha_interacoes
+                        or {}
+                    ).get(
+                        "quantidade"
+                    )
+                    or 0
+                )
+
+                if quantidade_interacoes <= 0:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Nenhuma interação histórica real encontrada."
+                    }
+
+        contato_existente = None
+
+        if canal == "instagram" and username:
+
+            localizado = (
+                localizar_contato_central_existente(
+                    instagram=username
+                )
+            )
+
+            if (
+                localizado
+                and
+                localizado.get("success")
+                and
+                localizado.get("contato")
+            ):
+                contato_existente = (
+                    localizado.get("contato")
+                )
+
+        if contato_existente:
+
+            contato_id = (
+                contato_existente.get("id")
+            )
+
+            resultado_identidade = (
+                registrar_identidade_externa_contato(
+                    canal=canal,
+                    identificador_externo=
+                        identificador,
+                    username_publico=
+                        username,
+                    nome_exibicao=
+                        nome,
+                    contato_central_id=
+                        contato_id,
+                    status="vinculada",
+                    criterio_vinculo=
+                        "identidade_forte_existente",
+                    confianca=100
+                )
+            )
+
+            if not resultado_identidade.get(
+                "success"
+            ):
+                return {
+                    "success": False,
+                    "erro":
+                        resultado_identidade.get(
+                            "erro"
+                        )
+                }
+
+            return {
+                "success": True,
+                "criado": False,
+                "reconciliado": True,
+                "quantidade_interacoes":
+                    quantidade_interacoes,
+                "contato":
+                    contato_existente
+            }
+
+        categoria = "profissional"
+
+        conn_prospecto = (
+            get_db_connection()
+        )
+
+        try:
+            with conn_prospecto:
+                with conn_prospecto.cursor(
+                    cursor_factory=RealDictCursor
+                ) as cur:
+
+                    cur.execute("""
+                        SELECT
+                            nome,
+                            empresa,
+                            categoria_sugerida,
+                            instagram_publico,
+                            confianca
+                        FROM prospectos_rede
+                        WHERE
+                            instagram_publico IS NOT NULL
+                            AND (
+                                LOWER(
+                                    TRIM(
+                                        LEADING '@'
+                                        FROM instagram_publico
+                                    )
+                                ) = LOWER(%s)
+                                OR LOWER(
+                                    instagram_publico
+                                ) LIKE LOWER(%s)
+                            )
+                        ORDER BY
+                            confianca DESC NULLS LAST,
+                            criado_em DESC
+                        LIMIT 1
+                    """, (
+                        username,
+                        '%@' + username + '%'
+                    ))
+
+                    prospecto = cur.fetchone()
+
+        finally:
+            conn_prospecto.close()
+
+        empresa = None
+
+        if prospecto:
+            nome = (
+                prospecto.get("nome")
+                or nome
+            )
+
+            empresa = (
+                prospecto.get("empresa")
+            )
+
+            categoria_sugerida = str(
+                prospecto.get(
+                    "categoria_sugerida"
+                )
+                or ""
+            ).strip().lower()
+
+            categorias_permitidas = {
+                "lead",
+                "consumidor",
+                "bartender",
+                "restaurante",
+                "bar",
+                "hotel",
+                "empresa",
+                "distribuidor",
+                "revendedor",
+                "fornecedor",
+                "fabrica",
+                "profissional",
+                "criador",
+                "influenciador",
+                "imprensa",
+                "jornalista",
+                "investidor",
+                "parceiro",
+                "estrategico"
+            }
+
+            if (
+                categoria_sugerida
+                in categorias_permitidas
+            ):
+                categoria = (
+                    categoria_sugerida
+                )
+
+        resultado_contato = (
+            obter_ou_criar_contato_central(
+                nome=nome or username,
+                empresa=empresa,
+                instagram=username,
+                canal="instagram",
+                origem="instagram_historico",
+                categoria_contato=categoria,
+                interesse="relacionamento",
+                observacoes=(
+                    "Contato identificado a partir "
+                    "de interação histórica real no "
+                    "Instagram. "
+                    f"Interações encontradas: "
+                    f"{quantidade_interacoes}."
+                )
+            )
+        )
+
+        if not resultado_contato.get(
+            "success"
+        ):
+            return {
+                "success": False,
+                "erro":
+                    resultado_contato.get(
+                        "erro"
+                    )
+            }
+
+        contato = (
+            resultado_contato.get(
+                "contato"
+            )
+        )
+
+        contato_id = (
+            contato.get("id")
+            if contato
+            else None
+        )
+
+        if not contato_id:
+            return {
+                "success": False,
+                "erro":
+                    "Contact Central não retornou ID."
+            }
+
+        resultado_identidade = (
+            registrar_identidade_externa_contato(
+                canal=canal,
+                identificador_externo=
+                    identificador,
+                username_publico=
+                    username,
+                nome_exibicao=
+                    nome,
+                contato_central_id=
+                    contato_id,
+                status="vinculada",
+                criterio_vinculo=
+                    "interacao_historica_confirmada",
+                confianca=95
+            )
+        )
+
+        if not resultado_identidade.get(
+            "success"
+        ):
+            return {
+                "success": False,
+                "erro":
+                    resultado_identidade.get(
+                        "erro"
+                    )
+            }
+
+        return {
+            "success": True,
+            "criado":
+                resultado_contato.get(
+                    "criado"
+                ),
+            "reconciliado": False,
+            "quantidade_interacoes":
+                quantidade_interacoes,
+            "contato":
+                contato,
+            "identidade":
+                resultado_identidade.get(
+                    "identidade"
+                )
+        }
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
 def enriquecer_contato_por_identidade_externa(
     identidade_id
 ):
