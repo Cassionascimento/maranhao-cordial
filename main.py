@@ -32420,6 +32420,427 @@ def registrar_identidade_externa_contato(
     finally:
         conn.close()
 
+
+def analisar_reconciliacao_identidades_externas(
+    canal="instagram",
+    limite=100
+):
+    """
+    Analisa possíveis reconciliações entre identidades
+    externas e o Contact Central.
+
+    Somente leitura:
+    - não cria contatos;
+    - não vincula identidades;
+    - não funde pessoas;
+    - não altera interações.
+
+    Regras:
+    - vínculo já existente é preservado;
+    - Instagram público exatamente igual pode ser
+      classificado como correspondência exata;
+    - nome sozinho nunca autoriza vínculo;
+    - prospectos servem apenas como evidência.
+    """
+
+    def normalizar_instagram(valor):
+        valor = str(valor or "").strip().lower()
+
+        for prefixo in (
+            "https://www.instagram.com/",
+            "http://www.instagram.com/",
+            "https://instagram.com/",
+            "http://instagram.com/"
+        ):
+            if valor.startswith(prefixo):
+                valor = valor[len(prefixo):]
+                break
+
+        valor = (
+            valor
+            .strip("/")
+            .split("?")[0]
+            .lstrip("@")
+            .strip()
+        )
+
+        return valor
+
+    def normalizar_texto(valor):
+        return " ".join(
+            str(valor or "")
+            .strip()
+            .lower()
+            .split()
+        )
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        canal,
+                        identificador_externo,
+                        username_publico,
+                        nome_exibicao,
+                        contato_central_id,
+                        status,
+                        criterio_vinculo,
+                        confianca
+                    FROM identidades_externas_contato
+                    WHERE LOWER(canal) = LOWER(%s)
+                    ORDER BY atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    canal,
+                    int(limite)
+                ))
+
+                identidades = cur.fetchall()
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        empresa,
+                        email,
+                        telefone,
+                        instagram,
+                        categoria_contato,
+                        origem
+                    FROM leads_crm
+                    WHERE
+                        COALESCE(cadastro_teste, FALSE) = FALSE
+                """)
+
+                contatos = cur.fetchall()
+
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        empresa,
+                        instagram_publico,
+                        contato_central_id,
+                        status,
+                        confianca
+                    FROM prospectos_rede
+                    WHERE
+                        COALESCE(valido_para_ia, TRUE) = TRUE
+                """)
+
+                prospectos = cur.fetchall()
+
+        resultados = []
+
+        resumo = {
+            "total": 0,
+            "vinculadas": 0,
+            "correspondencias_exatas": 0,
+            "ambiguas": 0,
+            "sem_correspondencia": 0
+        }
+
+        for identidade in identidades:
+
+            resumo["total"] += 1
+
+            username = normalizar_instagram(
+                identidade.get(
+                    "username_publico"
+                )
+            )
+
+            nome = normalizar_texto(
+                identidade.get(
+                    "nome_exibicao"
+                )
+            )
+
+            resultado = {
+                "identidade_id":
+                    str(identidade.get("id")),
+                "sender_id":
+                    identidade.get(
+                        "identificador_externo"
+                    ),
+                "username":
+                    identidade.get(
+                        "username_publico"
+                    ),
+                "nome":
+                    identidade.get(
+                        "nome_exibicao"
+                    ),
+                "classificacao": None,
+                "contato_central_id": None,
+                "criterio": None,
+                "candidatos": [],
+                "evidencias_prospectos": []
+            }
+
+            contato_vinculado = (
+                identidade.get(
+                    "contato_central_id"
+                )
+            )
+
+            if contato_vinculado:
+
+                resultado["classificacao"] = (
+                    "vinculada"
+                )
+
+                resultado[
+                    "contato_central_id"
+                ] = str(
+                    contato_vinculado
+                )
+
+                resultado["criterio"] = (
+                    identidade.get(
+                        "criterio_vinculo"
+                    )
+                    or "vinculo_existente"
+                )
+
+                resumo["vinculadas"] += 1
+                resultados.append(resultado)
+                continue
+
+            contatos_instagram = []
+
+            if username:
+
+                for contato in contatos:
+
+                    instagram_contato = (
+                        normalizar_instagram(
+                            contato.get(
+                                "instagram"
+                            )
+                        )
+                    )
+
+                    if (
+                        instagram_contato
+                        and
+                        instagram_contato
+                        == username
+                    ):
+                        contatos_instagram.append(
+                            contato
+                        )
+
+            if len(contatos_instagram) == 1:
+
+                contato = contatos_instagram[0]
+
+                resultado["classificacao"] = (
+                    "correspondencia_exata"
+                )
+
+                resultado[
+                    "contato_central_id"
+                ] = str(
+                    contato.get("id")
+                )
+
+                resultado["criterio"] = (
+                    "instagram_exato"
+                )
+
+                resultado["candidatos"].append({
+                    "id": str(
+                        contato.get("id")
+                    ),
+                    "nome":
+                        contato.get("nome"),
+                    "empresa":
+                        contato.get("empresa"),
+                    "instagram":
+                        contato.get("instagram")
+                })
+
+                resumo[
+                    "correspondencias_exatas"
+                ] += 1
+
+            else:
+
+                candidatos_nome = []
+
+                if nome:
+
+                    for contato in contatos:
+
+                        nome_contato = (
+                            normalizar_texto(
+                                contato.get(
+                                    "nome"
+                                )
+                            )
+                        )
+
+                        if (
+                            nome_contato
+                            and
+                            nome_contato == nome
+                        ):
+                            candidatos_nome.append(
+                                contato
+                            )
+
+                if contatos_instagram:
+
+                    candidatos = (
+                        contatos_instagram
+                    )
+
+                    criterio = (
+                        "instagram_exato_multiplos_contatos"
+                    )
+
+                elif candidatos_nome:
+
+                    candidatos = (
+                        candidatos_nome
+                    )
+
+                    criterio = (
+                        "nome_exato_sem_identidade_forte"
+                    )
+
+                else:
+
+                    candidatos = []
+                    criterio = None
+
+                if candidatos:
+
+                    resultado["classificacao"] = (
+                        "ambigua"
+                    )
+
+                    resultado["criterio"] = (
+                        criterio
+                    )
+
+                    for contato in candidatos:
+
+                        resultado[
+                            "candidatos"
+                        ].append({
+                            "id": str(
+                                contato.get(
+                                    "id"
+                                )
+                            ),
+                            "nome":
+                                contato.get(
+                                    "nome"
+                                ),
+                            "empresa":
+                                contato.get(
+                                    "empresa"
+                                ),
+                            "instagram":
+                                contato.get(
+                                    "instagram"
+                                )
+                        })
+
+                    resumo["ambiguas"] += 1
+
+                else:
+
+                    resultado["classificacao"] = (
+                        "sem_correspondencia"
+                    )
+
+                    resumo[
+                        "sem_correspondencia"
+                    ] += 1
+
+            if username:
+
+                for prospecto in prospectos:
+
+                    instagram_prospecto = (
+                        normalizar_instagram(
+                            prospecto.get(
+                                "instagram_publico"
+                            )
+                        )
+                    )
+
+                    if (
+                        instagram_prospecto
+                        and
+                        instagram_prospecto
+                        == username
+                    ):
+                        resultado[
+                            "evidencias_prospectos"
+                        ].append({
+                            "id": str(
+                                prospecto.get(
+                                    "id"
+                                )
+                            ),
+                            "nome":
+                                prospecto.get(
+                                    "nome"
+                                ),
+                            "empresa":
+                                prospecto.get(
+                                    "empresa"
+                                ),
+                            "status":
+                                prospecto.get(
+                                    "status"
+                                ),
+                            "confianca":
+                                (
+                                    str(
+                                        prospecto.get(
+                                            "confianca"
+                                        )
+                                    )
+                                    if
+                                    prospecto.get(
+                                        "confianca"
+                                    )
+                                    is not None
+                                    else None
+                                )
+                        })
+
+            resultados.append(resultado)
+
+        return {
+            "success": True,
+            "resumo": resumo,
+            "resultados": resultados
+        }
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
 def enriquecer_contato_por_identidade_externa(
     identidade_id
 ):
