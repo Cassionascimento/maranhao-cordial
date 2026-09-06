@@ -27925,6 +27925,589 @@ def obter_resumo_empresarial_postgres():
 # IA EMPRESARIAL — CONTEXTO DO BRIEFING EXECUTIVO
 # =====================================================
 
+
+
+def gerar_painel_executivo_hoje():
+    """
+    Gera a visão executiva diária da Maranhão Cordial.
+
+    Objetivo:
+    transformar dados já existentes na IA Empresarial em uma
+    lista curta de informações, decisões e ações relevantes.
+
+    Esta função é SOMENTE LEITURA:
+    - não envia mensagens;
+    - não altera contatos;
+    - não aprova prospectos;
+    - não executa ações;
+    - não altera CRM.
+    """
+
+    conn = get_db_connection()
+
+    painel = {
+        "success": True,
+        "precisa_atencao": [],
+        "contatos_importantes": [],
+        "novos_prospectos": [],
+        "mudancas_empresa": {
+            "relacionamentos": [],
+            "prospeccao": [],
+            "comercial": [],
+            "fornecedores": [],
+            "financeiro": [],
+        },
+        "proximas_acoes": [],
+        "resumo": {
+            "total_atencao": 0,
+            "total_contatos_importantes": 0,
+            "total_novos_prospectos": 0,
+            "total_proximas_acoes": 0,
+        },
+    }
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                # ==================================================
+                # 1. AÇÕES AGUARDANDO DECISÃO / APROVAÇÃO
+                # ==================================================
+
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        tipo,
+                        canal,
+                        destinatario,
+                        conteudo,
+                        justificativa,
+                        prioridade,
+                        status,
+                        criado_em
+                    FROM acoes_empresariais
+                    WHERE status = 'aguardando_aprovacao'
+                    ORDER BY
+                        CASE prioridade
+                            WHEN 'alta' THEN 1
+                            WHEN 'media' THEN 2
+                            ELSE 3
+                        END,
+                        criado_em ASC
+                    LIMIT 20
+                    """
+                )
+
+                for acao in cur.fetchall():
+                    painel["precisa_atencao"].append({
+                        "tipo": "acao_aguardando_aprovacao",
+                        "prioridade": acao.get("prioridade"),
+                        "titulo": "Ação aguardando sua aprovação",
+                        "descricao": (
+                            acao.get("justificativa")
+                            or acao.get("conteudo")
+                            or ""
+                        ),
+                        "destinatario": acao.get("destinatario"),
+                        "canal": acao.get("canal"),
+                        "acao_id": str(acao.get("id")),
+                        "criado_em": (
+                            acao.get("criado_em").isoformat()
+                            if acao.get("criado_em")
+                            else None
+                        ),
+                    })
+
+                # ==================================================
+                # 2. FOLLOW-UPS VENCIDOS OU PARA HOJE
+                # ==================================================
+
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        nome,
+                        empresa,
+                        categoria_contato,
+                        estagio,
+                        interesse,
+                        responsavel,
+                        proximo_followup,
+                        ultimo_resultado,
+                        ultima_interacao_em,
+                        nivel_relacionamento
+                    FROM leads_crm
+                    WHERE
+                        COALESCE(valido_para_ia, TRUE) = TRUE
+                        AND COALESCE(cadastro_teste, FALSE) = FALSE
+                        AND proximo_followup IS NOT NULL
+                        AND proximo_followup <= NOW()
+                    ORDER BY proximo_followup ASC
+                    LIMIT 20
+                    """
+                )
+
+                for contato in cur.fetchall():
+
+                    nome = (
+                        contato.get("nome")
+                        or contato.get("empresa")
+                        or "Contato"
+                    )
+
+                    item = {
+                        "tipo": "followup",
+                        "prioridade": "alta",
+                        "titulo": f"Follow-up: {nome}",
+                        "descricao": (
+                            contato.get("ultimo_resultado")
+                            or contato.get("interesse")
+                            or "Contato com follow-up pendente."
+                        ),
+                        "contato_id": str(contato.get("id")),
+                        "nome": contato.get("nome"),
+                        "empresa": contato.get("empresa"),
+                        "categoria": contato.get(
+                            "categoria_contato"
+                        ),
+                        "estagio": contato.get("estagio"),
+                        "proximo_followup": (
+                            contato.get(
+                                "proximo_followup"
+                            ).isoformat()
+                            if contato.get("proximo_followup")
+                            else None
+                        ),
+                    }
+
+                    painel["precisa_atencao"].append(item)
+
+                    painel["contatos_importantes"].append({
+                        "contato_id": str(contato.get("id")),
+                        "nome": contato.get("nome"),
+                        "empresa": contato.get("empresa"),
+                        "categoria": contato.get(
+                            "categoria_contato"
+                        ),
+                        "estagio": contato.get("estagio"),
+                        "nivel_relacionamento": contato.get(
+                            "nivel_relacionamento"
+                        ),
+                        "motivo": "Follow-up previsto para agora.",
+                        "ultimo_resultado": contato.get(
+                            "ultimo_resultado"
+                        ),
+                        "ultima_interacao_em": (
+                            contato.get(
+                                "ultima_interacao_em"
+                            ).isoformat()
+                            if contato.get("ultima_interacao_em")
+                            else None
+                        ),
+                    })
+
+                # ==================================================
+                # 3. PROSPECTOS QUE A IA JÁ QUALIFICOU
+                # ==================================================
+
+                cur.execute(
+                    """
+                    SELECT
+                        p.id,
+                        p.nome,
+                        p.empresa,
+                        p.cargo,
+                        p.categoria_sugerida,
+                        p.score_qualidade,
+                        p.classificacao_qualidade,
+                        p.motivo_qualificacao,
+                        p.potencial_relacionamento,
+                        p.tema,
+                        p.motivo,
+                        p.fonte_url,
+                        p.evidencia,
+                        p.email,
+                        p.telefone,
+                        p.instagram,
+                        p.linkedin,
+                        p.site,
+                        p.status,
+                        p.criado_em,
+                        p.contato_origem_id,
+                        c.nome AS origem_nome,
+                        c.empresa AS origem_empresa
+                    FROM prospectos_rede p
+                    LEFT JOIN leads_crm c
+                        ON c.id = p.contato_origem_id
+                    WHERE
+                        p.valido_para_ia = TRUE
+                        AND p.status IN (
+                            'aguardando_aprovacao',
+                            'qualificado',
+                            'descoberto'
+                        )
+                        AND COALESCE(
+                            p.score_qualidade,
+                            0
+                        ) >= 55
+                    ORDER BY
+                        p.score_qualidade DESC,
+                        p.criado_em DESC
+                    LIMIT 20
+                    """
+                )
+
+                for prospecto in cur.fetchall():
+
+                    canais = []
+
+                    if prospecto.get("email"):
+                        canais.append("email")
+
+                    if prospecto.get("instagram"):
+                        canais.append("instagram")
+
+                    if prospecto.get("linkedin"):
+                        canais.append("linkedin")
+
+                    if prospecto.get("telefone"):
+                        canais.append("telefone")
+
+                    if prospecto.get("site"):
+                        canais.append("site")
+
+                    origem = (
+                        prospecto.get("origem_nome")
+                        or prospecto.get("origem_empresa")
+                    )
+
+                    painel["novos_prospectos"].append({
+                        "prospecto_id": str(
+                            prospecto.get("id")
+                        ),
+                        "nome": prospecto.get("nome"),
+                        "empresa": prospecto.get("empresa"),
+                        "cargo": prospecto.get("cargo"),
+                        "categoria": prospecto.get(
+                            "categoria_sugerida"
+                        ),
+                        "score": prospecto.get(
+                            "score_qualidade"
+                        ),
+                        "classificacao": prospecto.get(
+                            "classificacao_qualidade"
+                        ),
+                        "por_que_relevante": (
+                            prospecto.get(
+                                "motivo_qualificacao"
+                            )
+                            or prospecto.get("motivo")
+                        ),
+                        "potencial": prospecto.get(
+                            "potencial_relacionamento"
+                        ),
+                        "tema": prospecto.get("tema"),
+                        "origem_rede": origem,
+                        "fonte_url": prospecto.get(
+                            "fonte_url"
+                        ),
+                        "evidencia": prospecto.get(
+                            "evidencia"
+                        ),
+                        "canais_disponiveis": canais,
+                        "status": prospecto.get("status"),
+                    })
+
+                # ==================================================
+                # 4. INTERAÇÕES REAIS DAS ÚLTIMAS 24 HORAS
+                # ==================================================
+
+                cur.execute(
+                    """
+                    SELECT
+                        i.id,
+                        i.canal,
+                        i.sender_id,
+                        i.texto,
+                        i.criado_em,
+                        i.lead_id,
+                        c.nome,
+                        c.empresa,
+                        c.categoria_contato
+                    FROM interacoes_omnichannel i
+                    LEFT JOIN leads_crm c
+                        ON c.id = i.lead_id
+                    WHERE
+                        i.criado_em >= NOW() - INTERVAL '24 hours'
+                        AND (
+                            c.id IS NULL
+                            OR (
+                                COALESCE(
+                                    c.valido_para_ia,
+                                    TRUE
+                                ) = TRUE
+                                AND COALESCE(
+                                    c.cadastro_teste,
+                                    FALSE
+                                ) = FALSE
+                            )
+                        )
+                    ORDER BY i.criado_em DESC
+                    LIMIT 30
+                    """
+                )
+
+                for interacao in cur.fetchall():
+
+                    nome = (
+                        interacao.get("nome")
+                        or interacao.get("empresa")
+                        or interacao.get("sender_id")
+                    )
+
+                    painel[
+                        "mudancas_empresa"
+                    ]["relacionamentos"].append({
+                        "tipo": "nova_interacao",
+                        "canal": interacao.get("canal"),
+                        "contato": nome,
+                        "categoria": interacao.get(
+                            "categoria_contato"
+                        ),
+                        "texto": interacao.get("texto"),
+                        "criado_em": (
+                            interacao.get(
+                                "criado_em"
+                            ).isoformat()
+                            if interacao.get("criado_em")
+                            else None
+                        ),
+                    })
+
+                # ==================================================
+                # 5. COMPRAS DAS ÚLTIMAS 72 HORAS
+                # ==================================================
+
+                cur.execute(
+                    """
+                    SELECT
+                        cr.id,
+                        cr.contato_id,
+                        cr.referencia_externa,
+                        cr.origem,
+                        cr.valor,
+                        cr.quantidade,
+                        cr.status,
+                        cr.comprado_em,
+                        c.nome,
+                        c.empresa
+                    FROM compras_relacionamento cr
+                    LEFT JOIN leads_crm c
+                        ON c.id = cr.contato_id
+                    WHERE
+                        cr.comprado_em >= NOW() - INTERVAL '72 hours'
+                    ORDER BY cr.comprado_em DESC
+                    LIMIT 20
+                    """
+                )
+
+                for compra in cur.fetchall():
+
+                    painel[
+                        "mudancas_empresa"
+                    ]["financeiro"].append({
+                        "tipo": "compra",
+                        "contato": (
+                            compra.get("nome")
+                            or compra.get("empresa")
+                        ),
+                        "valor": (
+                            float(compra.get("valor"))
+                            if compra.get("valor") is not None
+                            else None
+                        ),
+                        "quantidade": compra.get(
+                            "quantidade"
+                        ),
+                        "origem": compra.get("origem"),
+                        "referencia": compra.get(
+                            "referencia_externa"
+                        ),
+                        "status": compra.get("status"),
+                        "comprado_em": (
+                            compra.get(
+                                "comprado_em"
+                            ).isoformat()
+                            if compra.get("comprado_em")
+                            else None
+                        ),
+                    })
+
+                # ==================================================
+                # 6. MUDANÇAS EM FORNECEDORES / FÁBRICAS
+                # ==================================================
+
+                cur.execute(
+                    """
+                    SELECT
+                        id,
+                        nome,
+                        empresa,
+                        categoria_contato,
+                        estagio,
+                        interesse,
+                        ultimo_resultado,
+                        ultima_interacao_em,
+                        proximo_followup
+                    FROM leads_crm
+                    WHERE
+                        COALESCE(valido_para_ia, TRUE) = TRUE
+                        AND COALESCE(cadastro_teste, FALSE) = FALSE
+                        AND categoria_contato IN (
+                            'fornecedor',
+                            'fabrica'
+                        )
+                        AND (
+                            ultima_interacao_em >=
+                                NOW() - INTERVAL '72 hours'
+                            OR (
+                                proximo_followup IS NOT NULL
+                                AND proximo_followup <= NOW()
+                            )
+                        )
+                    ORDER BY
+                        COALESCE(
+                            ultima_interacao_em,
+                            proximo_followup
+                        ) DESC NULLS LAST
+                    LIMIT 20
+                    """
+                )
+
+                for fornecedor in cur.fetchall():
+
+                    painel[
+                        "mudancas_empresa"
+                    ]["fornecedores"].append({
+                        "contato_id": str(
+                            fornecedor.get("id")
+                        ),
+                        "nome": fornecedor.get("nome"),
+                        "empresa": fornecedor.get("empresa"),
+                        "categoria": fornecedor.get(
+                            "categoria_contato"
+                        ),
+                        "estagio": fornecedor.get("estagio"),
+                        "interesse": fornecedor.get(
+                            "interesse"
+                        ),
+                        "ultimo_resultado": fornecedor.get(
+                            "ultimo_resultado"
+                        ),
+                        "proximo_followup": (
+                            fornecedor.get(
+                                "proximo_followup"
+                            ).isoformat()
+                            if fornecedor.get(
+                                "proximo_followup"
+                            )
+                            else None
+                        ),
+                    })
+
+                # ==================================================
+                # 7. PRÓXIMAS AÇÕES OBJETIVAS
+                # ==================================================
+
+                for item in painel["precisa_atencao"][:10]:
+
+                    if item.get("tipo") == "followup":
+                        painel["proximas_acoes"].append({
+                            "tipo": "followup",
+                            "titulo": item.get("titulo"),
+                            "motivo": item.get("descricao"),
+                            "contato_id": item.get(
+                                "contato_id"
+                            ),
+                            "requer_aprovacao": False,
+                        })
+
+                    elif item.get(
+                        "tipo"
+                    ) == "acao_aguardando_aprovacao":
+                        painel["proximas_acoes"].append({
+                            "tipo": "decisao",
+                            "titulo": (
+                                "Revisar ação aguardando aprovação"
+                            ),
+                            "motivo": item.get("descricao"),
+                            "acao_id": item.get("acao_id"),
+                            "requer_aprovacao": True,
+                        })
+
+                for prospecto in painel[
+                    "novos_prospectos"
+                ][:10]:
+
+                    painel["proximas_acoes"].append({
+                        "tipo": "avaliar_prospecto",
+                        "titulo": (
+                            "Avaliar "
+                            + (
+                                prospecto.get("nome")
+                                or prospecto.get("empresa")
+                                or "novo prospecto"
+                            )
+                        ),
+                        "motivo": prospecto.get(
+                            "por_que_relevante"
+                        ),
+                        "prospecto_id": prospecto.get(
+                            "prospecto_id"
+                        ),
+                        "requer_aprovacao": True,
+                    })
+
+                # ==================================================
+                # 8. RESUMO
+                # ==================================================
+
+                painel["resumo"] = {
+                    "total_atencao": len(
+                        painel["precisa_atencao"]
+                    ),
+                    "total_contatos_importantes": len(
+                        painel["contatos_importantes"]
+                    ),
+                    "total_novos_prospectos": len(
+                        painel["novos_prospectos"]
+                    ),
+                    "total_proximas_acoes": len(
+                        painel["proximas_acoes"]
+                    ),
+                }
+
+    except Exception as e:
+        print(
+            "ERRO AO GERAR PAINEL EXECUTIVO:",
+            str(e)
+        )
+
+        return {
+            "success": False,
+            "error": str(e),
+        }
+
+    finally:
+        conn.close()
+
+    return painel
+
+
+
 def carregar_contexto_briefing_executivo():
     """
     Contexto executivo dos últimos 3 dias.
