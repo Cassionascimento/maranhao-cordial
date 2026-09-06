@@ -36607,6 +36607,172 @@ else:
     print("AVISO: DATABASE_URL não configurada; formulários B2B não persistirão dados.")
 
 
+
+
+# =====================================================
+# FASE 4 — REGISTRO CENTRAL DE CANAIS DIGITAIS
+# =====================================================
+
+def obter_status_canais_digitais():
+    """
+    Mapa único dos canais externos da Maranhão Cordial.
+
+    Nunca retorna tokens, secrets ou credenciais.
+    Apenas informa capacidade e presença de configuração.
+    """
+
+    instagram_token = (
+        os.getenv("META_INSTAGRAM_ACCESS_TOKEN")
+        or os.getenv("INSTAGRAM_ACCESS_TOKEN")
+        or os.getenv("META_ACCESS_TOKEN")
+    )
+
+    instagram_account = (
+        os.getenv("INSTAGRAM_ACCOUNT_ID")
+        or os.getenv("META_INSTAGRAM_ACCOUNT_ID")
+    )
+
+    whatsapp_token = os.getenv(
+        "WHATSAPP_ACCESS_TOKEN"
+    )
+
+    whatsapp_phone = os.getenv(
+        "WHATSAPP_PHONE_NUMBER_ID"
+    )
+
+    linkedin_token = (
+        os.getenv("LINKEDIN_ACCESS_TOKEN")
+    )
+
+    linkedin_org = (
+        os.getenv("LINKEDIN_ORGANIZATION_ID")
+    )
+
+    pinterest_token = (
+        os.getenv("PINTEREST_ACCESS_TOKEN")
+    )
+
+    youtube_token = (
+        os.getenv("YOUTUBE_ACCESS_TOKEN")
+    )
+
+    youtube_channel = (
+        os.getenv("YOUTUBE_CHANNEL_ID")
+    )
+
+    x_token = (
+        os.getenv("X_ACCESS_TOKEN")
+        or os.getenv("TWITTER_ACCESS_TOKEN")
+    )
+
+    return {
+        "instagram": {
+            "ativo_no_sistema": True,
+            "configurado": bool(
+                instagram_token
+                and instagram_account
+            ),
+            "entrada": True,
+            "saida": True,
+            "publicacao": False,
+            "fase": "operacional"
+        },
+
+        "whatsapp": {
+            "ativo_no_sistema": True,
+            "configurado": bool(
+                whatsapp_token
+                and whatsapp_phone
+            ),
+            "entrada": True,
+            "saida": True,
+            "publicacao": False,
+            "fase": "operacional"
+        },
+
+        "linkedin": {
+            "ativo_no_sistema": True,
+            "configurado": bool(
+                linkedin_token
+                and linkedin_org
+            ),
+            "entrada": False,
+            "saida": False,
+            "publicacao": False,
+            "fase": "adaptador"
+        },
+
+        "pinterest": {
+            "ativo_no_sistema": True,
+            "configurado": bool(
+                pinterest_token
+            ),
+            "entrada": False,
+            "saida": False,
+            "publicacao": False,
+            "fase": "adaptador"
+        },
+
+        "youtube": {
+            "ativo_no_sistema": True,
+            "configurado": bool(
+                youtube_token
+                and youtube_channel
+            ),
+            "entrada": False,
+            "saida": False,
+            "publicacao": False,
+            "fase": "adaptador"
+        },
+
+        "x": {
+            "ativo_no_sistema": True,
+            "configurado": bool(
+                x_token
+            ),
+            "entrada": False,
+            "saida": False,
+            "publicacao": False,
+            "fase": "adaptador"
+        }
+    }
+
+
+@app.route(
+    "/api/admin/ia-empresarial/canais",
+    methods=["GET"]
+)
+def admin_status_canais_digitais():
+
+    if not validar_admin_omnichannel():
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    canais = obter_status_canais_digitais()
+
+    configurados = [
+        nome
+        for nome, dados in canais.items()
+        if dados.get("configurado")
+    ]
+
+    operacionais = [
+        nome
+        for nome, dados in canais.items()
+        if dados.get("fase") == "operacional"
+    ]
+
+    return jsonify({
+        "success": True,
+        "total_canais": len(canais),
+        "configurados": configurados,
+        "operacionais": operacionais,
+        "canais": canais
+    }), 200
+
+
 if __name__ == "__main__":
 
     porta = int(
