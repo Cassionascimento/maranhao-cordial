@@ -34838,3 +34838,204 @@ def obter_mapa_rede_contato(
             conn.close()
         except Exception:
             pass
+
+
+# ============================================================
+# IDENTIDADE DE REDE — AUTORREFERÊNCIA
+# ============================================================
+
+def identificar_autorreferencia_prospecto(
+    contato_origem,
+    prospecto
+):
+    """
+    Detecta quando uma pesquisa de rede redescobre
+    o próprio contato que originou a pesquisa.
+
+    Não considera nome isoladamente como prova.
+
+    Sinais fortes:
+    - mesmo e-mail;
+    - mesmo telefone;
+    - mesmo Instagram.
+
+    Sinal composto:
+    - nomes compatíveis + mesma empresa.
+
+    Retorna apenas diagnóstico.
+    Não altera banco.
+    """
+
+    import re
+    import unicodedata
+
+    def normalizar_texto(valor):
+        valor = str(
+            valor or ""
+        ).strip().lower()
+
+        valor = unicodedata.normalize(
+            "NFKD",
+            valor
+        )
+
+        valor = "".join(
+            caractere
+            for caractere in valor
+            if not unicodedata.combining(
+                caractere
+            )
+        )
+
+        valor = re.sub(
+            r"[^a-z0-9]+",
+            " ",
+            valor
+        )
+
+        return " ".join(
+            valor.split()
+        )
+
+    def normalizar_digitos(valor):
+        return re.sub(
+            r"\D+",
+            "",
+            str(valor or "")
+        )
+
+    email_origem = normalizar_texto(
+        contato_origem.get("email")
+    )
+
+    email_prospecto = normalizar_texto(
+        prospecto.get("email_publico")
+        or prospecto.get("email")
+    )
+
+    if (
+        email_origem
+        and email_prospecto
+        and email_origem == email_prospecto
+    ):
+        return {
+            "autorreferencia": True,
+            "confianca": 100,
+            "motivo": "mesmo email"
+        }
+
+    telefone_origem = normalizar_digitos(
+        contato_origem.get("telefone")
+    )
+
+    telefone_prospecto = normalizar_digitos(
+        prospecto.get("telefone_publico")
+        or prospecto.get("telefone")
+    )
+
+    if (
+        telefone_origem
+        and telefone_prospecto
+        and telefone_origem == telefone_prospecto
+    ):
+        return {
+            "autorreferencia": True,
+            "confianca": 100,
+            "motivo": "mesmo telefone"
+        }
+
+    instagram_origem = normalizar_texto(
+        contato_origem.get("instagram")
+    )
+
+    instagram_prospecto = normalizar_texto(
+        prospecto.get("instagram_publico")
+        or prospecto.get("instagram")
+    )
+
+    if (
+        instagram_origem
+        and instagram_prospecto
+        and instagram_origem == instagram_prospecto
+    ):
+        return {
+            "autorreferencia": True,
+            "confianca": 100,
+            "motivo": "mesmo instagram"
+        }
+
+    nome_origem = normalizar_texto(
+        contato_origem.get("nome")
+    )
+
+    nome_prospecto = normalizar_texto(
+        prospecto.get("nome")
+    )
+
+    empresa_origem = normalizar_texto(
+        contato_origem.get("empresa")
+    )
+
+    empresa_prospecto = normalizar_texto(
+        prospecto.get("empresa")
+    )
+
+    tokens_origem = set(
+        nome_origem.split()
+    )
+
+    tokens_prospecto = set(
+        nome_prospecto.split()
+    )
+
+    nomes_compativeis = False
+
+    if (
+        tokens_origem
+        and tokens_prospecto
+    ):
+        menor = min(
+            len(tokens_origem),
+            len(tokens_prospecto)
+        )
+
+        intersecao = len(
+            tokens_origem.intersection(
+                tokens_prospecto
+            )
+        )
+
+        nomes_compativeis = (
+            menor >= 2
+            and intersecao >= 2
+        )
+
+    mesma_empresa = (
+        empresa_origem
+        and empresa_prospecto
+        and (
+            empresa_origem
+            == empresa_prospecto
+            or empresa_origem
+            in empresa_prospecto
+            or empresa_prospecto
+            in empresa_origem
+        )
+    )
+
+    if (
+        nomes_compativeis
+        and mesma_empresa
+    ):
+        return {
+            "autorreferencia": True,
+            "confianca": 90,
+            "motivo":
+                "nome compativel e mesma empresa"
+        }
+
+    return {
+        "autorreferencia": False,
+        "confianca": 0,
+        "motivo": None
+    }
