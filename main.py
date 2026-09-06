@@ -36991,8 +36991,8 @@ def obter_status_canais_digitais():
             ),
             "entrada": False,
             "saida": False,
-            "publicacao": False,
-            "fase": "adaptador"
+            "publicacao": True,
+            "fase": "pronto_configuracao"
         },
 
         "pinterest": {
@@ -37002,8 +37002,8 @@ def obter_status_canais_digitais():
             ),
             "entrada": False,
             "saida": False,
-            "publicacao": False,
-            "fase": "adaptador"
+            "publicacao": True,
+            "fase": "pronto_configuracao"
         },
 
         "youtube": {
@@ -37014,8 +37014,8 @@ def obter_status_canais_digitais():
             ),
             "entrada": False,
             "saida": False,
-            "publicacao": False,
-            "fase": "adaptador"
+            "publicacao": True,
+            "fase": "pronto_configuracao"
         },
 
         "x": {
@@ -37025,11 +37025,10 @@ def obter_status_canais_digitais():
             ),
             "entrada": False,
             "saida": False,
-            "publicacao": False,
-            "fase": "adaptador"
+            "publicacao": True,
+            "fase": "pronto_configuracao"
         }
     }
-
 
 @app.route(
     "/api/admin/ia-empresarial/canais",
