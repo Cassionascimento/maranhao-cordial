@@ -342,6 +342,7 @@ def listar_fila_ativa_fase5(limite=20):
                 WHERE COALESCE(valido_para_ia, TRUE) = TRUE
                   AND COALESCE(cadastro_teste, FALSE) = FALSE
                   AND COALESCE(contato_interno, FALSE) = FALSE
+                  AND COALESCE(arquivado, FALSE) = FALSE
                   AND COALESCE(TRIM(proxima_acao),'') <> ''
                   AND COALESCE(status,'ativo')
                       NOT IN ('arquivado','excluido')
@@ -391,6 +392,7 @@ def obter_status_fase5():
                 WHERE COALESCE(valido_para_ia, TRUE) = TRUE
                   AND COALESCE(cadastro_teste, FALSE) = FALSE
                   AND COALESCE(contato_interno, FALSE) = FALSE
+                  AND COALESCE(arquivado, FALSE) = FALSE
                   AND COALESCE(status,'ativo')
                       NOT IN ('arquivado','excluido')
             """)
@@ -588,8 +590,11 @@ def instalar_fase5(namespace):
         instalar51 = globals().get("instalar_fase51")
         if callable(instalar51):
             instalar51(namespace)
+        instalar52 = globals().get("instalar_fase52")
+        if callable(instalar52):
+            instalar52(namespace)
     except Exception as erro:
-        print("FASE 5.1 — INTEGRAÇÃO PRINCIPAL:", repr(erro))
+        print("FASE 5.1/5.2 — INTEGRAÇÃO PRINCIPAL:", repr(erro))
 
     return {"success": True, "fase": 5, "acao_externa_automatica": False}
 
@@ -901,7 +906,60 @@ def instalar_fase51(namespace):
 # ===== FIM FASE 5.1 =====
 
 
-try:
-    instalar_fase51(globals())
-except Exception as erro_fase51:
-    print("ERRO AO INSTALAR FASE 5.1:", repr(erro_fase51))
+
+# ===== FASE 5.2 — MOTOR AUTONOMO =====
+
+def decidir_prospeccao_autonoma_fase52(intervalo_horas=12):
+    radar = obter_radar_prospeccao_fase51(limite=20)
+    lacunas = [x for x in radar.get("radar", []) if int(x.get("lacuna") or 0) > 0]
+    conn = _conn()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT COUNT(*) FILTER (
+                    WHERE COALESCE(status,'') IN ('pendente','aguardando','novo','executando')
+                )::INTEGER pendentes,
+                MAX(COALESCE(concluido_em,iniciado_em,criado_em)) ultima_pesquisa_em
+                FROM pesquisas_rede
+            """)
+            q = dict(cur.fetchone() or {})
+    finally:
+        conn.close()
+    pendentes = int(q.get("pendentes") or 0)
+    ultima = q.get("ultima_pesquisa_em")
+    horas = None
+    if ultima:
+        if ultima.tzinfo is None:
+            ultima = ultima.replace(tzinfo=timezone.utc)
+        horas = max(0.0, (datetime.now(timezone.utc)-ultima).total_seconds()/3600.0)
+    principal = lacunas[0] if lacunas else None
+    deve = bool(principal and pendentes == 0 and (horas is None or horas >= intervalo_horas))
+    return {
+        "deve_prospectar": deve,
+        "categoria_prioritaria": principal.get("categoria") if principal else None,
+        "lacuna_prioritaria": int(principal.get("lacuna") or 0) if principal else 0,
+        "pesquisas_pendentes": pendentes,
+        "horas_desde_ultima_pesquisa": round(horas,1) if horas is not None else None,
+        "intervalo_minimo_horas": intervalo_horas,
+        "acao_externa_automatica": False,
+    }
+
+def instalar_fase52(namespace):
+    global executar_ciclo_fase5
+    original = executar_ciclo_fase5
+    if callable(original) and not getattr(original, "_fase52", False):
+        def ciclo52(*args, _original=original, **kwargs):
+            resultado = _original(*args, **kwargs)
+            try:
+                decisao = decidir_prospeccao_autonoma_fase52()
+            except Exception as erro:
+                decisao = {"deve_prospectar": False, "error": str(erro)}
+            if isinstance(resultado, dict):
+                resultado = dict(resultado)
+                resultado["motor_prospeccao_fase52"] = decisao
+            return resultado
+        ciclo52._fase52 = True
+        executar_ciclo_fase5 = ciclo52
+    return {"success": True, "fase": "5.2", "acao_externa_automatica": False}
+
+# ===== FIM FASE 5.2 =====
