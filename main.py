@@ -32444,27 +32444,38 @@ def analisar_reconciliacao_identidades_externas(
     """
 
     def normalizar_instagram(valor):
+        import re
+
         valor = str(valor or "").strip().lower()
 
-        for prefixo in (
-            "https://www.instagram.com/",
-            "http://www.instagram.com/",
-            "https://instagram.com/",
-            "http://instagram.com/"
-        ):
-            if valor.startswith(prefixo):
-                valor = valor[len(prefixo):]
-                break
+        if not valor:
+            return ""
 
-        valor = (
+        match_url = re.search(
+            r"instagram\\.com/([a-z0-9._]+)",
             valor
-            .strip("/")
-            .split("?")[0]
-            .lstrip("@")
-            .strip()
         )
 
-        return valor
+        if match_url:
+            return match_url.group(1)
+
+        match_arroba = re.search(
+            r"@([a-z0-9._]+)",
+            valor
+        )
+
+        if match_arroba:
+            return match_arroba.group(1)
+
+        match_simples = re.match(
+            r"^([a-z0-9._]+)",
+            valor
+        )
+
+        if match_simples:
+            return match_simples.group(1)
+
+        return ""
 
     def normalizar_texto(valor):
         return " ".join(
@@ -32537,6 +32548,28 @@ def analisar_reconciliacao_identidades_externas(
 
                 prospectos = cur.fetchall()
 
+                cur.execute("""
+                    SELECT
+                        id,
+                        nome,
+                        nome_profissional,
+                        estabelecimento_nome,
+                        instagram,
+                        email,
+                        whatsapp,
+                        lead_id,
+                        status_fluxo,
+                        status_relacionamento
+                    FROM profissionais_rede
+                    WHERE
+                        COALESCE(arquivado, FALSE) = FALSE
+                        AND LOWER(
+                            COALESCE(status_fluxo, '')
+                        ) <> 'rejeitado'
+                """)
+
+                profissionais = cur.fetchall()
+
         resultados = []
 
         resumo = {
@@ -32582,7 +32615,8 @@ def analisar_reconciliacao_identidades_externas(
                 "contato_central_id": None,
                 "criterio": None,
                 "candidatos": [],
-                "evidencias_prospectos": []
+                "evidencias_prospectos": [],
+                "evidencias_profissionais": []
             }
 
             contato_vinculado = (
@@ -32818,6 +32852,63 @@ def analisar_reconciliacao_identidades_externas(
                                         "confianca"
                                     )
                                     is not None
+                                    else None
+                                )
+                        })
+
+            if username:
+
+                for profissional in profissionais:
+
+                    instagram_profissional = (
+                        normalizar_instagram(
+                            profissional.get(
+                                "instagram"
+                            )
+                        )
+                    )
+
+                    if (
+                        instagram_profissional
+                        and
+                        instagram_profissional
+                        == username
+                    ):
+                        resultado[
+                            "evidencias_profissionais"
+                        ].append({
+                            "id": str(
+                                profissional.get(
+                                    "id"
+                                )
+                            ),
+                            "nome":
+                                profissional.get(
+                                    "nome"
+                                ),
+                            "nome_profissional":
+                                profissional.get(
+                                    "nome_profissional"
+                                ),
+                            "estabelecimento":
+                                profissional.get(
+                                    "estabelecimento_nome"
+                                ),
+                            "instagram":
+                                profissional.get(
+                                    "instagram"
+                                ),
+                            "lead_id":
+                                (
+                                    str(
+                                        profissional.get(
+                                            "lead_id"
+                                        )
+                                    )
+                                    if
+                                    profissional.get(
+                                        "lead_id"
+                                    )
                                     else None
                                 )
                         })
