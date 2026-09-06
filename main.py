@@ -6916,6 +6916,57 @@ def processar_descoberta_rede_publica(
                             )
                     }
 
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    descoberta.get(
+                        "contato_origem_id"
+                    ),
+                ))
+
+                contato_origem = (
+                    cur.fetchone()
+                    or {}
+                )
+
+                diagnostico_identidade = (
+                    identificar_autorreferencia_prospecto(
+                        contato_origem,
+                        descoberta
+                    )
+                )
+
+                if diagnostico_identidade.get(
+                    "autorreferencia"
+                ):
+                    cur.execute("""
+                        UPDATE
+                            descobertas_rede_publica
+                        SET
+                            processado = TRUE,
+                            prospecto_rede_id = NULL
+                        WHERE id = %s
+                    """, (
+                        descoberta_id,
+                    ))
+
+                    return {
+                        "success": True,
+                        "autorreferencia": True,
+                        "prospecto_id": None,
+                        "confianca_identidade":
+                            diagnostico_identidade.get(
+                                "confianca"
+                            ),
+                        "motivo_identidade":
+                            diagnostico_identidade.get(
+                                "motivo"
+                            )
+                    }
+
         resultado = registrar_prospecto_rede(
             contato_origem_id=
                 descoberta.get(
