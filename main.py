@@ -4394,15 +4394,62 @@ def executar_publicacao_canal_digital(acao):
             executar_publicacao_canal
         )
 
-        dados_publicacao = {}
+        payload = acao.get(
+            "payload_execucao"
+        )
 
-        justificativa = str(
-            acao.get("justificativa") or ""
-        ).strip()
+        if isinstance(payload, str):
+            payload = payload.strip()
 
-        # Os canais simples usam diretamente conteudo.
-        # Pinterest/YouTube receberão metadados estruturados
-        # em etapa própria antes da ativação real.
+            if payload:
+                try:
+                    payload = json.loads(
+                        payload
+                    )
+                except Exception:
+                    payload = {}
+            else:
+                payload = {}
+
+        if not isinstance(payload, dict):
+            payload = {}
+
+        # Somente campos explicitamente reconhecidos
+        # podem chegar aos adaptadores externos.
+        if canal == "pinterest":
+            dados_publicacao = {
+                "titulo":
+                    payload.get("titulo"),
+                "descricao":
+                    payload.get("descricao"),
+                "imagem_url":
+                    payload.get("imagem_url"),
+                "link":
+                    payload.get("link"),
+                "board_id":
+                    payload.get("board_id")
+            }
+
+        elif canal == "youtube":
+            dados_publicacao = {
+                "titulo":
+                    payload.get("titulo"),
+                "descricao":
+                    payload.get("descricao"),
+                "arquivo_video":
+                    payload.get(
+                        "arquivo_video"
+                    ),
+                "privacidade":
+                    payload.get(
+                        "privacidade",
+                        "private"
+                    )
+            }
+
+        else:
+            dados_publicacao = {}
+
         resultado = executar_publicacao_canal(
             canal=canal,
             conteudo=conteudo,
@@ -37978,7 +38025,8 @@ def criar_acao_empresarial(
     justificativa="",
     prioridade="media",
     comando_id=None,
-    status="aguardando_aprovacao"
+    status="aguardando_aprovacao",
+    dados_execucao=None
 ):
     """
     Cria ação usando a estrutura histórica de acoes_empresariais
@@ -38016,6 +38064,23 @@ def criar_acao_empresarial(
 
                 tipo_execucao = tipo
 
+                payload_execucao = None
+
+                if dados_execucao is not None:
+                    if not isinstance(
+                        dados_execucao,
+                        dict
+                    ):
+                        raise ValueError(
+                            "dados_execucao deve ser dict."
+                        )
+
+                    payload_execucao = json.dumps(
+                        dados_execucao,
+                        ensure_ascii=False,
+                        default=str
+                    )
+
                 cur.execute("""
                     INSERT INTO acoes_empresariais (
                         titulo,
@@ -38029,6 +38094,7 @@ def criar_acao_empresarial(
                         executor,
                         tentativas_execucao,
                         tipo_execucao,
+                        payload_execucao,
 
                         comando_id,
                         tipo,
@@ -38039,7 +38105,7 @@ def criar_acao_empresarial(
                     )
                     VALUES (
                         %s, %s, %s, %s, %s,
-                        %s, %s, %s, 0, %s,
+                        %s, %s, %s, 0, %s, %s,
                         %s, %s, %s, %s, %s, %s
                     )
                     RETURNING id
@@ -38054,6 +38120,7 @@ def criar_acao_empresarial(
                     estado_execucao,
                     executor,
                     tipo_execucao,
+                    payload_execucao,
 
                     comando_id,
                     tipo,
