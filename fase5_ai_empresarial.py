@@ -149,6 +149,7 @@ def preencher_proximas_acoes_fase5(limite=500):
                         WHERE COALESCE(valido_para_ia, TRUE) = TRUE
                           AND COALESCE(cadastro_teste, FALSE) = FALSE
                           AND COALESCE(contato_interno, FALSE) = FALSE
+                          AND COALESCE(arquivado, FALSE) = FALSE
                           AND COALESCE(TRIM(proxima_acao), '') = ''
                           AND COALESCE(status,'ativo')
                               NOT IN ('arquivado','excluido')
@@ -465,8 +466,8 @@ def instalar_fase5(namespace):
     # Memória antiga passa a carregar padrões agregados.
     original = namespace.get("carregar_memoria_decisoes_ia")
     if callable(original) and not getattr(original, "_fase5", False):
-        def memoria(*args, **kwargs):
-            base = original(*args, **kwargs)
+        def memoria(*args, _original=original, **kwargs):
+            base = _original(*args, **kwargs)
             try:
                 area = kwargs.get("area")
                 if area is None and args:
@@ -488,8 +489,8 @@ def instalar_fase5(namespace):
     # Toda entrada passiva fecha o ciclo interno.
     original = namespace.get("processar_interacao_omnichannel_crm")
     if callable(original) and not getattr(original, "_fase5", False):
-        def processar(*args, **kwargs):
-            resultado = original(*args, **kwargs)
+        def processar(*args, _original=original, **kwargs):
+            resultado = _original(*args, **kwargs)
             try:
                 executar_ciclo_fase5(100)
             except Exception as erro:
@@ -501,8 +502,8 @@ def instalar_fase5(namespace):
     # Painel Hoje recebe fila ativa + aprendizado sem quebrar chaves antigas.
     original = namespace.get("gerar_painel_executivo_hoje")
     if callable(original) and not getattr(original, "_fase5", False):
-        def painel(*args, **kwargs):
-            base = original(*args, **kwargs)
+        def painel(*args, _original=original, **kwargs):
+            base = _original(*args, **kwargs)
             if not isinstance(base, dict):
                 return base
             base = dict(base)
@@ -582,6 +583,13 @@ def instalar_fase5(namespace):
                 view_func=sincronizar,
                 methods=["POST"],
             )
+
+    try:
+        instalar51 = globals().get("instalar_fase51")
+        if callable(instalar51):
+            instalar51(namespace)
+    except Exception as erro:
+        print("FASE 5.1 — INTEGRAÇÃO PRINCIPAL:", repr(erro))
 
     return {"success": True, "fase": 5, "acao_externa_automatica": False}
 
