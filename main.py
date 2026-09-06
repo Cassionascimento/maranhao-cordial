@@ -5840,6 +5840,229 @@ def classificar_email_empresarial(
 # CONTATO CENTRAL — IDENTIDADE EMPRESARIAL UNIFICADA
 # =====================================================
 
+
+def localizar_contato_central_existente(
+    nome=None,
+    empresa=None,
+    email=None,
+    telefone=None,
+    instagram=None
+):
+    """
+    Procura uma identidade já existente em leads_crm.
+
+    Não cria contato.
+    Não altera dados.
+
+    Regras:
+    - e-mail exato;
+    - telefone normalizado;
+    - Instagram normalizado;
+    - nome + empresa exatos.
+
+    Nunca identifica automaticamente apenas por nome.
+    """
+
+    def limpar(valor):
+        if valor is None:
+            return None
+
+        valor = str(valor).strip()
+
+        return valor or None
+
+    def normalizar_telefone(valor):
+        if not valor:
+            return None
+
+        digitos = "".join(
+            caractere
+            for caractere in str(valor)
+            if caractere.isdigit()
+        )
+
+        return digitos or None
+
+    def normalizar_instagram(valor):
+        if not valor:
+            return None
+
+        valor = str(valor).strip().lower()
+
+        if "instagram.com/" in valor:
+            valor = valor.split(
+                "instagram.com/",
+                1
+            )[1]
+
+        valor = valor.split("?")[0]
+        valor = valor.strip("/")
+        valor = valor.lstrip("@")
+
+        return valor or None
+
+    nome = limpar(nome)
+    empresa = limpar(empresa)
+    email = limpar(email)
+
+    telefone_normalizado = (
+        normalizar_telefone(
+            telefone
+        )
+    )
+
+    instagram_normalizado = (
+        normalizar_instagram(
+            instagram
+        )
+    )
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+
+            if email:
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE
+                        LOWER(TRIM(email))
+                        = LOWER(TRIM(%s))
+                    ORDER BY atualizado_em DESC
+                    LIMIT 1
+                """, (
+                    email,
+                ))
+
+                contato = cur.fetchone()
+
+                if contato:
+                    return {
+                        "success": True,
+                        "encontrado": True,
+                        "criterio_identidade":
+                            "email",
+                        "contato":
+                            dict(contato)
+                    }
+
+            if telefone_normalizado:
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE telefone IS NOT NULL
+                    ORDER BY atualizado_em DESC
+                """)
+
+                for contato in cur.fetchall():
+
+                    telefone_existente = (
+                        normalizar_telefone(
+                            contato.get(
+                                "telefone"
+                            )
+                        )
+                    )
+
+                    if (
+                        telefone_existente
+                        == telefone_normalizado
+                    ):
+                        return {
+                            "success": True,
+                            "encontrado": True,
+                            "criterio_identidade":
+                                "telefone",
+                            "contato":
+                                dict(contato)
+                        }
+
+            if instagram_normalizado:
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE instagram IS NOT NULL
+                    ORDER BY atualizado_em DESC
+                """)
+
+                for contato in cur.fetchall():
+
+                    instagram_existente = (
+                        normalizar_instagram(
+                            contato.get(
+                                "instagram"
+                            )
+                        )
+                    )
+
+                    if (
+                        instagram_existente
+                        == instagram_normalizado
+                    ):
+                        return {
+                            "success": True,
+                            "encontrado": True,
+                            "criterio_identidade":
+                                "instagram",
+                            "contato":
+                                dict(contato)
+                        }
+
+            if nome and empresa:
+                cur.execute("""
+                    SELECT *
+                    FROM leads_crm
+                    WHERE
+                        LOWER(TRIM(nome))
+                        = LOWER(TRIM(%s))
+                        AND
+                        LOWER(TRIM(empresa))
+                        = LOWER(TRIM(%s))
+                    ORDER BY atualizado_em DESC
+                    LIMIT 1
+                """, (
+                    nome,
+                    empresa
+                ))
+
+                contato = cur.fetchone()
+
+                if contato:
+                    return {
+                        "success": True,
+                        "encontrado": True,
+                        "criterio_identidade":
+                            "nome_empresa",
+                        "contato":
+                            dict(contato)
+                    }
+
+            return {
+                "success": True,
+                "encontrado": False,
+                "criterio_identidade": None,
+                "contato": None
+            }
+
+    except Exception as erro:
+
+        print(
+            "ERRO LOCALIZAR CONTATO CENTRAL:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "encontrado": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
 def obter_ou_criar_contato_central(
     nome=None,
     empresa=None,
