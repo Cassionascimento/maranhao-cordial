@@ -2640,6 +2640,83 @@ def inicializar_banco():
                 """)
 
                 # ==========================================
+                # AI-NATIVE — ABORDAGEM CONTEXTUAL
+                # ==========================================
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    abordagens_contextuais_rede (
+                        id UUID PRIMARY KEY
+                            DEFAULT gen_random_uuid(),
+
+                        prospecto_id UUID NOT NULL,
+
+                        canal_sugerido VARCHAR(40),
+
+                        destinatario TEXT,
+
+                        assunto TEXT,
+
+                        objetivo_primeiro_contato TEXT
+                            NOT NULL,
+
+                        gancho TEXT
+                            NOT NULL,
+
+                        fatos_publicos TEXT,
+
+                        motivo_canal TEXT,
+
+                        tom VARCHAR(80),
+
+                        mensagem TEXT
+                            NOT NULL,
+
+                        cta TEXT,
+
+                        fonte_url_principal TEXT,
+
+                        score_personalizacao INTEGER
+                            NOT NULL DEFAULT 0,
+
+                        status VARCHAR(30)
+                            NOT NULL DEFAULT 'rascunho',
+
+                        requer_aprovacao BOOLEAN
+                            NOT NULL DEFAULT TRUE,
+
+                        acao_empresarial_id UUID,
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL DEFAULT NOW(),
+
+                        CONSTRAINT fk_abordagem_contextual_prospecto
+                        FOREIGN KEY (prospecto_id)
+                        REFERENCES prospectos_rede(id)
+                        ON DELETE CASCADE
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_abordagens_contextuais_prospecto
+                    ON abordagens_contextuais_rede(
+                        prospecto_id
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_abordagens_contextuais_status
+                    ON abordagens_contextuais_rede(
+                        status
+                    )
+                """)
+
+                # ==========================================
                 # OMNICHANNEL — INTERAÇÕES META
                 # ==========================================
 
@@ -7572,6 +7649,973 @@ def executar_proxima_pesquisa_rede():
 
     finally:
         conn.close()
+
+
+def gerar_abordagem_contextual_prospecto(
+    prospecto_id
+):
+    """
+    Pesquisa individualmente um prospecto
+    e cria uma abordagem personalizada.
+
+    NÃO envia mensagem.
+    NÃO menciona o contato que originou
+    a descoberta.
+    """
+
+    if not openai_client:
+        return {
+            "success": False,
+            "erro": "OpenAI não configurada."
+        }
+
+    if not prospecto_id:
+        return {
+            "success": False,
+            "erro": "Prospecto não informado."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM prospectos_rede
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    prospecto_id,
+                ))
+
+                prospecto = cur.fetchone()
+
+        if not prospecto:
+            return {
+                "success": False,
+                "erro":
+                    "Prospecto não encontrado."
+            }
+
+        score_atual = (
+            prospecto.get("score_qualidade")
+            or 0
+        )
+
+        if score_atual < 55:
+            return {
+                "success": False,
+                "ignorado": True,
+                "motivo":
+                    "Prospecto ainda não possui "
+                    "qualidade suficiente para abordagem."
+            }
+
+        contexto = {
+            "nome":
+                prospecto.get("nome"),
+            "empresa":
+                prospecto.get("empresa"),
+            "cargo":
+                prospecto.get("cargo"),
+            "categoria":
+                prospecto.get(
+                    "categoria_sugerida"
+                ),
+            "email_profissional":
+                prospecto.get(
+                    "email_publico"
+                ),
+            "instagram_profissional":
+                prospecto.get(
+                    "instagram_publico"
+                ),
+            "linkedin_publico":
+                prospecto.get(
+                    "linkedin_publico"
+                ),
+            "site_publico":
+                prospecto.get(
+                    "site_publico"
+                ),
+            "tema_interesse":
+                prospecto.get(
+                    "tema_interesse"
+                ),
+            "motivo_estrategico":
+                prospecto.get(
+                    "motivo_estrategico"
+                ),
+            "fonte_url":
+                prospecto.get(
+                    "fonte_url"
+                ),
+            "evidencia":
+                prospecto.get(
+                    "evidencia"
+                ),
+            "confianca":
+                str(
+                    prospecto.get(
+                        "confianca"
+                    )
+                    or ""
+                )
+        }
+
+        prompt = f"""
+Você é responsável pela prospecção
+individualizada da Maranhão Cordial.
+
+PROSPECTO:
+{json.dumps(
+    contexto,
+    ensure_ascii=False,
+    default=str
+)}
+
+SOBRE A MARANHÃO CORDIAL:
+
+Maranhão Cordial é um projeto brasileiro
+que conecta bebida, gastronomia,
+hospitalidade, cultura e identidade
+maranhense.
+
+Seu produto principal é um cordial
+premium de guaraná com gengibre,
+sem álcool e sem açúcar, pensado
+especialmente para bares, restaurantes,
+hotéis, chefs, bartenders e experiências
+gastronômicas.
+
+OBJETIVO:
+
+Faça uma pesquisa pública e individual
+sobre esse prospecto para descobrir o
+melhor motivo verdadeiro para iniciar
+uma conversa.
+
+A primeira mensagem NÃO deve tentar
+fechar venda.
+
+Ela deve criar uma aproximação natural,
+específica e profissional.
+
+REGRAS OBRIGATÓRIAS:
+
+1. Use somente informação pública,
+   profissional ou institucional.
+
+2. Nunca mencione que o prospecto foi
+   encontrado através da rede de outra
+   pessoa.
+
+3. Nunca mencione o contato que
+   originou internamente a descoberta.
+
+4. Não diga:
+   "acompanho seu trabalho há muito tempo"
+   ou qualquer frase que simule uma
+   relação anterior inexistente.
+
+5. Não invente elogios.
+
+6. Não invente fatos.
+
+7. Não use dados pessoais privados.
+
+8. O gancho precisa estar baseado em
+   algo verificável sobre o próprio
+   prospecto.
+
+9. Prefira fatos recentes ou claramente
+   relevantes profissionalmente.
+
+10. Não transforme a mensagem em
+    propaganda genérica.
+
+11. O primeiro contato deve ter baixo
+    atrito.
+
+12. Escolha apenas entre:
+    - email
+    - instagram
+    - nenhum
+
+13. Prefira Instagram quando o prospecto
+    for profissional criativo, bartender,
+    chef ou criador e tiver Instagram
+    profissional público relevante.
+
+14. Prefira email quando houver contato
+    corporativo/profissional e o contexto
+    for empresa, hotel, restaurante,
+    distribuidor, fornecedor, imprensa,
+    fábrica ou relação institucional.
+
+15. Se não houver canal público adequado,
+    escolha "nenhum".
+
+16. Se escolher email, crie também um
+    assunto curto e natural.
+
+17. Se escolher Instagram, a mensagem
+    deve ser curta o suficiente para DM.
+
+18. Não inclua links desnecessários na
+    primeira mensagem.
+
+19. Evite palavras como:
+    oportunidade imperdível,
+    parceria incrível,
+    proposta exclusiva,
+    revolucionário.
+
+20. A mensagem precisa parecer escrita
+    especificamente para aquela pessoa.
+
+OBJETIVOS POSSÍVEIS DO PRIMEIRO CONTATO:
+
+- iniciar conversa;
+- apresentar brevemente o projeto;
+- oferecer amostra;
+- conhecer trabalho/aplicação;
+- convidar para degustação;
+- entender interesse profissional;
+- abrir conversa institucional.
+
+Não tente negociar preço no primeiro
+contato.
+
+Para o gancho, encontre de 1 a 3 fatos
+públicos verificáveis.
+
+Dê preferência a:
+- projeto profissional;
+- restaurante/bar/hotel onde atua;
+- receita ou trabalho publicado;
+- evento profissional;
+- entrevista;
+- prêmio;
+- especialidade gastronômica;
+- relação com ingredientes brasileiros;
+- gastronomia nordestina;
+- bebidas sem álcool;
+- coquetelaria;
+- hospitalidade;
+- cultura brasileira;
+- produção de bebidas;
+- distribuição;
+- embalagem;
+- mercado de alimentos e bebidas.
+
+AVALIAÇÃO:
+
+Dê um score de personalização de 0 a 100.
+
+Só dê score alto quando a mensagem
+realmente depender das informações
+específicas encontradas sobre essa
+pessoa ou empresa.
+"""
+
+        resposta = openai_client.responses.create(
+            model="gpt-5-mini",
+
+            tools=[
+                {
+                    "type": "web_search"
+                }
+            ],
+
+            tool_choice="auto",
+
+            include=[
+                "web_search_call.action.sources"
+            ],
+
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name":
+                        "abordagem_contextual_maranhao",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+
+                            "canal": {
+                                "type": "string",
+                                "enum": [
+                                    "email",
+                                    "instagram",
+                                    "nenhum"
+                                ]
+                            },
+
+                            "destinatario": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+
+                            "assunto": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+
+                            "objetivo_primeiro_contato": {
+                                "type": "string"
+                            },
+
+                            "gancho": {
+                                "type": "string"
+                            },
+
+                            "fatos_publicos": {
+                                "type": "array",
+                                "maxItems": 3,
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "fato": {
+                                            "type": "string"
+                                        },
+                                        "url": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "fato",
+                                        "url"
+                                    ],
+                                    "additionalProperties":
+                                        False
+                                }
+                            },
+
+                            "motivo_canal": {
+                                "type": "string"
+                            },
+
+                            "tom": {
+                                "type": "string"
+                            },
+
+                            "mensagem": {
+                                "type": "string"
+                            },
+
+                            "cta": {
+                                "type": "string"
+                            },
+
+                            "fonte_url_principal": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+
+                            "score_personalizacao": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                            }
+                        },
+
+                        "required": [
+                            "canal",
+                            "destinatario",
+                            "assunto",
+                            "objetivo_primeiro_contato",
+                            "gancho",
+                            "fatos_publicos",
+                            "motivo_canal",
+                            "tom",
+                            "mensagem",
+                            "cta",
+                            "fonte_url_principal",
+                            "score_personalizacao"
+                        ],
+
+                        "additionalProperties":
+                            False
+                    }
+                }
+            },
+
+            input=prompt
+        )
+
+        bruto = (
+            resposta.output_text
+            or ""
+        )
+
+        try:
+            dados = json.loads(bruto)
+
+        except Exception as erro_json:
+            return {
+                "success": False,
+                "erro":
+                    "Resposta contextual inválida: "
+                    + str(erro_json)
+            }
+
+        canal = (
+            dados.get("canal")
+            or "nenhum"
+        )
+
+        # ----------------------------------------------
+        # DESTINATÁRIO DEVE VIR DO CADASTRO PÚBLICO
+        # ----------------------------------------------
+
+        if canal == "email":
+            destinatario = (
+                prospecto.get(
+                    "email_publico"
+                )
+            )
+
+        elif canal == "instagram":
+            destinatario = (
+                prospecto.get(
+                    "instagram_publico"
+                )
+            )
+
+        else:
+            destinatario = None
+
+        # ----------------------------------------------
+        # NÃO ACEITA CANAL INVENTADO PELA IA
+        # ----------------------------------------------
+
+        if (
+            canal in {
+                "email",
+                "instagram"
+            }
+            and not destinatario
+        ):
+            canal = "nenhum"
+            destinatario = None
+
+        fatos = (
+            dados.get("fatos_publicos")
+            or []
+        )
+
+        # ----------------------------------------------
+        # VALIDA URLs DAS EVIDÊNCIAS
+        # ----------------------------------------------
+
+        fatos_validos = []
+
+        for fato in fatos:
+
+            url = str(
+                fato.get("url")
+                or ""
+            ).strip()
+
+            descricao = str(
+                fato.get("fato")
+                or ""
+            ).strip()
+
+            if not descricao:
+                continue
+
+            if not (
+                url.startswith("http://")
+                or
+                url.startswith("https://")
+            ):
+                continue
+
+            fatos_validos.append({
+                "fato": descricao,
+                "url": url
+            })
+
+        if (
+            canal != "nenhum"
+            and not fatos_validos
+        ):
+            return {
+                "success": False,
+                "erro":
+                    "Abordagem rejeitada: "
+                    "nenhuma evidência pública "
+                    "verificável foi encontrada."
+            }
+
+        mensagem = str(
+            dados.get("mensagem")
+            or ""
+        ).strip()
+
+        if not mensagem:
+            return {
+                "success": False,
+                "erro":
+                    "IA não gerou mensagem."
+            }
+
+        # ----------------------------------------------
+        # TRAVAS CONTRA FALSA INTIMIDADE
+        # ----------------------------------------------
+
+        mensagem_normalizada = (
+            mensagem.lower()
+        )
+
+        expressoes_proibidas = [
+            "acompanho seu trabalho há",
+            "acompanho o seu trabalho há",
+            "sou fã do seu trabalho",
+            "indicação de",
+            "indicado por",
+            "cheguei até você através",
+            "cheguei ate voce atraves"
+        ]
+
+        for expressao in expressoes_proibidas:
+
+            if expressao in mensagem_normalizada:
+                return {
+                    "success": False,
+                    "erro":
+                        "Abordagem rejeitada por "
+                        "simular intimidade ou "
+                        "revelar origem interna."
+                }
+
+        score_personalizacao = int(
+            dados.get(
+                "score_personalizacao"
+            )
+            or 0
+        )
+
+        # Não deixa mensagem muito genérica
+        # seguir para aprovação.
+        if (
+            canal != "nenhum"
+            and score_personalizacao < 55
+        ):
+            return {
+                "success": False,
+                "erro":
+                    "Personalização insuficiente.",
+                "score":
+                    score_personalizacao
+            }
+
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor(
+                    cursor_factory=RealDictCursor
+                ) as cur:
+
+                    cur.execute("""
+                        INSERT INTO
+                        abordagens_contextuais_rede (
+                            prospecto_id,
+                            canal_sugerido,
+                            destinatario,
+                            assunto,
+                            objetivo_primeiro_contato,
+                            gancho,
+                            fatos_publicos,
+                            motivo_canal,
+                            tom,
+                            mensagem,
+                            cta,
+                            fonte_url_principal,
+                            score_personalizacao,
+                            status,
+                            requer_aprovacao
+                        )
+                        VALUES (
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s,
+                            %s, %s, %s,
+                            'rascunho',
+                            TRUE
+                        )
+                        RETURNING *
+                    """, (
+                        prospecto_id,
+                        canal,
+                        destinatario,
+                        dados.get("assunto"),
+                        dados.get(
+                            "objetivo_primeiro_contato"
+                        ),
+                        dados.get("gancho"),
+                        json.dumps(
+                            fatos_validos,
+                            ensure_ascii=False
+                        ),
+                        dados.get(
+                            "motivo_canal"
+                        ),
+                        dados.get("tom"),
+                        mensagem,
+                        dados.get("cta"),
+                        dados.get(
+                            "fonte_url_principal"
+                        ),
+                        score_personalizacao
+                    ))
+
+                    abordagem = cur.fetchone()
+
+            return {
+                "success": True,
+                "abordagem":
+                    dict(abordagem),
+                "canal":
+                    canal,
+                "score_personalizacao":
+                    score_personalizacao,
+                "fatos_publicos":
+                    fatos_validos
+            }
+
+        finally:
+            conn.close()
+
+    except Exception as erro:
+
+        print(
+            "ERRO GERAR ABORDAGEM CONTEXTUAL:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def preparar_aprovacao_abordagem_contextual(
+    abordagem_id
+):
+    """
+    Transforma um rascunho contextual em
+    ação empresarial aguardando aprovação.
+
+    Continua sem enviar mensagem.
+    """
+
+    if not abordagem_id:
+        return {
+            "success": False,
+            "erro": "Abordagem não informada."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT
+                        a.*,
+                        p.nome,
+                        p.empresa,
+                        p.categoria_sugerida
+                    FROM abordagens_contextuais_rede a
+                    JOIN prospectos_rede p
+                      ON p.id = a.prospecto_id
+                    WHERE a.id = %s
+                    LIMIT 1
+                """, (
+                    abordagem_id,
+                ))
+
+                abordagem = cur.fetchone()
+
+        if not abordagem:
+            return {
+                "success": False,
+                "erro":
+                    "Abordagem não encontrada."
+            }
+
+        if abordagem.get(
+            "acao_empresarial_id"
+        ):
+            return {
+                "success": True,
+                "duplicada": True,
+                "acao_id":
+                    str(
+                        abordagem.get(
+                            "acao_empresarial_id"
+                        )
+                    )
+            }
+
+        canal = (
+            abordagem.get(
+                "canal_sugerido"
+            )
+            or "nenhum"
+        )
+
+        destinatario = (
+            abordagem.get(
+                "destinatario"
+            )
+        )
+
+        if canal not in {
+            "email",
+            "instagram"
+        }:
+            return {
+                "success": False,
+                "erro":
+                    "Abordagem sem canal "
+                    "executável."
+            }
+
+        if not destinatario:
+            return {
+                "success": False,
+                "erro":
+                    "Abordagem sem destinatário."
+            }
+
+        mensagem = (
+            abordagem.get("mensagem")
+            or ""
+        )
+
+        assunto = (
+            abordagem.get("assunto")
+            or ""
+        )
+
+        if canal == "email" and assunto:
+            conteudo = (
+                f"Assunto: {assunto}\n\n"
+                f"{mensagem}"
+            )
+        else:
+            conteudo = mensagem
+
+        nome = (
+            abordagem.get("nome")
+            or "prospecto"
+        )
+
+        empresa = (
+            abordagem.get("empresa")
+            or ""
+        )
+
+        identificacao = nome
+
+        if empresa:
+            identificacao += (
+                f" — {empresa}"
+            )
+
+        justificativa = (
+            "Prospecção contextual individual. "
+            f"Prospecto: {identificacao}. "
+            "Gancho baseado em evidência pública: "
+            f"{abordagem.get('gancho') or ''}. "
+            "Primeiro contato exige aprovação humana."
+        )
+
+        resultado = criar_acao_empresarial(
+            tipo="abordagem_contextual_rede",
+            canal=canal,
+            conteudo=conteudo,
+            destinatario=destinatario,
+            justificativa=justificativa,
+            prioridade=(
+                "alta"
+                if (
+                    abordagem.get(
+                        "score_personalizacao"
+                    )
+                    or 0
+                ) >= 80
+                else "media"
+            ),
+            status="aguardando_aprovacao"
+        )
+
+        if not resultado.get("success"):
+            return resultado
+
+        acao = (
+            resultado.get("acao")
+            or {}
+        )
+
+        acao_id = (
+            acao.get("id")
+            or resultado.get("acao_id")
+            or resultado.get("id")
+        )
+
+        conn = get_db_connection()
+
+        try:
+            with conn:
+                with conn.cursor() as cur:
+
+                    cur.execute("""
+                        UPDATE
+                            abordagens_contextuais_rede
+                        SET
+                            status =
+                                'aguardando_aprovacao',
+                            acao_empresarial_id = %s,
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                    """, (
+                        acao_id,
+                        abordagem_id
+                    ))
+
+        finally:
+            conn.close()
+
+        return {
+            "success": True,
+            "acao_id":
+                str(acao_id)
+                if acao_id
+                else None,
+            "canal":
+                canal,
+            "destinatario":
+                destinatario,
+            "status":
+                "aguardando_aprovacao"
+        }
+
+    except Exception as erro:
+
+        print(
+            "ERRO PREPARAR APROVAÇÃO "
+            "DE ABORDAGEM CONTEXTUAL:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def gerar_e_preparar_abordagem_prospecto(
+    prospecto_id
+):
+    """
+    Fluxo completo até a aprovação humana:
+
+    prospecto qualificado
+        -> pesquisa individual
+        -> gancho
+        -> mensagem
+        -> fila de aprovação
+
+    NÃO EXECUTA ENVIO.
+    """
+
+    resultado = (
+        gerar_abordagem_contextual_prospecto(
+            prospecto_id
+        )
+    )
+
+    if not resultado.get("success"):
+        return resultado
+
+    abordagem = (
+        resultado.get("abordagem")
+        or {}
+    )
+
+    abordagem_id = (
+        abordagem.get("id")
+    )
+
+    if not abordagem_id:
+        return {
+            "success": False,
+            "erro":
+                "Abordagem foi criada sem ID."
+        }
+
+    if (
+        abordagem.get("canal_sugerido")
+        == "nenhum"
+    ):
+        return {
+            "success": True,
+            "preparada": False,
+            "abordagem":
+                abordagem,
+            "motivo":
+                "Não existe canal público "
+                "adequado para abordagem."
+        }
+
+    aprovacao = (
+        preparar_aprovacao_abordagem_contextual(
+            abordagem_id
+        )
+    )
+
+    return {
+        "success":
+            aprovacao.get(
+                "success",
+                False
+            ),
+        "abordagem":
+            abordagem,
+        "aprovacao":
+            aprovacao
+    }
 
 
 def avaliar_potencial_expansao_rede(
