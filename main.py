@@ -32420,6 +32420,147 @@ def registrar_identidade_externa_contato(
     finally:
         conn.close()
 
+def enriquecer_contato_por_identidade_externa(
+    identidade_id
+):
+    """
+    Enriquece Contact Central somente quando
+    a identidade externa já está formalmente vinculada.
+
+    Não cria contato.
+    Não realiza fusão.
+    Não substitui dados existentes.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM identidades_externas_contato
+                    WHERE id = %s
+                    LIMIT 1
+                """, (
+                    identidade_id,
+                ))
+
+                identidade = cur.fetchone()
+
+                if not identidade:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Identidade externa não encontrada."
+                    }
+
+                contato_id = identidade.get(
+                    "contato_central_id"
+                )
+
+                if not contato_id:
+                    return {
+                        "success": False,
+                        "erro":
+                            "Identidade ainda não vinculada ao Contact Central."
+                    }
+
+                if (
+                    str(
+                        identidade.get("status")
+                        or ""
+                    ).lower()
+                    != "vinculada"
+                ):
+                    return {
+                        "success": False,
+                        "erro":
+                            "Identidade não possui vínculo confirmado."
+                    }
+
+                canal = str(
+                    identidade.get("canal")
+                    or ""
+                ).lower()
+
+                username = str(
+                    identidade.get(
+                        "username_publico"
+                    )
+                    or ""
+                ).strip()
+
+                if (
+                    canal == "instagram"
+                    and username
+                ):
+
+                    username = (
+                        username.lstrip("@")
+                    )
+
+                    cur.execute("""
+                        UPDATE leads_crm
+                        SET
+                            instagram =
+                                COALESCE(
+                                    NULLIF(
+                                        TRIM(instagram),
+                                        ''
+                                    ),
+                                    %s
+                                ),
+                            atualizado_em = NOW()
+                        WHERE id = %s
+                        RETURNING
+                            id,
+                            nome,
+                            empresa,
+                            instagram
+                    """, (
+                        username,
+                        contato_id
+                    ))
+
+                    contato = cur.fetchone()
+
+                    if not contato:
+                        return {
+                            "success": False,
+                            "erro":
+                                "Contact Central não encontrado."
+                        }
+
+                    return {
+                        "success": True,
+                        "contato":
+                            dict(contato),
+                        "canal": canal,
+                        "identidade_id":
+                            str(identidade_id)
+                    }
+
+                return {
+                    "success": False,
+                    "erro":
+                        "Nenhum enriquecimento aplicável."
+                }
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
 
 def sincronizar_identidades_instagram_historicas(
     limite=None
