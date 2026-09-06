@@ -39776,3 +39776,13 @@ def identificar_autorreferencia_prospecto(
         "confianca": 0,
         "motivo": None
     }
+
+
+# ===== FASE 5 — IA EMPRESARIAL =====
+# Integração conservadora: nenhuma ação externa automática.
+try:
+    from fase5_ai_empresarial import instalar_fase5
+    instalar_fase5(globals())
+except Exception as erro_fase5:
+    print("ERRO AO INSTALAR FASE 5:", repr(erro_fase5))
+# ===== FIM FASE 5 =====

@@ -7596,5 +7596,355 @@ async function carregarFabricasWorkflow() {
      */
 </script>
 
+
+<!-- ===== FASE 5 — PAINEL HOJE ===== -->
+<style id="fase5-painel-style">
+    #fase5Hoje {
+        margin: 0 0 34px;
+        padding: 0 0 28px;
+        border-bottom: 1px solid var(--line);
+    }
+    .fase5-topo {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+    }
+    .fase5-topo h2 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 28px;
+        font-weight: 400;
+    }
+    .fase5-topo p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+    }
+    #fase5Atualizar {
+        width: auto;
+        padding: 9px 12px;
+        font-size: 10px;
+        color: var(--muted);
+    }
+    .fase5-metricas {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+        margin: 20px 0 24px;
+    }
+    .fase5-metrica {
+        padding: 18px 0;
+        border-top: 1px solid var(--line);
+    }
+    .fase5-metrica small {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 9px;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+    }
+    .fase5-metrica strong {
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: 400;
+        font-size: 28px;
+    }
+    .fase5-lista {
+        display: grid;
+        gap: 0;
+        border-top: 1px solid var(--line);
+    }
+    .fase5-item {
+        display: grid;
+        grid-template-columns: minmax(150px, .8fr) minmax(260px, 1.8fr) auto;
+        gap: 18px;
+        align-items: center;
+        padding: 15px 0;
+        border-bottom: 1px solid var(--line);
+    }
+    .fase5-item strong {
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .fase5-item span,
+    .fase5-item small,
+    .fase5-nota {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.5;
+    }
+    .fase5-tag {
+        white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: .8px;
+        font-size: 9px !important;
+    }
+    .fase5-nota {
+        margin-top: 14px;
+    }
+    @media(max-width: 760px) {
+        .fase5-metricas {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .fase5-item {
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+    }
+</style>
+
+<script id="fase5-painel-script">
+(() => {
+    const API_FASE5 =
+        "https://maranhao-cordial-api.onrender.com";
+
+    const escapar = (valor) => String(
+        valor == null ? "" : valor
+    )
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+    function garantirBlocoFase5() {
+        let bloco = document.getElementById(
+            "fase5Hoje"
+        );
+
+        if (bloco) return bloco;
+
+        const painel = document.querySelector(
+            '[data-panel="ia-empresarial"]'
+        );
+
+        if (!painel) return null;
+
+        bloco = document.createElement("section");
+        bloco.id = "fase5Hoje";
+
+        const resumo = document.getElementById(
+            "iaResumoExecutivo"
+        );
+
+        if (resumo && resumo.parentNode === painel) {
+            painel.insertBefore(bloco, resumo);
+        } else {
+            painel.prepend(bloco);
+        }
+
+        return bloco;
+    }
+
+    function renderizarFase5(dados) {
+        const bloco = garantirBlocoFase5();
+        if (!bloco) return;
+
+        const resumo = dados.resumo || {};
+        const fase5 = dados.fase5 || {};
+        const status = fase5.status || {};
+        const relacionamentos =
+            status.relacionamentos || {};
+        const aprendizado =
+            status.aprendizado || {};
+        const interacoes =
+            status.interacoes || {};
+        const fila = Array.isArray(
+            fase5.fila_ativa
+        ) ? fase5.fila_ativa : [];
+
+        const cards = [
+            [
+                "Decisões",
+                resumo.total_atencao || 0
+            ],
+            [
+                "Fila ativa",
+                resumo.total_fila_ativa || 0
+            ],
+            [
+                "Relacionamentos",
+                (
+                    (relacionamentos.com_proxima_acao || 0)
+                    + "/"
+                    + (relacionamentos.total_validos || 0)
+                )
+            ],
+            [
+                "Aprendizados",
+                aprendizado.com_aprendizado || 0
+            ]
+        ];
+
+        const cardsHtml = cards.map(
+            ([titulo, valor]) => `
+                <div class="fase5-metrica">
+                    <small>${escapar(titulo)}</small>
+                    <strong>${escapar(valor)}</strong>
+                </div>
+            `
+        ).join("");
+
+        const filaHtml = fila.slice(0, 6).map(
+            item => {
+                const nome = (
+                    item.nome
+                    || item.empresa
+                    || "Relacionamento"
+                );
+
+                const contexto = [
+                    item.categoria_contato,
+                    item.estagio
+                ]
+                .filter(Boolean)
+                .join(" · ");
+
+                return `
+                    <div class="fase5-item">
+                        <div>
+                            <strong>${escapar(nome)}</strong>
+                            <br>
+                            <small>${escapar(contexto)}</small>
+                        </div>
+                        <span>
+                            ${escapar(
+                                item.proxima_acao
+                                || "Definir próxima ação"
+                            )}
+                        </span>
+                        <small class="fase5-tag">
+                            ${escapar(
+                                item.prioridade
+                                || "normal"
+                            )}
+                        </small>
+                    </div>
+                `;
+            }
+        ).join("");
+
+        const semVinculo = Number(
+            interacoes.sem_vinculo || 0
+        );
+
+        bloco.innerHTML = `
+            <div class="fase5-topo">
+                <div>
+                    <div class="eyebrow">
+                        IA Empresarial · Fase 5
+                    </div>
+                    <h2>Hoje</h2>
+                    <p>
+                        O que exige decisão e o que a IA
+                        já preparou para continuar.
+                    </p>
+                </div>
+                <button
+                    id="fase5Atualizar"
+                    type="button"
+                >
+                    Atualizar
+                </button>
+            </div>
+
+            <div class="fase5-metricas">
+                ${cardsHtml}
+            </div>
+
+            <div class="fase5-lista">
+                ${
+                    filaHtml
+                    || `
+                        <div class="fase5-item">
+                            <span>
+                                Nenhuma próxima ação pendente.
+                            </span>
+                        </div>
+                    `
+                }
+            </div>
+
+            ${
+                semVinculo > 0
+                ? `
+                    <div class="fase5-nota">
+                        ${escapar(semVinculo)}
+                        interações ainda não têm identidade
+                        segura. A IA não fará fusão por nome.
+                    </div>
+                `
+                : ""
+            }
+        `;
+
+        document.getElementById(
+            "fase5Atualizar"
+        )?.addEventListener(
+            "click",
+            carregarFase5
+        );
+    }
+
+    async function carregarFase5() {
+        const chave = String(
+            document.getElementById(
+                "adminKey"
+            )?.value || ""
+        ).trim();
+
+        if (!chave) return;
+
+        const bloco = garantirBlocoFase5();
+        if (!bloco) return;
+
+        try {
+            const resposta = await fetch(
+                API_FASE5
+                + "/api/admin/ia-empresarial/hoje",
+                {
+                    method: "GET",
+                    cache: "no-store",
+                    headers: {
+                        "X-Admin-Key": chave
+                    }
+                }
+            );
+
+            const dados = await resposta.json();
+
+            if (!resposta.ok || !dados.success) {
+                return;
+            }
+
+            renderizarFase5(dados);
+
+        } catch (erro) {
+            console.warn(
+                "Fase 5 indisponível:",
+                erro
+            );
+        }
+    }
+
+    document.querySelector(
+        '[data-tab="ia-empresarial"]'
+    )?.addEventListener(
+        "click",
+        () => setTimeout(carregarFase5, 80)
+    );
+
+    document.getElementById(
+        "entrarAdmin"
+    )?.addEventListener(
+        "click",
+        () => setTimeout(carregarFase5, 450)
+    );
+})();
+</script>
+<!-- ===== FIM FASE 5 — PAINEL HOJE ===== -->
+
 </body>
 </html>
