@@ -28227,9 +28227,8 @@ def gerar_painel_executivo_hoje():
                     WHERE
                         p.valido_para_ia = TRUE
                         AND p.status IN (
-                            'aguardando_aprovacao',
                             'qualificado',
-                            'descoberto'
+                            'aguardando_aprovacao_prospeccao'
                         )
                         AND COALESCE(
                             p.score_qualidade,
@@ -28300,6 +28299,15 @@ def gerar_painel_executivo_hoje():
                         ),
                         "canais_disponiveis": canais,
                         "status": prospecto.get("status"),
+                        "decisao_necessaria": (
+                            "aprovar_prospeccao"
+                            if prospecto.get("status")
+                            in (
+                                "qualificado",
+                                "aguardando_aprovacao_prospeccao",
+                            )
+                            else None
+                        ),
                     })
 
                 # ==================================================
