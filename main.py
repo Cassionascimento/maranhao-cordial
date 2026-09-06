@@ -10351,6 +10351,73 @@ def avaliar_potencial_expansao_rede(
         )
 
     # ========================================================
+    # SINAIS ESTRUTURADOS DE ORIGEM E INTENÇÃO COMERCIAL
+    # ========================================================
+
+    origem = str(
+        contato.get("origem")
+        or ""
+    ).strip().lower()
+
+    canal = str(
+        contato.get("canal")
+        or ""
+    ).strip().lower()
+
+    empresa = str(
+        contato.get("empresa")
+        or ""
+    ).strip()
+
+    # Contato já vindo de uma base/relação profissional real.
+    origens_profissionais = {
+        "profissionais_rede",
+        "rede_profissional",
+        "convite_profissional",
+        "contatos_estrategicos"
+    }
+
+    if (
+        origem in origens_profissionais
+        or canal in origens_profissionais
+    ):
+        score += 10
+        motivos.append(
+            "origem profissional já identificada"
+        )
+
+    # Estar associado a empresa/estabelecimento aumenta
+    # a capacidade potencial de gerar relações comerciais.
+    if empresa:
+        score += 5
+        motivos.append(
+            "possui empresa ou estabelecimento associado"
+        )
+
+    # Interesse comercial declarado é diferente de um
+    # contato apenas descoberto ou passivo.
+    sinais_interesse_comercial = (
+        "parceria",
+        "degustacao",
+        "degustação",
+        "amostra",
+        "fornecimento",
+        "comercial",
+        "distribuicao",
+        "distribuição",
+        "revenda"
+    )
+
+    if any(
+        sinal in interesse
+        for sinal in sinais_interesse_comercial
+    ):
+        score += 10
+        motivos.append(
+            "possui interesse comercial declarado"
+        )
+
+    # ========================================================
     # RELACIONAMENTO JÁ VALIDADO
     # ========================================================
 
@@ -10406,6 +10473,7 @@ def avaliar_potencial_expansao_rede(
 
     sinais = {
         "bartender": "bartenders e bares",
+        "barman": "bartenders e bares",
         "mixologia": "bartenders e bares",
         "chef": "chefs e restaurantes",
         "restaurante": "restaurantes",
