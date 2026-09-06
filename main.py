@@ -28022,7 +28022,7 @@ def gerar_painel_executivo_hoje():
                     })
 
                 # ==================================================
-                # 2. FOLLOW-UPS VENCIDOS OU PARA HOJE
+                # 2. CONTATOS IMPORTANTES HOJE
                 # ==================================================
 
                 cur.execute(
@@ -28043,9 +28043,58 @@ def gerar_painel_executivo_hoje():
                     WHERE
                         COALESCE(valido_para_ia, TRUE) = TRUE
                         AND COALESCE(cadastro_teste, FALSE) = FALSE
-                        AND proximo_followup IS NOT NULL
-                        AND proximo_followup <= NOW()
-                    ORDER BY proximo_followup ASC
+                        AND (
+                            (
+                                proximo_followup IS NOT NULL
+                                AND proximo_followup <= NOW()
+                            )
+                            OR (
+                                proximo_followup IS NULL
+                                AND categoria_contato IN (
+                                    'fabrica',
+                                    'fornecedor'
+                                )
+                                AND COALESCE(estagio, 'novo') = 'novo'
+                            )
+                            OR (
+                                proximo_followup IS NULL
+                                AND categoria_contato IN (
+                                    'bartender',
+                                    'restaurante',
+                                    'bar',
+                                    'hotel',
+                                    'empresa',
+                                    'distribuidor',
+                                    'revendedor',
+                                    'profissional',
+                                    'parceiro',
+                                    'estrategico'
+                                )
+                                AND (
+                                    NULLIF(TRIM(COALESCE(interesse, '')), '')
+                                        IS NOT NULL
+                                    OR ultima_interacao_em IS NOT NULL
+                                )
+                            )
+                        )
+                    ORDER BY
+                        CASE
+                            WHEN
+                                proximo_followup IS NOT NULL
+                                AND proximo_followup <= NOW()
+                            THEN 0
+                            WHEN categoria_contato IN (
+                                'fabrica',
+                                'fornecedor'
+                            )
+                            THEN 1
+                            WHEN ultima_interacao_em >=
+                                NOW() - INTERVAL '7 days'
+                            THEN 2
+                            ELSE 3
+                        END,
+                        proximo_followup ASC NULLS LAST,
+                        ultima_interacao_em DESC NULLS LAST
                     LIMIT 20
                     """
                 )
@@ -28058,21 +28107,70 @@ def gerar_painel_executivo_hoje():
                         or "Contato"
                     )
 
-                    item = {
-                        "tipo": "followup",
-                        "prioridade": "alta",
-                        "titulo": f"Follow-up: {nome}",
-                        "descricao": (
+                    followup_vencido = (
+                        contato.get("proximo_followup") is not None
+                    )
+
+                    categoria = contato.get(
+                        "categoria_contato"
+                    )
+
+                    if followup_vencido:
+                        motivo = "Follow-up previsto para agora."
+                        descricao = (
                             contato.get("ultimo_resultado")
                             or contato.get("interesse")
                             or "Contato com follow-up pendente."
+                        )
+                        tipo_atencao = "followup"
+                        titulo = f"Follow-up: {nome}"
+
+                    elif categoria in ("fabrica", "fornecedor"):
+                        motivo = (
+                            "Fornecedor ou fábrica estratégica ainda "
+                            "sem próximo passo registrado."
+                        )
+                        descricao = (
+                            contato.get("ultimo_resultado")
+                            or contato.get("interesse")
+                            or (
+                                "Relação industrial existente que ainda "
+                                "precisa de qualificação ou próximo passo."
+                            )
+                        )
+                        tipo_atencao = "relacionamento_estrategico"
+                        titulo = f"Definir próximo passo: {nome}"
+
+                    else:
+                        motivo = (
+                            "Contato comercial relevante ainda sem "
+                            "follow-up definido."
+                        )
+                        descricao = (
+                            contato.get("ultimo_resultado")
+                            or contato.get("interesse")
+                            or (
+                                "Contato com sinal comercial ou "
+                                "relacionamento já identificado."
+                            )
+                        )
+                        tipo_atencao = "relacionamento_comercial"
+                        titulo = f"Avaliar relacionamento: {nome}"
+
+                    painel["precisa_atencao"].append({
+                        "tipo": tipo_atencao,
+                        "prioridade": (
+                            "alta"
+                            if followup_vencido
+                            or categoria in ("fabrica", "fornecedor")
+                            else "media"
                         ),
+                        "titulo": titulo,
+                        "descricao": descricao,
                         "contato_id": str(contato.get("id")),
                         "nome": contato.get("nome"),
                         "empresa": contato.get("empresa"),
-                        "categoria": contato.get(
-                            "categoria_contato"
-                        ),
+                        "categoria": categoria,
                         "estagio": contato.get("estagio"),
                         "proximo_followup": (
                             contato.get(
@@ -28081,30 +28179,34 @@ def gerar_painel_executivo_hoje():
                             if contato.get("proximo_followup")
                             else None
                         ),
-                    }
-
-                    painel["precisa_atencao"].append(item)
+                    })
 
                     painel["contatos_importantes"].append({
                         "contato_id": str(contato.get("id")),
                         "nome": contato.get("nome"),
                         "empresa": contato.get("empresa"),
-                        "categoria": contato.get(
-                            "categoria_contato"
-                        ),
+                        "categoria": categoria,
                         "estagio": contato.get("estagio"),
                         "nivel_relacionamento": contato.get(
                             "nivel_relacionamento"
                         ),
-                        "motivo": "Follow-up previsto para agora.",
+                        "motivo": motivo,
                         "ultimo_resultado": contato.get(
                             "ultimo_resultado"
                         ),
+                        "interesse": contato.get("interesse"),
                         "ultima_interacao_em": (
                             contato.get(
                                 "ultima_interacao_em"
                             ).isoformat()
                             if contato.get("ultima_interacao_em")
+                            else None
+                        ),
+                        "proximo_followup": (
+                            contato.get(
+                                "proximo_followup"
+                            ).isoformat()
+                            if contato.get("proximo_followup")
                             else None
                         ),
                     })
