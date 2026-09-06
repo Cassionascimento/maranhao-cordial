@@ -28163,30 +28163,6 @@ def gerar_painel_executivo_hoje():
                         tipo_atencao = "relacionamento_comercial"
                         titulo = f"Avaliar relacionamento: {nome}"
 
-                    painel["precisa_atencao"].append({
-                        "tipo": tipo_atencao,
-                        "prioridade": (
-                            "alta"
-                            if followup_vencido
-                            or categoria in ("fabrica", "fornecedor")
-                            else "media"
-                        ),
-                        "titulo": titulo,
-                        "descricao": descricao,
-                        "contato_id": str(contato.get("id")),
-                        "nome": contato.get("nome"),
-                        "empresa": contato.get("empresa"),
-                        "categoria": categoria,
-                        "estagio": contato.get("estagio"),
-                        "proximo_followup": (
-                            contato.get(
-                                "proximo_followup"
-                            ).isoformat()
-                            if contato.get("proximo_followup")
-                            else None
-                        ),
-                    })
-
                     painel["contatos_importantes"].append({
                         "contato_id": str(contato.get("id")),
                         "nome": contato.get("nome"),
