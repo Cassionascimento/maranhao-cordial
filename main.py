@@ -32180,6 +32180,247 @@ def meta_get_instagram(caminho, params=None):
 
     return dados
 
+def inicializar_identidades_externas_contato():
+    """
+    Mantém identidades técnicas e públicas separadas
+    do Contact Central.
+
+    Exemplo:
+    Meta sender_id -> @username -> contato central confirmado.
+
+    Não cria contato e não realiza fusões automaticamente.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS
+                    identidades_externas_contato (
+                        id UUID PRIMARY KEY
+                            DEFAULT gen_random_uuid(),
+
+                        canal VARCHAR(40) NOT NULL,
+
+                        identificador_externo
+                            VARCHAR(220) NOT NULL,
+
+                        username_publico
+                            VARCHAR(220),
+
+                        nome_exibicao
+                            VARCHAR(300),
+
+                        contato_central_id UUID,
+
+                        status VARCHAR(40)
+                            NOT NULL
+                            DEFAULT 'resolvida',
+
+                        criterio_vinculo VARCHAR(80),
+
+                        confianca NUMERIC(5,2),
+
+                        criado_em TIMESTAMPTZ
+                            NOT NULL
+                            DEFAULT NOW(),
+
+                        atualizado_em TIMESTAMPTZ
+                            NOT NULL
+                            DEFAULT NOW(),
+
+                        UNIQUE (
+                            canal,
+                            identificador_externo
+                        ),
+
+                        FOREIGN KEY (
+                            contato_central_id
+                        )
+                        REFERENCES leads_crm(id)
+                        ON DELETE SET NULL
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_identidades_externas_contato
+                    ON identidades_externas_contato (
+                        contato_central_id
+                    )
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_identidades_externas_username
+                    ON identidades_externas_contato (
+                        canal,
+                        username_publico
+                    )
+                """)
+
+        return {
+            "success": True
+        }
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
+def registrar_identidade_externa_contato(
+    canal,
+    identificador_externo,
+    username_publico=None,
+    nome_exibicao=None,
+    contato_central_id=None,
+    status="resolvida",
+    criterio_vinculo=None,
+    confianca=None
+):
+    """
+    Registra ou atualiza uma identidade externa.
+
+    Não cria contato.
+    Não realiza fusão automática.
+    Não altera interações históricas.
+    """
+
+    canal = str(
+        canal or ""
+    ).strip().lower()
+
+    identificador_externo = str(
+        identificador_externo or ""
+    ).strip()
+
+    username_publico = str(
+        username_publico or ""
+    ).strip()
+
+    nome_exibicao = str(
+        nome_exibicao or ""
+    ).strip()
+
+    if not canal:
+        return {
+            "success": False,
+            "erro": "canal ausente."
+        }
+
+    if not identificador_externo:
+        return {
+            "success": False,
+            "erro": "identificador externo ausente."
+        }
+
+    conn = get_db_connection()
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    INSERT INTO
+                    identidades_externas_contato (
+                        canal,
+                        identificador_externo,
+                        username_publico,
+                        nome_exibicao,
+                        contato_central_id,
+                        status,
+                        criterio_vinculo,
+                        confianca
+                    )
+                    VALUES (
+                        %s,
+                        %s,
+                        NULLIF(%s, ''),
+                        NULLIF(%s, ''),
+                        %s,
+                        %s,
+                        %s,
+                        %s
+                    )
+                    ON CONFLICT (
+                        canal,
+                        identificador_externo
+                    )
+                    DO UPDATE SET
+                        username_publico =
+                            COALESCE(
+                                EXCLUDED.username_publico,
+                                identidades_externas_contato.username_publico
+                            ),
+                        nome_exibicao =
+                            COALESCE(
+                                EXCLUDED.nome_exibicao,
+                                identidades_externas_contato.nome_exibicao
+                            ),
+                        contato_central_id =
+                            COALESCE(
+                                EXCLUDED.contato_central_id,
+                                identidades_externas_contato.contato_central_id
+                            ),
+                        status =
+                            COALESCE(
+                                EXCLUDED.status,
+                                identidades_externas_contato.status
+                            ),
+                        criterio_vinculo =
+                            COALESCE(
+                                EXCLUDED.criterio_vinculo,
+                                identidades_externas_contato.criterio_vinculo
+                            ),
+                        confianca =
+                            COALESCE(
+                                EXCLUDED.confianca,
+                                identidades_externas_contato.confianca
+                            ),
+                        atualizado_em = NOW()
+                    RETURNING *
+                """, (
+                    canal,
+                    identificador_externo,
+                    username_publico,
+                    nome_exibicao,
+                    contato_central_id,
+                    status,
+                    criterio_vinculo,
+                    confianca
+                ))
+
+                identidade = cur.fetchone()
+
+        return {
+            "success": True,
+            "identidade": dict(
+                identidade
+            )
+        }
+
+    except Exception as erro:
+
+        return {
+            "success": False,
+            "erro": str(erro)
+        }
+
+    finally:
+        conn.close()
+
+
 
 def resolver_identidade_instagram(sender_id):
     """
