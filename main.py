@@ -2604,6 +2604,19 @@ def inicializar_banco():
 
                 # ==========================================
                 # ARQUIVAMENTO SEGURO — REDE PROFISSIONAL
+                cur.execute("""
+                    ALTER TABLE profissionais_rede
+                    ADD COLUMN IF NOT EXISTS lead_id UUID
+                    REFERENCES leads_crm(id)
+                    ON DELETE SET NULL
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_profissionais_rede_lead
+                    ON profissionais_rede (lead_id)
+                """)
+
                 cur.execute("ALTER TABLE profissionais_rede ADD COLUMN IF NOT EXISTS arquivado BOOLEAN NOT NULL DEFAULT FALSE")
                 cur.execute("ALTER TABLE profissionais_rede ADD COLUMN IF NOT EXISTS arquivado_em TIMESTAMPTZ")
                 cur.execute("ALTER TABLE profissionais_rede ADD COLUMN IF NOT EXISTS arquivado_por VARCHAR(220)")
@@ -2821,6 +2834,19 @@ def inicializar_banco():
                             REFERENCES fabricas_parceiras(id)
                             ON DELETE SET NULL
                     )
+                """)
+
+                cur.execute("""
+                    ALTER TABLE contatos_estrategicos
+                    ADD COLUMN IF NOT EXISTS lead_id UUID
+                    REFERENCES leads_crm(id)
+                    ON DELETE SET NULL
+                """)
+
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_contatos_estrategicos_lead
+                    ON contatos_estrategicos (lead_id)
                 """)
 
                 cur.execute("""
