@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 import inspect
 from psycopg2.extras import RealDictCursor
 
+import fase5_ai_empresarial as fase5core
+
 
 def _jsonavel(v):
     if hasattr(v, "isoformat"):
@@ -36,7 +38,9 @@ def classificar_relevancia_decisao_fase54(acao):
     externos = (
         "mensagem", "email", "e-mail", "whatsapp", "instagram",
         "linkedin", "pinterest", "youtube", "publicar", "publicacao",
-        "publicação", "enviar", "contatar", "responder",
+        "publicação", "enviar", "contatar", "contactar", "responder",
+        "solicitar", "pedir ", "agendar", "ligar para", "telefonar",
+        "obter confirmação", "confirmar com ", "negociar",
     )
     internos = (
         "pesquisa", "classificar", "qualificar", "reconciliar",
@@ -103,7 +107,10 @@ def listar_decisoes_relevantes_fase54(conn_factory, limite=20):
 
 
 def executar_prospeccao_controlada_fase53(namespace):
-    decisor = namespace.get("decidir_prospeccao_autonoma_fase52")
+    decisor = (
+        namespace.get("decidir_prospeccao_autonoma_fase52")
+        or getattr(fase5core, "decidir_prospeccao_autonoma_fase52", None)
+    )
     executar = namespace.get("executar_proxima_pesquisa_rede")
     planejar = (
         namespace.get("planejar_expansao_rede")
@@ -247,6 +254,18 @@ def instalar_fases_5355(namespace):
     app = namespace.get("app")
     validar_admin = namespace.get("validar_admin_request")
     conn_factory = namespace.get("get_db_connection")
+
+    processar = namespace.get("processar_interacao_omnichannel_crm")
+    if callable(processar) and not getattr(processar, "_fase53_evento", False):
+        def processar53(*args, _original=processar, **kwargs):
+            resultado = _original(*args, **kwargs)
+            try:
+                executar_prospeccao_controlada_fase53(namespace)
+            except Exception as erro:
+                print("FASE 5.3 — PROSPECCAO EVENTO:", repr(erro))
+            return resultado
+        processar53._fase53_evento = True
+        namespace["processar_interacao_omnichannel_crm"] = processar53
 
     ciclo = namespace.get("executar_ciclo_fase5")
     if callable(ciclo) and not getattr(ciclo, "_fase53", False):
