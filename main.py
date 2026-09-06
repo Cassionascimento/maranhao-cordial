@@ -6342,6 +6342,387 @@ def obter_ou_criar_contato_central(
         conn.close()
 
 
+
+def mapear_categoria_contato_passivo(
+    tipo=None,
+    estabelecimento_tipo=None,
+    cargo=None
+):
+    """
+    Converte classificações das bases históricas
+    para categorias válidas do Contact Central.
+    """
+
+    texto = " ".join(
+        str(valor or "").lower()
+        for valor in (
+            tipo,
+            estabelecimento_tipo,
+            cargo
+        )
+    )
+
+    regras = (
+        ("bartender", "bartender"),
+        ("barman", "bartender"),
+        ("bar", "bar"),
+        ("restaurante", "restaurante"),
+        ("hotel", "hotel"),
+        ("distribuidor", "distribuidor"),
+        ("revendedor", "revendedor"),
+        ("fornecedor", "fornecedor"),
+        ("fabricante", "fabrica"),
+        ("fabrica", "fabrica"),
+        ("fábrica", "fabrica"),
+        ("jornalista", "jornalista"),
+        ("imprensa", "imprensa"),
+        ("influenciador", "influenciador"),
+        ("criador", "criador"),
+        ("investidor", "investidor"),
+        ("consultor", "profissional"),
+        ("associacao", "estrategico"),
+        ("associação", "estrategico"),
+        ("parceiro", "parceiro")
+    )
+
+    for termo, categoria in regras:
+        if termo in texto:
+            return categoria
+
+    return "profissional"
+
+
+def consolidar_relacionamentos_passivos(
+    limite_por_fonte=100
+):
+    """
+    Consolida relações já existentes da empresa
+    no Contact Central.
+
+    Fontes iniciais:
+    - profissionais_rede
+    - contatos_estrategicos
+
+    Proteções:
+    - não usa registros rejeitados;
+    - não usa registros arquivados;
+    - não usa profissionais indisponíveis para IA;
+    - não cria identidade sem informação mínima;
+    - nunca une apenas por nome;
+    - grava lead_id de volta na fonte;
+    - não envia mensagens;
+    - não executa pesquisa pública;
+    - não inicia prospecção externa.
+    """
+
+    resumo = {
+        "success": True,
+        "processados": 0,
+        "criados": 0,
+        "reconciliados": 0,
+        "ignorados": 0,
+        "erros": [],
+        "fontes": {
+            "profissionais_rede": 0,
+            "contatos_estrategicos": 0
+        }
+    }
+
+    conn = get_db_connection()
+
+    try:
+        # -----------------------------------------
+        # CARREGA CANDIDATOS
+        # -----------------------------------------
+
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute("""
+                    SELECT *
+                    FROM profissionais_rede
+                    WHERE
+                        COALESCE(arquivado, FALSE) = FALSE
+                        AND COALESCE(
+                            status_fluxo,
+                            ''
+                        ) <> 'rejeitado'
+                    ORDER BY atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite_por_fonte,
+                ))
+
+                profissionais = [
+                    dict(item)
+                    for item in cur.fetchall()
+                ]
+
+                cur.execute("""
+                    SELECT *
+                    FROM contatos_estrategicos
+                    WHERE
+                        COALESCE(
+                            status_relacao,
+                            ''
+                        ) NOT IN (
+                            'rejeitado',
+                            'descartado'
+                        )
+                    ORDER BY atualizado_em DESC
+                    LIMIT %s
+                """, (
+                    limite_por_fonte,
+                ))
+
+                estrategicos = [
+                    dict(item)
+                    for item in cur.fetchall()
+                ]
+
+        # -----------------------------------------
+        # PROFISSIONAIS DE REDE
+        # -----------------------------------------
+
+        for item in profissionais:
+
+            resumo["processados"] += 1
+            resumo["fontes"][
+                "profissionais_rede"
+            ] += 1
+
+            try:
+                if item.get("lead_id"):
+                    resumo["reconciliados"] += 1
+                    continue
+
+                nome = (
+                    item.get("nome_profissional")
+                    or item.get("nome")
+                )
+
+                empresa = item.get(
+                    "estabelecimento_nome"
+                )
+
+                email = item.get("email")
+                telefone = item.get("whatsapp")
+                instagram = item.get("instagram")
+
+                if not any((
+                    email,
+                    telefone,
+                    instagram,
+                    nome and empresa
+                )):
+                    resumo["ignorados"] += 1
+                    continue
+
+                categoria = (
+                    mapear_categoria_contato_passivo(
+                        estabelecimento_tipo=item.get(
+                            "estabelecimento_tipo"
+                        ),
+                        cargo=item.get(
+                            "cargo_funcao"
+                        )
+                    )
+                )
+
+                observacoes = item.get(
+                    "observacoes"
+                )
+
+                resultado = (
+                    obter_ou_criar_contato_central(
+                        nome=nome,
+                        empresa=empresa,
+                        email=email,
+                        telefone=telefone,
+                        instagram=instagram,
+                        canal="rede_profissional",
+                        origem="profissionais_rede",
+                        categoria_contato=categoria,
+                        interesse=observacoes,
+                        observacoes=observacoes
+                    )
+                )
+
+                if not resultado.get("success"):
+                    raise RuntimeError(
+                        resultado.get("erro")
+                        or "Falha no Contact Central"
+                    )
+
+                contato = resultado.get(
+                    "contato"
+                ) or {}
+
+                contato_id = contato.get("id")
+
+                if not contato_id:
+                    raise RuntimeError(
+                        "Contact Central sem ID"
+                    )
+
+                conn_vinculo = get_db_connection()
+
+                try:
+                    with conn_vinculo:
+                        with conn_vinculo.cursor() as cur:
+                            cur.execute("""
+                                UPDATE profissionais_rede
+                                SET
+                                    lead_id = %s,
+                                    atualizado_em = NOW()
+                                WHERE id = %s
+                            """, (
+                                contato_id,
+                                item["id"]
+                            ))
+                finally:
+                    conn_vinculo.close()
+
+                if resultado.get("criado"):
+                    resumo["criados"] += 1
+                else:
+                    resumo["reconciliados"] += 1
+
+            except Exception as erro:
+                resumo["erros"].append({
+                    "fonte": "profissionais_rede",
+                    "id": str(item.get("id")),
+                    "erro": str(erro)
+                })
+
+        # -----------------------------------------
+        # CONTATOS ESTRATÉGICOS
+        # -----------------------------------------
+
+        for item in estrategicos:
+
+            resumo["processados"] += 1
+            resumo["fontes"][
+                "contatos_estrategicos"
+            ] += 1
+
+            try:
+                if item.get("lead_id"):
+                    resumo["reconciliados"] += 1
+                    continue
+
+                nome = item.get("nome")
+                empresa = item.get("empresa")
+                email = item.get("email")
+                telefone = item.get("telefone")
+
+                if not any((
+                    email,
+                    telefone,
+                    nome and empresa
+                )):
+                    resumo["ignorados"] += 1
+                    continue
+
+                categoria = (
+                    mapear_categoria_contato_passivo(
+                        tipo=item.get("tipo"),
+                        cargo=item.get("cargo")
+                    )
+                )
+
+                interesse = (
+                    item.get("resumo")
+                    or item.get("proximo_passo")
+                )
+
+                resultado = (
+                    obter_ou_criar_contato_central(
+                        nome=nome,
+                        empresa=empresa,
+                        email=email,
+                        telefone=telefone,
+                        canal="relacionamento_historico",
+                        origem="contatos_estrategicos",
+                        categoria_contato=categoria,
+                        interesse=interesse,
+                        observacoes=item.get("resumo")
+                    )
+                )
+
+                if not resultado.get("success"):
+                    raise RuntimeError(
+                        resultado.get("erro")
+                        or "Falha no Contact Central"
+                    )
+
+                contato = resultado.get(
+                    "contato"
+                ) or {}
+
+                contato_id = contato.get("id")
+
+                if not contato_id:
+                    raise RuntimeError(
+                        "Contact Central sem ID"
+                    )
+
+                conn_vinculo = get_db_connection()
+
+                try:
+                    with conn_vinculo:
+                        with conn_vinculo.cursor() as cur:
+                            cur.execute("""
+                                UPDATE contatos_estrategicos
+                                SET
+                                    lead_id = %s,
+                                    atualizado_em = NOW()
+                                WHERE id = %s
+                            """, (
+                                contato_id,
+                                item["id"]
+                            ))
+                finally:
+                    conn_vinculo.close()
+
+                if resultado.get("criado"):
+                    resumo["criados"] += 1
+                else:
+                    resumo["reconciliados"] += 1
+
+            except Exception as erro:
+                resumo["erros"].append({
+                    "fonte": "contatos_estrategicos",
+                    "id": str(item.get("id")),
+                    "erro": str(erro)
+                })
+
+        resumo["success"] = (
+            len(resumo["erros"]) == 0
+        )
+
+        return resumo
+
+    except Exception as erro:
+
+        print(
+            "ERRO CONSOLIDAR RELACIONAMENTOS PASSIVOS:",
+            erro
+        )
+
+        return {
+            "success": False,
+            "erro": str(erro),
+            "resumo_parcial": resumo
+        }
+
+    finally:
+        conn.close()
+
+
+
 def registrar_compra_relacionamento(
     contato_id,
     referencia_externa,
