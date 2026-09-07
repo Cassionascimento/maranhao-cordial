@@ -385,6 +385,35 @@ def enviar_email_institucional_fase56(
     }
 
 
+
+def testar_fluxo_direcao_fase56(namespace):
+    """
+    Homologação real do canal institucional.
+    Usa exatamente o mesmo executor utilizado pela prospecção,
+    mas envia somente para a Direção.
+    """
+    assunto = (
+        "HOMOLOGAÇÃO — Maranhão Cordial | "
+        "Prospecção automática de fábrica-piloto"
+    )
+
+    html = _corpo_inicial_html(
+        "Cássio — homologação do fluxo automático"
+    )
+
+    texto = _corpo_inicial_texto(
+        "Cássio — homologação do fluxo automático"
+    )
+
+    return enviar_email_institucional_fase56(
+        namespace,
+        EMAIL_DIRECAO,
+        assunto,
+        html,
+        texto,
+    )
+
+
 def testar_fluxo_fase56(namespace):
     assunto = "Teste institucional — Maranhão Cordial | Prospecção de lote piloto"
     html = _corpo_inicial_html("Maranhão Cordial — teste interno")
