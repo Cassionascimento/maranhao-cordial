@@ -32781,6 +32781,252 @@ def ia_empresarial():
             "error": "Pergunta obrigatória."
         }), 400
 
+
+    # =================================================
+    # FASE 5.8E — COMANDO OPERACIONAL DE PROSPECÇÃO
+    # =================================================
+    #
+    # A caixa "Pergunte ou mande a IA fazer" também é
+    # uma interface de comando. Quando a Direção pede
+    # explicitamente uma busca de fábricas, não enviar
+    # a ordem para o modelo apenas "analisar".
+    #
+    # Executar o motor real de pesquisa pública.
+    # =================================================
+
+    pergunta_normalizada = (
+        pergunta
+        .lower()
+        .replace("á", "a")
+        .replace("à", "a")
+        .replace("ã", "a")
+        .replace("â", "a")
+        .replace("é", "e")
+        .replace("ê", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ô", "o")
+        .replace("õ", "o")
+        .replace("ú", "u")
+        .replace("ç", "c")
+    )
+
+    verbos_busca = (
+        "busque",
+        "buscar",
+        "procure",
+        "procurar",
+        "pesquise",
+        "pesquisar",
+        "encontre",
+        "encontrar",
+        "prospeccione",
+        "prospeccao",
+        "prospecte",
+    )
+
+    termos_fabrica = (
+        "fabrica",
+        "fabricas",
+        "copacker",
+        "copackers",
+        "engarrafador",
+        "engarrafadores",
+        "lote piloto",
+        "piloto",
+    )
+
+    comando_busca_fabrica = (
+        any(
+            termo in pergunta_normalizada
+            for termo in verbos_busca
+        )
+        and any(
+            termo in pergunta_normalizada
+            for termo in termos_fabrica
+        )
+    )
+
+    if comando_busca_fabrica:
+
+        try:
+            from fase58_motor_busca import (
+                executar_busca_fabrica_sp_sob_demanda
+            )
+
+            resultado_busca = (
+                executar_busca_fabrica_sp_sob_demanda(
+                    globals(),
+                    limite=8
+                )
+            )
+
+            candidatos = (
+                resultado_busca.get(
+                    "novos_candidatos"
+                )
+                or []
+            )
+
+            if candidatos:
+
+                linhas = [
+                    (
+                        "Pesquisa externa executada agora. "
+                        f"Encontrei {len(candidatos)} "
+                        "candidato(s) novo(s) para avaliação:"
+                    ),
+                    ""
+                ]
+
+                for i, candidato in enumerate(
+                    candidatos,
+                    start=1
+                ):
+                    nome = (
+                        candidato.get("empresa")
+                        or candidato.get("nome")
+                        or "Empresa sem nome"
+                    )
+
+                    local = " / ".join(
+                        x
+                        for x in (
+                            candidato.get("cidade"),
+                            candidato.get("estado"),
+                        )
+                        if x
+                    )
+
+                    contato = (
+                        candidato.get("email")
+                        or candidato.get("telefone")
+                        or candidato.get("site")
+                        or candidato.get("instagram")
+                        or candidato.get("linkedin")
+                        or "contato ainda não localizado"
+                    )
+
+                    fonte = (
+                        candidato.get("fonte_url")
+                        or "fonte não registrada"
+                    )
+
+                    evidencia = (
+                        candidato.get("evidencia")
+                        or ""
+                    )
+
+                    linha = (
+                        f"{i}. {nome}"
+                    )
+
+                    if local:
+                        linha += f" — {local}"
+
+                    linha += (
+                        f" | contato: {contato}"
+                        f" | fonte: {fonte}"
+                    )
+
+                    if evidencia:
+                        linha += (
+                            " | evidência: "
+                            + str(evidencia)[:240]
+                        )
+
+                    linhas.append(linha)
+
+                linhas.extend([
+                    "",
+                    (
+                        "Critério: São Paulo, lote piloto "
+                        "entre 20 e 50 litros. "
+                        "Nenhum contato foi enviado automaticamente "
+                        "nesta execução; primeiro valide os candidatos."
+                    )
+                ])
+
+                texto_busca = "\n".join(
+                    linhas
+                )
+
+            else:
+
+                texto_busca = (
+                    "A pesquisa externa foi executada agora, "
+                    "mas nesta rodada não retornou novos candidatos "
+                    "com fonte pública verificável para o critério "
+                    "São Paulo + lote piloto de 20 a 50 litros. "
+                    "A busca não foi substituída pelos registros "
+                    "antigos da base."
+                )
+
+            registrar_auditoria(
+                categoria="ia",
+                acao="prospeccao_fabrica_sp_sob_demanda",
+                ator_tipo="ia",
+                ator_id="maranhao-empresarial-v1",
+                origem="admin",
+                entidade_tipo="empresa",
+                entidade_id="maranhao-cordial",
+                status="concluido",
+                dados_entrada={
+                    "pergunta": pergunta
+                },
+                dados_saida={
+                    "fase": "5.8E",
+                    "quantidade": (
+                        resultado_busca.get(
+                            "quantidade",
+                            0
+                        )
+                    ),
+                    "pesquisa_id": (
+                        resultado_busca.get(
+                            "pesquisa_id"
+                        )
+                    )
+                }
+            )
+
+            return jsonify({
+                "success": True,
+                "agent": "maranhao-empresarial-v1",
+                "modo": (
+                    "prospeccao_externa_fabrica_sp"
+                ),
+                "fase": "5.8E",
+                "resposta": texto_busca,
+                "resultado_busca":
+                    resultado_busca,
+                "acoes_sugeridas": []
+            }), 200
+
+        except Exception as erro_busca:
+
+            import traceback
+
+            print(
+                "ERRO FASE 5.8E — "
+                "BUSCA FÁBRICA SOB DEMANDA:",
+                repr(erro_busca)
+            )
+
+            traceback.print_exc()
+
+            return jsonify({
+                "success": False,
+                "fase": "5.8E",
+                "modo":
+                    "prospeccao_externa_fabrica_sp",
+                "error":
+                    "A pesquisa externa foi acionada, "
+                    "mas ocorreu erro na execução.",
+                "detalhe":
+                    str(erro_busca)[:800]
+            }), 500
+
     # =================================================
     # MEMÓRIA EMPRESARIAL POR LINGUAGEM NATURAL
     # =================================================

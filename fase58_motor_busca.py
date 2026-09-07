@@ -383,6 +383,216 @@ def executar_fase58a(namespace):
         raise
 
 
+
+def executar_busca_fabrica_sp_sob_demanda(
+    namespace,
+    limite=8
+):
+    """
+    Execução imediata solicitada pela Direção.
+
+    Faz PESQUISA, mas não envia contato automaticamente.
+    Não depende do slot/cron da 5.8A.
+    """
+
+    from fase57_prospeccao_universal import (
+        executar_pesquisa_publica_fase57,
+    )
+
+    limite = max(
+        1,
+        min(
+            int(limite or 8),
+            15
+        )
+    )
+
+    campanha = _campanha(namespace)
+    campanha_id = campanha["id"]
+
+    consulta = (
+        "BUSCA NOVA E EXTERNA. Encontrar novas fábricas, copackers, "
+        "laboratórios de P&D de bebidas, private label ou engarrafadores "
+        "no ESTADO DE SÃO PAULO que possam avaliar lote piloto pequeno "
+        "entre 20 e 50 litros para bebida ou xarope não alcoólico premium. "
+        "Não retornar empresas de teste. Não tratar a base atual da "
+        "Maranhão Cordial como resultado da pesquisa. Procurar novas "
+        "empresas na web e em fontes profissionais públicas. Priorizar "
+        "São Paulo capital, Grande São Paulo e interior do estado. "
+        "Pesquisar pequenos lotes, desenvolvimento de bebidas, copacking, "
+        "terceirização, envase piloto, hot-fill, private label e P&D. "
+        "Se MOQ mínimo não estiver publicado, ainda considerar a empresa "
+        "como candidata quando houver evidência de desenvolvimento, "
+        "terceirização ou pequenos lotes, registrando que o volume precisa "
+        "ser confirmado. Exigir fonte_url verificável. "
+        "Não inventar contato, MOQ, capacidade ou certificação."
+    )
+
+    conn = _conn(namespace)
+
+    try:
+        with conn:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute(
+                    """
+                    INSERT INTO pesquisas_fase57 (
+                        campanha_id,
+                        consulta,
+                        motivo,
+                        prioridade
+                    )
+                    VALUES (
+                        %s,
+                        %s,
+                        %s,
+                        'critica'
+                    )
+                    RETURNING id
+                    """,
+                    (
+                        campanha_id,
+                        consulta,
+                        (
+                            "Comando direto da Direção: "
+                            "buscar novas fábricas em SP "
+                            "para piloto 20-50 L."
+                        ),
+                    )
+                )
+
+                pesquisa_id = str(
+                    cur.fetchone()["id"]
+                )
+
+    finally:
+        conn.close()
+
+    resultado_pesquisa = (
+        executar_pesquisa_publica_fase57(
+            namespace,
+            pesquisa_id=pesquisa_id,
+            limite=limite
+        )
+    )
+
+    conn = _conn(namespace)
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    nome,
+                    empresa,
+                    cidade,
+                    estado,
+                    email,
+                    telefone,
+                    instagram,
+                    linkedin,
+                    site,
+                    fonte_url,
+                    evidencia,
+                    score,
+                    status,
+                    criado_em
+                FROM prospectos_fase57
+
+                WHERE campanha_id=%s
+
+                  AND criado_em >=
+                      NOW() - INTERVAL '20 minutes'
+
+                  AND LOWER(
+                      COALESCE(
+                          empresa,
+                          nome,
+                          ''
+                      )
+                  ) NOT LIKE '%%teste%%'
+
+                  AND LOWER(
+                      COALESCE(
+                          empresa,
+                          nome,
+                          ''
+                      )
+                  ) NOT LIKE '%%exemplo%%'
+
+                  AND LOWER(
+                      COALESCE(
+                          empresa,
+                          nome,
+                          ''
+                      )
+                  ) NOT LIKE '%%governança%%'
+
+                  AND LOWER(
+                      COALESCE(
+                          empresa,
+                          nome,
+                          ''
+                      )
+                  ) NOT LIKE '%%governanca%%'
+
+                  AND COALESCE(
+                      fonte_url,
+                      ''
+                  ) <> ''
+
+                ORDER BY
+                    score DESC,
+                    criado_em DESC
+
+                LIMIT %s
+                """,
+                (
+                    campanha_id,
+                    limite,
+                )
+            )
+
+            candidatos = [
+                dict(x)
+                for x in cur.fetchall()
+            ]
+
+    finally:
+        conn.close()
+
+    for x in candidatos:
+        x["id"] = str(x["id"])
+
+        if x.get("criado_em"):
+            x["criado_em"] = (
+                x["criado_em"].isoformat()
+            )
+
+    return {
+        "success": True,
+        "fase": "5.8E",
+        "modo": "busca_fabrica_sp_sob_demanda",
+        "campanha_id": str(campanha_id),
+        "pesquisa_id": pesquisa_id,
+        "resultado_pesquisa": resultado_pesquisa,
+        "novos_candidatos": candidatos,
+        "quantidade": len(candidatos),
+        "contato_automatico_enviado": False,
+        "criterio": {
+            "estado": "São Paulo",
+            "volume_piloto_litros": "20-50",
+            "somente_fontes_publicas": True,
+            "busca_externa": True,
+        }
+    }
+
 def instalar_fase58(namespace):
     instalar_schema_fase58(namespace)
 
