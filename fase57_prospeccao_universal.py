@@ -796,6 +796,63 @@ def enviar_primeiro_contato_fase57(namespace, prospecto_id):
         namespace, item["email"], assunto, html, texto
     )
 
+    message_id = resultado.get("message_id")
+
+    if not message_id:
+        raise RuntimeError(
+            "Envio Gmail retornou sucesso sem message_id; "
+            "rastreabilidade obrigatória não atendida."
+        )
+
+    conn = _conn(namespace)
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO interacoes_omnichannel (
+                        id,
+                        canal,
+                        plataforma,
+                        sender_id,
+                        recipient_id,
+                        message_id,
+                        texto,
+                        tipo_interacao,
+                        classificacao,
+                        interesse,
+                        processado_ia,
+                        criado_em,
+                        atualizado_em
+                    )
+                    VALUES (
+                        gen_random_uuid(),
+                        'gmail',
+                        'gmail',
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        'saida_ia_empresarial',
+                        'primeiro_contato',
+                        %s,
+                        TRUE,
+                        NOW(),
+                        NOW()
+                    )
+                    ON CONFLICT (message_id) DO NOTHING
+                    """,
+                    (
+                        "contato@maranhaocordial.com.br",
+                        item["email"],
+                        message_id,
+                        texto,
+                        item.get("objetivo"),
+                    ),
+                )
+    finally:
+        conn.close()
+
     conn = _conn(namespace)
     try:
         with conn:
