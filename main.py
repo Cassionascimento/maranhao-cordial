@@ -39796,3 +39796,12 @@ try:
 except Exception as erro_fase5355:
     print("ERRO AO INSTALAR FASES 5.3/5.4/5.5:", repr(erro_fase5355))
 # ===== FIM FASES 5.3 / 5.4 / 5.5 =====
+
+# ===== FASE 5.6 — FABRICA PILOTO =====
+try:
+    from fase56_fabrica_piloto import instalar_fase56
+    resultado_fase56 = instalar_fase56(globals())
+    print("✓ FASE 5.6:", resultado_fase56)
+except Exception as erro_fase56:
+    print("ERRO AO INSTALAR FASE 5.6:", repr(erro_fase56))
+# ===== FIM FASE 5.6 =====
