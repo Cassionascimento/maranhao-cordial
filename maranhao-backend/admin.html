@@ -5602,7 +5602,7 @@ summary{
                 try {
 
                     const response = await fetch(
-                        "/api/admin/ia-empresarial",
+                        "https://maranhao-cordial-api.onrender.com/api/admin/ia-empresarial",
                         {
                             method: "POST",
                             cache: "no-store",
@@ -7999,10 +7999,10 @@ function f57headers(){const h={"Content-Type":"application/json"};const k=localS
 async function criarCampanha57(){
  const el=document.getElementById("f57status");el.textContent="Criando campanha...";
  try{
-  const r=await fetch("/api/admin/ia-empresarial/fase57/campanhas",{method:"POST",headers:f57headers(),body:JSON.stringify({objetivo:document.getElementById("f57objetivo").value,publico:document.getElementById("f57publico").value,regiao:document.getElementById("f57regiao").value||null,meta_contatos:20})});
+  const r=await fetch("https://maranhao-cordial-api.onrender.com/api/admin/ia-empresarial/fase57/campanhas",{method:"POST",headers:f57headers(),body:JSON.stringify({objetivo:document.getElementById("f57objetivo").value,publico:document.getElementById("f57publico").value,regiao:document.getElementById("f57regiao").value||null,meta_contatos:20})});
   const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||"Falha");
   el.textContent="Campanha criada. Pesquisa, qualificação e contatos entram no ciclo da IA.";
-  fetch("/api/admin/ia-empresarial/fase57/executar",{method:"POST",headers:f57headers()});
+  fetch("https://maranhao-cordial-api.onrender.com/api/admin/ia-empresarial/fase57/executar",{method:"POST",headers:f57headers()});
  }catch(e){el.textContent=e.message}
 }
 </script>
