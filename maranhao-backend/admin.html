@@ -1507,7 +1507,190 @@ summary{
                     </div>
                 </div>
 
-                <div id="iaAnalyticsResumo" style="margin-bottom:22px;">
+
+                <!-- PAINEL PROSPECCAO AUTONOMA -->
+                <div
+                    id="iaProspeccaoAutonoma"
+                    style="
+                        margin-bottom:22px;
+                    "
+                >
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:flex-end;
+                        gap:16px;
+                        flex-wrap:wrap;
+                        margin-bottom:12px;
+                    ">
+                        <div>
+                            <div style="
+                                font-size:11px;
+                                letter-spacing:1.2px;
+                                text-transform:uppercase;
+                                opacity:.55;
+                                margin-bottom:5px;
+                            ">
+                                Prospecção autônoma
+                            </div>
+
+                            <div style="
+                                font-family:Georgia,'Times New Roman',serif;
+                                font-size:22px;
+                                line-height:1.2;
+                            ">
+                                Máquina comercial
+                            </div>
+
+                            <div
+                                id="iaProspStatus"
+                                class="subtitle"
+                                style="
+                                    margin-top:6px;
+                                    font-size:12px;
+                                "
+                            >
+                                Carregando atividade...
+                            </div>
+                        </div>
+
+                        <button
+                            id="iaProspAtualizar"
+                            type="button"
+                            style="
+                                width:auto;
+                                padding:9px 14px;
+                            "
+                        >
+                            Atualizar
+                        </button>
+                    </div>
+
+                    <div style="
+                        display:grid;
+                        grid-template-columns:
+                            repeat(
+                                auto-fit,
+                                minmax(145px,1fr)
+                            );
+                        gap:12px;
+                    ">
+                        <div class="card">
+                            <small>Hoje</small>
+                            <strong id="iaProspHoje">—</strong>
+                            <div class="subtitle">
+                                contatos
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <small>Enviados</small>
+                            <strong id="iaProspEnviados">—</strong>
+                            <div class="subtitle">
+                                e-mails hoje
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <small>Responderam</small>
+                            <strong id="iaProspResponderam">—</strong>
+                            <div class="subtitle">
+                                hoje
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <small>Aguardando resposta</small>
+                            <strong id="iaProspAguardando">—</strong>
+                            <div class="subtitle">
+                                contatos
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <small>Follow-ups</small>
+                            <strong id="iaProspFollowups">—</strong>
+                            <div class="subtitle">
+                                programados
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <small>Negociações</small>
+                            <strong id="iaProspNegociacoes">—</strong>
+                            <div class="subtitle">
+                                em andamento
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="card"
+                        style="
+                            margin-top:12px;
+                            padding:18px 20px;
+                        "
+                    >
+                        <button
+                            id="iaProspToggle"
+                            type="button"
+                            style="
+                                width:100%;
+                                display:flex;
+                                justify-content:
+                                    space-between;
+                                align-items:center;
+                                gap:14px;
+                                padding:0;
+                                border:0;
+                                background:transparent;
+                                color:inherit;
+                                text-align:left;
+                            "
+                        >
+                            <span>
+                                <strong>
+                                    Ver contatos e histórico
+                                </strong>
+                                <span
+                                    id="iaProspQtdHistorico"
+                                    class="subtitle"
+                                    style="
+                                        margin-left:8px;
+                                    "
+                                ></span>
+                            </span>
+
+                            <span
+                                id="iaProspSeta"
+                                style="
+                                    opacity:.55;
+                                    font-size:18px;
+                                "
+                            >
+                                ↓
+                            </span>
+                        </button>
+
+                        <div
+                            id="iaProspHistorico"
+                            style="
+                                display:none;
+                                margin-top:18px;
+                            "
+                        >
+                            <div
+                                id="iaProspLista"
+                                style="
+                                    display:grid;
+                                    gap:10px;
+                                "
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+
+<div id="iaAnalyticsResumo" style="margin-bottom:22px;">
                     <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;opacity:.55;margin-bottom:10px;">
                         Google Analytics · últimos 7 dias
                     </div>
@@ -2219,6 +2402,8 @@ summary{
 
                     carregarAcoesEmpresariais();
 
+                    carregarProspeccaoAutonoma();
+
                     keyInput.value = "";
 
                 } catch (error) {
@@ -2255,6 +2440,499 @@ summary{
                     }
                 }
             );
+
+
+            // === PAINEL PROSPECCAO AUTONOMA ===
+            async function carregarProspeccaoAutonoma() {
+
+                if (!adminKeyAtual) {
+                    return null;
+                }
+
+                const status =
+                    document.getElementById(
+                        "iaProspStatus"
+                    );
+
+                const lista =
+                    document.getElementById(
+                        "iaProspLista"
+                    );
+
+                try {
+
+                    if (status) {
+                        status.textContent =
+                            "Atualizando atividade...";
+                    }
+
+                    const response = await fetch(
+                        "https://maranhao-cordial-api.onrender.com/api/admin/ia-empresarial/prospeccao-autonoma",
+                        {
+                            headers: {
+                                "X-Admin-Key":
+                                    adminKeyAtual
+                            },
+                            cache: "no-store"
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    if (
+                        !response.ok ||
+                        !data.success
+                    ) {
+                        throw new Error(
+                            data.error ||
+                            "Não foi possível carregar a prospecção."
+                        );
+                    }
+
+                    const resumo =
+                        data.resumo || {};
+
+                    const preencher = (
+                        id,
+                        valor
+                    ) => {
+                        const el =
+                            document.getElementById(
+                                id
+                            );
+
+                        if (el) {
+                            el.textContent =
+                                Number(
+                                    valor || 0
+                                );
+                        }
+                    };
+
+                    preencher(
+                        "iaProspHoje",
+                        resumo.contatos_hoje
+                    );
+
+                    preencher(
+                        "iaProspEnviados",
+                        resumo.enviados_hoje
+                    );
+
+                    preencher(
+                        "iaProspResponderam",
+                        resumo.responderam_hoje
+                    );
+
+                    preencher(
+                        "iaProspAguardando",
+                        resumo.aguardando_resposta
+                    );
+
+                    preencher(
+                        "iaProspFollowups",
+                        resumo.followups_programados
+                    );
+
+                    preencher(
+                        "iaProspNegociacoes",
+                        resumo.negociacoes_andamento
+                    );
+
+                    const contatos =
+                        data.contatos || [];
+
+                    const qtd =
+                        document.getElementById(
+                            "iaProspQtdHistorico"
+                        );
+
+                    if (qtd) {
+                        qtd.textContent =
+                            contatos.length
+                                ? `(${contatos.length})`
+                                : "";
+                    }
+
+                    if (lista) {
+
+                        lista.innerHTML = "";
+
+                        if (!contatos.length) {
+
+                            lista.innerHTML = `
+                                <div
+                                    class="subtitle"
+                                    style="
+                                        padding:12px 0;
+                                    "
+                                >
+                                    Ainda não há contatos
+                                    de prospecção registrados.
+                                </div>
+                            `;
+
+                        } else {
+
+                            contatos.forEach(
+                                contato => {
+
+                                    const card =
+                                        document.createElement(
+                                            "div"
+                                        );
+
+                                    card.style.cssText = `
+                                        padding:16px 0;
+                                        border-top:
+                                            1px solid
+                                            rgba(
+                                                255,
+                                                255,
+                                                255,
+                                                .07
+                                            );
+                                    `;
+
+                                    const cidade = [
+                                        contato.cidade,
+                                        contato.estado
+                                    ]
+                                        .filter(Boolean)
+                                        .join(" · ");
+
+                                    let situacao =
+                                        contato.status ||
+                                        contato.classificacao ||
+                                        "em análise";
+
+                                    let atividade =
+                                        "Ainda não contatado";
+
+                                    if (
+                                        contato
+                                            .ultima_interacao_direcao
+                                        === "saida"
+                                    ) {
+                                        atividade =
+                                            "Último movimento: e-mail enviado";
+                                    }
+
+                                    if (
+                                        contato
+                                            .ultima_interacao_direcao
+                                        === "entrada"
+                                    ) {
+                                        atividade =
+                                            "Último movimento: resposta recebida";
+                                    }
+
+                                    const mensagem =
+                                        String(
+                                            contato.ultima_mensagem
+                                            || ""
+                                        )
+                                        .trim()
+                                        .slice(
+                                            0,
+                                            260
+                                        );
+
+                                    card.innerHTML = `
+                                        <div style="
+                                            display:flex;
+                                            justify-content:
+                                                space-between;
+                                            gap:16px;
+                                            align-items:
+                                                flex-start;
+                                            flex-wrap:wrap;
+                                        ">
+                                            <div style="
+                                                min-width:0;
+                                                flex:1;
+                                            ">
+                                                <div style="
+                                                    font-size:15px;
+                                                    font-weight:600;
+                                                ">
+                                                    ${
+                                                        escapar(
+                                                            contato.empresa
+                                                            || "Contato"
+                                                        )
+                                                    }
+                                                </div>
+
+                                                <div
+                                                    class="subtitle"
+                                                    style="
+                                                        margin-top:4px;
+                                                        line-height:1.5;
+                                                    "
+                                                >
+                                                    ${
+                                                        escapar(
+                                                            contato.email
+                                                            || "sem e-mail"
+                                                        )
+                                                    }
+                                                    ${
+                                                        cidade
+                                                            ? " · "
+                                                            + escapar(
+                                                                cidade
+                                                            )
+                                                            : ""
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            <div style="
+                                                font-size:11px;
+                                                text-transform:
+                                                    uppercase;
+                                                letter-spacing:.8px;
+                                                opacity:.62;
+                                            ">
+                                                ${
+                                                    escapar(
+                                                        situacao
+                                                    )
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <div style="
+                                            display:grid;
+                                            grid-template-columns:
+                                                repeat(
+                                                    auto-fit,
+                                                    minmax(
+                                                        150px,
+                                                        1fr
+                                                    )
+                                                );
+                                            gap:10px;
+                                            margin-top:13px;
+                                            font-size:12px;
+                                        ">
+                                            <div>
+                                                <small>
+                                                    Tentativas
+                                                </small>
+                                                <div>
+                                                    ${
+                                                        escapar(
+                                                            contato.tentativas
+                                                            ?? 0
+                                                        )
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <small>
+                                                    Último contato
+                                                </small>
+                                                <div>
+                                                    ${
+                                                        contato.ultimo_contato_em
+                                                            ? escapar(
+                                                                dataBrasil(
+                                                                    contato.ultimo_contato_em
+                                                                )
+                                                            )
+                                                            : "—"
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <small>
+                                                    Última resposta
+                                                </small>
+                                                <div>
+                                                    ${
+                                                        contato.ultima_resposta_em
+                                                            ? escapar(
+                                                                dataBrasil(
+                                                                    contato.ultima_resposta_em
+                                                                )
+                                                            )
+                                                            : "—"
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <small>
+                                                    Próximo follow-up
+                                                </small>
+                                                <div>
+                                                    ${
+                                                        contato.proximo_followup_em
+                                                            ? escapar(
+                                                                dataBrasil(
+                                                                    contato.proximo_followup_em
+                                                                )
+                                                            )
+                                                            : "—"
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            class="subtitle"
+                                            style="
+                                                margin-top:12px;
+                                                font-size:12px;
+                                            "
+                                        >
+                                            ${
+                                                escapar(
+                                                    atividade
+                                                )
+                                            }
+                                        </div>
+
+                                        ${
+                                            mensagem
+                                                ? `
+                                                    <div style="
+                                                        margin-top:8px;
+                                                        font-size:13px;
+                                                        line-height:1.55;
+                                                        opacity:.72;
+                                                    ">
+                                                        ${
+                                                            escapar(
+                                                                mensagem
+                                                            )
+                                                        }${
+                                                            (
+                                                                contato
+                                                                    .ultima_mensagem
+                                                                || ""
+                                                            ).length > 260
+                                                                ? "…"
+                                                                : ""
+                                                        }
+                                                    </div>
+                                                `
+                                                : ""
+                                        }
+                                    `;
+
+                                    lista.appendChild(
+                                        card
+                                    );
+                                }
+                            );
+                        }
+                    }
+
+                    if (status) {
+
+                        const agora =
+                            new Date();
+
+                        status.textContent =
+                            "Atualizado às "
+                            + agora.toLocaleTimeString(
+                                "pt-BR",
+                                {
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                }
+                            );
+                    }
+
+                    return data;
+
+                } catch (erro) {
+
+                    if (status) {
+                        status.textContent =
+                            "Erro: "
+                            + erro.message;
+                    }
+
+                    console.error(
+                        "Prospecção autônoma:",
+                        erro
+                    );
+
+                    return null;
+                }
+            }
+
+
+            const iaProspToggle =
+                document.getElementById(
+                    "iaProspToggle"
+                );
+
+            const iaProspHistorico =
+                document.getElementById(
+                    "iaProspHistorico"
+                );
+
+            const iaProspSeta =
+                document.getElementById(
+                    "iaProspSeta"
+                );
+
+            if (
+                iaProspToggle &&
+                iaProspHistorico
+            ) {
+
+                iaProspToggle.addEventListener(
+                    "click",
+                    () => {
+
+                        const aberto =
+                            iaProspHistorico
+                                .style
+                                .display !==
+                            "none";
+
+                        iaProspHistorico
+                            .style
+                            .display =
+                                aberto
+                                    ? "none"
+                                    : "block";
+
+                        if (iaProspSeta) {
+                            iaProspSeta
+                                .textContent =
+                                    aberto
+                                        ? "↓"
+                                        : "↑";
+                        }
+                    }
+                );
+            }
+
+
+            const iaProspAtualizar =
+                document.getElementById(
+                    "iaProspAtualizar"
+                );
+
+            if (iaProspAtualizar) {
+
+                iaProspAtualizar
+                    .addEventListener(
+                        "click",
+                        carregarProspeccaoAutonoma
+                    );
+            }
+
 
             async function carregarAnalytics() {
 

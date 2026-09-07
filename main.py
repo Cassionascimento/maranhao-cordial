@@ -34020,6 +34020,368 @@ def consultar_pedido_postgres(codigo):
         }), 500
 
 
+
+# === PAINEL PROSPECCAO AUTONOMA ===
+@app.route(
+    "/api/admin/ia-empresarial/prospeccao-autonoma",
+    methods=["GET"]
+)
+def api_admin_ia_empresarial_prospeccao_autonoma():
+    """
+    Visão executiva da prospecção autônoma da IA Empresarial.
+
+    Retorna:
+    - contatos trabalhados hoje;
+    - e-mails enviados hoje;
+    - respostas recebidas hoje;
+    - contatos aguardando resposta;
+    - follow-ups programados;
+    - negociações em andamento;
+    - histórico dos prospectos e última interação Gmail.
+    """
+    import os
+    import hmac
+    from psycopg2.extras import RealDictCursor
+
+    chave_recebida = (
+        request.headers.get("X-Admin-Key") or ""
+    ).strip()
+
+    chave_esperada = None
+
+    for nome in (
+        "ADMIN_KEY",
+        "ADMIN_API_KEY",
+        "ADMIN_SECRET",
+        "PAINEL_ADMIN_KEY",
+    ):
+        valor_global = globals().get(nome)
+
+        if valor_global:
+            chave_esperada = str(valor_global).strip()
+            break
+
+        valor_env = os.getenv(nome)
+
+        if valor_env:
+            chave_esperada = str(valor_env).strip()
+            break
+
+    # Falha fechada: nunca deixa o relatório privado aberto
+    # se a chave administrativa não estiver configurada.
+    if not chave_esperada:
+        return jsonify({
+            "success": False,
+            "error": "Chave administrativa do painel indisponível."
+        }), 503
+
+    if not hmac.compare_digest(
+        chave_recebida,
+        chave_esperada
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+
+            cur.execute("""
+                WITH hoje AS (
+                    SELECT
+                        (
+                            NOW()
+                            AT TIME ZONE
+                            'America/Sao_Paulo'
+                        )::date AS d
+                )
+                SELECT
+
+                    (
+                        SELECT COUNT(*)
+                        FROM prospectos_fase57 p, hoje
+                        WHERE
+                            p.ultimo_contato_em IS NOT NULL
+                            AND (
+                                p.ultimo_contato_em
+                                AT TIME ZONE
+                                'America/Sao_Paulo'
+                            )::date = hoje.d
+                    )::INTEGER
+                    AS contatos_hoje,
+
+                    (
+                        SELECT COUNT(*)
+                        FROM interacoes_omnichannel i, hoje
+                        WHERE
+                            i.canal = 'gmail'
+                            AND LOWER(
+                                COALESCE(
+                                    i.sender_id,
+                                    ''
+                                )
+                            ) =
+                            'contato@maranhaocordial.com.br'
+
+                            AND i.tipo_interacao =
+                                'saida_ia_empresarial'
+
+                            AND (
+                                i.criado_em
+                                AT TIME ZONE
+                                'America/Sao_Paulo'
+                            )::date = hoje.d
+
+                            AND EXISTS (
+                                SELECT 1
+                                FROM prospectos_fase57 p
+                                WHERE
+                                    LOWER(
+                                        COALESCE(
+                                            p.email,
+                                            ''
+                                        )
+                                    ) =
+                                    LOWER(
+                                        COALESCE(
+                                            i.recipient_id,
+                                            ''
+                                        )
+                                    )
+                            )
+                    )::INTEGER
+                    AS enviados_hoje,
+
+                    (
+                        SELECT COUNT(*)
+                        FROM prospectos_fase57 p, hoje
+                        WHERE
+                            p.ultima_resposta_em
+                            IS NOT NULL
+
+                            AND (
+                                p.ultima_resposta_em
+                                AT TIME ZONE
+                                'America/Sao_Paulo'
+                            )::date = hoje.d
+                    )::INTEGER
+                    AS responderam_hoje,
+
+                    (
+                        SELECT COUNT(*)
+                        FROM prospectos_fase57 p
+                        WHERE
+                            p.ultimo_contato_em
+                            IS NOT NULL
+
+                            AND (
+                                p.ultima_resposta_em
+                                IS NULL
+                                OR
+                                p.ultima_resposta_em
+                                <
+                                p.ultimo_contato_em
+                            )
+
+                            AND p.status
+                            NOT IN (
+                                'descartado',
+                                'bloqueado'
+                            )
+                    )::INTEGER
+                    AS aguardando_resposta,
+
+                    (
+                        SELECT COUNT(*)
+                        FROM prospectos_fase57 p
+                        WHERE
+                            p.proximo_followup_em
+                            IS NOT NULL
+
+                            AND p.status
+                            NOT IN (
+                                'descartado',
+                                'bloqueado'
+                            )
+                    )::INTEGER
+                    AS followups_programados,
+
+                    (
+                        SELECT COUNT(*)
+                        FROM prospectos_fase57 p
+                        WHERE
+                            p.status IN (
+                                'negociando',
+                                'promissor',
+                                'estrategico',
+                                'pronto_para_fechamento'
+                            )
+
+                            OR p.classificacao IN (
+                                'promissor',
+                                'estrategico',
+                                'pronto_para_fechamento'
+                            )
+                    )::INTEGER
+                    AS negociacoes_andamento
+            """)
+
+            resumo = dict(
+                cur.fetchone() or {}
+            )
+
+            cur.execute("""
+                SELECT
+                    p.id,
+
+                    COALESCE(
+                        NULLIF(
+                            p.empresa,
+                            ''
+                        ),
+                        NULLIF(
+                            p.nome,
+                            ''
+                        ),
+                        p.email,
+                        'Contato'
+                    ) AS empresa,
+
+                    p.nome,
+                    p.email,
+                    p.cidade,
+                    p.estado,
+                    p.status,
+                    p.classificacao,
+                    p.tentativas,
+                    p.ultimo_contato_em,
+                    p.ultima_resposta_em,
+                    p.proximo_followup_em,
+
+                    c.publico,
+                    c.objetivo,
+
+                    i.message_id
+                        AS ultimo_message_id,
+
+                    i.texto
+                        AS ultima_mensagem,
+
+                    i.criado_em
+                        AS ultima_interacao_em,
+
+                    CASE
+                        WHEN LOWER(
+                            COALESCE(
+                                i.sender_id,
+                                ''
+                            )
+                        ) =
+                        LOWER(
+                            'contato@maranhaocordial.com.br'
+                        )
+                        THEN 'saida'
+
+                        WHEN i.id IS NOT NULL
+                        THEN 'entrada'
+
+                        ELSE NULL
+                    END
+                    AS ultima_interacao_direcao
+
+                FROM prospectos_fase57 p
+
+                LEFT JOIN
+                    campanhas_prospeccao_fase57 c
+                    ON c.id = p.campanha_id
+
+                LEFT JOIN LATERAL (
+                    SELECT io.*
+                    FROM interacoes_omnichannel io
+                    WHERE
+                        io.canal = 'gmail'
+
+                        AND (
+                            LOWER(
+                                COALESCE(
+                                    io.sender_id,
+                                    ''
+                                )
+                            ) =
+                            LOWER(
+                                COALESCE(
+                                    p.email,
+                                    ''
+                                )
+                            )
+
+                            OR
+
+                            LOWER(
+                                COALESCE(
+                                    io.recipient_id,
+                                    ''
+                                )
+                            ) =
+                            LOWER(
+                                COALESCE(
+                                    p.email,
+                                    ''
+                                )
+                            )
+                        )
+
+                    ORDER BY
+                        io.criado_em DESC
+
+                    LIMIT 1
+                ) i ON TRUE
+
+                ORDER BY
+                    COALESCE(
+                        p.ultima_resposta_em,
+                        p.ultimo_contato_em,
+                        p.atualizado_em,
+                        p.criado_em
+                    ) DESC
+
+                LIMIT 100
+            """)
+
+            contatos = [
+                dict(r)
+                for r in cur.fetchall()
+            ]
+
+        return jsonify({
+            "success": True,
+            "fase": "5.8",
+            "resumo": resumo,
+            "contatos": contatos,
+        }), 200
+
+    except Exception as erro:
+        print(
+            "ERRO PAINEL PROSPECCAO AUTONOMA:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "error":
+                "Erro ao carregar a prospecção autônoma."
+        }), 500
+
+    finally:
+        conn.close()
+
+
+
 @app.route(
     "/<path:filename>"
 )
