@@ -7974,5 +7974,39 @@ decisoes.innerHTML=itens.length?itens.map(x=>"<div style='padding:10px 0;border-
 setTimeout(carregarFase55,800);
 </script>
 
+
+<!-- FASE57_COMANDO -->
+<section id="fase57Comando" style="max-width:1200px;margin:18px auto;padding:0 16px">
+<div style="border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:16px;background:rgba(255,255,255,.02)">
+<div style="font-size:11px;opacity:.5;letter-spacing:.12em;text-transform:uppercase">Prospecção autônoma · Fase 5.7</div>
+<div style="font-size:18px;margin:4px 0 12px">Dê um objetivo. A máquina busca os contatos.</div>
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px">
+<input id="f57objetivo" placeholder="Ex.: encontrar bares premium para apresentar Maranhão Cordial">
+<select id="f57publico">
+<option value="bar">Bares</option><option value="restaurante">Restaurantes</option>
+<option value="bartender">Bartenders</option><option value="hotel">Hotéis</option>
+<option value="distribuidor">Distribuidores</option><option value="fabrica">Fábricas</option>
+<option value="imprensa">Imprensa</option><option value="influenciador">Influenciadores</option>
+<option value="fornecedor">Fornecedores</option><option value="parceiro">Parceiros</option>
+</select>
+<input id="f57regiao" placeholder="Região (ex.: São Paulo)">
+<button onclick="criarCampanha57()" style="width:auto;margin:0">Prospectar</button>
+</div>
+<div id="f57status" style="font-size:12px;opacity:.6;margin-top:10px"></div>
+</div>
+</section>
+<script>
+function f57headers(){const h={"Content-Type":"application/json"};const k=localStorage.getItem("adminKey")||localStorage.getItem("admin_key")||"";if(k)h["X-Admin-Key"]=k;return h}
+async function criarCampanha57(){
+ const el=document.getElementById("f57status");el.textContent="Criando campanha...";
+ try{
+  const r=await fetch("/api/admin/ia-empresarial/fase57/campanhas",{method:"POST",headers:f57headers(),body:JSON.stringify({objetivo:document.getElementById("f57objetivo").value,publico:document.getElementById("f57publico").value,regiao:document.getElementById("f57regiao").value||null,meta_contatos:20})});
+  const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||"Falha");
+  el.textContent="Campanha criada. Pesquisa, qualificação e contatos entram no ciclo da IA.";
+  fetch("/api/admin/ia-empresarial/fase57/executar",{method:"POST",headers:f57headers()});
+ }catch(e){el.textContent=e.message}
+}
+</script>
+
 </body>
 </html>

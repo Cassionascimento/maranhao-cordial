@@ -498,3 +498,509 @@ def instalar_fase57(namespace):
         "preco_margem_teto_expostos": False,
         "compromisso_estrategico_automatico": False,
     }
+
+# ===== FASE 5.7B — EXECUÇÃO CONTÍNUA =====
+
+def _json_resposta_openai(resp):
+    texto = (getattr(resp, "output_text", None) or "").strip()
+    if not texto:
+        raise RuntimeError("Pesquisa pública não retornou conteúdo.")
+    texto = re.sub(r"^```(?:json)?\s*|\s*```$", "", texto, flags=re.I | re.S).strip()
+    return json.loads(texto)
+
+
+def executar_pesquisa_publica_fase57(namespace, pesquisa_id=None, limite=10):
+    conn = _conn(namespace)
+    pesquisa = None
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                if pesquisa_id:
+                    cur.execute("""
+                        SELECT p.*, c.objetivo, c.publico, c.regiao,
+                               c.contexto, c.regras_adicionais
+                        FROM pesquisas_fase57 p
+                        JOIN campanhas_prospeccao_fase57 c ON c.id=p.campanha_id
+                        WHERE p.id=%s AND p.status='pendente'
+                        FOR UPDATE SKIP LOCKED
+                    """, (pesquisa_id,))
+                else:
+                    cur.execute("""
+                        SELECT p.*, c.objetivo, c.publico, c.regiao,
+                               c.contexto, c.regras_adicionais
+                        FROM pesquisas_fase57 p
+                        JOIN campanhas_prospeccao_fase57 c ON c.id=p.campanha_id
+                        WHERE p.status='pendente'
+                          AND c.status = ANY(%s)
+                        ORDER BY
+                          CASE p.prioridade WHEN 'critica' THEN 0 WHEN 'alta' THEN 1 ELSE 2 END,
+                          p.criado_em ASC
+                        LIMIT 1
+                        FOR UPDATE SKIP LOCKED
+                    """, (list(STATUS_ATIVOS),))
+                pesquisa = cur.fetchone()
+                if not pesquisa:
+                    return {"success": True, "executada": False, "motivo": "sem_pesquisa_pendente"}
+                pesquisa = dict(pesquisa)
+                cur.execute("""
+                    UPDATE pesquisas_fase57
+                    SET status='executando', iniciado_em=NOW(),
+                        tentativas=tentativas+1, erro=NULL
+                    WHERE id=%s
+                """, (pesquisa["id"],))
+    finally:
+        conn.close()
+
+    try:
+        from openai import OpenAI
+        client = OpenAI()
+        prompt = f"""
+Faça pesquisa pública profissional na web para a Maranhão Cordial.
+
+CONSULTA:
+{pesquisa['consulta']}
+
+OBJETIVO DA CAMPANHA:
+{pesquisa.get('objetivo')}
+
+PÚBLICO:
+{pesquisa.get('publico')}
+
+REGIÃO:
+{pesquisa.get('regiao') or 'Brasil'}
+
+Retorne SOMENTE JSON válido, como lista de no máximo {max(1,min(int(limite or 10),20))} objetos.
+Cada objeto pode ter:
+nome, empresa, cargo, cidade, estado, email, telefone, instagram, linkedin,
+site, fonte_url, evidencia, score.
+
+REGRAS:
+- somente dados profissionais publicamente disponíveis;
+- fonte_url é obrigatória;
+- prefira site oficial da empresa/organização;
+- nunca invente e-mail, telefone, cargo ou empresa;
+- score de 0 a 100 indica aderência ao objetivo;
+- não retorne contato sem pelo menos nome ou empresa;
+- não use dados pessoais privados.
+"""
+        try:
+            resp = client.responses.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-5.6-mini"),
+                tools=[{"type": "web_search"}],
+                input=prompt,
+            )
+        except Exception:
+            resp = client.responses.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-5.6-mini"),
+                tools=[{"type": "web_search_preview"}],
+                input=prompt,
+            )
+        dados = _json_resposta_openai(resp)
+        if not isinstance(dados, list):
+            raise RuntimeError("Formato de pesquisa inválido.")
+
+        inseridos = 0
+        conn = _conn(namespace)
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    for x in dados[:20]:
+                        if not isinstance(x, dict):
+                            continue
+                        fonte = str(x.get("fonte_url") or "").strip()
+                        if not fonte.startswith(("http://","https://")):
+                            continue
+                        email = str(x.get("email") or "").strip().lower() or None
+                        score = max(0, min(int(x.get("score") or 0), 100))
+                        cur.execute("""
+                            INSERT INTO prospectos_fase57 (
+                                campanha_id,nome,empresa,cargo,cidade,estado,
+                                email,telefone,instagram,linkedin,site,
+                                fonte_url,evidencia,score,status
+                            )
+                            SELECT %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
+                                   CASE WHEN %s >= 55 THEN 'qualificado' ELSE 'novo' END
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM prospectos_fase57 z
+                                WHERE z.campanha_id=%s
+                                  AND (
+                                    (%s IS NOT NULL AND LOWER(COALESCE(z.email,''))=LOWER(%s))
+                                    OR
+                                    (%s IS NOT NULL AND LOWER(COALESCE(z.site,''))=LOWER(%s))
+                                    OR
+                                    (%s IS NOT NULL AND LOWER(COALESCE(z.empresa,''))=LOWER(%s))
+                                  )
+                            )
+                        """, (
+                            pesquisa["campanha_id"],
+                            x.get("nome"), x.get("empresa"), x.get("cargo"),
+                            x.get("cidade"), x.get("estado"), email,
+                            x.get("telefone"), x.get("instagram"),
+                            x.get("linkedin"), x.get("site"), fonte,
+                            x.get("evidencia"), score, score,
+                            pesquisa["campanha_id"],
+                            email, email,
+                            x.get("site"), x.get("site"),
+                            x.get("empresa"), x.get("empresa"),
+                        ))
+                        inseridos += max(cur.rowcount, 0)
+                    cur.execute("""
+                        UPDATE pesquisas_fase57
+                        SET status='concluida', concluido_em=NOW()
+                        WHERE id=%s
+                    """, (pesquisa["id"],))
+        finally:
+            conn.close()
+
+        garantir_pesquisa_se_faltar_fase57(namespace, pesquisa["campanha_id"])
+        return {"success": True, "executada": True, "inseridos": inseridos}
+    except Exception as erro:
+        conn = _conn(namespace)
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE pesquisas_fase57
+                        SET status=CASE WHEN tentativas>=3 THEN 'erro' ELSE 'pendente' END,
+                            erro=%s
+                        WHERE id=%s
+                    """, (str(erro)[:1500], pesquisa["id"]))
+        finally:
+            conn.close()
+        return {"success": False, "executada": True, "error": str(erro)}
+
+
+def _campanha_e_prospecto(namespace, prospecto_id):
+    conn = _conn(namespace)
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT p.*, c.objetivo, c.publico, c.regiao,
+                       c.contexto, c.regras_adicionais,
+                       c.permitir_primeiro_contato, c.permitir_followup,
+                       c.revelar_preco, c.status campanha_status
+                FROM prospectos_fase57 p
+                JOIN campanhas_prospeccao_fase57 c ON c.id=p.campanha_id
+                WHERE p.id=%s
+            """, (prospecto_id,))
+            r = cur.fetchone()
+            return dict(r) if r else None
+    finally:
+        conn.close()
+
+
+def enviar_primeiro_contato_fase57(namespace, prospecto_id):
+    item = _campanha_e_prospecto(namespace, prospecto_id)
+    if not item:
+        return {"success": False, "motivo": "prospecto_nao_encontrado"}
+    if item.get("campanha_status") not in STATUS_ATIVOS:
+        return {"success": False, "motivo": "campanha_inativa"}
+    if not item.get("permitir_primeiro_contato"):
+        return {"success": False, "motivo": "primeiro_contato_desabilitado"}
+    if item.get("status") not in ("novo","qualificado"):
+        return {"success": False, "motivo": "prospecto_ja_processado"}
+    if not item.get("email"):
+        return {"success": False, "motivo": "sem_email_profissional"}
+
+    campanha = {
+        "objetivo": item.get("objetivo"),
+        "publico": item.get("publico"),
+        "regiao": item.get("regiao"),
+        "contexto": item.get("contexto"),
+        "regras_adicionais": item.get("regras_adicionais"),
+    }
+    texto = gerar_primeiro_contato_fase57(campanha, item)
+    validar_mensagem_fase57(texto)
+
+    from fase56_fabrica_piloto import enviar_email_institucional_fase56, _assinatura_html
+    html = (
+        '<div style="font-family:Arial,Helvetica,sans-serif;color:#171717;line-height:1.6;font-size:14px">'
+        + "".join(f"<p>{x.strip()}</p>" for x in texto.splitlines() if x.strip())
+        + _assinatura_html() + "</div>"
+    )
+    empresa = item.get("empresa") or item.get("nome") or "contato profissional"
+    assunto = f"Maranhão Cordial — proposta de conexão com {empresa}"
+    resultado = enviar_email_institucional_fase56(
+        namespace, item["email"], assunto, html, texto
+    )
+
+    conn = _conn(namespace)
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE prospectos_fase57
+                    SET status='contatado', tentativas=tentativas+1,
+                        ultimo_contato_em=NOW(),
+                        proximo_followup_em=NOW()+INTERVAL '3 days',
+                        atualizado_em=NOW()
+                    WHERE id=%s
+                """, (prospecto_id,))
+    finally:
+        conn.close()
+    return resultado
+
+
+def executar_lote_contatos_fase57(namespace, campanha_id=None, limite=3):
+    limite = max(1, min(int(limite or 3), 5))
+    conn = _conn(namespace)
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            params = [list(STATUS_ATIVOS)]
+            filtro = ""
+            if campanha_id:
+                filtro = "AND p.campanha_id=%s"
+                params.append(campanha_id)
+            params.append(limite)
+            cur.execute(f"""
+                SELECT p.id
+                FROM prospectos_fase57 p
+                JOIN campanhas_prospeccao_fase57 c ON c.id=p.campanha_id
+                WHERE c.status = ANY(%s)
+                  AND c.permitir_primeiro_contato=TRUE
+                  AND p.status='qualificado'
+                  AND COALESCE(p.email,'') <> ''
+                  {filtro}
+                  AND NOT EXISTS (
+                    SELECT 1 FROM prospectos_fase57 z
+                    WHERE z.id<>p.id
+                      AND LOWER(COALESCE(z.email,''))=LOWER(p.email)
+                      AND z.status IN ('contatado','negociando','promissor')
+                  )
+                  AND (
+                    SELECT COUNT(*)
+                    FROM prospectos_fase57 h
+                    WHERE h.campanha_id=p.campanha_id
+                      AND h.ultimo_contato_em >= NOW()-INTERVAL '24 hours'
+                  ) < 20
+                ORDER BY p.score DESC, p.criado_em ASC
+                LIMIT %s
+            """, tuple(params))
+            ids = [str(r["id"]) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+    resultados = []
+    for pid in ids:
+        try:
+            resultados.append(enviar_primeiro_contato_fase57(namespace, pid))
+        except Exception as erro:
+            resultados.append({"success": False, "prospecto_id": pid, "error": str(erro)})
+    return {"success": True, "tentados": len(ids), "resultados": resultados}
+
+
+def _buscar_prospecto_resposta_fase57(namespace, email):
+    conn = _conn(namespace)
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT p.*, c.objetivo, c.publico, c.regiao,
+                       c.contexto, c.regras_adicionais, c.permitir_followup
+                FROM prospectos_fase57 p
+                JOIN campanhas_prospeccao_fase57 c ON c.id=p.campanha_id
+                WHERE LOWER(COALESCE(p.email,''))=LOWER(%s)
+                  AND p.status IN ('contatado','negociando','promissor')
+                  AND c.status = ANY(%s)
+                ORDER BY p.ultimo_contato_em DESC NULLS LAST
+                LIMIT 1
+            """, (email, list(STATUS_ATIVOS)))
+            r = cur.fetchone()
+            return dict(r) if r else None
+    finally:
+        conn.close()
+
+
+def processar_resposta_fase57(namespace, interacao):
+    if str(interacao.get("canal") or "").lower() not in ("gmail","email"):
+        return {"processado": False, "motivo": "canal_nao_email"}
+
+    remetente = (
+        interacao.get("email_remetente") or interacao.get("sender_email")
+        or interacao.get("sender_id") or interacao.get("remetente")
+    )
+    m = re.search(r"[\w.\-+]+@[\w.\-]+\.\w+", str(remetente or ""))
+    if not m:
+        return {"processado": False, "motivo": "sem_email"}
+    email = m.group(0).lower()
+    item = _buscar_prospecto_resposta_fase57(namespace, email)
+    if not item:
+        return {"processado": False, "motivo": "fora_de_campanha"}
+
+    texto = (
+        interacao.get("texto") or interacao.get("mensagem")
+        or interacao.get("conteudo") or ""
+    )
+    c = classificar_resposta_fase57(texto)
+    novo_status = "descartado" if c["descartar"] else "promissor" if c["alertar"] else "negociando"
+
+    conn = _conn(namespace)
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE prospectos_fase57
+                    SET status=%s, classificacao=%s, motivo=%s,
+                        ultima_resposta_em=NOW(), atualizado_em=NOW()
+                    WHERE id=%s
+                """, (
+                    novo_status, c["resultado"],
+                    f"Classificação automática Fase 5.7: {c['resultado']}",
+                    item["id"],
+                ))
+                if c["alertar"]:
+                    cur.execute("""
+                        INSERT INTO acoes_empresariais (
+                            tipo,canal,destinatario,conteudo,justificativa,
+                            status,prioridade,tipo_execucao
+                        ) VALUES (
+                            'oportunidade_prospeccao_fase57','interno','direcao',
+                            %s,%s,'aguardando_aprovacao',
+                            CASE WHEN %s='estrategico' THEN 'critica' ELSE 'alta' END,
+                            'registrar_analise_interna'
+                        )
+                    """, (
+                        f"Resposta {c['resultado']} de {item.get('empresa') or item.get('nome') or email}.",
+                        f"Campanha: {item.get('objetivo')}. Verificar oportunidade e decidir próximo compromisso.",
+                        c["resultado"],
+                    ))
+    finally:
+        conn.close()
+
+    registrar_aprendizado_fase57(
+        namespace, item["campanha_id"], item["id"], item.get("publico"),
+        item.get("regiao"), c["resultado"],
+        motivo=f"Resposta classificada como {c['resultado']}.",
+        evidencia=str(texto)[:1500], canal="email",
+        peso=1.5 if c["resultado"] in ("promissor","estrategico") else 1,
+    )
+
+    if c["descartar"]:
+        garantir_pesquisa_se_faltar_fase57(namespace, item["campanha_id"])
+        return {"processado": True, "resultado": c, "followup": False}
+
+    if not c["alertar"] and item.get("permitir_followup"):
+        from openai import OpenAI
+        client = OpenAI()
+        prompt = f"""
+Responda como equipe B2B da Maranhão Cordial, de forma curta.
+{contexto_institucional_fase57()}
+Objetivo da campanha: {item.get('objetivo')}
+Resposta recebida: {texto}
+Peça apenas as informações necessárias para avançar.
+Não revele preço/margem/teto interno e não assuma contrato, pagamento,
+exclusividade, desconto ou compromisso final.
+Retorne somente o corpo do e-mail.
+"""
+        resp = client.responses.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-5.6-mini"), input=prompt
+        )
+        follow = (getattr(resp, "output_text", None) or "").strip()
+        validar_mensagem_fase57(follow)
+        from fase56_fabrica_piloto import enviar_email_institucional_fase56, _assinatura_html
+        html = (
+            '<div style="font-family:Arial,Helvetica,sans-serif;color:#171717;line-height:1.6;font-size:14px">'
+            + "".join(f"<p>{x.strip()}</p>" for x in follow.splitlines() if x.strip())
+            + _assinatura_html() + "</div>"
+        )
+        assunto = interacao.get("assunto") or "Re: Maranhão Cordial"
+        if not str(assunto).lower().startswith("re:"):
+            assunto = f"Re: {assunto}"
+        enviar_email_institucional_fase56(namespace, email, assunto, html, follow)
+        return {"processado": True, "resultado": c, "followup": True}
+
+    return {"processado": True, "resultado": c, "followup": False}
+
+
+def criar_campanha_automatica_por_lacuna_fase57(namespace):
+    lacunas = detectar_lacunas_fase57(namespace)
+    if not lacunas:
+        return {"success": True, "criada": False, "motivo": "sem_lacuna"}
+    alvo = next((x for x in lacunas if int(x.get("lacuna") or 0) >= 3), None)
+    if not alvo:
+        return {"success": True, "criada": False, "motivo": "lacuna_pequena"}
+
+    conn = _conn(namespace)
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 1 FROM campanhas_prospeccao_fase57
+                WHERE publico=%s
+                  AND status = ANY(%s)
+                  AND criado_em >= NOW()-INTERVAL '14 days'
+                LIMIT 1
+            """, (alvo["publico"], list(STATUS_ATIVOS)))
+            if cur.fetchone():
+                return {"success": True, "criada": False, "motivo": "campanha_recente_existente"}
+    finally:
+        conn.close()
+
+    return {
+        "success": True,
+        "criada": True,
+        "resultado": criar_campanha_fase57(
+            namespace,
+            objetivo=(
+                f"Ampliar rede qualificada de {alvo['publico']} para reduzir "
+                "lacuna comercial e gerar novas oportunidades para Maranhão Cordial."
+            ),
+            publico=alvo["publico"],
+            regiao="Brasil",
+            meta_contatos=max(10, int(alvo["lacuna"])),
+            contexto=(
+                "Prospecção institucional de relacionamento B2B; preservar "
+                "posicionamento premium e aspectos culturais positivos do Maranhão."
+            ),
+            origem="ia",
+            prioridade="normal",
+        ),
+    }
+
+
+def executar_ciclo_autonomo_fase57(namespace):
+    auto = criar_campanha_automatica_por_lacuna_fase57(namespace)
+    pesquisa = executar_pesquisa_publica_fase57(namespace, limite=10)
+    contatos = executar_lote_contatos_fase57(namespace, limite=3)
+    return {
+        "success": True,
+        "campanha_automatica": auto,
+        "pesquisa": pesquisa,
+        "contatos": contatos,
+    }
+
+
+def instalar_execucao_fase57(namespace):
+    app = namespace.get("app")
+    validar_admin = namespace.get("validar_admin_request")
+
+    processar = namespace.get("processar_interacao_omnichannel_crm")
+    if callable(processar) and not getattr(processar, "_fase57_continua", False):
+        def processar57(*args, _original=processar, **kwargs):
+            resultado = _original(*args, **kwargs)
+            interacao = args[0] if args else kwargs.get("interacao")
+            if isinstance(interacao, dict):
+                try:
+                    processar_resposta_fase57(namespace, interacao)
+                except Exception as erro:
+                    print("FASE 5.7 — RESPOSTA:", repr(erro))
+                try:
+                    executar_ciclo_autonomo_fase57(namespace)
+                except Exception as erro:
+                    print("FASE 5.7 — CICLO AUTONOMO:", repr(erro))
+            return resultado
+        processar57._fase57_continua = True
+        namespace["processar_interacao_omnichannel_crm"] = processar57
+
+    if app is not None and callable(validar_admin):
+        if "admin_fase57_executar_ciclo" not in app.view_functions:
+            @app.route("/api/admin/ia-empresarial/fase57/executar", methods=["POST"])
+            def admin_fase57_executar_ciclo():
+                if not validar_admin():
+                    return {"success": False, "error": "Não autorizado."}, 401
+                try:
+                    return executar_ciclo_autonomo_fase57(namespace), 200
+                except Exception as erro:
+                    return {"success": False, "error": str(erro)}, 500
+
+    return {"success": True, "fase": "5.7b", "ciclo_continuo": True}
+
+# ===== FIM FASE 5.7B =====

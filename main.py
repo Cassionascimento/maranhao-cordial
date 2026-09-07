@@ -39814,3 +39814,12 @@ try:
 except Exception as erro_fase57:
     print("ERRO AO INSTALAR FASE 5.7:", repr(erro_fase57))
 # ===== FIM FASE 5.7 =====
+
+# ===== FASE 5.7B — EXECUCAO CONTINUA =====
+try:
+    from fase57_prospeccao_universal import instalar_execucao_fase57
+    resultado_fase57b = instalar_execucao_fase57(globals())
+    print("✓ FASE 5.7B:", resultado_fase57b)
+except Exception as erro_fase57b:
+    print("ERRO AO INSTALAR FASE 5.7B:", repr(erro_fase57b))
+# ===== FIM FASE 5.7B =====
