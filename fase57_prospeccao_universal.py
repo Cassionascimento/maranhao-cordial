@@ -254,7 +254,7 @@ Regras:
 - devolva somente o corpo do e-mail, sem assinatura.
 """
     resp = client.responses.create(
-        model=os.getenv("OPENAI_MODEL", "gpt-5.6-mini"),
+        model=os.getenv("OPENAI_MODEL_PROSPECCAO", "gpt-5-mini"),
         input=prompt,
     )
     texto = (getattr(resp, "output_text", None) or "").strip()
@@ -585,13 +585,13 @@ REGRAS:
 """
         try:
             resp = client.responses.create(
-                model=os.getenv("OPENAI_MODEL", "gpt-5.6-mini"),
+                model=os.getenv("OPENAI_MODEL_PROSPECCAO", "gpt-5-mini"),
                 tools=[{"type": "web_search"}],
                 input=prompt,
             )
         except Exception:
             resp = client.responses.create(
-                model=os.getenv("OPENAI_MODEL", "gpt-5.6-mini"),
+                model=os.getenv("OPENAI_MODEL_PROSPECCAO", "gpt-5-mini"),
                 tools=[{"type": "web_search_preview"}],
                 input=prompt,
             )
@@ -912,7 +912,7 @@ exclusividade, desconto ou compromisso final.
 Retorne somente o corpo do e-mail.
 """
         resp = client.responses.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-5.6-mini"), input=prompt
+            model=os.getenv("OPENAI_MODEL_PROSPECCAO", "gpt-5-mini"), input=prompt
         )
         follow = (getattr(resp, "output_text", None) or "").strip()
         validar_mensagem_fase57(follow)
