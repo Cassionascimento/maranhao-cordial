@@ -15,15 +15,24 @@ HORA_INICIO = int(os.getenv("FASE58A_HORA_INICIO", "9"))
 HORA_FIM = int(os.getenv("FASE58A_HORA_FIM", "17"))
 
 OBJETIVO_FABRICAS = (
-    "Identificar fábricas, copackers e engarrafadores brasileiros capazes "
-    "de avaliar produção piloto e escala de bebida ou xarope não alcoólico "
-    "premium, com envase em vidro e capacidade compatível com especificação "
-    "técnica. Priorizar empresas com presença profissional pública e canal "
-    "institucional verificável."
+    "Encontrar NOVAS fábricas, copackers, laboratórios de desenvolvimento "
+    "e engarrafadores localizados no estado de São Paulo que estejam "
+    "dispostos a avaliar ou executar um lote piloto pequeno entre 20 e 50 litros "
+    "de bebida ou xarope não alcoólico premium. "
+    "A busca deve ser externa e pública na internet e não deve se limitar "
+    "a empresas já cadastradas na base da Maranhão Cordial. "
+    "Priorizar empresas capazes de trabalhar com desenvolvimento piloto, "
+    "envase em vidro, hot-fill ou processo compatível, pequenos lotes, "
+    "P&D terceirizado, private label, copacking ou terceirização de bebidas. "
+    "Exigir fonte pública verificável e canal profissional de contato."
 )
 
 CONTEXTO_FABRICAS = (
-    "Pesquisa técnica e comercial inicial da Maranhão Cordial. "
+    "Pesquisa técnica e comercial ativa para localizar NOVOS fornecedores "
+    "no estado de São Paulo para um lote piloto real de 20 a 50 litros. "
+    "Não considerar registros de teste como candidatos reais. "
+    "Não parar a pesquisa porque já existam fábricas cadastradas no CRM. "
+    "Pesquisar continuamente novas empresas em fontes públicas profissionais. "
     "Não revelar fórmula, preço interno, margem ou teto de orçamento. "
     "Não autorizar produção, pagamento, exclusividade ou contrato."
 )
@@ -163,6 +172,8 @@ def _finalizar(namespace, execucao_id, status, pesquisa=0, contatos=0, erro=None
 def _campanha(namespace):
     from fase57_prospeccao_universal import criar_campanha_fase57
 
+    # Campanha específica da busca real por piloto 20-50 L em SP.
+    # Não reutiliza campanhas antigas/genéricas de fábrica.
     conn = _conn(namespace)
 
     try:
@@ -171,6 +182,8 @@ def _campanha(namespace):
                 SELECT *
                 FROM campanhas_prospeccao_fase57
                 WHERE publico='fabrica'
+                  AND origem='fase58a_sp_piloto_20_50'
+                  AND regiao='São Paulo - SP'
                   AND status IN (
                     'ativa',
                     'pesquisando',
@@ -194,16 +207,29 @@ def _campanha(namespace):
         namespace,
         objetivo=OBJETIVO_FABRICAS,
         publico="fabrica",
-        regiao="Brasil",
-        meta_contatos=20,
+        regiao="São Paulo - SP",
+        meta_contatos=30,
         contexto=CONTEXTO_FABRICAS,
         regras_adicionais=(
+            "BUSCA OBRIGATORIAMENTE EXTERNA E NOVA. "
+            "Não usar como resultado principal empresas já existentes na base. "
+            "Excluir registros cujo nome contenha teste, exemplo, IA Empresarial "
+            "ou Governança. "
+            "Priorizar São Paulo capital, Grande São Paulo e interior do estado. "
+            "Pesquisar termos como: copacker bebidas São Paulo, terceirização "
+            "bebidas pequenos lotes, laboratório desenvolvimento bebidas, "
+            "private label bebidas, envase piloto, P&D bebidas, fábrica pequenos "
+            "lotes, hot fill bebidas e engarrafador terceirizado. "
+            "O volume desejado é entre 20 e 50 litros para teste piloto. "
+            "Se o site não informar volume mínimo, localizar contato profissional "
+            "e perguntar objetivamente se aceita piloto de 20 a 50 litros. "
             "Usar somente fontes públicas e profissionais. "
-            "Priorizar site oficial e contato institucional. "
-            "Não inventar capacidade técnica ou contato."
+            "Priorizar site oficial, LinkedIn empresarial, Instagram profissional "
+            "e contato institucional verificável. "
+            "Não inventar capacidade técnica, MOQ, e-mail ou telefone."
         ),
-        origem="fase58a",
-        prioridade="alta"
+        origem="fase58a_sp_piloto_20_50",
+        prioridade="critica"
     )
 
     return resultado["campanha"]
