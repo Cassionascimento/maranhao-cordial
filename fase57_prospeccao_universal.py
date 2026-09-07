@@ -600,6 +600,10 @@ REGRAS:
             raise RuntimeError("Formato de pesquisa inválido.")
 
         inseridos = 0
+        recebidos = len(dados[:20])
+        descartados_sem_fonte = 0
+        duplicados = 0
+
         conn = _conn(namespace)
         try:
             with conn:
@@ -608,7 +612,9 @@ REGRAS:
                         if not isinstance(x, dict):
                             continue
                         fonte = str(x.get("fonte_url") or "").strip()
+
                         if not fonte.startswith(("http://","https://")):
+                            descartados_sem_fonte += 1
                             continue
                         email = str(x.get("email") or "").strip().lower() or None
                         score = max(0, min(int(x.get("score") or 0), 100))
@@ -643,7 +649,10 @@ REGRAS:
                             x.get("site"), x.get("site"),
                             x.get("empresa"), x.get("empresa"),
                         ))
-                        inseridos += max(cur.rowcount, 0)
+                        if cur.rowcount > 0:
+                            inseridos += cur.rowcount
+                        else:
+                            duplicados += 1
                     cur.execute("""
                         UPDATE pesquisas_fase57
                         SET status='concluida', concluido_em=NOW()
@@ -652,8 +661,19 @@ REGRAS:
         finally:
             conn.close()
 
-        garantir_pesquisa_se_faltar_fase57(namespace, pesquisa["campanha_id"])
-        return {"success": True, "executada": True, "inseridos": inseridos}
+        garantir_pesquisa_se_faltar_fase57(
+            namespace,
+            pesquisa["campanha_id"]
+        )
+
+        return {
+            "success": True,
+            "executada": True,
+            "recebidos_modelo": recebidos,
+            "descartados_sem_fonte": descartados_sem_fonte,
+            "duplicados": duplicados,
+            "inseridos": inseridos,
+        }
     except Exception as erro:
         conn = _conn(namespace)
         try:

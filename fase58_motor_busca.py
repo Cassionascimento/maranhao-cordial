@@ -478,6 +478,15 @@ def executar_busca_fabrica_sp_sob_demanda(
         )
     )
 
+    if not resultado_pesquisa.get("success"):
+        raise RuntimeError(
+            "Pesquisa pública falhou: "
+            + str(
+                resultado_pesquisa.get("error")
+                or resultado_pesquisa
+            )
+        )
+
     conn = _conn(namespace)
 
     try:
