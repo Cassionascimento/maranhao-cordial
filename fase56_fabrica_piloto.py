@@ -162,6 +162,58 @@ def _credenciais_google(namespace):
             except Exception:
                 pass
 
+    # Reutiliza as credenciais OAuth já salvas
+    # pelo Gmail principal da Maranhão Cordial.
+    try:
+        conn = namespace["get_db_connection"]()
+
+        try:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+                cur.execute("""
+                    SELECT
+                        refresh_token,
+                        token_uri,
+                        client_id,
+                        client_secret,
+                        scopes
+                    FROM gmail_oauth_credentials
+                    WHERE id = 1
+                """)
+
+                dados = cur.fetchone()
+        finally:
+            conn.close()
+
+        if dados:
+            from google.oauth2.credentials import Credentials
+
+            dados = dict(dados)
+
+            return Credentials(
+                token=None,
+                refresh_token=dados.get("refresh_token"),
+                token_uri=(
+                    dados.get("token_uri")
+                    or "https://oauth2.googleapis.com/token"
+                ),
+                client_id=dados.get("client_id"),
+                client_secret=dados.get("client_secret"),
+                scopes=(
+                    dados.get("scopes", "").split()
+                    if dados.get("scopes")
+                    else []
+                ),
+            )
+
+    except Exception as erro:
+        print(
+            "FASE 5.6 — credenciais Gmail do banco indisponíveis:",
+            repr(erro)
+        )
+
+
     try:
         from google.oauth2.credentials import Credentials
         caminhos = [
