@@ -409,6 +409,93 @@ def executar_fase58b(namespace):
 def instalar_fase58b(namespace):
     instalar_schema_fase58b(namespace)
 
+    # FASE 5.8C — autorização operacional permanente da Direção.
+    # A IA já está autorizada a pesquisar fontes públicas profissionais
+    # e executar a prospecção dentro dos limites da 5.7/5.8.
+    try:
+        original_memoria = namespace.get("carregar_memoria_decisoes_ia")
+
+        if callable(original_memoria) and not getattr(
+            original_memoria, "_autonomia58c", False
+        ):
+            def memoria_com_autonomia(
+                *args,
+                _original=original_memoria,
+                **kwargs
+            ):
+                base = _original(*args, **kwargs)
+
+                contexto_autonomia = """
+=== AUTORIZAÇÃO OPERACIONAL VIGENTE — DIREÇÃO ===
+
+A Direção da Maranhão Cordial JÁ AUTORIZOU a IA Empresarial
+a realizar pesquisa e prospecção profissional usando fontes
+públicas disponíveis na internet, web, redes profissionais
+e nós de relacionamento profissional.
+
+NÃO pedir novamente autorização genérica para pesquisar,
+prospectar ou localizar contatos profissionais.
+
+A IA deve usar imediatamente os mecanismos já instalados
+nas Fases 5.7 e 5.8.
+
+Caso uma rede específica exija credencial ou integração
+técnica ainda inexistente, informar somente a limitação
+daquele canal e continuar a pesquisa pelas demais fontes
+públicas já disponíveis.
+
+AUTORIZADO:
+- pesquisar empresas;
+- pesquisar fábricas;
+- pesquisar bartenders;
+- pesquisar bares e restaurantes;
+- pesquisar empórios e revendedores;
+- pesquisar influenciadores e criadores profissionais;
+- pesquisar distribuidores;
+- localizar contatos profissionais públicos;
+- explorar nós profissionais de uma rede;
+- qualificar contatos;
+- realizar primeiro contato dentro das políticas existentes.
+
+CONTINUA PROIBIDO AUTOMATICAMENTE:
+- contrato;
+- pagamento;
+- exclusividade;
+- autorização de produção;
+- compromisso financeiro;
+- preço final;
+- divulgação de informação interna;
+- uso de dados pessoais privados.
+"""
+
+                if isinstance(base, dict):
+                    base = dict(base)
+                    base["contexto"] = (
+                        str(base.get("contexto") or "")
+                        + contexto_autonomia
+                    )
+                    base["autorizacao_prospeccao"] = {
+                        "ativa": True,
+                        "fase": "5.8C",
+                        "fontes_publicas": True,
+                        "redes_profissionais": True,
+                        "nos_profissionais": True,
+                    }
+
+                return base
+
+            memoria_com_autonomia._autonomia58c = True
+
+            namespace[
+                "carregar_memoria_decisoes_ia"
+            ] = memoria_com_autonomia
+
+    except Exception as erro:
+        print(
+            "FASE 5.8C — AUTORIZAÇÃO:",
+            repr(erro)
+        )
+
     app = namespace.get("app")
     validar_admin = namespace.get("validar_admin_request")
 
