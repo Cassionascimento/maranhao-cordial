@@ -396,6 +396,26 @@ def instalar_fase58(namespace):
                         namespace
                     )
 
+                    # A Fase 5.8B usa o mesmo relógio já pago da 5.8A.
+                    # Falha da 5.8B não derruba Gmail nem 5.8A.
+                    try:
+                        from fase58b_motor_geral import executar_fase58b
+
+                        resultado_58b = executar_fase58b(
+                            namespace
+                        )
+                    except Exception as erro_58b:
+                        resultado_58b = {
+                            "success": False,
+                            "fase": "5.8B",
+                            "executado": False,
+                            "error": repr(erro_58b)[:1000]
+                        }
+
+                    if isinstance(resultado, dict):
+                        resultado = dict(resultado)
+                        resultado["fase58b"] = resultado_58b
+
                     return jsonify(
                         resultado
                     ), 200
