@@ -39823,3 +39823,13 @@ try:
 except Exception as erro_fase57b:
     print("ERRO AO INSTALAR FASE 5.7B:", repr(erro_fase57b))
 # ===== FIM FASE 5.7B =====
+
+
+# ===== FASE 5.8A — MOTOR AUTONOMO DE BUSCA PARA FABRICAS =====
+try:
+    from fase58_motor_busca import instalar_fase58
+    resultado_fase58a = instalar_fase58(globals())
+    print("✓ FASE 5.8A:", resultado_fase58a)
+except Exception as erro_fase58a:
+    print("ERRO AO INSTALAR FASE 5.8A:", repr(erro_fase58a))
+# ===== FIM FASE 5.8A =====
