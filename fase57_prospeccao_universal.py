@@ -248,9 +248,25 @@ Regras:
 - não invente informação;
 - não fale preço;
 - não prometa pagamento, contrato, exclusividade ou compra;
-- explique em uma frase por que o contato faz sentido;
-- faça uma pergunta objetiva que permita avançar;
-- máximo de 180 palavras;
+- NÃO peça autorização para apresentar, explicar ou enviar informações;
+- NÃO pergunte se a pessoa quer conhecer o produto;
+- NÃO use frases como "posso te explicar?", "posso enviar uma apresentação?",
+  "gostaria de conhecer?", "podemos apresentar?" ou equivalentes;
+- já apresente diretamente a Maranhão Cordial e o motivo concreto do contato;
+- quando pertinente ao público, explique que o produto é um cordial/concentrado
+  premium de guaraná com gengibre, 0,0% álcool e sem açúcar, pensado para
+  hospitalidade, coquetelaria e bebidas contemporâneas;
+- adapte a mensagem ao destinatário:
+  bartender: aplicação criativa, sensorial e em drinks;
+  bar/restaurante: carta de bebidas, diferenciação e operação;
+  hotel: hospitalidade e experiência do hóspede;
+  fábrica/fornecedor: necessidade técnica e objetiva;
+  distribuidor/revendedor: aderência comercial sem pressão;
+  imprensa/jornalista/influenciador/criador: história, identidade e produto;
+- entregue valor e contexto já no primeiro e-mail;
+- termine de forma natural, sem exigir resposta e sem pergunta de permissão;
+- se houver interesse, o destinatário poderá simplesmente responder ao e-mail;
+- máximo de 160 palavras;
 - devolva somente o corpo do e-mail, sem assinatura.
 """
     resp = client.responses.create(
@@ -791,7 +807,20 @@ def enviar_primeiro_contato_fase57(namespace, prospecto_id):
         + _assinatura_html() + "</div>"
     )
     empresa = item.get("empresa") or item.get("nome") or "contato profissional"
-    assunto = f"Maranhão Cordial — proposta de conexão com {empresa}"
+    publico = str(item.get("publico") or "").lower()
+
+    if publico in ("bartender", "bar", "restaurante"):
+        assunto = "Uma ideia para seus drinks — Maranhão Cordial"
+    elif publico == "hotel":
+        assunto = "Maranhão Cordial — uma experiência para hospitalidade"
+    elif publico in ("fabrica", "fornecedor"):
+        assunto = "Piloto pequeno de cordial — Maranhão Cordial"
+    elif publico in ("distribuidor", "revendedor"):
+        assunto = "Maranhão Cordial — produto premium para bebidas"
+    elif publico in ("imprensa", "jornalista", "influenciador", "criador"):
+        assunto = "Maranhão Cordial — cultura, bebida e experiência"
+    else:
+        assunto = f"Maranhão Cordial — contato com {empresa}"
     resultado = enviar_email_institucional_fase56(
         namespace, item["email"], assunto, html, texto
     )
@@ -1087,11 +1116,15 @@ exclusividade, preço final ou compromisso comercial relevante.
         from openai import OpenAI
         client = OpenAI()
         prompt = f"""
-Responda como equipe B2B da Maranhão Cordial, de forma curta.
+Responda em nome da Maranhão Cordial, de forma curta, humana e direta.
 {contexto_institucional_fase57()}
 Objetivo da campanha: {item.get('objetivo')}
 Resposta recebida: {texto}
-Peça apenas as informações necessárias para avançar.
+Responda diretamente ao que o contato escreveu.
+Não reinicie a apresentação comercial se ela já foi feita.
+Não peça autorização para enviar informações que já podem ser fornecidas.
+Quando faltar uma informação realmente necessária para avançar, faça somente
+a pergunta objetiva indispensável.
 Não revele preço/margem/teto interno e não assuma contrato, pagamento,
 exclusividade, desconto ou compromisso final.
 Retorne somente o corpo do e-mail.
