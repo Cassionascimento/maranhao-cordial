@@ -264,30 +264,82 @@ Regras:
 
 def classificar_resposta_fase57(texto):
     t = str(texto or "").lower()
+
     negativos = (
         "não tenho interesse", "nao tenho interesse", "não temos interesse",
         "nao temos interesse", "não trabalhamos", "nao trabalhamos",
         "não atendemos", "nao atendemos", "remova meu contato",
         "não entre em contato", "nao entre em contato",
+        "não fazemos", "nao fazemos", "não é nosso perfil", "nao e nosso perfil",
     )
-    positivos = (
-        "temos interesse", "tenho interesse", "podemos conversar",
-        "podemos agendar", "envie mais informações", "mande mais informações",
-        "gostaria de conhecer", "vamos conversar", "podemos avaliar",
-        "podemos testar", "podemos receber", "podemos apresentar",
+
+    fechamento = (
+        "podemos fechar", "vamos fechar", "podemos produzir",
+        "podemos fornecer", "podemos atender", "podemos iniciar",
+        "segue proposta", "segue orçamento", "segue orcamento",
+        "proposta comercial", "condições comerciais", "condicoes comerciais",
+        "pedido mínimo", "pedido minimo", "valor final",
+        "prazo de produção", "prazo de producao",
     )
+
     estrategicos = (
         "contrato", "exclusividade", "pagamento", "desconto",
         "sociedade", "investimento", "representação exclusiva",
         "representacao exclusiva",
     )
+
+    positivos = (
+        "temos interesse", "tenho interesse", "podemos conversar",
+        "podemos agendar", "envie mais informações", "mande mais informações",
+        "gostaria de conhecer", "vamos conversar", "podemos avaliar",
+        "podemos testar", "podemos receber", "podemos apresentar",
+        "podemos desenvolver", "podemos estudar", "encaminhei para",
+        "fale com", "entre em contato com",
+    )
+
     if any(x in t for x in negativos):
-        return {"resultado": "negativo", "descartar": True, "alertar": False}
+        return {
+            "resultado": "negativo",
+            "descartar": True,
+            "alertar": False,
+            "continuar": False,
+            "fechamento": False,
+        }
+
+    if any(x in t for x in fechamento):
+        return {
+            "resultado": "pronto_para_fechamento",
+            "descartar": False,
+            "alertar": True,
+            "continuar": False,
+            "fechamento": True,
+        }
+
     if any(x in t for x in estrategicos):
-        return {"resultado": "estrategico", "descartar": False, "alertar": True}
+        return {
+            "resultado": "estrategico",
+            "descartar": False,
+            "alertar": True,
+            "continuar": False,
+            "fechamento": False,
+        }
+
     if any(x in t for x in positivos):
-        return {"resultado": "promissor", "descartar": False, "alertar": True}
-    return {"resultado": "intermediario", "descartar": False, "alertar": False}
+        return {
+            "resultado": "promissor",
+            "descartar": False,
+            "alertar": False,
+            "continuar": True,
+            "fechamento": False,
+        }
+
+    return {
+        "resultado": "intermediario",
+        "descartar": False,
+        "alertar": False,
+        "continuar": True,
+        "fechamento": False,
+    }
 
 
 def registrar_aprendizado_fase57(
@@ -851,7 +903,7 @@ def processar_resposta_fase57(namespace, interacao):
         or interacao.get("conteudo") or ""
     )
     c = classificar_resposta_fase57(texto)
-    novo_status = "descartado" if c["descartar"] else "promissor" if c["alertar"] else "negociando"
+    novo_status = "descartado" if c["descartar"] else "pronto_para_fechamento" if c.get("fechamento") else "negociando"
 
     conn = _conn(namespace)
     try:
@@ -891,14 +943,14 @@ def processar_resposta_fase57(namespace, interacao):
         item.get("regiao"), c["resultado"],
         motivo=f"Resposta classificada como {c['resultado']}.",
         evidencia=str(texto)[:1500], canal="email",
-        peso=1.5 if c["resultado"] in ("promissor","estrategico") else 1,
+        peso=2 if c["resultado"] == "pronto_para_fechamento" else 1.5 if c["resultado"] in ("promissor","estrategico") else 1,
     )
 
     if c["descartar"]:
         garantir_pesquisa_se_faltar_fase57(namespace, item["campanha_id"])
         return {"processado": True, "resultado": c, "followup": False}
 
-    if not c["alertar"] and item.get("permitir_followup"):
+    if c.get("continuar") and item.get("permitir_followup"):
         from openai import OpenAI
         client = OpenAI()
         prompt = f"""

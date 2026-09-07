@@ -327,7 +327,8 @@ def executar_fase58a(namespace):
 
             if isinstance(resultado, dict):
                 qtd_pesquisa = int(
-                    resultado.get("novos")
+                    resultado.get("inseridos")
+                    or resultado.get("novos")
                     or resultado.get("quantidade")
                     or resultado.get("encontrados")
                     or 0
@@ -347,7 +348,8 @@ def executar_fase58a(namespace):
 
             if isinstance(resultado, dict):
                 qtd_contatos = int(
-                    resultado.get("enviados")
+                    resultado.get("tentados")
+                    or resultado.get("enviados")
                     or resultado.get("quantidade")
                     or resultado.get("contatos_enviados")
                     or 0
