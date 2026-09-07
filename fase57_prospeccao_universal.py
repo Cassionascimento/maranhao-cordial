@@ -840,7 +840,7 @@ def enviar_primeiro_contato_fase57(namespace, prospecto_id):
                         NOW(),
                         NOW()
                     )
-                    ON CONFLICT (message_id) DO NOTHING
+                    ON CONFLICT DO NOTHING
                     """,
                     (
                         "contato@maranhaocordial.com.br",

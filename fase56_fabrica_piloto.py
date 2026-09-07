@@ -433,11 +433,69 @@ def enviar_email_institucional_fase56(
         .send(userId="me", body=corpo)
         .execute()
     )
+
+    message_id = resultado.get("id")
+    thread_id = resultado.get("threadId")
+
+    if not message_id:
+        raise RuntimeError(
+            "Gmail enviou a mensagem sem retornar message_id."
+        )
+
+    # Auditoria central:
+    # TODO e-mail institucional enviado pela IA é registrado no CRM.
+    conn = _conn(namespace)
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO interacoes_omnichannel (
+                        id,
+                        canal,
+                        plataforma,
+                        sender_id,
+                        recipient_id,
+                        message_id,
+                        texto,
+                        tipo_interacao,
+                        classificacao,
+                        processado_ia,
+                        criado_em,
+                        atualizado_em
+                    )
+                    VALUES (
+                        gen_random_uuid(),
+                        'gmail',
+                        'gmail',
+                        %s,
+                        %s,
+                        %s,
+                        %s,
+                        'saida_ia_empresarial',
+                        'email_institucional',
+                        TRUE,
+                        NOW(),
+                        NOW()
+                    )
+                    ON CONFLICT DO NOTHING
+                    """,
+                    (
+                        remetente_real,
+                        destinatario,
+                        message_id,
+                        texto,
+                    ),
+                )
+    finally:
+        conn.close()
+
     return {
         "success": True,
-        "message_id": resultado.get("id"),
-        "thread_id": resultado.get("threadId"),
+        "message_id": message_id,
+        "thread_id": thread_id,
         "remetente": remetente_real,
+        "crm_registrado": True,
     }
 
 
