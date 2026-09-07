@@ -950,6 +950,82 @@ def processar_resposta_fase57(namespace, interacao):
         garantir_pesquisa_se_faltar_fase57(namespace, item["campanha_id"])
         return {"processado": True, "resultado": c, "followup": False}
 
+    if c.get("fechamento"):
+        try:
+            from fase56_fabrica_piloto import (
+                enviar_email_institucional_fase56,
+                _assinatura_html,
+            )
+
+            email_alerta = (
+                os.getenv("EMAIL_DIRECAO_MARANHAO")
+                or os.getenv("EMAIL_ALERTA_DIRECAO")
+                or os.getenv("GMAIL_USER")
+                or os.getenv("EMAIL_EMPRESARIAL")
+            )
+
+            if email_alerta:
+                nome_empresa = (
+                    item.get("empresa")
+                    or item.get("nome")
+                    or email
+                )
+
+                resumo = f"""
+ALERTA DE NEGOCIAÇÃO PRONTA PARA DECISÃO
+
+Contato: {nome_empresa}
+E-mail: {email}
+Público: {item.get('publico') or 'não informado'}
+Região: {item.get('regiao') or 'não informada'}
+
+Objetivo da campanha:
+{item.get('objetivo') or ''}
+
+Resposta recebida:
+{str(texto)[:3000]}
+
+Classificação:
+{c.get('resultado')}
+
+A IA interrompeu compromissos finais automáticos.
+É necessária decisão da direção para contrato, pagamento,
+exclusividade, preço final ou compromisso comercial relevante.
+""".strip()
+
+                html_alerta = (
+                    '<div style="font-family:Arial,Helvetica,sans-serif;'
+                    'color:#171717;line-height:1.6;font-size:14px">'
+                    '<h2>Negociação pronta para decisão</h2>'
+                    + "".join(
+                        f"<p>{linha}</p>"
+                        for linha in resumo.splitlines()
+                        if linha.strip()
+                    )
+                    + _assinatura_html()
+                    + "</div>"
+                )
+
+                enviar_email_institucional_fase56(
+                    namespace,
+                    email_alerta,
+                    f"ALERTA: negociação pronta para decisão — {nome_empresa}",
+                    html_alerta,
+                    resumo,
+                )
+        except Exception as erro:
+            print(
+                "ERRO ALERTA FECHAMENTO FASE57:",
+                repr(erro)
+            )
+
+        return {
+            "processado": True,
+            "resultado": c,
+            "followup": False,
+            "alerta_fechamento": True,
+        }
+
     if c.get("continuar") and item.get("permitir_followup"):
         from openai import OpenAI
         client = OpenAI()
