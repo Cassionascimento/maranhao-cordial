@@ -212,6 +212,10 @@ def _credenciais_google(namespace):
             "FASE 5.6 — credenciais Gmail do banco indisponíveis:",
             repr(erro)
         )
+        raise RuntimeError(
+            "Falha ao carregar credenciais Gmail do Postgres: "
+            + repr(erro)
+        )
 
 
     try:
