@@ -8,9 +8,9 @@ FASE = "5.8A"
 TZ = ZoneInfo("America/Sao_Paulo")
 
 MAX_CICLOS_DIA = int(os.getenv("FASE58A_MAX_CICLOS_DIA", "2"))
-MAX_CONTATOS_DIA = int(os.getenv("FASE58A_MAX_CONTATOS_DIA", "2"))
+MAX_CONTATOS_DIA = int(os.getenv("FASE58A_MAX_CONTATOS_DIA", "8"))
 LIMITE_PESQUISA_CICLO = int(os.getenv("FASE58A_PESQUISA_CICLO", "5"))
-LIMITE_CONTATOS_CICLO = int(os.getenv("FASE58A_CONTATOS_CICLO", "1"))
+LIMITE_CONTATOS_CICLO = int(os.getenv("FASE58A_CONTATOS_CICLO", "4"))
 HORA_INICIO = int(os.getenv("FASE58A_HORA_INICIO", "9"))
 HORA_FIM = int(os.getenv("FASE58A_HORA_FIM", "17"))
 
