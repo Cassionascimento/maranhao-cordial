@@ -32745,6 +32745,58 @@ def transcrever_comando_ia_empresarial():
         }), 500
 
 
+
+@app.route(
+    "/api/admin/testar-email-institucional",
+    methods=["POST"]
+)
+def testar_email_institucional_admin():
+
+    chave_recebida = request.headers.get(
+        "X-Admin-Key"
+    )
+
+    if chave_recebida != os.getenv("ADMIN_KEY"):
+        return jsonify({
+            "success": False,
+            "error": "Não autorizado."
+        }), 401
+
+    try:
+        from fase56_fabrica_piloto import (
+            testar_fluxo_direcao_fase56,
+        )
+
+        resultado = testar_fluxo_direcao_fase56(
+            globals()
+        )
+
+        print(
+            "HOMOLOGACAO EMAIL INSTITUCIONAL:",
+            resultado
+        )
+
+        return jsonify({
+            "success": True,
+            "fase": "5.6",
+            "teste": "email_institucional_direcao",
+            "resultado": resultado
+        }), 200
+
+    except Exception as erro:
+
+        print(
+            "ERRO HOMOLOGACAO EMAIL INSTITUCIONAL:",
+            repr(erro)
+        )
+
+        return jsonify({
+            "success": False,
+            "fase": "5.6",
+            "error": str(erro)
+        }), 500
+
+
 @app.route(
     "/api/admin/ia-empresarial",
     methods=["POST"]
