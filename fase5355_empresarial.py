@@ -61,6 +61,58 @@ def classificar_relevancia_decisao_fase54(acao):
             "motivo":"Ação ainda não classificada como rotina interna segura."}
 
 
+def classificar_alerta_direcao_fase55(acao, triagem):
+    """
+    Separa aprovação de alerta.
+    Uma ação pode precisar de aprovação sem interromper a direção.
+    """
+    prioridade = str(acao.get("prioridade") or "").lower()
+    nivel = str((triagem or {}).get("nivel") or "").lower()
+    texto = " ".join([
+        str(acao.get("tipo") or ""),
+        str(acao.get("tipo_execucao") or ""),
+        str(acao.get("conteudo") or ""),
+        str(acao.get("justificativa") or ""),
+    ]).lower()
+
+    gatilhos_imediatos = (
+        "contrato", "pagamento", "pix", "transfer", "invest",
+        "sócio", "socio", "juríd", "jurid", "regulat",
+        "anvisa", "mapa", "fiscal", "tribut", "crise",
+        "reput", "fábrica", "fabrica", "produção", "producao",
+    )
+
+    if prioridade == "critica":
+        return {
+            "nivel": "imediato",
+            "alertar": True,
+            "motivo": "Prioridade crítica."
+        }
+
+    if nivel == "estrategica" and (
+        prioridade == "alta"
+        or any(x in texto for x in gatilhos_imediatos)
+    ):
+        return {
+            "nivel": "imediato",
+            "alertar": True,
+            "motivo": "Decisão estratégica com impacto relevante."
+        }
+
+    if nivel in ("estrategica", "externa", "revisao"):
+        return {
+            "nivel": "fila",
+            "alertar": False,
+            "motivo": "Precisa de aprovação, mas não exige interrupção imediata."
+        }
+
+    return {
+        "nivel": "silencioso",
+        "alertar": False,
+        "motivo": "Rotina operacional."
+    }
+
+
 def listar_decisoes_relevantes_fase54(conn_factory, limite=20):
     conn = conn_factory()
     try:
@@ -91,6 +143,9 @@ def listar_decisoes_relevantes_fase54(conn_factory, limite=20):
         triagem = classificar_relevancia_decisao_fase54(acao)
         if triagem["requer_direcao"]:
             acao["triagem_fase54"] = triagem
+            acao["alerta_fase55"] = classificar_alerta_direcao_fase55(
+                acao, triagem
+            )
             acao["id"] = str(acao["id"])
             for campo in ("criado_em","atualizado_em"):
                 if acao.get(campo):
@@ -99,9 +154,22 @@ def listar_decisoes_relevantes_fase54(conn_factory, limite=20):
         else:
             operacionais += 1
 
+    alertas = [
+        x for x in relevantes
+        if (x.get("alerta_fase55") or {}).get("alertar") is True
+    ]
+    fila = [
+        x for x in relevantes
+        if (x.get("alerta_fase55") or {}).get("alertar") is not True
+    ]
+
     return {
         "relevantes": relevantes[:max(1, min(int(limite or 20), 50))],
+        "alertas_imediatos": alertas[:10],
+        "fila_aprovacao_sem_alerta": fila[:20],
         "total_relevantes": len(relevantes),
+        "total_alertas_imediatos": len(alertas),
+        "total_aprovacoes_sem_alerta": len(fila),
         "operacionais_que_nao_precisam_da_direcao": operacionais,
     }
 

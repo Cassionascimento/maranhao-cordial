@@ -7966,8 +7966,8 @@ try{
 const headers={};const chave=(localStorage.getItem("adminKey")||localStorage.getItem("admin_key")||"");if(chave)headers["X-Admin-Key"]=chave;
 const r=await fetch("/api/admin/ia-empresarial/fase55",{headers});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||"Falha");
 const a=d.autonomia||{},p=d.precisa_de_mim||{};
-resumo.innerHTML="<strong>"+(p.total_relevantes||0)+"</strong> decisões relevantes · <strong>"+(p.operacionais_que_nao_precisam_da_direcao||0)+"</strong> operacionais filtradas · dependência da direção: <strong>"+(a.indice_dependencia_direcao_pct??"-")+"%</strong>";
-const itens=(p.relevantes||[]).slice(0,6);
+resumo.innerHTML="<strong>"+(p.total_alertas_imediatos||0)+"</strong> alertas agora · <strong>"+(p.total_aprovacoes_sem_alerta||0)+"</strong> aprovações sem urgência · <strong>"+(p.operacionais_que_nao_precisam_da_direcao||0)+"</strong> operacionais filtradas · dependência da direção: <strong>"+(a.indice_dependencia_direcao_pct??"-")+"%</strong>";
+const itens=(p.alertas_imediatos||[]).slice(0,6);
 decisoes.innerHTML=itens.length?itens.map(x=>"<div style='padding:10px 0;border-top:1px solid rgba(255,255,255,.07)'><div style='font-size:13px'>"+(x.tipo||x.tipo_execucao||"Decisão")+"</div><div style='font-size:11px;opacity:.55;margin-top:3px'>"+((x.triagem_fase54||{}).motivo||"Requer direção")+"</div></div>").join(""):"<div style='font-size:12px;opacity:.55'>Nenhuma decisão crítica agora.</div>";
 }catch(e){resumo.textContent="Governança indisponível no momento.";decisoes.innerHTML=""}
 }
