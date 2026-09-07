@@ -777,6 +777,65 @@ def _campanha_e_prospecto(namespace, prospecto_id):
         conn.close()
 
 
+
+def _limite_diario_global_fase57(namespace):
+    """
+    Proteção global da prospecção.
+
+    Conta todos os prospectos que receberam primeiro contato
+    no dia corrente de São Paulo, independentemente de campanha.
+
+    A Fase 5.7 nunca deve ultrapassar esse teto mesmo se outro
+    fluxo tentar chamá-la fora da Fase 5.8.
+    """
+    limite = max(
+        1,
+        int(
+            os.getenv(
+                "FASE57_MAX_CONTATOS_DIA",
+                os.getenv("FASE58A_MAX_CONTATOS_DIA", "8")
+            )
+        )
+    )
+
+    conn = _conn(namespace)
+
+    try:
+        with conn.cursor(
+            cursor_factory=RealDictCursor
+        ) as cur:
+
+            cur.execute(
+                """
+                SELECT COUNT(*)::INTEGER AS qtd
+                FROM prospectos_fase57
+                WHERE ultimo_contato_em IS NOT NULL
+                  AND (
+                    ultimo_contato_em
+                    AT TIME ZONE 'America/Sao_Paulo'
+                  )::date = (
+                    NOW()
+                    AT TIME ZONE 'America/Sao_Paulo'
+                  )::date
+                """
+            )
+
+            qtd = int(
+                (cur.fetchone() or {}).get("qtd") or 0
+            )
+
+        return {
+            "limite": limite,
+            "usados": qtd,
+            "restantes": max(0, limite - qtd),
+            "bloqueado": qtd >= limite,
+        }
+
+    finally:
+        conn.close()
+
+
+
 def enviar_primeiro_contato_fase57(namespace, prospecto_id):
     item = _campanha_e_prospecto(namespace, prospecto_id)
     if not item:
@@ -789,6 +848,18 @@ def enviar_primeiro_contato_fase57(namespace, prospecto_id):
         return {"success": False, "motivo": "prospecto_ja_processado"}
     if not item.get("email"):
         return {"success": False, "motivo": "sem_email_profissional"}
+
+    quota = _limite_diario_global_fase57(namespace)
+
+    if quota["bloqueado"]:
+        return {
+            "success": False,
+            "enviado": False,
+            "motivo": "limite_diario_global",
+            "limite": quota["limite"],
+            "usados": quota["usados"],
+            "restantes": 0,
+        }
 
     campanha = {
         "objetivo": item.get("objetivo"),
@@ -901,6 +972,33 @@ def enviar_primeiro_contato_fase57(namespace, prospecto_id):
 
 def executar_lote_contatos_fase57(namespace, campanha_id=None, limite=3):
     limite = max(1, min(int(limite or 3), 5))
+
+    quota = _limite_diario_global_fase57(namespace)
+
+    if quota["bloqueado"]:
+        return {
+            "success": True,
+            "tentados": 0,
+            "resultados": [],
+            "motivo": "limite_diario_global",
+            "limite": quota["limite"],
+            "usados": quota["usados"],
+            "restantes": 0,
+        }
+
+    limite = min(
+        limite,
+        quota["restantes"]
+    )
+
+    if limite <= 0:
+        return {
+            "success": True,
+            "tentados": 0,
+            "resultados": [],
+            "motivo": "sem_quota_diaria",
+        }
+
     conn = _conn(namespace)
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -980,6 +1078,20 @@ def processar_resposta_fase57(namespace, interacao):
     if not m:
         return {"processado": False, "motivo": "sem_email"}
     email = m.group(0).lower()
+
+    # Mensagens técnicas de entrega nunca podem ser tratadas
+    # como resposta de prospecto nem gerar atividade comercial.
+    if (
+        "mailer-daemon" in email
+        or "postmaster" in email
+        or email.startswith("no-reply@")
+        or email.startswith("noreply@")
+    ):
+        return {
+            "processado": False,
+            "motivo": "mensagem_tecnica_email",
+        }
+
     item = _buscar_prospecto_resposta_fase57(namespace, email)
     if not item:
         return {"processado": False, "motivo": "fora_de_campanha"}
@@ -1220,10 +1332,14 @@ def instalar_execucao_fase57(namespace):
                     processar_resposta_fase57(namespace, interacao)
                 except Exception as erro:
                     print("FASE 5.7 — RESPOSTA:", repr(erro))
-                try:
-                    executar_ciclo_autonomo_fase57(namespace)
-                except Exception as erro:
-                    print("FASE 5.7 — CICLO AUTONOMO:", repr(erro))
+                # A sincronização de mensagens não inicia mais
+                # ciclos de prospecção.
+                #
+                # A Fase 5.8 é a única responsável por disparar
+                # novos lotes autônomos.
+                #
+                # Isso impede respostas, bounces e eventos do Gmail
+                # de furarem os limites operacionais.
             return resultado
         processar57._fase57_continua = True
         namespace["processar_interacao_omnichannel_crm"] = processar57
