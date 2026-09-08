@@ -1,4 +1,9 @@
 from flask import Flask, send_from_directory, request, jsonify, send_file, redirect, session
+from email_seguranca import (
+    admin_autorizado, verificar_envio, definir_pausa,
+    guardar_oauth, consumir_oauth, processar_dsn_gmail,
+    validar_config_oauth_p0, bloquear_envios_no_contexto,
+)
 
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -3824,8 +3829,41 @@ app = Flask(
 
 app.config["SECRET_KEY"] = os.getenv(
     "FLASK_SECRET_KEY",
-    "krikati_ancestral_secret"
+    secrets.token_hex(32)
 )
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=(os.getenv("RENDER") == "true" or os.getenv("RENDER_SERVICE_TYPE") == "web"),
+)
+
+
+@app.before_request
+def proteger_administracao_p0():
+    # Remove credenciais legadas do cookie. OAuth novo guarda segredos no banco.
+    session.pop("gmail_credentials", None)
+    session.pop("gmail_code_verifier", None)
+    if request.method == "OPTIONS":
+        return None
+    if request.path.startswith("/api/admin/") or request.path in (
+        "/api/gmail/conectar", "/api/gmail/sincronizar"
+    ):
+        if not validar_admin_request():
+            return jsonify({"success": False, "error": "Não autorizado."}), 401
+
+
+@app.route("/api/admin/email/seguranca", methods=["POST"])
+def admin_email_seguranca_p0():
+    if not validar_admin_request():
+        return jsonify({"success": False, "error": "Não autorizado."}), 401
+    dados = request.get_json(silent=True)
+    if not isinstance(dados, dict):
+        return jsonify({"success": False, "error": "Envie um objeto JSON válido."}), 400
+    try:
+        definir_pausa(get_db_connection, dados.get("pausado"), dados.get("motivo"))
+    except ValueError as erro:
+        return jsonify({"success": False, "error": str(erro)}), 400
+    return jsonify({"success": True, "pausado": dados["pausado"]})
 
 # =====================================================
 # CORS — SAC MARANHÃO CORDIAL
@@ -3839,6 +3877,16 @@ ORIGENS_PERMITIDAS_SAC = {
 
 @app.after_request
 def adicionar_cors_sac(response):
+
+    if request.path.startswith("/api/gmail/"):
+        origem = request.headers.get("Origin")
+        if origem in ORIGENS_PERMITIDAS_SAC | {"https://maranhao-cordial.onrender.com"}:
+            response.headers["Access-Control-Allow-Origin"] = origem
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Admin-Key"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.vary.add("Origin")
+        response.headers["Cache-Control"] = "no-store"
 
     if (
         request.path.startswith("/api/sac")
@@ -15876,8 +15924,7 @@ def admin_analytics():
     chave_recebida = request.headers.get("X-Admin-Key")
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -17194,15 +17241,7 @@ def exclusao_de_dados():
 # =====================================================
 
 def validar_admin_omnichannel():
-
-    chave = request.headers.get(
-        "X-Admin-Key"
-    )
-
-    return bool(
-        ADMIN_API_KEY
-        and chave == ADMIN_API_KEY
-    )
+    return validar_admin_request()
 
 
 @app.route(
@@ -17960,8 +17999,24 @@ GMAIL_CLIENT_CONFIG = {
 # GOOGLE / GMAIL — OAUTH
 # =====================================================
 
-@app.route("/api/gmail/conectar")
+@app.route("/api/gmail/painel")
+def gmail_painel_oauth():
+    # Página sem dados privados: recebe a chave somente do painel autorizado.
+    # No topo de uma janela da API, a sessão não depende de cookie de terceiro.
+    resposta = send_from_directory(FRONTEND_FOLDER, "gmail-oauth.html")
+    resposta.headers["Referrer-Policy"] = "no-referrer"
+    resposta.headers["X-Frame-Options"] = "DENY"
+    return resposta
+
+
+@app.route("/api/gmail/conectar", methods=["GET", "POST"])
 def gmail_conectar():
+    if not validar_admin_request():
+        return jsonify({"success": False, "error": "Não autorizado."}), 401
+    try:
+        validar_config_oauth_p0(GMAIL_REDIRECT_URI)
+    except ValueError as erro:
+        return jsonify({"success": False, "erro": str(erro)}), 503
     if not all([
         GMAIL_CLIENT_ID,
         GMAIL_CLIENT_SECRET,
@@ -17987,21 +18042,35 @@ def gmail_conectar():
         )
     )
 
+    navegador = secrets.token_urlsafe(32)
+    guardar_oauth(get_db_connection, state, navegador, flow.code_verifier)
     session["gmail_oauth_state"] = state
-    session["gmail_code_verifier"] = flow.code_verifier
+    session["gmail_oauth_navegador"] = navegador
 
+    if request.method == "POST":
+        return jsonify({"success": True, "authorization_url": authorization_url})
     return redirect(authorization_url)
 
 
 @app.route("/api/gmail/callback")
 def gmail_callback():
-    state = session.get("gmail_oauth_state")
+    try:
+        validar_config_oauth_p0(GMAIL_REDIRECT_URI)
+    except ValueError as erro:
+        return jsonify({"success": False, "erro": str(erro)}), 503
+    state = session.pop("gmail_oauth_state", None)
+    navegador = session.pop("gmail_oauth_navegador", None)
 
-    if not state:
+    if not state or request.args.get("state") != state or not navegador:
         return jsonify({
             "success": False,
             "erro": "Estado OAuth do Gmail não encontrado."
         }), 400
+
+    try:
+        verifier = consumir_oauth(get_db_connection, state, navegador)
+    except ValueError:
+        return jsonify({"success": False, "erro": "Estado OAuth inválido ou expirado."}), 400
 
     flow = Flow.from_client_config(
         GMAIL_CLIENT_CONFIG,
@@ -18010,22 +18079,22 @@ def gmail_callback():
     )
 
     flow.redirect_uri = GMAIL_REDIRECT_URI
-    flow.code_verifier = session.get("gmail_code_verifier")
+    flow.code_verifier = verifier
 
     flow.fetch_token(
-        authorization_response=request.url
+        # URI canônica configurada: não confia em Host/X-Forwarded-* do cliente.
+        # Mantém HTTPS mesmo quando o proxy termina TLS antes do Flask.
+        authorization_response=GMAIL_REDIRECT_URI + "?" + request.query_string.decode("ascii")
     )
 
     credentials = flow.credentials
 
-    session["gmail_credentials"] = {
-        "token": credentials.token,
-        "refresh_token": credentials.refresh_token,
-        "token_uri": credentials.token_uri,
-        "client_id": credentials.client_id,
-        "client_secret": credentials.client_secret,
-        "scopes": credentials.scopes
-    }
+    # O callback só conclui uma autorização administrativa de uso único.
+    perfil = build("gmail", "v1", credentials=credentials, cache_discovery=False).users().getProfile(userId="me").execute()
+    if (perfil.get("emailAddress") or "").lower() != "contato@maranhaocordial.com.br":
+        return jsonify({"success": False, "erro": "Conta institucional incorreta."}), 403
+    if not credentials.refresh_token:
+        return jsonify({"success": False, "erro": "Autorização sem refresh token; conexão anterior preservada."}), 400
 
     conn = get_db_connection()
 
@@ -18081,6 +18150,7 @@ def gmail_callback():
 # =====================================================
 
 def gmail_enviar_email(destinatario, assunto, corpo):
+    verificar_envio(get_db_connection, destinatario)
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request as GoogleRequest
     from email.mime.text import MIMEText
@@ -18146,6 +18216,7 @@ def gmail_enviar_email(destinatario, assunto, corpo):
         mensagem.as_bytes()
     ).decode("utf-8")
 
+    verificar_envio(get_db_connection, destinatario)
     resposta = requests.post(
         "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
         headers={
@@ -18177,6 +18248,8 @@ def gmail_enviar_email(destinatario, assunto, corpo):
 
 @app.route("/api/gmail/sincronizar")
 def gmail_sincronizar():
+    if not validar_admin_request():
+        return jsonify({"success": False, "error": "Não autorizado."}), 401
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request as GoogleRequest
 
@@ -18230,184 +18303,203 @@ def gmail_sincronizar():
             GoogleRequest()
         )
 
-        session["gmail_credentials"] = {
-            "token": credentials.token,
-            "refresh_token": credentials.refresh_token,
-            "token_uri": credentials.token_uri,
-            "client_id": credentials.client_id,
-            "client_secret": credentials.client_secret,
-            "scopes": credentials.scopes
-        }
-
     resultado = gmail_buscar_mensagens(
         access_token=credentials.token,
         limite=20
     )
 
-    return jsonify(resultado)
+    return jsonify(resultado), (200 if resultado.get("success") else 502)
 
 
 # =====================================================
 # GOOGLE / GMAIL — RECEBER MENSAGENS
 # =====================================================
 
-def gmail_buscar_mensagens(access_token, limite=20):
-    import requests
-    import base64
+def gmail_importar_mensagem_p0(dados, tecnica=False):
+    gmail_id = dados["id"]
+    payload = dados.get("payload", {})
 
-    headers = {
-        "Authorization": f"Bearer {access_token}"
+    cabecalhos = {
+        h.get("name", "").lower():
+            h.get("value", "")
+        for h in payload.get("headers", [])
     }
 
-    resposta = requests.get(
-        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-        headers=headers,
-        params={
-            "maxResults": limite,
-            "q": "in:inbox"
-        },
-        timeout=30
+    remetente = str(cabecalhos.get("from") or "")
+    destinatario = str(cabecalhos.get("to") or "")
+    assunto = str(cabecalhos.get("subject") or "")
+
+    texto = ""
+
+    body_data = (
+        payload
+        .get("body", {})
+        .get("data")
     )
 
-    resposta.raise_for_status()
-
-    mensagens = resposta.json().get(
-        "messages",
-        []
-    )
-
-    resultados = []
-
-    for item in mensagens:
-
-        gmail_id = item.get("id")
-
-        detalhe = requests.get(
-            f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{gmail_id}",
-            headers=headers,
-            params={"format": "full"},
-            timeout=30
-        )
-
-        detalhe.raise_for_status()
-
-        dados = detalhe.json()
-        payload = dados.get("payload", {})
-
-        cabecalhos = {
-            h.get("name", "").lower():
-                h.get("value", "")
-            for h in payload.get("headers", [])
-        }
-
-        remetente = cabecalhos.get("from", "")
-        destinatario = cabecalhos.get("to", "")
-        assunto = cabecalhos.get("subject", "")
-
-        texto = ""
-
-        body_data = (
-            payload
-            .get("body", {})
-            .get("data")
-        )
-
-        if body_data:
-            try:
-                texto = base64.urlsafe_b64decode(
-                    body_data + "=="
-                ).decode(
-                    "utf-8",
-                    errors="replace"
-                )
-            except Exception:
-                texto = ""
-
-        if not texto:
-
-            for parte in payload.get("parts", []):
-
-                if parte.get("mimeType") == "text/plain":
-
-                    data = (
-                        parte
-                        .get("body", {})
-                        .get("data")
-                    )
-
-                    if data:
-                        try:
-                            texto = base64.urlsafe_b64decode(
-                                data + "=="
-                            ).decode(
-                                "utf-8",
-                                errors="replace"
-                            )
-                        except Exception:
-                            texto = ""
-
-                        break
-
-        if not texto:
-            texto = dados.get("snippet", "")
-
-        texto_completo = (
-            f"Assunto: {assunto}\n\n"
-            f"{texto}"
-        ).strip()
-
-        registro = registrar_interacao_omnichannel(
-            canal="gmail",
-            plataforma="gmail",
-            sender_id=remetente,
-            recipient_id=destinatario,
-            message_id=gmail_id,
-            texto=texto_completo,
-            tipo_interacao="email"
-        )
-
-        processamento = None
-
-        if (
-            registro.get("success")
-            and
-            not registro.get("duplicada")
-        ):
-            processamento = (
-                processar_interacao_omnichannel_crm(
-                    registro.get("interacao")
-                )
+    if body_data:
+        try:
+            texto = base64.urlsafe_b64decode(
+                body_data + "=="
+            ).decode(
+                "utf-8",
+                errors="replace"
             )
+        except Exception:
+            texto = ""
 
-        resultados.append({
+    if not texto:
+
+        for parte in payload.get("parts", []):
+
+            if parte.get("mimeType") == "text/plain":
+
+                data = (
+                    parte
+                    .get("body", {})
+                    .get("data")
+                )
+
+                if data:
+                    try:
+                        texto = base64.urlsafe_b64decode(
+                            data + "=="
+                        ).decode(
+                            "utf-8",
+                            errors="replace"
+                        )
+                    except Exception:
+                        texto = ""
+
+                    break
+
+    if not texto:
+        texto = dados.get("snippet", "")
+
+    texto_completo = (
+        f"Assunto: {assunto}\n\n"
+        f"{texto}"
+    ).strip()
+
+    registro = registrar_interacao_omnichannel(
+        canal="gmail",
+        plataforma="gmail",
+        sender_id=remetente,
+        recipient_id=destinatario,
+        message_id=gmail_id,
+        texto=texto_completo,
+        tipo_interacao="email_tecnico" if tecnica else "email"
+    )
+
+    if not registro.get("success"):
+        raise RuntimeError("Falha ao registrar interação Gmail")
+    return registro, assunto, remetente
+
+
+def gmail_buscar_mensagens(access_token, limite=20):
+    import requests
+    from contextlib import nullcontext
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    erros = []
+    resultados = []
+    detalhes = []
+    registros = []
+    pausa_tentada = False
+
+    def falha(etapa, mensagem_id, erro):
+        nonlocal pausa_tentada
+        # Nunca retorna corpo de mensagem, token ou texto de exceção externa.
+        erros.append({"etapa": etapa, "gmail_id": mensagem_id, "tipo": type(erro).__name__})
+        if not pausa_tentada:
+            pausa_tentada = True
+            try:
+                definir_pausa(get_db_connection, True, "P0: falha na importação Gmail; revisar antes de retomar envios.")
+            except Exception as erro_pausa:
+                erros.append({"etapa": "persistir_pausa", "tipo": type(erro_pausa).__name__})
+
+    try:
+        resposta = requests.get(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+            headers=headers, params={"maxResults": limite, "q": "in:inbox"}, timeout=30,
+        )
+        resposta.raise_for_status()
+        mensagens = resposta.json().get("messages", [])
+        if not isinstance(mensagens, list):
+            raise ValueError("Lista Gmail inválida")
+    except Exception as erro:
+        falha("listar", None, erro)
+        mensagens = []
+
+    # Primeira passagem: todas as verificações DSN antes de processar respostas.
+    for item in mensagens:
+        gmail_id = item.get("id") if isinstance(item, dict) else None
+        try:
+            if not gmail_id:
+                raise ValueError("Mensagem Gmail sem ID")
+            detalhe = requests.get(
+                f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{gmail_id}",
+                headers=headers, params={"format": "full"}, timeout=30,
+            )
+            detalhe.raise_for_status()
+            dados = detalhe.json()
+            if not isinstance(dados, dict) or dados.get("id") != gmail_id:
+                raise ValueError("Detalhe Gmail inválido")
+        except Exception as erro:
+            falha("detalhe", gmail_id, erro)
+            resultados.append({"gmail_id": gmail_id, "registrado": False, "processado": False})
+            continue
+
+        tecnica = False
+        try:
+            tecnica = processar_dsn_gmail(dados, headers, get_db_connection, requests)
+        except Exception as erro:
+            tecnica = True
+            falha("dsn", gmail_id, erro)
+        detalhes.append((dados, tecnica))
+
+    # Registra todas as entradas possíveis, mesmo com falhas em outras mensagens.
+    for dados, tecnica in detalhes:
+        gmail_id = dados["id"]
+        try:
+            registro, assunto, remetente = gmail_importar_mensagem_p0(dados, tecnica)
+        except Exception as erro:
+            falha("registrar", gmail_id, erro)
+            resultados.append({"gmail_id": gmail_id, "registrado": False, "processado": False})
+            continue
+        resumo = {
             "gmail_id": gmail_id,
             "remetente": remetente,
-            "assunto": (
-                "[conteudo sensivel ocultado]"
-                if (
-                    "code:" in assunto.lower()
-                    or "código" in assunto.lower()
-                    or "codigo" in assunto.lower()
-                )
-                else assunto
-            ),
-            "registrado": bool(
-                registro.get("success")
-            ),
-            "duplicada": bool(
-                registro.get("duplicada")
-            ),
-            "processado": bool(
-                processamento
-                and processamento.get("success")
-            )
-        })
+            "assunto": "[conteudo sensivel ocultado]" if any(t in assunto.lower() for t in ("code:", "código", "codigo")) else assunto,
+            "registrado": True,
+            "duplicada": bool(registro.get("duplicada")),
+            "processado": False,
+        }
+        resultados.append(resumo)
+        registros.append((registro, tecnica, resumo))
+
+    for registro, tecnica, resumo in registros:
+        if tecnica or registro.get("duplicada"):
+            continue
+        # Mantém o tratamento CRM existente. A trava local impede saídas mesmo
+        # quando o banco da pausa estiver indisponível; a pausa persistente cobre
+        # outras requisições/workers e só é removida por decisão administrativa.
+        with bloquear_envios_no_contexto() if erros else nullcontext():
+            try:
+                processamento = processar_interacao_omnichannel_crm(registro.get("interacao"))
+                resumo["processado"] = bool(processamento and processamento.get("success"))
+                if not resumo["processado"]:
+                    raise RuntimeError("Processamento CRM não confirmado")
+            except Exception as erro:
+                falha("processar", resumo["gmail_id"], erro)
 
     return {
-        "success": True,
+        "success": not erros,
+        "prospeccao_permitida": not erros,
         "canal": "gmail",
         "quantidade": len(resultados),
-        "mensagens": resultados
+        "mensagens": resultados,
+        "erros": erros,
     }
 
 
@@ -19330,8 +19422,7 @@ def admin_listar_atendimentos():
     chave_recebida = request.headers.get("X-Admin-Key")
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -19411,8 +19502,7 @@ def admin_listar_b2b():
     chave_recebida = request.headers.get("X-Admin-Key")
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -19495,8 +19585,7 @@ def admin_listar_degustacoes():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -19597,12 +19686,7 @@ NIVEIS_ACESSO_DOCUMENTOS = {
 
 
 def validar_admin_request():
-    chave = request.headers.get("X-Admin-Key")
-
-    return bool(
-        ADMIN_API_KEY
-        and chave == ADMIN_API_KEY
-    )
+    return admin_autorizado(request.headers.get("X-Admin-Key"), globals())
 
 
 @app.route(
@@ -21232,8 +21316,7 @@ def admin_listar_acoes():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -21299,8 +21382,7 @@ def admin_criar_acao():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -21523,8 +21605,7 @@ def admin_atualizar_acao(acao_id):
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -21778,8 +21859,7 @@ def admin_listar_leads_crm():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -21849,8 +21929,7 @@ def admin_criar_lead_crm():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -22046,8 +22125,7 @@ def admin_atualizar_lead_crm(lead_id):
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -32665,8 +32743,7 @@ def transcrever_comando_ia_empresarial():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -32756,7 +32833,7 @@ def testar_email_institucional_admin():
         "X-Admin-Key"
     )
 
-    if chave_recebida != os.getenv("ADMIN_KEY"):
+    if not validar_admin_request():
         return jsonify({
             "success": False,
             "error": "Não autorizado."
@@ -32808,8 +32885,7 @@ def ia_empresarial():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -33765,8 +33841,7 @@ def admin_listar_pedidos():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave_recebida != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -34043,46 +34118,8 @@ def api_admin_ia_empresarial_prospeccao_autonoma():
     import hmac
     from psycopg2.extras import RealDictCursor
 
-    chave_recebida = (
-        request.headers.get("X-Admin-Key") or ""
-    ).strip()
-
-    chave_esperada = None
-
-    for nome in (
-        "ADMIN_KEY",
-        "ADMIN_API_KEY",
-        "ADMIN_SECRET",
-        "PAINEL_ADMIN_KEY",
-    ):
-        valor_global = globals().get(nome)
-
-        if valor_global:
-            chave_esperada = str(valor_global).strip()
-            break
-
-        valor_env = os.getenv(nome)
-
-        if valor_env:
-            chave_esperada = str(valor_env).strip()
-            break
-
-    # Falha fechada: nunca deixa o relatório privado aberto
-    # se a chave administrativa não estiver configurada.
-    if not chave_esperada:
-        return jsonify({
-            "success": False,
-            "error": "Chave administrativa do painel indisponível."
-        }), 503
-
-    if not hmac.compare_digest(
-        chave_recebida,
-        chave_esperada
-    ):
-        return jsonify({
-            "success": False,
-            "error": "Não autorizado."
-        }), 401
+    if not validar_admin_request():
+        return jsonify({"success": False, "error": "Não autorizado."}), 401
 
     conn = get_db_connection()
 
@@ -37810,7 +37847,7 @@ if __name__ == "__main__":
 )
 def admin_relacionamentos_b2b():
 
-    if request.headers.get("X-Admin-Key") != ADMIN_KEY:
+    if not validar_admin_request():
         return jsonify({
             "success": False,
             "error": "Não autorizado."
@@ -38457,8 +38494,7 @@ def comando_empresarial():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -38610,8 +38646,7 @@ def listar_objetivos_estrategicos():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -39461,8 +39496,7 @@ def api_listar_acoes_empresariais():
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -39510,8 +39544,7 @@ def api_aprovar_acao_empresarial(acao_id):
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,
@@ -39624,8 +39657,7 @@ def api_recusar_acao_empresarial(acao_id):
     )
 
     if (
-        not ADMIN_API_KEY
-        or chave != ADMIN_API_KEY
+        not validar_admin_request()
     ):
         return jsonify({
             "success": False,

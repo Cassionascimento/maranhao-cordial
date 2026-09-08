@@ -22,6 +22,7 @@ from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 
 from psycopg2.extras import RealDictCursor
+from email_seguranca import verificar_envio
 
 EMAIL_INSTITUCIONAL = "contato@maranhaocordial.com.br"
 EMAIL_DIRECAO = "cassionegocios47@gmail.com"
@@ -388,6 +389,7 @@ def enviar_email_institucional_fase56(
     cc=None,
     reply_message_id=None,
 ):
+    verificar_envio(lambda: _conn(namespace), destinatario, cc)
     service = obter_gmail_service_fase56(namespace)
 
     perfil = service.users().getProfile(userId="me").execute()
@@ -427,6 +429,8 @@ def enviar_email_institucional_fase56(
     if reply_message_id:
         corpo["threadId"] = reply_message_id
 
+    # Revalida imediatamente antes da chamada externa, inclusive To e Cc.
+    verificar_envio(lambda: _conn(namespace), destinatario, cc)
     resultado = (
         service.users()
         .messages()

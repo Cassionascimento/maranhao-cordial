@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conectar Gmail — Maranhão Cordial</title>
+<body>
+<p id="status" role="status">Aguardando autorização do painel administrativo…</p>
+<script>
+(() => {
+    const origens = new Set([
+        "https://maranhaocordial.com.br",
+        "https://www.maranhaocordial.com.br",
+        "https://maranhao-cordial.onrender.com",
+        window.location.origin
+    ]);
+    const painel = window.opener;
+    const status = document.getElementById("status");
+    if (!painel) {
+        status.textContent = "Inicie a conexão pelo painel administrativo.";
+        return;
+    }
+    let iniciado = false;
+    window.addEventListener("message", async (evento) => {
+        if (iniciado || evento.source !== painel || !origens.has(evento.origin)
+                || evento.data?.tipo !== "gmail-p0-autorizar"
+                || typeof evento.data.chave !== "string" || !evento.data.chave) return;
+        iniciado = true;
+        status.textContent = "Preparando conexão segura…";
+        try {
+            const resposta = await fetch("/api/gmail/conectar", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {"X-Admin-Key": evento.data.chave, "Accept": "application/json"}
+            });
+            const dados = await resposta.json();
+            if (!resposta.ok || !dados.success) throw new Error(dados.erro || dados.error || "Não foi possível iniciar a conexão.");
+            const url = new URL(dados.authorization_url);
+            if (url.origin !== "https://accounts.google.com") throw new Error("Destino OAuth inválido.");
+            // A chave não é armazenada, colocada na URL ou enviada ao Google.
+            window.opener = null;
+            window.location.replace(url.href);
+        } catch (erro) {
+            status.textContent = erro.message;
+        }
+    });
+    // Somente uma mensagem de prontidão; nenhuma credencial sai desta página.
+    for (const origem of origens) painel.postMessage({tipo: "gmail-p0-pronto"}, origem);
+})();
+</script>
+</body>
+</html>
