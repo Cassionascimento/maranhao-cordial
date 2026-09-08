@@ -24,7 +24,8 @@ def schema(cur):
         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE(dia,vaga))''')
     cur.execute("SELECT to_regclass('public.prospeccao_historico_contatados')")
-    if cur.fetchone()[0] is None:
+    reg = cur.fetchone()
+    if not reg or reg[0] is None:
         cur.execute('''CREATE VIEW prospeccao_historico_contatados AS
         SELECT lower(trim(email)) email, ultimo_contato_em contato_em
         FROM prospectos_fase57
