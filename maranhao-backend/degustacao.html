@@ -489,6 +489,9 @@ h2 {
   gap: 18px;
 }
 
+.form-field { min-width: 0; }
+.form-field label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text); }
+
 .form-row {
 
   display: grid;
@@ -987,26 +990,26 @@ footer {
 
       <div class="form-row">
 
-        <input
+        <div class="form-field"><label for="deg-empresa">Nome do estabelecimento</label><input
           type="text"
-          name="empresa"
+          id="deg-empresa" name="empresa"
           placeholder="Nome do estabelecimento"
           required
-        >
+        ></div>
 
-        <input
+        <div class="form-field"><label for="deg-cnpj">CNPJ (opcional)</label><input
           type="text"
-          name="cnpj"
+          id="deg-cnpj" name="cnpj"
           placeholder="CNPJ"
-        >
+        ></div>
 
       </div>
 
 
       <div class="form-row">
 
-        <select
-          name="segmento"
+        <div class="form-field"><label for="deg-segmento">Tipo de estabelecimento</label><select
+          id="deg-segmento" name="segmento"
           required
         >
 
@@ -1042,50 +1045,50 @@ footer {
             Outro
           </option>
 
-        </select>
+        </select></div>
 
 
-        <input
+        <div class="form-field"><label for="deg-cidade">Cidade / Estado</label><input
           type="text"
-          name="cidade"
+          id="deg-cidade" name="cidade"
           placeholder="Cidade / Estado"
           required
-        >
+        ></div>
 
       </div>
 
 
-      <input
+      <div class="form-field"><label for="deg-responsavel">Nome do responsável</label><input
         type="text"
-        name="responsavel"
+        id="deg-responsavel" name="responsavel"
         placeholder="Nome do responsável"
         required
-      >
+      ></div>
 
 
       <div class="form-row">
 
-        <input
+        <div class="form-field"><label for="deg-whatsapp">WhatsApp</label><input
           type="tel"
-          name="whatsapp"
+          id="deg-whatsapp" name="whatsapp"
           placeholder="WhatsApp"
           required
-        >
+        ></div>
 
-        <input
+        <div class="form-field"><label for="deg-email">E-mail</label><input
           type="email"
-          name="email"
+          id="deg-email" name="email"
           placeholder="E-mail"
           required
-        >
+        ></div>
 
       </div>
 
 
-      <textarea
-        name="mensagem"
+      <div class="form-field"><label for="deg-mensagem">Sobre seu estabelecimento (opcional)</label><textarea
+        id="deg-mensagem" name="mensagem"
         placeholder="Conte um pouco sobre o seu estabelecimento e como imagina utilizar o Maranhão Cordial."
-      ></textarea>
+      ></textarea></div>
 
 
       <button
