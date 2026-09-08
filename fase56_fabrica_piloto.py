@@ -136,8 +136,7 @@ def instalar_schema_fase56(namespace):
                         20, 20, 50, 4000, FALSE, 'SP', TRUE, 'ativa'
                     )
                     ON CONFLICT (codigo) DO UPDATE SET
-                        atualizado_em = NOW(),
-                        status = 'ativa'
+                        atualizado_em = NOW()
                 """)
         return {"success": True}
     finally:
