@@ -23,7 +23,9 @@ def schema(cur):
         gmail_id TEXT, thread_id TEXT, erro TEXT,
         criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE(dia,vaga))''')
-    cur.execute('''CREATE VIEW IF NOT EXISTS prospeccao_historico_contatados AS
+    cur.execute("SELECT to_regclass('public.prospeccao_historico_contatados')")
+    if cur.fetchone()[0] is None:
+        cur.execute('''CREATE VIEW prospeccao_historico_contatados AS
         SELECT lower(trim(email)) email, ultimo_contato_em contato_em
         FROM prospectos_fase57
         WHERE ultimo_contato_em IS NOT NULL OR tentativas>0
@@ -37,7 +39,7 @@ def schema(cur):
         WHERE canal IN ('gmail','email') AND
           (tipo_interacao LIKE '%%saida%%'
            OR lower(trim(sender_id))='contato@maranhaocordial.com.br')
-    ''')
+        ''')
 
 
 def elegivel_sql():
