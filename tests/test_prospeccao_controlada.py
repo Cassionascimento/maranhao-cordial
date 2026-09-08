@@ -100,7 +100,8 @@ class Controle(f.Offline):
         super().setUp()
         self.db = DB()
         for patcher in (patch.object(fase, '_conn', side_effect=lambda _: self.db()),
-                        patch.object(c, 'verificar_envio'), patch.object(c, 'definir_pausa')):
+                        patch.object(c, 'verificar_envio'), patch.object(c, 'verificar_travas_envio'),
+                        patch.object(c, 'definir_pausa')):
             patcher.start()
             self.addCleanup(patcher.stop)
 
@@ -219,3 +220,55 @@ class Controle(f.Offline):
         with self.assertRaises(c.EnvioBloqueado):
             send({}, '0')
         self.assertEqual(len(self.db.sent), 1)
+
+    def fluxo_p0_real(self, callback=None):
+        """P0 e contexto reais; somente conexões e transporte são simulados."""
+        import os
+        import email_seguranca as p0
+        self.enterContext(patch.dict(os.environ, EMAIL_APENAS_PROSPECCAO_CONTROLADA='true',
+                                    EMAIL_ENVIOS_PAUSADOS='false'))
+        def antes(factory, email):
+            self.assertIsNone(c._reserva.get())
+            self.assertNotIn(email, self.db.rows)
+            p0.verificar_travas_envio(self.banco, email)
+        def depois(factory, email):
+            self.assertEqual(self.db.rows[email]['estado'], 'reservado')
+            self.assertEqual(c._reserva.get()['email'], email)
+            if callback:
+                callback()
+            p0.verificar_envio(self.banco, email)
+        self.enterContext(patch.object(c, 'verificar_travas_envio', side_effect=antes))
+        self.enterContext(patch.object(c, 'verificar_envio', side_effect=depois))
+        return c.primeiro_contato(self.sender)
+
+    def test_ordem_real_reserva_commit_contexto_p0_segundo_e_terceiro(self):
+        send = self.fluxo_p0_real()
+        self.assertTrue(send({}, '0')['enviado'])
+        self.assertTrue(send({}, '1')['enviado'])
+        self.assertFalse(send({}, '2')['enviado'])
+        self.assertEqual(len(set(self.db.sent)), 2)
+        self.assertIsNone(c._reserva.get())
+
+    def test_p0_real_concorrente_com_historico_um_so_restante(self):
+        send = self.fluxo_p0_real()
+        self.db.history.add('anterior@empresa.com.br')
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(lambda i: send({}, str(i)), range(8)))
+        self.assertEqual(len(self.db.sent), 1)
+        self.assertEqual(len(self.db.rows), 1)
+
+    def test_p0_real_pausa_antes_reserva_nao_consume_vaga(self):
+        send = self.fluxo_p0_real()
+        self.banco.pausado = True
+        with self.assertRaisesRegex(c.EnvioBloqueado, 'envios_pausados'):
+            send({}, '0')
+        self.assertEqual(self.db.rows, {})
+        self.assertEqual(self.db.sent, [])
+
+    def test_p0_real_supressao_apos_commit_nao_envia_nem_estorna(self):
+        send = self.fluxo_p0_real(lambda: self.banco.supressoes.add(self.db.candidates['0']))
+        with self.assertRaisesRegex(c.EnvioBloqueado, 'suprimido'):
+            send({}, '0')
+        self.assertEqual(self.db.rows[self.db.candidates['0']]['estado'], 'incerto')
+        self.assertEqual(self.db.sent, [])
+        self.assertIsNone(c._reserva.get())

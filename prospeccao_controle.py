@@ -6,7 +6,7 @@ from contextvars import ContextVar
 from functools import wraps
 import os
 
-from email_seguranca import EnvioBloqueado, definir_pausa, verificar_envio
+from email_seguranca import EnvioBloqueado, definir_pausa, verificar_envio, verificar_travas_envio
 
 LOCK = 5702001
 _reserva = ContextVar('reserva_prospeccao', default=None)
@@ -119,7 +119,7 @@ def primeiro_contato(fn):
                 if not row:
                     raise EnvioBloqueado('prospecto_inelegivel_ou_duplicado')
                 email = row[0]
-                verificar_envio(factory, email)
+                verificar_travas_envio(factory, email)
                 cur.execute('''INSERT INTO prospeccao_reservas(email,prospecto_id,vaga)
                     SELECT %s,%s,n FROM generate_series(1,2) n
                     WHERE NOT EXISTS (SELECT 1 FROM prospeccao_reservas r
@@ -134,6 +134,7 @@ def primeiro_contato(fn):
             conn.commit()  # Obrigatoriamente antes do transporte; nunca estornar.
             reservado = True
             token = _reserva.set({'email': email, 'consumida': False})
+            verificar_envio(factory, email)
             resultado = fn(namespace, prospecto_id)
             if not resultado.get('success') or not resultado.get('message_id'):
                 raise RuntimeError('primeiro_contato_sem_confirmacao')
