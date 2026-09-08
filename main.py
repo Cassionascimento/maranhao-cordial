@@ -1,5 +1,6 @@
 from flask import Flask, send_from_directory, request, jsonify, send_file, redirect, session
 from email_seguranca import (
+    EnvioBloqueado,
     admin_autorizado, verificar_envio, definir_pausa,
     guardar_oauth, consumir_oauth, processar_dsn_gmail,
     validar_config_oauth_p0, bloquear_envios_no_contexto,
@@ -3866,6 +3867,28 @@ def admin_email_seguranca_p0():
     return jsonify({"success": True, "pausado": dados["pausado"]})
 
 # =====================================================
+@app.route('/api/admin/email/supervisionado/autorizar', methods=['POST'])
+def autorizar_email_supervisionado():
+    from email_supervisionado import autorizar
+    try:
+        return jsonify(autorizar(get_db_connection, request.get_json(silent=True))), 201
+    except (ValueError, EnvioBloqueado) as erro:
+        return jsonify({'success': False, 'error': str(erro)}), 400
+
+
+@app.route('/api/admin/email/supervisionado/<ident>/enviar', methods=['POST'])
+def executar_email_supervisionado(ident):
+    from email_supervisionado import executar
+    if request.get_json(silent=True) != {}:
+        return jsonify({'success': False, 'error': 'Envie somente um objeto vazio; conteúdo já autorizado.'}), 400
+    try:
+        return jsonify(executar(globals(), ident)), 200
+    except (ValueError, EnvioBloqueado) as erro:
+        return jsonify({'success': False, 'error': str(erro)}), 409
+    except RuntimeError:
+        return jsonify({'success': False, 'error': 'Resultado incerto; autorização consumida. Não repetir envio.'}), 502
+
+
 # CORS — SAC MARANHÃO CORDIAL
 # =====================================================
 

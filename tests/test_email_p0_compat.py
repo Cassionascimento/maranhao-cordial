@@ -39,11 +39,10 @@ class Job(f.Offline):
         http.get.return_value = Mock(status_code=200, json=Mock(return_value={'success': True, 'prospeccao_permitida': True, 'erros': []}))
         http.post.return_value = Mock(status_code=200, json=Mock(return_value={'success': True, 'fase58b': {'success': True}}))
         self.assertTrue(job.executar_job(http)['success'])
-        self.assertEqual([c[0] for c in http.method_calls], ['get', 'post'])
+        self.assertEqual([c[0] for c in http.method_calls], ['get'])
         self.assertEqual(http.get.call_args.kwargs['headers'], {'X-Admin-Key': 'admin-sintetico'})
-        self.assertEqual(http.post.call_args.kwargs['headers'], {'X-Fase58-Key': 'cron-sintetico'})
+        http.post.assert_not_called()
         self.assertFalse(http.get.call_args.kwargs['allow_redirects'])
-        self.assertFalse(http.post.call_args.kwargs['allow_redirects'])
 
     def test_configuracao_ausente_aborta_antes_de_http(self):
         os.environ.pop('ADMIN_API_KEY')

@@ -1,4 +1,4 @@
-"""Comando versionado para gmail-sync-maranhao-cordial. Nunca importa main.py."""
+"""Sincronização Gmail isolada. Não envia nem chama prospecção."""
 import os
 import sys
 import requests
@@ -23,9 +23,8 @@ def _confirmar(resposta, etapa):
 
 def executar_job(http=requests):
     admin = chave_admin_configurada({})
-    cron = os.getenv("FASE58_CRON_SECRET")
-    if not admin or not cron:
-        raise JobAbortado("Configuração administrativa/cron incompleta")
+    if not admin:
+        raise JobAbortado("Configuração administrativa incompleta")
 
     # Sem redirects: nunca encaminha a chave administrativa para outro destino.
     sync = http.get(
@@ -36,16 +35,7 @@ def executar_job(http=requests):
     if dados.get("prospeccao_permitida") is not True:
         raise JobAbortado("Gmail: prospecção não autorizada pelo resultado da sincronização")
 
-    # Único disparo, apenas depois de confirmar toda a sincronização.
-    # A rota 5.8A já executa também a 5.8B.
-    fase58 = http.post(
-        API_BASE + "/api/internal/fase58a/executar",
-        headers={"X-Fase58-Key": cron}, timeout=(10, 180), allow_redirects=False,
-    )
-    resultado = _confirmar(fase58, "Fase 5.8")
-    if isinstance(resultado.get("fase58b"), dict) and resultado["fase58b"].get("success") is False:
-        raise JobAbortado("Fase 5.8B não confirmou sucesso")
-    return {"success": True}
+    return dados
 
 
 def main():
@@ -55,7 +45,7 @@ def main():
         # Não imprime respostas, headers ou URLs de exceções potencialmente sensíveis.
         print(f"Job Gmail abortado ({type(erro).__name__}).", file=sys.stderr)
         return 1
-    print("Gmail e Fase 5.8 concluídos.")
+    print("Gmail sincronizado; nenhuma prospecção disparada.")
     return 0
 
 
