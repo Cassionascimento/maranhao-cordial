@@ -118,6 +118,8 @@ def garantir_schema(cur):
 
 
 def verificar_envio(conn_factory, destinatario, cc=None):
+    from prospeccao_controle import validar_contexto
+    validar_contexto(destinatario, cc)
     if _bloqueio_contexto.get():
         raise EnvioBloqueado("envios_bloqueados_falha_importacao")
     # Ausente preserva o funcionamento. Valor explícito inválido falha fechado.

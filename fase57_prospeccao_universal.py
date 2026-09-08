@@ -17,6 +17,7 @@ import json
 import unicodedata
 from datetime import datetime, timezone
 from psycopg2.extras import RealDictCursor
+from prospeccao_controle import primeiro_contato, elegivel_sql, instalar, status as quota_controlada
 
 FASE = "5.7"
 STATUS_ATIVOS = ("ativa", "pesquisando", "contatando", "negociando")
@@ -380,14 +381,15 @@ def registrar_aprendizado_fase57(
 
 
 def garantir_pesquisa_se_faltar_fase57(namespace, campanha_id):
+    instalar(lambda: _conn(namespace))
     conn = _conn(namespace)
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT c.*,
                            COUNT(p.id) FILTER (
-                               WHERE p.status NOT IN ('descartado','bloqueado')
+                               WHERE {elegivel_sql()}
                            )::INTEGER AS contatos_uteis
                     FROM campanhas_prospeccao_fase57 c
                     LEFT JOIN prospectos_fase57 p ON p.campanha_id=c.id
@@ -406,7 +408,7 @@ def garantir_pesquisa_se_faltar_fase57(namespace, campanha_id):
                     SELECT COUNT(*)::INTEGER qtd
                     FROM pesquisas_fase57
                     WHERE campanha_id=%s
-                      AND status IN ('pendente','executando')
+                      AND (status='pendente' OR (status='executando' AND iniciado_em>NOW()-INTERVAL '30 minutes'))
                 """, (campanha_id,))
                 if int((cur.fetchone() or {}).get("qtd") or 0) > 0:
                     return {"success": True, "pesquisa_criada": False, "faltam": faltam}
@@ -779,62 +781,10 @@ def _campanha_e_prospecto(namespace, prospecto_id):
 
 
 def _limite_diario_global_fase57(namespace):
-    """
-    Proteção global da prospecção.
-
-    Conta todos os prospectos que receberam primeiro contato
-    no dia corrente de São Paulo, independentemente de campanha.
-
-    A Fase 5.7 nunca deve ultrapassar esse teto mesmo se outro
-    fluxo tentar chamá-la fora da Fase 5.8.
-    """
-    limite = max(
-        1,
-        int(
-            os.getenv(
-                "FASE57_MAX_CONTATOS_DIA",
-                os.getenv("FASE58A_MAX_CONTATOS_DIA", "8")
-            )
-        )
-    )
-
-    conn = _conn(namespace)
-
-    try:
-        with conn.cursor(
-            cursor_factory=RealDictCursor
-        ) as cur:
-
-            cur.execute(
-                """
-                SELECT COUNT(*)::INTEGER AS qtd
-                FROM prospectos_fase57
-                WHERE ultimo_contato_em IS NOT NULL
-                  AND (
-                    ultimo_contato_em
-                    AT TIME ZONE 'America/Sao_Paulo'
-                  )::date = (
-                    NOW()
-                    AT TIME ZONE 'America/Sao_Paulo'
-                  )::date
-                """
-            )
-
-            qtd = int(
-                (cur.fetchone() or {}).get("qtd") or 0
-            )
-
-        return {
-            "limite": limite,
-            "usados": qtd,
-            "restantes": max(0, limite - qtd),
-            "bloqueado": qtd >= limite,
-        }
-
-    finally:
-        conn.close()
+    return quota_controlada(lambda: _conn(namespace))
 
 
+@primeiro_contato
 
 def enviar_primeiro_contato_fase57(namespace, prospecto_id):
     item = _campanha_e_prospecto(namespace, prospecto_id)
@@ -848,18 +798,6 @@ def enviar_primeiro_contato_fase57(namespace, prospecto_id):
         return {"success": False, "motivo": "prospecto_ja_processado"}
     if not item.get("email"):
         return {"success": False, "motivo": "sem_email_profissional"}
-
-    quota = _limite_diario_global_fase57(namespace)
-
-    if quota["bloqueado"]:
-        return {
-            "success": False,
-            "enviado": False,
-            "motivo": "limite_diario_global",
-            "limite": quota["limite"],
-            "usados": quota["usados"],
-            "restantes": 0,
-        }
 
     campanha = {
         "objetivo": item.get("objetivo"),
@@ -1014,21 +952,8 @@ def executar_lote_contatos_fase57(namespace, campanha_id=None, limite=3):
                 JOIN campanhas_prospeccao_fase57 c ON c.id=p.campanha_id
                 WHERE c.status = ANY(%s)
                   AND c.permitir_primeiro_contato=TRUE
-                  AND p.status='qualificado'
-                  AND COALESCE(p.email,'') <> ''
+                  AND {elegivel_sql()}
                   {filtro}
-                  AND NOT EXISTS (
-                    SELECT 1 FROM prospectos_fase57 z
-                    WHERE z.id<>p.id
-                      AND LOWER(COALESCE(z.email,''))=LOWER(p.email)
-                      AND z.status IN ('contatado','negociando','promissor')
-                  )
-                  AND (
-                    SELECT COUNT(*)
-                    FROM prospectos_fase57 h
-                    WHERE h.campanha_id=p.campanha_id
-                      AND h.ultimo_contato_em >= NOW()-INTERVAL '24 hours'
-                  ) < 20
                 ORDER BY p.score DESC, p.criado_em ASC
                 LIMIT %s
             """, tuple(params))
@@ -1039,10 +964,18 @@ def executar_lote_contatos_fase57(namespace, campanha_id=None, limite=3):
     resultados = []
     for pid in ids:
         try:
-            resultados.append(enviar_primeiro_contato_fase57(namespace, pid))
+            resultado = enviar_primeiro_contato_fase57(namespace, pid)
+            resultados.append(resultado)
+            if not resultado.get("success"):
+                raise RuntimeError("primeiro_contato_falhou")
+            if not resultado.get("enviado"):
+                break
         except Exception as erro:
-            resultados.append({"success": False, "prospecto_id": pid, "error": str(erro)})
-    return {"success": True, "tentados": len(ids), "resultados": resultados}
+            from email_seguranca import definir_pausa
+            definir_pausa(lambda: _conn(namespace), True, "Lote interrompido: " + type(erro).__name__)
+            resultados.append({"success": False, "prospecto_id": pid, "error": type(erro).__name__})
+            return {"success": False, "tentados": len(resultados), "resultados": resultados}
+    return {"success": True, "tentados": len(resultados), "resultados": resultados}
 
 
 def _buscar_prospecto_resposta_fase57(namespace, email):

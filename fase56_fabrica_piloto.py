@@ -389,6 +389,8 @@ def enviar_email_institucional_fase56(
     cc=None,
     reply_message_id=None,
 ):
+    from email.utils import formataddr
+    from prospeccao_controle import consumir_transporte
     verificar_envio(lambda: _conn(namespace), destinatario, cc)
     service = obter_gmail_service_fase56(namespace)
 
@@ -402,7 +404,7 @@ def enviar_email_institucional_fase56(
         )
 
     msg = MIMEMultipart("related")
-    msg["From"] = f"Maranhão Cordial <{EMAIL_INSTITUCIONAL}>"
+    msg["From"] = formataddr(("Maranhão Cordial", EMAIL_INSTITUCIONAL))
     msg["To"] = destinatario
     if cc:
         msg["Cc"] = cc
@@ -431,11 +433,12 @@ def enviar_email_institucional_fase56(
 
     # Revalida imediatamente antes da chamada externa, inclusive To e Cc.
     verificar_envio(lambda: _conn(namespace), destinatario, cc)
+    consumir_transporte(destinatario, cc, reply_message_id)
     resultado = (
         service.users()
         .messages()
         .send(userId="me", body=corpo)
-        .execute()
+        .execute(num_retries=0)
     )
 
     message_id = resultado.get("id")
