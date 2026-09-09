@@ -17469,10 +17469,25 @@ def gmail_sincronizar():
             GoogleRequest()
         )
 
-    resultado = gmail_buscar_mensagens(
-        access_token=credentials.token,
-        limite=20
-    )
+    from gmail_sync_paginacao import selecionar_lote
+    try:
+        with bloquear_envios_no_contexto(), selecionar_lote(get_db_connection, credentials.token) as lote:
+            if lote.ocupado:
+                return jsonify(success=True, motivo='sincronizacao_em_andamento',
+                               prospeccao_permitida=False, envios_automaticos_permitidos=False), 200
+            resultado = gmail_buscar_mensagens(
+                access_token=credentials.token, limite=20, mensagens=lote.mensagens)
+            if resultado.get('success'):
+                lote.confirmar()
+            resultado['paginacao'] = {'paginas': lote.paginas, 'limite_mensagens': 20,
+                                     'continuacao': bool(lote.page_token)}
+    except Exception as erro:
+        try:
+            definir_pausa(get_db_connection, True, 'P0: falha na paginação Gmail; preservar pausa.')
+        except Exception:
+            pass
+        return jsonify(success=False, envios_automaticos_permitidos=False,
+                       erros=[{'etapa': 'paginacao', 'tipo': type(erro).__name__}]), 502
 
     return jsonify(resultado), (200 if resultado.get("success") else 502)
 
@@ -17562,7 +17577,7 @@ def gmail_importar_mensagem_p0(dados, tecnica=False):
     return registro, assunto, remetente
 
 
-def gmail_buscar_mensagens(access_token, limite=20):
+def gmail_buscar_mensagens(access_token, limite=20, mensagens=None):
     import requests
     from contextlib import nullcontext
 
@@ -17584,18 +17599,20 @@ def gmail_buscar_mensagens(access_token, limite=20):
             except Exception as erro_pausa:
                 erros.append({"etapa": "persistir_pausa", "tipo": type(erro_pausa).__name__})
 
-    try:
-        resposta = requests.get(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-            headers=headers, params={"maxResults": limite, "q": "in:inbox"}, timeout=30,
-        )
-        resposta.raise_for_status()
-        mensagens = resposta.json().get("messages", [])
-        if not isinstance(mensagens, list):
-            raise ValueError("Lista Gmail inválida")
-    except Exception as erro:
-        falha("listar", None, erro)
-        mensagens = []
+    if mensagens is None:
+        try:
+            resposta = requests.get(
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+                headers=headers, params={"maxResults": limite, "q": "in:inbox"}, timeout=30,
+                allow_redirects=False,
+            )
+            resposta.raise_for_status()
+            mensagens = resposta.json().get("messages", [])
+            if not isinstance(mensagens, list):
+                raise ValueError("Lista Gmail inválida")
+        except Exception as erro:
+            falha("listar", None, erro)
+            mensagens = []
 
     # Primeira passagem: todas as verificações DSN antes de processar respostas.
     for item in mensagens:
@@ -17605,7 +17622,7 @@ def gmail_buscar_mensagens(access_token, limite=20):
                 raise ValueError("Mensagem Gmail sem ID")
             detalhe = requests.get(
                 f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{gmail_id}",
-                headers=headers, params={"format": "full"}, timeout=30,
+                headers=headers, params={"format": "full"}, timeout=30, allow_redirects=False,
             )
             detalhe.raise_for_status()
             dados = detalhe.json()
