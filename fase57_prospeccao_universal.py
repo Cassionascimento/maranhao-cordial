@@ -902,12 +902,36 @@ def executar_primeiro_contato_aprovado(namespace, prospecto_id):
 def propor_mensagem_fase57(namespace, item, texto, assunto, tipo='primeiro_contato', origem_mensagem=None):
     from acoes_comerciais import propor
     email = str(item.get('email') or '').strip().lower()
+    if tipo == 'primeiro_contato' and not apto_para_contato_fase57(namespace, item):
+        return {'success': True, 'enviado': False, 'proposta_criada': False,
+                'apto_para_contato': False, 'motivo': 'prospecto_inelegivel_ou_duplicado'}
     dados = dict(destinatario=email, empresa=item.get('empresa') or item.get('nome'),
         contato=item.get('nome'), canal='email', campanha=str(item.get('campanha_id')),
         objetivo=item.get('objetivo'), origem=item.get('fonte_url'), evidencia=item.get('evidencia'),
         motivo=item.get('motivo') or item.get('evidencia'), apto_para_contato=True, mensagem=texto,
         assunto=assunto, tipo=tipo, origem_mensagem=origem_mensagem)
     return propor(lambda: _conn(namespace),dados,'prospecto_fase57',str(item['id']))
+
+
+def apto_para_contato_fase57(namespace, item):
+    """Qualificação comercial não basta: reconsulta travas antes da proposta.
+
+    Não reserva quota nem altera pausas. O executor repete a elegibilidade sob
+    lock antes do transporte, pois uma proposta pode aguardar decisão por dias.
+    """
+    conn = _conn(namespace)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""SELECT p.id FROM prospectos_fase57 p
+                JOIN campanhas_prospeccao_fase57 c ON c.id=p.campanha_id
+                WHERE p.id=%s AND lower(trim(p.email))=%s AND p.fonte_url=%s
+                  AND c.status = ANY(%s) AND c.permitir_primeiro_contato
+                  AND """ + elegivel_sql(),
+                (str(item['id']), str(item.get('email') or '').strip().lower(),
+                 item.get('fonte_url'), list(STATUS_ATIVOS)))
+            return bool(cur.fetchone())
+    finally:
+        conn.close()
 
 
 def enviar_primeiro_contato_fase57(namespace, prospecto_id):

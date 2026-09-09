@@ -21,6 +21,10 @@ class Store:
         self.origens = {'prospecto_fase56': {ID56}, 'prospecto_fase57': {ID57}}
         self.propostas = {}
         self.eventos = []
+        self.prospectos = {ID57: dict(email=DADOS['destinatario'], fonte_url=DADOS['origem'],
+            status='qualificado', score=90, evidencia='Fonte pública', campanha_status='ativa',
+            permitir_primeiro_contato=True)}
+        self.supressoes, self.historico, self.reservas = set(), set(), set()
 
     def __call__(self):
         return Connection(self)
@@ -44,6 +48,15 @@ class Cursor:
         if sql in a.ORIGENS.values():
             tipo = next(t for t, query in a.ORIGENS.items() if query == sql)
             if args[0] in self.db.origens[tipo]: self.row = {'id': args[0]}
+        elif sql.startswith('SELECT p.id FROM prospectos_fase57 p'):
+            ident, email, fonte, campanhas = args
+            p = self.db.prospectos.get(ident)
+            if (p and ident in self.db.origens['prospecto_fase57']
+                    and p['email'].strip().lower() == email and p['fonte_url'] == fonte
+                    and p['status'] == 'qualificado' and p['score'] >= 55 and p['evidencia']
+                    and p['campanha_status'] in campanhas and p['permitir_primeiro_contato']
+                    and email not in self.db.supressoes | self.db.historico | self.db.reservas):
+                self.row = (ident,)
         elif sql.startswith('INSERT INTO acoes_comerciais_propostas'):
             chave, tipo, ident, dados, digest = args
             if chave not in self.db.propostas:
@@ -132,6 +145,25 @@ class Origens(TestCase):
         db=Banco(); send=Mock(return_value={'success':True,'message_id':'mock'})
         a.executar(db,'1',send)
         send.assert_called_once_with(ID57)
+
+    def test_criador_fase57_exige_origem_e_elegibilidade_atuais(self):
+        for bloqueio in ('supressoes', 'historico', 'reservas', 'campanha', 'score', 'origem'):
+            with self.subTest(bloqueio=bloqueio):
+                db = Store()
+                if bloqueio in ('supressoes', 'historico', 'reservas'):
+                    getattr(db, bloqueio).add(DADOS['destinatario'])
+                elif bloqueio == 'campanha':
+                    db.prospectos[ID57]['permitir_primeiro_contato'] = False
+                elif bloqueio == 'score':
+                    db.prospectos[ID57]['score'] = 54
+                else:
+                    db.origens['prospecto_fase57'].clear()
+                item = dict(id=ID57, email=DADOS['destinatario'], fonte_url=DADOS['origem'])
+                with patch.object(f57, '_conn', side_effect=lambda _: db()):
+                    resultado = f57.propor_mensagem_fase57({}, item, 'Mensagem', 'Assunto')
+                self.assertFalse(resultado['apto_para_contato'])
+                self.assertEqual(db.propostas, {})
+                self.assertEqual(db.eventos, [])
 
     def test_mesmo_uuid_em_tabelas_distintas_preserva_tipo(self):
         db=Store();db.origens['prospecto_fase56'].add(ID57)
