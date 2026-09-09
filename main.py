@@ -3895,6 +3895,7 @@ def executar_email_supervisionado(ident):
 ORIGENS_PERMITIDAS_SAC = {
     "https://maranhaocordial.com.br",
     "https://www.maranhaocordial.com.br",
+    "https://maranhao-cordial.onrender.com",
 }
 
 
@@ -18173,97 +18174,8 @@ def gmail_callback():
 # =====================================================
 
 def gmail_enviar_email(destinatario, assunto, corpo):
-    verificar_envio(get_db_connection, destinatario)
-    from google.oauth2.credentials import Credentials
-    from google.auth.transport.requests import Request as GoogleRequest
-    from email.mime.text import MIMEText
-    import base64
-    import requests
-
-    conn = get_db_connection()
-
-    try:
-        with conn.cursor(
-            cursor_factory=RealDictCursor
-        ) as cur:
-            cur.execute("""
-                SELECT
-                    refresh_token,
-                    token_uri,
-                    client_id,
-                    client_secret,
-                    scopes
-                FROM gmail_oauth_credentials
-                WHERE id = 1
-            """)
-            dados = cur.fetchone()
-    finally:
-        conn.close()
-
-    if not dados:
-        return {
-            "success": False,
-            "erro": "Gmail ainda não autorizado."
-        }
-
-    dados = dict(dados)
-
-    credentials = Credentials(
-        token=None,
-        refresh_token=dados.get("refresh_token"),
-        token_uri=dados.get("token_uri"),
-        client_id=dados.get("client_id"),
-        client_secret=dados.get("client_secret"),
-        scopes=(
-            dados.get("scopes", "").split()
-            if dados.get("scopes")
-            else []
-        )
-    )
-
-    if not credentials.valid and credentials.refresh_token:
-        credentials.refresh(
-            GoogleRequest()
-        )
-
-    mensagem = MIMEText(
-        corpo,
-        "plain",
-        "utf-8"
-    )
-
-    mensagem["to"] = destinatario
-    mensagem["subject"] = assunto
-
-    raw = base64.urlsafe_b64encode(
-        mensagem.as_bytes()
-    ).decode("utf-8")
-
-    verificar_envio(get_db_connection, destinatario)
-    resposta = requests.post(
-        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-        headers={
-            "Authorization": f"Bearer {credentials.token}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "raw": raw
-        },
-        timeout=30
-    )
-
-    resposta.raise_for_status()
-
-    dados_envio = resposta.json()
-
-    return {
-        "success": True,
-        "gmail_id": dados_envio.get("id"),
-        "thread_id": dados_envio.get("threadId"),
-        "destinatario": destinatario,
-        "assunto": assunto
-    }
-
+    # Rotas legadas não possuem aprovação vinculada a conteúdo imutável.
+    raise PermissionError("use_executor_de_acao_comercial_aprovada")
 
 # =====================================================
 # GOOGLE / GMAIL — SINCRONIZAR COM IA EMPRESARIAL
@@ -18507,9 +18419,10 @@ def gmail_buscar_mensagens(access_token, limite=20):
         # Mantém o tratamento CRM existente. A trava local impede saídas mesmo
         # quando o banco da pausa estiver indisponível; a pausa persistente cobre
         # outras requisições/workers e só é removida por decisão administrativa.
-        with bloquear_envios_no_contexto() if erros else nullcontext():
+        with bloquear_envios_no_contexto():
             try:
-                processamento = processar_interacao_omnichannel_crm(registro.get("interacao"))
+                from entrada_segura import reconciliar_interacao
+                processamento = reconciliar_interacao(get_db_connection, processar_interacao_omnichannel_crm, registro.get("interacao"))
                 resumo["processado"] = bool(processamento and processamento.get("success"))
                 if not resumo["processado"]:
                     raise RuntimeError("Processamento CRM não confirmado")
@@ -18519,6 +18432,7 @@ def gmail_buscar_mensagens(access_token, limite=20):
     return {
         "success": not erros,
         "prospeccao_permitida": not erros,
+        "envios_automaticos_permitidos": False,
         "canal": "gmail",
         "quantidade": len(resultados),
         "mensagens": resultados,
@@ -18589,6 +18503,12 @@ def webhook_meta():
     # -------------------------------------------------
     # POST — EVENTOS DO WHATSAPP
     # -------------------------------------------------
+    from entrada_segura import assinatura_meta_valida
+    segredo = os.getenv('META_APP_SECRET')
+    if not segredo:
+        return jsonify(success=False, error='Webhook indisponível'), 503
+    if not assinatura_meta_valida(request.get_data(cache=True), request.headers.get('X-Hub-Signature-256'), segredo):
+        return jsonify(success=False, error='Assinatura inválida'), 403
 
     payload = request.get_json(
         silent=True
@@ -40557,3 +40477,7 @@ try:
 except Exception as erro_fase58b:
     print("ERRO AO INSTALAR FASE 5.8B:", repr(erro_fase58b))
 # ===== FIM FASE 5.8B =====
+
+# Rotas sem efeitos de banco no import. Migração explícita antes de uso.
+from acoes_comerciais import registrar_rotas as registrar_acoes_comerciais
+registrar_acoes_comerciais(app, globals())

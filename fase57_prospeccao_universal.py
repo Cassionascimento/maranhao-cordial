@@ -255,7 +255,7 @@ Regras:
   "gostaria de conhecer?", "podemos apresentar?" ou equivalentes;
 - já apresente diretamente a Maranhão Cordial e o motivo concreto do contato;
 - quando pertinente ao público, explique que o produto é um cordial/concentrado
-  premium de guaraná com gengibre, 0,0% álcool e sem açúcar, pensado para
+  premium sem álcool para preparar drinks, pensado para
   hospitalidade, coquetelaria e bebidas contemporâneas;
 - adapte a mensagem ao destinatário:
   bartender: aplicação criativa, sensorial e em drinks;
@@ -580,6 +580,8 @@ def _json_resposta_openai(resp):
 
 
 def executar_pesquisa_publica_fase57(namespace, pesquisa_id=None, limite=10):
+    from entrada_segura import encerrar_pesquisas_abandonadas
+    encerrar_pesquisas_abandonadas(lambda: _conn(namespace))
     conn = _conn(namespace)
     pesquisa = None
     try:
@@ -786,7 +788,7 @@ def _limite_diario_global_fase57(namespace):
 
 @primeiro_contato
 
-def enviar_primeiro_contato_fase57(namespace, prospecto_id):
+def _transportar_primeiro_contato_aprovado(namespace, prospecto_id):
     item = _campanha_e_prospecto(namespace, prospecto_id)
     if not item:
         return {"success": False, "motivo": "prospecto_nao_encontrado"}
@@ -799,37 +801,13 @@ def enviar_primeiro_contato_fase57(namespace, prospecto_id):
     if not item.get("email"):
         return {"success": False, "motivo": "sem_email_profissional"}
 
-    campanha = {
-        "objetivo": item.get("objetivo"),
-        "publico": item.get("publico"),
-        "regiao": item.get("regiao"),
-        "contexto": item.get("contexto"),
-        "regras_adicionais": item.get("regras_adicionais"),
-    }
-    texto = gerar_primeiro_contato_fase57(campanha, item)
+    from acoes_comerciais import conteudo_aprovado
+    from html import escape
+    aprovado = conteudo_aprovado(item['email'])
+    texto, assunto = aprovado['mensagem'], aprovado['assunto']
     validar_mensagem_fase57(texto)
-
     from fase56_fabrica_piloto import enviar_email_institucional_fase56, _assinatura_html
-    html = (
-        '<div style="font-family:Arial,Helvetica,sans-serif;color:#171717;line-height:1.6;font-size:14px">'
-        + "".join(f"<p>{x.strip()}</p>" for x in texto.splitlines() if x.strip())
-        + _assinatura_html() + "</div>"
-    )
-    empresa = item.get("empresa") or item.get("nome") or "contato profissional"
-    publico = str(item.get("publico") or "").lower()
-
-    if publico in ("bartender", "bar", "restaurante"):
-        assunto = "Uma ideia para seus drinks — Maranhão Cordial"
-    elif publico == "hotel":
-        assunto = "Maranhão Cordial — uma experiência para hospitalidade"
-    elif publico in ("fabrica", "fornecedor"):
-        assunto = "Piloto pequeno de cordial — Maranhão Cordial"
-    elif publico in ("distribuidor", "revendedor"):
-        assunto = "Maranhão Cordial — produto premium para bebidas"
-    elif publico in ("imprensa", "jornalista", "influenciador", "criador"):
-        assunto = "Maranhão Cordial — cultura, bebida e experiência"
-    else:
-        assunto = f"Maranhão Cordial — contato com {empresa}"
+    html = '<div>' + ''.join('<p>'+escape(x)+'</p>' for x in texto.splitlines()) + _assinatura_html() + '</div>'
     resultado = enviar_email_institucional_fase56(
         namespace, item["email"], assunto, html, texto
     )
@@ -908,6 +886,44 @@ def enviar_primeiro_contato_fase57(namespace, prospecto_id):
     return resultado
 
 
+def executar_primeiro_contato_aprovado(namespace, prospecto_id):
+    from acoes_comerciais import conteudo_aprovado
+    from prospeccao_fonte_publica import validar_associacao
+    aprovado = conteudo_aprovado()
+    item = _campanha_e_prospecto(namespace, prospecto_id)
+    if not item or str(item.get('email') or '').strip().lower() != aprovado['destinatario'] or item.get('fonte_url') != aprovado['origem']:
+        raise PermissionError('destinatario_ou_fonte_alterado')
+    valido, _ = validar_associacao(aprovado['destinatario'], aprovado['origem'])
+    if not valido:
+        return {'success': False, 'motivo': 'fonte_nao_confirmada'}
+    return _transportar_primeiro_contato_aprovado(namespace, prospecto_id)
+
+
+def propor_mensagem_fase57(namespace, item, texto, assunto, tipo='primeiro_contato', origem_mensagem=None):
+    from acoes_comerciais import propor
+    email = str(item.get('email') or '').strip().lower()
+    dados = dict(destinatario=email, empresa=item.get('empresa') or item.get('nome'),
+        contato=item.get('nome'), canal='email', campanha=str(item.get('campanha_id')),
+        objetivo=item.get('objetivo'), origem=item.get('fonte_url'), evidencia=item.get('evidencia'),
+        motivo=item.get('motivo') or item.get('evidencia'), apto_para_contato=True, mensagem=texto,
+        assunto=assunto, tipo=tipo, origem_mensagem=origem_mensagem)
+    return propor(lambda: _conn(namespace),dados,'prospecto_fase57',str(item['id']))
+
+
+def enviar_primeiro_contato_fase57(namespace, prospecto_id):
+    """Compatibilidade dos chamadores: agora prepara, nunca transporta/reserva."""
+    item = _campanha_e_prospecto(namespace, prospecto_id)
+    if not item or not item.get('email'):
+        return {'success': True, 'enviado': False, 'motivo': 'inteligencia_sem_email'}
+    from prospeccao_fonte_publica import validar_associacao
+    valido, _ = validar_associacao(item['email'],item.get('fonte_url') or '')
+    if not valido:
+        return {'success': True, 'enviado': False, 'motivo': 'fonte_nao_confirmada'}
+    texto = gerar_primeiro_contato_fase57(item,item)
+    validar_mensagem_fase57(texto)
+    return propor_mensagem_fase57(namespace,item,texto,'Maranhão Cordial — contato profissional')
+
+
 def executar_lote_contatos_fase57(namespace, campanha_id=None, limite=3):
     limite = max(1, min(int(limite or 3), 5))
 
@@ -968,8 +984,7 @@ def executar_lote_contatos_fase57(namespace, campanha_id=None, limite=3):
             resultados.append(resultado)
             if not resultado.get("success"):
                 raise RuntimeError("primeiro_contato_falhou")
-            if not resultado.get("enviado"):
-                break
+            # Propostas não consomem quota e não disparam transporte.
         except Exception as erro:
             from email_seguranca import definir_pausa
             definir_pausa(lambda: _conn(namespace), True, "Lote interrompido: " + type(erro).__name__)
@@ -1082,80 +1097,8 @@ def processar_resposta_fase57(namespace, interacao):
         return {"processado": True, "resultado": c, "followup": False}
 
     if c.get("fechamento"):
-        try:
-            from fase56_fabrica_piloto import (
-                enviar_email_institucional_fase56,
-                _assinatura_html,
-            )
-
-            email_alerta = (
-                os.getenv("EMAIL_DIRECAO_MARANHAO")
-                or os.getenv("EMAIL_ALERTA_DIRECAO")
-                or os.getenv("GMAIL_USER")
-                or os.getenv("EMAIL_EMPRESARIAL")
-            )
-
-            if email_alerta:
-                nome_empresa = (
-                    item.get("empresa")
-                    or item.get("nome")
-                    or email
-                )
-
-                resumo = f"""
-ALERTA DE NEGOCIAÇÃO PRONTA PARA DECISÃO
-
-Contato: {nome_empresa}
-E-mail: {email}
-Público: {item.get('publico') or 'não informado'}
-Região: {item.get('regiao') or 'não informada'}
-
-Objetivo da campanha:
-{item.get('objetivo') or ''}
-
-Resposta recebida:
-{str(texto)[:3000]}
-
-Classificação:
-{c.get('resultado')}
-
-A IA interrompeu compromissos finais automáticos.
-É necessária decisão da direção para contrato, pagamento,
-exclusividade, preço final ou compromisso comercial relevante.
-""".strip()
-
-                html_alerta = (
-                    '<div style="font-family:Arial,Helvetica,sans-serif;'
-                    'color:#171717;line-height:1.6;font-size:14px">'
-                    '<h2>Negociação pronta para decisão</h2>'
-                    + "".join(
-                        f"<p>{linha}</p>"
-                        for linha in resumo.splitlines()
-                        if linha.strip()
-                    )
-                    + _assinatura_html()
-                    + "</div>"
-                )
-
-                enviar_email_institucional_fase56(
-                    namespace,
-                    email_alerta,
-                    f"ALERTA: negociação pronta para decisão — {nome_empresa}",
-                    html_alerta,
-                    resumo,
-                )
-        except Exception as erro:
-            print(
-                "ERRO ALERTA FECHAMENTO FASE57:",
-                repr(erro)
-            )
-
-        return {
-            "processado": True,
-            "resultado": c,
-            "followup": False,
-            "alerta_fechamento": True,
-        }
+        # A ação interna acima permanece no painel; não dispara alerta por email.
+        return {"processado": True, "resultado": c, "followup": False, "decisao_humana": True}
 
     if c.get("continuar") and item.get("permitir_followup"):
         from openai import OpenAI
@@ -1188,8 +1131,8 @@ Retorne somente o corpo do e-mail.
         assunto = interacao.get("assunto") or "Re: Maranhão Cordial"
         if not str(assunto).lower().startswith("re:"):
             assunto = f"Re: {assunto}"
-        enviar_email_institucional_fase56(namespace, email, assunto, html, follow)
-        return {"processado": True, "resultado": c, "followup": True}
+        proposta = propor_mensagem_fase57(namespace,item,follow,assunto,'resposta',str(interacao['id']))
+        return {"processado": True, "resultado": c, "followup": False, "proposta": proposta}
 
     return {"processado": True, "resultado": c, "followup": False}
 
@@ -1264,7 +1207,7 @@ def instalar_execucao_fase57(namespace):
                 try:
                     processar_resposta_fase57(namespace, interacao)
                 except Exception as erro:
-                    print("FASE 5.7 — RESPOSTA:", repr(erro))
+                    return {"success": False, "erro_tipo": type(erro).__name__, "etapa": "proposta_resposta"}
                 # A sincronização de mensagens não inicia mais
                 # ciclos de prospecção.
                 #

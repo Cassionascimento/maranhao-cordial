@@ -404,7 +404,15 @@ class Rotas(Offline):
 
 
 class Adaptadores(Offline):
+    def setUp(self):
+        super().setUp()
+        import acoes_comerciais as a
+        token = a._aprovacao.set({'destinatario':'boa@example.com','assunto':'assunto','mensagem':'texto'})
+        self.addCleanup(a._aprovacao.reset, token)
+
     def test_fase56_bloqueia_antes_de_obter_gmail(self):
+        import acoes_comerciais as a
+        a._aprovacao.get()["destinatario"] = "ruim@example.com"
         ns = dict(verificar_envio=seguranca.verificar_envio, _conn=lambda _: self.banco, obter_gmail_service_fase56=Mock())
         carregar_funcoes("fase56_fabrica_piloto.py", ["enviar_email_institucional_fase56"], ns)
         self.banco.supressoes.add("ruim@example.com")
@@ -416,7 +424,7 @@ class Adaptadores(Offline):
         ns = dict(verificar_envio=seguranca.verificar_envio, get_db_connection=self.banco)
         carregar_funcoes("main.py", ["gmail_enviar_email"], ns)
         self.banco.pausado = True
-        with self.assertRaises(seguranca.EnvioBloqueado):
+        with self.assertRaises(PermissionError):
             ns["gmail_enviar_email"]("boa@example.com", "assunto", "texto")
 
     def test_fase56_permitido_so_envia_ao_mock(self):
@@ -452,7 +460,7 @@ class Adaptadores(Offline):
         gmail.users().messages().send.assert_not_called()
 
     def test_fases_57_58_usam_adaptador_protegido(self):
-        for arquivo, funcao, alvo in (("fase57_prospeccao_universal.py", "enviar_primeiro_contato_fase57", "enviar_email_institucional_fase56"), ("fase57_prospeccao_universal.py", "processar_resposta_fase57", "enviar_email_institucional_fase56"), ("fase58_motor_busca.py", "executar_fase58a", "executar_lote_contatos_fase57"), ("fase58b_motor_geral.py", "executar_fase58b", "executar_lote_contatos_fase57")):
+        for arquivo, funcao, alvo in (("fase57_prospeccao_universal.py", "enviar_primeiro_contato_fase57", "propor_mensagem_fase57"), ("fase57_prospeccao_universal.py", "processar_resposta_fase57", "propor_mensagem_fase57"), ("fase58_motor_busca.py", "executar_fase58a", "executar_lote_contatos_fase57"), ("fase58b_motor_geral.py", "executar_fase58b", "executar_lote_contatos_fase57")):
             tree = ast.parse((ROOT / arquivo).read_text())
             fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == funcao)
             self.assertTrue(any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == alvo for n in ast.walk(fn)))
@@ -462,7 +470,7 @@ class Adaptadores(Offline):
         ordem = []
         def registrar(**kwargs):
             ordem.append("registrar:" + kwargs["message_id"])
-            return {"success": True, "duplicada": False, "interacao": kwargs}
+            return {"success": True, "duplicada": False, "interacao": dict(kwargs, id="entrada-sintetica")}
         def dsn_mock(d, *args):
             ordem.append("dsn:" + d["id"])
             return d["id"] == "bounce"

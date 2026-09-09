@@ -387,8 +387,11 @@ def enviar_email_institucional_fase56(
     texto,
     cc=None,
     reply_message_id=None,
+    reply_rfc_message_id=None,
 ):
     from email.utils import formataddr
+    from acoes_comerciais import conteudo_aprovado, autorizar_transporte
+    conteudo_aprovado(destinatario)
     from prospeccao_controle import consumir_transporte
     verificar_envio(lambda: _conn(namespace), destinatario, cc)
     service = obter_gmail_service_fase56(namespace)
@@ -408,6 +411,9 @@ def enviar_email_institucional_fase56(
     if cc:
         msg["Cc"] = cc
     msg["Subject"] = assunto
+    if reply_rfc_message_id:
+        msg["In-Reply-To"] = reply_rfc_message_id
+        msg["References"] = reply_rfc_message_id
 
     alt = MIMEMultipart("alternative")
     alt.attach(MIMEText(texto, "plain", "utf-8"))
@@ -432,6 +438,7 @@ def enviar_email_institucional_fase56(
 
     # Revalida imediatamente antes da chamada externa, inclusive To e Cc.
     verificar_envio(lambda: _conn(namespace), destinatario, cc)
+    autorizar_transporte(destinatario, assunto, texto, cc)
     consumir_transporte(destinatario, cc, reply_message_id)
     resultado = (
         service.users()
@@ -876,31 +883,17 @@ def processar_resposta_fabrica_fase56(namespace, interacao):
           {_assinatura_html()}
         </div>
         """
-        resultado = enviar_email_institucional_fase56(
-            namespace,
-            email,
-            assunto if assunto.lower().startswith("re:") else f"Re: {assunto}",
-            html,
-            follow,
-        )
-        registrar_negociacao_fase56(
-            namespace,
-            prospecto["id"],
-            "saida",
-            EMAIL_INSTITUCIONAL,
-            email,
-            assunto,
-            follow,
-            "followup_automatico",
-            None,
-            "Follow-up operacional enviado dentro da política autorizada.",
-            resultado.get("message_id"),
-        )
-        return {
-            "processado": True,
-            "classificacao": classificacao,
-            "followup_enviado": True,
-        }
+        from acoes_comerciais import propor
+        proposta = propor(lambda: _conn(namespace), dict(
+            destinatario=email.strip().lower(), empresa=prospecto.get('nome') or email,
+            contato=prospecto.get('nome'), canal='email', campanha='fase56',
+            objetivo='Avaliação de parceiro técnico', origem='interacao:' + str(interacao['id']),
+            evidencia=texto, motivo=classificacao['motivo'], mensagem=follow,
+            assunto=assunto if assunto.lower().startswith('re:') else 'Re: '+assunto,
+            tipo='resposta', origem_mensagem=str(interacao['id'])),
+            'prospecto_fase56', str(prospecto['id']))
+        return {"processado": True, "classificacao": classificacao,
+                "followup_enviado": False, "proposta": proposta}
 
     return {
         "processado": True,
@@ -931,48 +924,18 @@ def enviar_primeiro_contato_fase56(namespace, prospecto_id):
         return {"success": False, "motivo": "sem_email_publico"}
 
     assunto = "Lote piloto 20–50 L — concentrado não alcoólico | visita técnica em SP"
-    html = _corpo_inicial_html(prospecto.get("nome"))
     texto = _corpo_inicial_texto(prospecto.get("nome"))
-
-    resultado = enviar_email_institucional_fase56(
-        namespace,
-        prospecto["email"],
-        assunto,
-        html,
-        texto,
-        cc=None,
-    )
-
-    conn = _conn(namespace)
-    try:
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    UPDATE prospectos_fabrica_fase56
-                    SET status='contatado',
-                        ultimo_contato_em=NOW(),
-                        followup_em=NOW()+INTERVAL '2 days',
-                        tentativas=tentativas+1,
-                        atualizado_em=NOW()
-                    WHERE id=%s
-                """, (prospecto["id"],))
-    finally:
-        conn.close()
-
-    registrar_negociacao_fase56(
-        namespace,
-        prospecto["id"],
-        "saida",
-        EMAIL_INSTITUCIONAL,
-        prospecto["email"],
-        assunto,
-        texto,
-        "primeiro_contato",
-        None,
-        "Contato inicial autorizado pela direção para campanha urgente.",
-        resultado.get("message_id"),
-    )
-    return resultado
+    from acoes_comerciais import propor
+    dados = {
+        "destinatario": prospecto["email"].strip().lower(),
+        "empresa": prospecto.get("empresa") or prospecto.get("nome") or "contato de fábrica",
+        "contato": prospecto.get("nome"), "canal": "email", "campanha": "FABRICA_PILOTO_SP_SET2026",
+        "objetivo": "Avaliação de parceiro técnico para piloto", "origem": prospecto.get("fonte_url") or "crm:fase56",
+        "evidencia": prospecto.get("evidencia") or "registro existente no CRM",
+        "motivo": prospecto.get("motivo") or "aderência ao objetivo do piloto",
+        "mensagem": texto, "assunto": assunto, "tipo": "primeiro_contato",
+    }
+    return propor(lambda: _conn(namespace), dados, 'prospecto_fase56', str(prospecto['id']))
 
 
 def obter_status_fase56(namespace):

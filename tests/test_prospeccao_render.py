@@ -79,44 +79,29 @@ class Cron(f.Offline):
             self.assertEqual(r['motivo'],'fora_da_janela')
         self.pause.assert_not_called()
 
-    def test_dois_no_contador_nao_faz_sync_nem_reserva(self):
-        with patch.object(job,'dependencias',return_value=(self.gmail,{'bloqueado':True})):
-            r=job.executar(self.factory,self.agora)
-        self.assertEqual(r['motivo'],'cota_diaria')
+    def test_ativo_so_prepara_e_nao_despausa(self):
+        import prospeccao_controle as controle
+        with patch.object(controle,'rodada',return_value={'success':True,'resultados':[]}) as rodada:
+            r = job.executar(self.factory,self.agora)
+        self.assertEqual(r['envios'],0)
+        rodada.assert_called_once()
+        self.pause.assert_not_called()
         self.sync.assert_not_called()
-        self.pause.assert_not_called()
-
-    def test_concorrente_nao_prossegue(self):
-        self.cur.fetchone.return_value=(False,)
-        r=job.executar(self.factory,self.agora)
-        self.assertEqual(r['motivo'],'rodada_em_andamento')
-        self.pause.assert_not_called()
-
-    def test_inelegivel_nao_consume_e_continua_ate_valido(self):
-        items=[{'id':'1','email':'nao@exemplo.com','fonte_url':'https://exemplo.com'},
-               {'id':'2','email':'sim@empresa.com.br','fonte_url':'https://empresa.com.br'}]
-        used={'n':1}
-        def send(*_):
-            self.assertEqual(os.environ['EMAIL_ENVIOS_PAUSADOS'],'false')
-            used['n']+=1
-            return {'enviado':True,'message_id':'gmail','thread_id':'thread'}
-        with patch.object(job,'candidatos',return_value=items), patch.object(job,'validar_associacao',side_effect=[(False,'não verificável'),(True,'fonte')]), patch.object(job,'status',side_effect=lambda _: {'bloqueado':used['n']>=2,'usados':used['n']}), patch.object(job,'enviar_primeiro_contato_fase57',side_effect=send) as sender:
-            r=job.executar(self.factory,self.agora)
-        sender.assert_called_once()
-        self.assertEqual((r['envios'],r['excluidos'],r['contador']['usados']),(1,1,2))
         self.assertEqual(os.environ['EMAIL_ENVIOS_PAUSADOS'],'true')
 
-    def test_ausencia_candidatos_e_tres_pesquisas_sucesso_normal(self):
-        with patch.object(job,'candidatos',return_value=[]), patch.object(job,'status',return_value={'bloqueado':False}):
+    def test_concorrente_nao_prossegue(self):
+        import prospeccao_controle as controle
+        self.cur.fetchone.return_value=(False,)
+        with patch.object(controle,'rodada') as rodada:
             r=job.executar(self.factory,self.agora)
-        self.assertTrue(r['success'])
-        self.assertEqual(r['pesquisas'],3)
-        self.pause.assert_not_called()
+        self.assertEqual(r['motivo'],'rodada_em_andamento')
+        rodada.assert_not_called()
 
-    def test_falha_gmail_restabelece_pausa_sem_segundo_envio(self):
-        with patch.object(job,'candidatos',return_value=[{'id':'1','email':'a@empresa.com.br','fonte_url':'https://empresa.com.br'}]), patch.object(job,'validar_associacao',return_value=(True,'fonte')), patch.object(job,'status',return_value={'bloqueado':False}), patch.object(job,'enviar_primeiro_contato_fase57',side_effect=TimeoutError) as send:
+    def test_falha_na_preparacao_nao_libera_envios(self):
+        import prospeccao_controle as controle
+        with patch.object(controle,'rodada',side_effect=TimeoutError):
             with self.assertRaises(TimeoutError):
                 job.executar(self.factory,self.agora)
-        send.assert_called_once()
-        self.pause.assert_called_with(self.factory,True,job.INCIDENTE)
+        self.pause.assert_not_called()
+        self.sync.assert_not_called()
         self.assertEqual(os.environ['EMAIL_ENVIOS_PAUSADOS'],'true')

@@ -132,76 +132,17 @@ def executar(factory=conectar, agora=None):
     if not permite_janela(agora):
         return {'success': True, 'motivo': 'fora_da_janela', 'envios': 0}
     controle = factory()
-    levantou = False
-    incidente = False
-    inicio = int(time.time())
-    vistos, enviados, pesquisas, excluidos = set(), [], [], 0
     try:
         with controle.cursor() as cur:
             cur.execute('SELECT pg_try_advisory_lock(%s)', (RUN_LOCK,))
             if not cur.fetchone()[0]:
                 return {'success': True, 'motivo': 'rodada_em_andamento', 'envios': 0}
-            pausa_rotineira(cur)
-        if contador['bloqueado']:
-            return {'success': True, 'motivo': 'cota_diaria', 'envios': 0, 'contador': contador}
-        sincronizar()
-        ns = {'get_db_connection': factory}
-        for ciclo in range(4):
-            for item in candidatos(factory, vistos):
-                if len(vistos) >= 12 or status(factory)['bloqueado']:
-                    break
-                vistos.add(str(item['id']))
-                valido, evidencia = validar_associacao(item['email'], item['fonte_url'])
-                if not valido:
-                    excluidos += 1
-                    evento(factory, 'prospeccao_render_excluida', item, evidencia)
-                    continue
-                evento(factory, 'prospeccao_render_fonte_confirmada', item, evidencia)
-                # A pausa de emergência nunca é limpa apenas por chegar novo horário.
-                with controle.cursor() as cur:
-                    pausa_rotineira(cur)
-                levantou = True
-                definir_pausa(factory, False, 'prospeccao_render: destinatário verificado; reserva obrigatória')
-                os.environ['EMAIL_ENVIOS_PAUSADOS'] = 'false'
-                try:
-                    r = enviar_primeiro_contato_fase57(ns, str(item['id']))
-                    if r.get('enviado') is not True:
-                        raise RuntimeError('envio_nao_confirmado')
-                finally:
-                    os.environ['EMAIL_ENVIOS_PAUSADOS'] = 'true'
-                verificar_resultado(factory, gmail, item, r, inicio)
-                enviados.append(r['message_id'])
-                sent = gmail.users().messages().list(userId='me', q='in:sent after:'+str(inicio), maxResults=100).execute(num_retries=0)
-                if sent.get('nextPageToken') or {m['id'] for m in sent.get('messages', [])} != set(enviados):
-                    raise RuntimeError('envio_inesperado')
-                definir_pausa(factory, True, FECHAMENTO)
-                levantou = False
-            if status(factory)['bloqueado'] or len(vistos) >= 12 or ciclo == 3:
-                break
-            db = factory()
-            try:
-                with db.cursor() as cur:
-                    cur.execute("SELECT id FROM campanhas_prospeccao_fase57 WHERE status='ativa' AND permitir_primeiro_contato ORDER BY criado_em")
-                    campanhas = [str(r[0]) for r in cur.fetchall()]
-            finally:
-                db.close()
-            for campanha in campanhas:
-                garantir_pesquisa_se_faltar_fase57(ns, campanha)
-            pesquisa = executar_pesquisa_publica_fase57(ns, limite=4)
-            pesquisas.append(pesquisa)
-            if not pesquisa.get('success'):
-                raise RuntimeError('pesquisa_falhou')
-            if not pesquisa.get('executada'):
-                break
-        return {'success': True, 'envios': len(enviados), 'excluidos': excluidos,
-                'pesquisas': len(pesquisas), 'avaliados': len(vistos), 'contador': status(factory)}
-    except Exception:
-        incidente = True
-        raise
+        from prospeccao_controle import rodada
+        from email_seguranca import bloquear_envios_no_contexto
+        with bloquear_envios_no_contexto():
+            resultado = rodada({'get_db_connection': factory}, pesquisas_max=3)
+        return dict(resultado, envios=0, modo='propostas_para_aprovacao')
     finally:
-        os.environ['EMAIL_ENVIOS_PAUSADOS'] = 'true'
-        if levantou or incidente:
-            definir_pausa(factory, True, INCIDENTE)
         controle.close()
 
 

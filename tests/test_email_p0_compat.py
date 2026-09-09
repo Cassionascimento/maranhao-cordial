@@ -88,9 +88,9 @@ class Importacao(f.Offline):
         self.assertFalse(r['success'])
         self.assertFalse(r['prospeccao_permitida'])
         self.assertEqual(ns['registrar_interacao_omnichannel'].call_count, 2)
-        ns['processar_interacao_omnichannel_crm'].assert_called_once()
+        ns['processar_interacao_omnichannel_crm'].assert_not_called()
         self.assertTrue(self.banco.pausado)
-        self.assertTrue(r['mensagens'][1]['processado'])
+        self.assertFalse(r['mensagens'][1]['processado'])
 
     def test_erro_individual_detalhe_nao_interrompe_proxima(self):
         ns = self.namespace()
@@ -122,8 +122,8 @@ class Importacao(f.Offline):
         ns['processar_interacao_omnichannel_crm'].side_effect = processar
         with patch('requests.get', side_effect=[f.resposta_json({'messages': [{'id': 'a'}, {'id': 'b'}]})] + [f.resposta_json({'id': x, 'payload': {}}) for x in ('a', 'b')]):
             r = ns['gmail_buscar_mensagens']('sintetico')
-        self.assertEqual([e['etapa'] for e in r['erros']], ['dsn', 'persistir_pausa'])
-        ns['processar_interacao_omnichannel_crm'].assert_called_once()
+        self.assertEqual([e['etapa'] for e in r['erros']], ['dsn', 'persistir_pausa', 'processar'])
+        ns['processar_interacao_omnichannel_crm'].assert_not_called()
         # O bloqueio local não vaza para outra requisição; banco saudável decide.
         seguranca.verificar_envio(self.banco, 'bom@example.com')
 

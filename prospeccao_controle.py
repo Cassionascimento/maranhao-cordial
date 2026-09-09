@@ -174,6 +174,11 @@ def consumir_transporte(destinatario, cc, reply):
 
 
 def validar_contexto(destinatario, cc=None):
+    from acoes_comerciais import _aprovacao
+    aprovado = _aprovacao.get()
+    if (aprovado and aprovado.get('_resposta_validada') and not aprovado.get('_consumida')
+            and not cc and destinatario.strip().lower() == aprovado['destinatario']):
+        return
     if os.getenv('EMAIL_APENAS_PROSPECCAO_CONTROLADA') != 'true':
         return
     r = _reserva.get()

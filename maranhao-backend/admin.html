@@ -439,6 +439,14 @@ summary{
                 <span id="gmailP0Status" role="status"></span>
             </div>
 
+            <section class="card" aria-labelledby="titulo-acoes-comerciais">
+                <h2 id="titulo-acoes-comerciais">Ações aguardando aprovação</h2>
+                <p>Aprovar registra sua decisão. Nenhuma mensagem é enviada por este botão.</p>
+                <button type="button" id="atualizar-acoes-comerciais">Atualizar ações</button>
+                <p id="status-acoes-comerciais" role="status"></p>
+                <div id="lista-acoes-comerciais"></div>
+            </section>
+
             <section class="tab-panel" data-panel="visao-geral">
             <div class="summary">
 
@@ -2373,6 +2381,7 @@ summary{
                     );
 
                     window.adminKeyAtual = chave;
+                    window.dispatchEvent(new Event("admin-autorizado"));
 
                     carregarAnalytics();
 
@@ -8718,5 +8727,6 @@ function conectarGmailP0() {
     }, 60000);
 }
 </script>
+<script src="/acoes-comerciais.js" defer></script>
 </body>
 </html>
