@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import c6_pix as c6
 
 TXID = 'a' * 32
@@ -106,13 +106,16 @@ class C6Tests(unittest.TestCase):
         tree = ast.parse(Path('main.py').read_text())
         node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'criar_checkout_c6')
         node.decorator_list = []
-        client = Mock(); client.config.validate.side_effect = c6.C6Error('disabled')
-        env = {'C6Client': lambda: client, 'C6Error': c6.C6Error, 'jsonify': lambda x: x}
+        from flask import Flask
+        db = Mock(side_effect=AssertionError('banco não pode ser aberto'))
+        env = {'get_db_connection': db}
         exec(compile(ast.Module(body=[node], type_ignores=[]), 'main.py', 'exec'), env)
         # No request, globals or network provided: the gate must precede them.
-        result, status = env['criar_checkout_c6']()
+        with Flask(__name__).app_context(), patch.object(c6.C6Config, 'from_env', return_value=self.config):
+            response, status = env['criar_checkout_c6']()
         self.assertEqual(status, 503)
-        self.assertFalse(result['success'])
+        self.assertFalse(response.get_json()['success'])
+        db.assert_not_called()
 
     def test_routes_compatible(self):
         tree = ast.parse(Path('main.py').read_text())

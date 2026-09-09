@@ -201,7 +201,7 @@ def reconciliar_persistente(txid, consulta, connection_factory):
         conn.close()
 
 
-def iniciar_checkout(connection_factory, chave, payload):
+def iniciar_checkout(connection_factory, chave, payload, pedido=None):
     """Reserva durável. Tentativa ambígua nunca gera uma segunda cobrança."""
     import hashlib
     import json
@@ -218,14 +218,24 @@ def iniciar_checkout(connection_factory, chave, payload):
                             "VALUES (%s,%s,%s) ON CONFLICT (chave_hash) DO NOTHING RETURNING codigo",
                             (key_hash, payload_hash, codigo))
                 if cur.fetchone():
+                    if pedido is not None:
+                        import uuid
+                        txid = key_hash[:32]
+                        cur.execute(
+                            "INSERT INTO pedidos (id,codigo,cliente_nome,cliente_email,cliente_whatsapp,"
+                            "endereco,quantidade,valor_centavos,status,payment_origin,c6_txid,status_entrega) "
+                            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                            (str(uuid.uuid4()), codigo, pedido['cliente_nome'], pedido['cliente_email'],
+                             pedido['cliente_whatsapp'], pedido['address'], pedido['quantity'],
+                             pedido['amount'], 'aguardando_pagamento', 'c6', txid, 'aguardando_pagamento'))
                     cur.execute("INSERT INTO c6_pix_auditoria (codigo,evento) VALUES (%s,'checkout_reservado') "
                                 "ON CONFLICT DO NOTHING", (codigo,))
-                    return {"new": True, "code": codigo}
+                    return {"new": True, "code": codigo, "txid": key_hash[:32]}
                 cur.execute("SELECT payload_hash,codigo,resposta FROM c6_checkout_tentativas WHERE chave_hash=%s", (key_hash,))
                 previous = cur.fetchone()
                 if not previous or previous[0] != payload_hash:
                     raise C6Error("Idempotency-Key já utilizado com dados diferentes.")
-                return {"new": False, "code": previous[1], "response": previous[2]}
+                return {"new": False, "code": previous[1], "response": previous[2], "txid": key_hash[:32]}
     finally:
         conn.close()
 
