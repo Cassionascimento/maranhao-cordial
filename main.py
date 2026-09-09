@@ -18414,7 +18414,9 @@ def gmail_buscar_mensagens(access_token, limite=20):
         registros.append((registro, tecnica, resumo))
 
     for registro, tecnica, resumo in registros:
-        if tecnica or registro.get("duplicada"):
+        # Uma importação duplicada ainda pode estar pendente após falha de IA.
+        # O reconciliador serializa retries e preserva entradas já concluídas.
+        if tecnica or (registro.get("duplicada") and (registro.get("interacao") or {}).get("processado_ia")):
             continue
         # Mantém o tratamento CRM existente. A trava local impede saídas mesmo
         # quando o banco da pausa estiver indisponível; a pausa persistente cobre

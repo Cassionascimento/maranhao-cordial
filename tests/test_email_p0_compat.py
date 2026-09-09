@@ -58,6 +58,35 @@ class Job(f.Offline):
 
 
 class Importacao(f.Offline):
+    def test_duplicada_pendente_reconcilia_sem_transporte(self):
+        ns = self.namespace()
+        ns['registrar_interacao_omnichannel'].side_effect = None
+        ns['registrar_interacao_omnichannel'].return_value = {
+            'success': True, 'duplicada': True,
+            'interacao': {'id': 'entrada', 'processado_ia': False},
+        }
+        def reconciliar(factory, processador, interacao):
+            with self.assertRaises(seguranca.EnvioBloqueado):
+                seguranca.verificar_envio(Mock(), 'bom@example.com')
+            return {'success': True}
+        with patch('requests.get', side_effect=[f.resposta_json({'messages': [{'id': 'a'}]}), f.resposta_json({'id': 'a', 'payload': {}})]), patch('entrada_segura.reconciliar_interacao', side_effect=reconciliar) as retry:
+            r = ns['gmail_buscar_mensagens']('sintetico')
+        retry.assert_called_once()
+        self.assertTrue(r['mensagens'][0]['processado'])
+        self.assertFalse(r['envios_automaticos_permitidos'])
+
+    def test_duplicada_concluida_nao_reinterpreta(self):
+        ns = self.namespace()
+        ns['registrar_interacao_omnichannel'].side_effect = None
+        ns['registrar_interacao_omnichannel'].return_value = {
+            'success': True, 'duplicada': True,
+            'interacao': {'id': 'entrada', 'processado_ia': True},
+        }
+        with patch('requests.get', side_effect=[f.resposta_json({'messages': [{'id': 'a'}]}), f.resposta_json({'id': 'a', 'payload': {}})]), patch('entrada_segura.reconciliar_interacao') as retry:
+            r = ns['gmail_buscar_mensagens']('sintetico')
+        retry.assert_not_called()
+        self.assertTrue(r['success'])
+
     def namespace(self, processador=None):
         ns = dict(
             base64=base64, definir_pausa=seguranca.definir_pausa,
