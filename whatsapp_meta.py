@@ -83,6 +83,8 @@ def receber_eventos(factory, payload, registrar, processar, sugerir):
     from psycopg2.extras import Json
     from entrada_segura import interpretar_sem_saida
     eventos = normalizar_eventos(payload)
+    if not eventos:
+        return {'success': True, 'processados': 0, 'enviado': False}
     total = 0
     conn = factory()
     try:
@@ -136,7 +138,7 @@ def enviar_texto(destinatario, conteudo):
             headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'},
             json={'messaging_product': 'whatsapp', 'recipient_type': 'individual',
                   'to': destinatario, 'type': 'text', 'text': {'preview_url': False, 'body': conteudo}},
-            timeout=20)
+            timeout=20, allow_redirects=False)
         try:
             dados = resposta.json()
         except Exception:

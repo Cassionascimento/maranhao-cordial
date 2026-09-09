@@ -71,6 +71,12 @@ def revalidar(factory, fila):
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 # Preserva a pausa empresarial P0; ausência de estado falha fechado.
+                cur.execute('SELECT * FROM fila_respostas_omnichannel WHERE id=%s', (fila['id'],))
+                atual = cur.fetchone()
+                if (not atual or atual['status'] not in ('aprovada', 'enviando')
+                        or digest(atual) != fila.get('whatsapp_digest_aprovado')
+                        or atual.get('whatsapp_digest_aprovado') != fila.get('whatsapp_digest_aprovado')):
+                    raise PermissionError('whatsapp_contexto_alterado')
                 cur.execute('SELECT pausado FROM email_controle_p0 WHERE id=1')
                 pausa = cur.fetchone()
                 if not pausa or pausa['pausado']:

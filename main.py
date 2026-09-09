@@ -4636,88 +4636,9 @@ def executar_publicacao_canal_digital(acao):
 
 
 def enviar_mensagem_whatsapp_cloud(destinatario, conteudo):
-    """
-    Envia mensagem de texto pelo WhatsApp Cloud API.
-    Não decide nem autoriza ações.
-    """
-
-    destinatario = str(destinatario or "").strip()
-    conteudo = str(conteudo or "").strip()
-
-    if not WHATSAPP_ACCESS_TOKEN:
-        return {
-            "success": False,
-            "erro": "WHATSAPP_ACCESS_TOKEN não configurado."
-        }
-
-    if not WHATSAPP_PHONE_NUMBER_ID:
-        return {
-            "success": False,
-            "erro": "WHATSAPP_PHONE_NUMBER_ID não configurado."
-        }
-
-    if not destinatario or not conteudo:
-        return {
-            "success": False,
-            "erro": "Destinatário ou conteúdo ausente."
-        }
-
-    url = (
-        "https://graph.facebook.com/v23.0/"
-        + str(WHATSAPP_PHONE_NUMBER_ID)
-        + "/messages"
-    )
-
-    headers = {
-        "Authorization":
-            "Bearer " + WHATSAPP_ACCESS_TOKEN,
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "recipient_type": "individual",
-        "to": destinatario,
-        "type": "text",
-        "text": {
-            "preview_url": False,
-            "body": conteudo
-        }
-    }
-
-    try:
-        resposta = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=20
-        )
-
-        try:
-            dados = resposta.json()
-        except Exception:
-            dados = {
-                "texto": resposta.text[:2000]
-            }
-
-        if 200 <= resposta.status_code < 300:
-            return {
-                "success": True,
-                "status_code": resposta.status_code,
-                "meta": dados
-            }
-
-        return {
-            "success": False,
-            "status_code": resposta.status_code,
-            "erro": dados
-        }
-
-    except Exception as erro:
-        return {
-            "success": False,
-            "erro": str(erro)
-        }
+    """Transporte fechado, autorizado somente pelo executor WhatsApp."""
+    from whatsapp_meta import enviar_texto
+    return enviar_texto(destinatario, conteudo)
 
 
 def executar_mensagem_whatsapp(acao):
@@ -17278,6 +17199,10 @@ def validar_admin_omnichannel():
     return validar_admin_request()
 
 
+from whatsapp_aprovacoes import registrar_rotas as registrar_rotas_whatsapp
+registrar_rotas_whatsapp(app, get_db_connection, validar_admin_omnichannel)
+
+
 @app.route(
     "/api/admin/omnichannel/respostas",
     methods=["GET"]
@@ -17443,6 +17368,13 @@ def admin_decidir_resposta_omnichannel(
             "error":
                 "Ação deve ser aprovar ou rejeitar."
         }), 400
+
+    from whatsapp_aprovacoes import canal_resposta, decidir, executar
+    if canal_resposta(get_db_connection, resposta_id) == 'whatsapp':
+        resultado = decidir(get_db_connection, resposta_id, acao == 'aprovar', dados.get('resposta') or None)
+        if not resultado.get('success'):
+            resultado['error'] = resultado.get('erro', 'Falha WhatsApp')
+        return jsonify(resultado), 200 if resultado.get('success') else 409
 
     conn = get_db_connection()
 
@@ -17755,6 +17687,14 @@ def admin_enviar_resposta_omnichannel(
             "success": False,
             "error": "Não autorizado."
         }), 401
+
+    from whatsapp_aprovacoes import canal_resposta, decidir, executar
+    if canal_resposta(get_db_connection, resposta_id) == 'whatsapp':
+        resultado = executar(get_db_connection, resposta_id)
+        resultado['envio_incerto'] = bool(resultado.get('incerto'))
+        if not resultado.get('success'):
+            resultado['error'] = resultado.get('erro', 'Falha WhatsApp')
+        return jsonify(resultado), 200 if resultado.get('success') else 409
 
     conn = get_db_connection()
 
@@ -18526,6 +18466,18 @@ def webhook_meta():
         silent=True
     ) or {}
 
+    if not isinstance(payload, dict):
+        return jsonify(success=False, error='Payload inválido'), 400
+    # Inbox durável antes do legado Instagram; falhas pedem redelivery.
+    from whatsapp_meta import receber_eventos
+    try:
+        receber_eventos(get_db_connection, payload, registrar_interacao_omnichannel,
+                        processar_interacao_omnichannel_crm, gerar_resposta_sugerida_omnichannel)
+    except ValueError:
+        return jsonify(success=False, error='Evento WhatsApp inválido'), 400
+    except Exception:
+        return jsonify(success=False, error='Entrada WhatsApp não confirmada'), 503
+
     try:
 
         objeto = payload.get(
@@ -18740,152 +18692,6 @@ def webhook_meta():
                                 erro_registro
                             )
                         )
-
-        # -------------------------------------------------
-        # WHATSAPP CLOUD API — MENSAGENS RECEBIDAS
-        # -------------------------------------------------
-
-        for entrada in entradas:
-
-            for change in entrada.get("changes") or []:
-
-                if change.get("field") != "messages":
-                    continue
-
-                value = change.get("value") or {}
-                metadata = value.get("metadata") or {}
-
-                destinatario_whatsapp = (
-                    metadata.get("phone_number_id")
-                    or WHATSAPP_PHONE_NUMBER_ID
-                )
-
-                for mensagem_whatsapp in value.get("messages") or []:
-
-                    remetente_whatsapp = mensagem_whatsapp.get("from")
-                    whatsapp_mid = mensagem_whatsapp.get("id")
-                    tipo_whatsapp = mensagem_whatsapp.get("type")
-
-                    texto_whatsapp = None
-
-                    if tipo_whatsapp == "text":
-                        texto_whatsapp = (
-                            mensagem_whatsapp.get("text")
-                            or {}
-                        ).get("body")
-
-                    print(
-                        "WHATSAPP MENSAGEM RECEBIDA",
-                        {
-                            "sender_id": remetente_whatsapp,
-                            "recipient_id": destinatario_whatsapp,
-                            "message_id": whatsapp_mid,
-                            "type": tipo_whatsapp,
-                            "text": (
-                                texto_whatsapp[:300]
-                                if isinstance(texto_whatsapp, str)
-                                else None
-                            )
-                        }
-                    )
-
-                    if (
-                        isinstance(texto_whatsapp, str)
-                        and texto_whatsapp.strip()
-                    ):
-
-                        try:
-                            registro = registrar_interacao_omnichannel(
-                                canal="whatsapp",
-                                sender_id=remetente_whatsapp,
-                                recipient_id=destinatario_whatsapp,
-                                message_id=whatsapp_mid,
-                                texto=texto_whatsapp,
-                                plataforma="meta",
-                                tipo_interacao="mensagem"
-                            )
-
-                            print(
-                                "OMNICHANNEL REGISTRADO",
-                                {
-                                    "canal": "whatsapp",
-                                    "duplicada": registro.get("duplicada")
-                                }
-                            )
-
-                            if not registro.get("duplicada"):
-
-                                try:
-                                    processamento = (
-                                        processar_interacao_omnichannel_crm(
-                                            registro.get("interacao")
-                                        )
-                                    )
-
-                                    print(
-                                        "WHATSAPP CRM PROCESSADO",
-                                        {
-                                            "lead_criado":
-                                                processamento.get(
-                                                    "lead_criado"
-                                                ),
-                                            "lead_atualizado":
-                                                processamento.get(
-                                                    "lead_atualizado"
-                                                ),
-                                            "classificacao":
-                                                (
-                                                    processamento.get(
-                                                        "classificacao"
-                                                    )
-                                                    or {}
-                                                ).get(
-                                                    "classificacao"
-                                                )
-                                        }
-                                    )
-
-                                    try:
-                                        sugestao = (
-                                            gerar_resposta_sugerida_omnichannel(
-                                                registro.get("interacao"),
-                                                processamento
-                                            )
-                                        )
-
-                                        print(
-                                            "WHATSAPP RESPOSTA SUGERIDA",
-                                            {
-                                                "duplicada":
-                                                    sugestao.get(
-                                                        "duplicada",
-                                                        False
-                                                    ),
-                                                "status":
-                                                    (
-                                                        sugestao.get("fila")
-                                                        or {}
-                                                    ).get("status")
-                                            }
-                                        )
-
-                                    except Exception as erro_sugestao:
-                                        print(
-                                            "ERRO RESPOSTA SUGERIDA WHATSAPP:",
-                                            repr(erro_sugestao)
-                                        )
-
-                                except Exception as erro_crm:
-                                    print(
-                                        "ERRO PROCESSAMENTO CRM WHATSAPP:",
-                                        repr(erro_crm)
-                                    )
-
-                        except Exception as erro_registro:
-                            print(
-                                "ERRO REGISTRO WHATSAPP:",
-                                repr(erro_registro)
-                            )
 
         print(
             "META WEBHOOK RECEBIDO",
