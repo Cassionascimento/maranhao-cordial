@@ -16530,6 +16530,16 @@ def status_c6():
 )
 def criar_checkout_c6():
 
+    # Gate de configuração antes de ler a requisição ou mutar pedido algum.
+    cliente_c6 = globals().get("C6Client")
+    erro_c6 = globals().get("C6Error", RuntimeError)
+    if cliente_c6 is None:
+        return jsonify({"success": False, "error": "C6 indisponível."}), 503
+    try:
+        cliente_c6().config.validate()
+    except erro_c6:
+        return jsonify({"success": False, "error": "C6 indisponível."}), 503
+
     dados = request.get_json(
         silent=True
     ) or {}
