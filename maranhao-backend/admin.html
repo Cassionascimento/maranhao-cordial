@@ -1489,6 +1489,15 @@ summary{
 </section>
 
             <section class="tab-panel active" data-panel="ia-empresarial">
+                <section class="admin-card" id="whatsapp-omni-painel" style="margin:16px 0;padding:18px;border:1px solid #455248;border-radius:12px;">
+                    <h3>WhatsApp Omnichannel</h3>
+                    <p id="whatsapp-omni-status" role="status">Aguardando Meta. Nenhum envio liberado.</p>
+                    <button type="button" id="whatsapp-omni-atualizar">Atualizar status do WhatsApp</button>
+                    <div id="whatsapp-omni-resumo"></div>
+                    <details><summary>Entradas, aprovação e rastreabilidade</summary><div id="whatsapp-omni-entradas"></div></details>
+                    <details><summary>Dependências Meta</summary><div id="whatsapp-omni-meta"></div></details>
+                </section>
+
 
                 <div style="
                     display:flex;
@@ -5531,6 +5540,7 @@ summary{
                             return `
                                 <div
                                     class="admin-card ia-decisao-card"
+                                    data-canal="${escaparHtmlIA(String(item.canal || '').toLowerCase())}"
                                     data-id="${id}"
                                     data-interacao-id="${interacaoId}"
                                     style="
@@ -5688,7 +5698,7 @@ summary{
                                             type="button"
                                             class="ia-decisao-aprovar"
                                         >
-                                            Aprovar e enviar
+                                            ${String(item.canal || '').toLowerCase() === 'whatsapp' ? 'Aprovar resposta' : 'Aprovar e enviar'}
                                         </button>
 
                                         <button
@@ -5946,6 +5956,11 @@ summary{
                             500
                         );
 
+                        return;
+                    }
+
+                    if (card.dataset.canal === 'whatsapp') {
+                        status.textContent = 'Resposta aprovada. Envio bloqueado: aguardando Meta e autorização de operação.';
                         return;
                     }
 
@@ -8770,5 +8785,6 @@ function conectarGmailP0() {
 </script>
 <script src="/acoes-comerciais.js" defer></script>
 <script src="/inteligencia-territorial.js" defer></script>
+<script src="/whatsapp-omnichannel.js" defer></script>
 </body>
 </html>

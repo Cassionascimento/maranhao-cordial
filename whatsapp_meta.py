@@ -37,6 +37,8 @@ def normalizar_eventos(payload):
                 if not isinstance(mid, str) or not mid or not isinstance(sender, str) or not sender.isdigit():
                     raise ValueError('whatsapp_identidade_ausente_ou_invalida')
                 tipo = msg.get('type') or 'unknown'
+                if not isinstance(tipo,str) or len(tipo)>40 or len(mid)>300 or not 7<=len(sender)<=15:
+                    raise ValueError('whatsapp_mensagem_invalida')
                 body = _dict(msg.get(tipo))
                 texto = body.get('body') if tipo == 'text' else None
                 if tipo == 'button':
@@ -54,6 +56,7 @@ def normalizar_eventos(payload):
                     metadata['anexo'] = {k: body[k] for k in ('id', 'mime_type', 'sha256', 'filename', 'caption', 'voice') if k in body}
                 elif tipo in {'location', 'contacts', 'interactive', 'button', 'reaction'}:
                     metadata['conteudo'] = msg.get(tipo)
+                if len(texto)>20000:raise ValueError('whatsapp_texto_excedido')
                 eventos.append({'chave': 'mensagem:' + phone + ':' + mid,
                                 'tipo_evento': 'mensagem', 'message_id': mid,
                                 'sender_id': sender, 'recipient_id': phone,
@@ -70,7 +73,13 @@ def normalizar_eventos(payload):
                                 'tipo_evento': 'status', 'message_id': mid,
                                 'recipient_id': phone, 'status': estado, 'metadados': metadata})
     # Redelivery e repetições dentro de um lote possuem a mesma identidade.
-    return list({e['chave']: e for e in eventos}.values())
+    unicos = {}
+    for evento in eventos:
+        anterior = unicos.get(evento['chave'])
+        if anterior and any(anterior.get(k) != evento.get(k) for k in ('tipo_evento','message_id','sender_id','recipient_id','texto','status')):
+            raise ValueError('whatsapp_identidade_conflitante_no_lote')
+        unicos.setdefault(evento['chave'], evento)
+    return list(unicos.values())
 
 
 def receber_eventos(factory, payload, registrar, processar, sugerir):

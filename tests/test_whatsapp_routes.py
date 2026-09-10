@@ -11,19 +11,26 @@ from unittest.mock import Mock, patch
 from flask import Flask, jsonify, request
 import whatsapp_aprovacoes
 from test_whatsapp_aprovacoes import Banco as BancoAprovacoes
-from test_whatsapp_meta import Banco as BancoInbox, payload
+from test_whatsapp_meta import payload
+from whatsapp_sqlite import Banco as BancoInbox
+import whatsapp_omnichannel
 
 
 class Routes(unittest.TestCase):
     def setUp(self):
         for patcher in (
             patch('requests.sessions.Session.request', side_effect=AssertionError('rede proibida')),
-            patch.dict(os.environ, {'META_APP_SECRET': 'segredo-sintetico', 'EMAIL_ENVIOS_PAUSADOS': 'true'}),
+            patch.dict(os.environ, {'META_APP_SECRET': 'segredo-sintetico', 'EMAIL_ENVIOS_PAUSADOS': 'true', 'WHATSAPP_PHONE_NUMBER_ID': 'phone-test'}),
         ):
             patcher.start()
             self.addCleanup(patcher.stop)
         self.app = Flask(__name__)
         self.inbox = BancoInbox()
+        self.addCleanup(self.inbox.close)
+        self.ia = Mock(return_value={'classificacao':'atendimento','interesse':None,'resposta_sugerida':'Resposta sintética para revisão'})
+        receiver = whatsapp_omnichannel.receber
+        patcher = patch.object(whatsapp_omnichannel, 'receber', side_effect=lambda factory, data: receiver(factory, data, gerar=self.ia))
+        patcher.start(); self.addCleanup(patcher.stop)
         self.queue = BancoAprovacoes()
         self.ns = dict(app=self.app, request=request, jsonify=jsonify, os=os,
                        META_WEBHOOK_VERIFY_TOKEN='verificacao-sintetica',
@@ -55,15 +62,16 @@ class Routes(unittest.TestCase):
     def test_entrada_assinada_crm_proposta_redelivery_sem_transporte(self):
         self.assertEqual(self.post().status_code, 200)
         self.assertEqual(self.post().status_code, 200)
-        for name in ('registrar_interacao_omnichannel', 'processar_interacao_omnichannel_crm', 'gerar_resposta_sugerida_omnichannel'):
-            self.ns[name].assert_called_once()
-        self.assertTrue(all(self.inbox.rows.values()))
+        self.ia.assert_called_once()
+        self.assertEqual(len(self.inbox.rows('leads_crm')),1)
+        self.assertEqual(len(self.inbox.rows('fila_respostas_omnichannel')),1)
+        self.assertTrue(all(row['concluido'] for row in self.inbox.rows('whatsapp_eventos')))
 
-    def test_falha_crm_retorna_503_e_retomada_conclui(self):
-        self.ns['processar_interacao_omnichannel_crm'].side_effect = [RuntimeError('falha sintética'), {'success': True}]
+    def test_falha_ia_retorna_503_e_retomada_conclui(self):
+        self.ia.side_effect = [RuntimeError('falha sintética'), self.ia.return_value]
         self.assertEqual(self.post().status_code, 503)
         self.assertEqual(self.post().status_code, 200)
-        self.ns['gerar_resposta_sugerida_omnichannel'].assert_called_once()
+        self.assertEqual(len(self.inbox.rows('fila_respostas_omnichannel')),1)
 
     def test_admin_autenticacao_aprovacao_persistida_pausa_impede_execucao(self):
         self.ns['get_db_connection'] = self.queue

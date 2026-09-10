@@ -64,6 +64,9 @@ def revalidar(factory, fila):
     for nome in ('EMAIL_ENVIOS_PAUSADOS', 'WHATSAPP_ENVIOS_PAUSADOS'):
         if os.getenv(nome, 'false').lower() not in ('false', '0', 'no'):
             raise PermissionError('whatsapp_envios_pausados')
+    from whatsapp_omnichannel import status_conector
+    if not status_conector()['envio_liberado']:
+        raise PermissionError('whatsapp_aguardando_meta')
     if not os.getenv('WHATSAPP_ACCESS_TOKEN') or not os.getenv('WHATSAPP_PHONE_NUMBER_ID'):
         raise PermissionError('whatsapp_configuracao_meta_ausente')
     conn = factory()

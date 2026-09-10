@@ -46,6 +46,9 @@ class Cursor:
 class Aprovacoes(unittest.TestCase):
     def setUp(self):
         self.b = Banco()
+        # Estado futuro validado apenas no cenário unitário; rede é sempre simulada.
+        gate=patch('whatsapp_omnichannel.status_conector',return_value={'envio_liberado':True})
+        gate.start();self.addCleanup(gate.stop)
         patcher=patch.dict(os.environ, {'WHATSAPP_ACCESS_TOKEN':'fake-secret', 'WHATSAPP_PHONE_NUMBER_ID':'123',
                                       'EMAIL_ENVIOS_PAUSADOS':'false', 'WHATSAPP_ENVIOS_PAUSADOS':'false'})
         patcher.start(); self.addCleanup(patcher.stop)

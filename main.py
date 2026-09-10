@@ -16482,6 +16482,8 @@ def validar_admin_omnichannel():
 
 from whatsapp_aprovacoes import registrar_rotas as registrar_rotas_whatsapp
 registrar_rotas_whatsapp(app, get_db_connection, validar_admin_omnichannel)
+from whatsapp_omnichannel import registrar_rotas as registrar_painel_whatsapp
+registrar_painel_whatsapp(app, get_db_connection, validar_admin_omnichannel)
 
 
 @app.route(
@@ -17754,6 +17756,8 @@ def webhook_meta():
     # POST — EVENTOS DO WHATSAPP
     # -------------------------------------------------
     from entrada_segura import assinatura_meta_valida
+    if request.content_length and request.content_length > 262144:
+        return jsonify(success=False, error='Payload excede o limite do webhook'), 413
     segredo = os.getenv('META_APP_SECRET')
     if not segredo:
         return jsonify(success=False, error='Webhook indisponível'), 503
@@ -17766,15 +17770,15 @@ def webhook_meta():
 
     if not isinstance(payload, dict):
         return jsonify(success=False, error='Payload inválido'), 400
-    # Inbox durável antes do legado Instagram; falhas pedem redelivery.
-    from whatsapp_meta import receber_eventos
-    try:
-        receber_eventos(get_db_connection, payload, registrar_interacao_omnichannel,
-                        processar_interacao_omnichannel_crm, gerar_resposta_sugerida_omnichannel)
-    except ValueError:
-        return jsonify(success=False, error='Evento WhatsApp inválido'), 400
-    except Exception:
-        return jsonify(success=False, error='Entrada WhatsApp não confirmada'), 503
+    # WhatsApp possui checkpoints próprios; não entra no legado de outros canais.
+    if payload.get('object') == 'whatsapp_business_account':
+        from whatsapp_omnichannel import receber
+        try:
+            return jsonify(receber(get_db_connection, payload)), 200
+        except ValueError:
+            return jsonify(success=False, error='Evento WhatsApp inválido'), 400
+        except Exception:
+            return jsonify(success=False, error='Entrada WhatsApp pendente; repetir o mesmo evento.'), 503
 
     try:
 
