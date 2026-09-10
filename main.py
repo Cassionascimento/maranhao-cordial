@@ -39597,3 +39597,6 @@ except Exception as erro_fase58b:
 # Rotas sem efeitos de banco no import. Migração explícita antes de uso.
 from acoes_comerciais import registrar_rotas as registrar_acoes_comerciais
 registrar_acoes_comerciais(app, globals())
+
+from territorio_api import registrar_rotas as registrar_territorio
+registrar_territorio(app, get_db_connection, validar_admin_request)
