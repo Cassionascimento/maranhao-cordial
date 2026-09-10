@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Central Empresarial — Maranhão Cordial</title>
+    <link rel="stylesheet" href="/painel-executivo.css">
+    <script src="/painel-executivo.js" defer></script>
 
     <style>
         :root {
@@ -450,31 +452,38 @@ summary{
             </section>
 
             <section class="tab-panel" data-panel="visao-geral">
+            <section id="painel-executivo" aria-labelledby="executivo-titulo">
+                <div class="exec-heading"><div><p class="exec-label">MARANHÃO CORDIAL · DIREÇÃO</p><h2 id="executivo-titulo">Visão executiva</h2><p class="exec-muted">O essencial para decidir. Evidências antes de ações.</p></div><span class="exec-badge">Leitura dos dados existentes</span></div>
+                <div id="exec-kpis" class="exec-kpis"></div>
+                <div class="exec-columns"><section class="exec-panel"><p class="exec-label">01 · PRIORIDADES</p><h3>Atenção agora</h3><div id="exec-atencao"></div></section><section class="exec-panel"><p class="exec-label">02 · PERSPECTIVA</p><h3>Leitura executiva</h3><p id="exec-leitura" class="exec-muted">Sem dados.</p><button type="button" data-exec-tab="ia-empresarial">Abrir análise da IA →</button></section></div>
+                <section class="exec-panel"><div class="exec-heading"><div><p class="exec-label">03 · RELACIONAMENTOS</p><h3>Funil comercial</h3></div><button type="button" data-exec-tab="crm">Consultar contatos →</button></div><p class="exec-muted">Distribuição por estágio na consulta CRM. Não representa taxa de conversão entre etapas.</p><div id="exec-funil"></div></section>
+                <section class="exec-panel"><p class="exec-label">04 · DISPONIBILIDADE</p><h3>Saúde das fontes</h3><p class="exec-muted">Uma consulta recebida não comprova conexão ou operação de um canal externo.</p><div id="exec-saude" class="exec-health"></div></section>
+            </section>
             <div class="summary">
 
                 <div class="card">
                     <small>Total de pedidos</small>
-                    <strong id="totalPedidos">0</strong>
+                    <strong id="totalPedidos">sem dados</strong>
                 </div>
 
                 <div class="card">
                     <small>Valor registrado</small>
-                    <strong id="valorTotal">R$ 0,00</strong>
+                    <strong id="valorTotal">sem dados</strong>
                 </div>
 
                 <div class="card">
                     <small>Atendimentos</small>
-                    <strong id="totalAtendimentos">0</strong>
+                    <strong id="totalAtendimentos">sem dados</strong>
                 </div>
 
                 <div class="card">
                     <small>Leads B2B</small>
-                    <strong id="totalB2B">0</strong>
+                    <strong id="totalB2B">sem dados</strong>
                 </div>
 
                 <div class="card">
                     <small>Degustações</small>
-                    <strong id="totalDegustacoes">0</strong>
+                    <strong id="totalDegustacoes">sem dados</strong>
                 </div>
 
             </div>
@@ -2213,6 +2222,7 @@ summary{
 
                     const pedidos =
                         data.pedidos || [];
+                    window.dispatchEvent(new CustomEvent('executivo-dados', {detail:{fonte:'pedidos',dados:data.pedidos}}));
 
                     totalPedidos.textContent =
                         pedidos.length;
@@ -3877,6 +3887,7 @@ summary{
 
                     const leads =
                         data.leads || [];
+                    window.dispatchEvent(new CustomEvent('executivo-dados', {detail:{fonte:'crm',dados:data.leads}}));
 
                     const contarEstagio = (estagio) =>
                         leads.filter(
