@@ -142,7 +142,8 @@ def consolidar(data):
            'sinal_interesse':False,
            'conversao':any(r.get('compra_confirmada') is True or (r.get('quantidade_compras') or 0)>0 for r in rs),
            'amostra':any(r.get('recebeu_amostra') is True or r.get('amostra_enviada') is True for r in rs),
-           'evento':any(r.get('evento_relacionado') or r.get('eventos') or r.get('potencial_eventos') is True for r in rs),
+           'evento':any(r.get('evento_relacionado') or r.get('eventos') for r in rs),
+           'potencial_evento':any(r.get('potencial_eventos') is True for r in rs),
            'digital':any(any(r.get(k) for k in ('instagram','instagram_publico','linkedin','linkedin_publico','site','site_publico')) for r in rs),
            'verificado':any(r.get('validado_em') or r.get('verificado_em') for r in rs)}
         entities.append(e)
@@ -197,7 +198,8 @@ def agregar(data,limitadas=()):
         e=lookup.get('email:'+texto(row.get('cliente_email')).lower())
         if e:e['conversao']=True
         # Pagamento NÃO é circulação física; endereço livre não é geocodificado.
-    niveis={};details={};records=data.get('territorio_registros',[])
+    niveis={};details={};records=[r for r in data.get('territorio_registros',[]) if not excluido(r)]
+    excluded+=sum(excluido(r) and r.get('tipo_registro')!='relacao' for r in data.get('territorio_registros',[]))
     for nivel in ('bairro','cidade','uf','regiao'):
         buckets={}
         def bucket(loc):
@@ -211,15 +213,15 @@ def agregar(data,limitadas=()):
             b=bucket(e['local']);f=b['fatos'];f['relacoes']+=1;f['interacoes']+=e['interacoes'];f['entradas_relevantes']+=len(e['entradas'])
             for flag,key in [('contatado','contatados'),('interesse','interesses_confirmados'),('sinal_interesse','classificacoes_interesse'),
                              ('conversao','relacoes_com_conversao'),('amostra','relacoes_com_amostra_registrada'),('evento','relacoes_com_eventos'),
-                             ('digital','presencas_digitais'),('verificado','relacoes_verificadas')]:
+                             ('digital','presencas_digitais'),('verificado','relacoes_verificadas'),('potencial_evento','sinais_potencial_eventos')]:
                 f[key]+=int(bool(e[flag]))
             f['respostas_registradas']+=int(bool(e['respondeu']))
             f['respostas_com_abordagem']+=int(bool(e['respondeu'] and e['contatado']))
             f['conflitos_localizacao']+=int(e['local']['conflito']);b['tipos'].update(e['tipos'])
             for row in e['rows']:
                 b['evidencias'].append({'fonte':row['_fonte'],'id':str(row['id']),
-                    'nome':row.get('nome') or row.get('empresa') or row.get('estabelecimento_nome') or row.get('responsavel') or 'Registro sem nome',
-                    'localizacao_registrada':{k:row.get(k) for k in ('bairro','cidade','estado') if row.get(k)},
+                    'nome':row.get('nome') or row.get('empresa') or row.get('estabelecimento_nome') or row.get('estabelecimento') or row.get('responsavel') or 'Registro sem nome',
+                    'localizacao_registrada':{k:row.get(k) for k in ('bairro','cidade','estado','uf') if row.get(k)},
                     'verificada':bool(row.get('validado_em') or row.get('verificado_em'))})
         for record in records:
             loc=localizacao(record)
@@ -261,6 +263,7 @@ def agregar(data,limitadas=()):
             if b['tipos']:b['sinais'].append('Concentração na base cadastrada, não densidade populacional ou tamanho do mercado.')
             if f['classificacoes_interesse']:b['sinais'].append('Classificações de interesse pela IA são sinais, não compra confirmada.')
             if f['relacoes_com_amostra_registrada']:b['sinais'].append('Amostra registrada por relação; quantidade/lote não disponíveis nesse indicador.')
+            if f['sinais_potencial_eventos']:b['sinais'].append('Potencial para eventos foi sinalizado no cadastro; isso não comprova evento identificado ou participação.')
             if f['presencas_digitais']:b['sinais'].append('Perfil/site cadastrado não comprova audiência, alcance ou engajamento territorial.')
             b['score_resposta']=max(wilson(r,n),wilson(b['respostas_pareadas'],b['contatos_pareados']))
             b['metricas']={k:b['metricas'][k] for k in b.pop('metricas_presentes')}

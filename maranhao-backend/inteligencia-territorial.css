@@ -1,0 +1,27 @@
+#territorio-painel {max-width:1180px;margin:0 auto;}
+#territorio-painel h2 {margin:24px 0 8px;}
+#territorio-painel h3 {font-size:1.05rem;line-height:1.5;margin:0 0 12px;}
+#territorio-painel h4 {font-size:1rem;margin:16px 0 8px;}
+#territorio-painel p,#territorio-painel li {line-height:1.6;}
+#territorio-painel ul {padding-left:20px;}
+#territorio-painel li {margin:6px 0;}
+#territorio-painel details {margin:14px 0;}
+#territorio-painel summary {cursor:pointer;color:var(--gold,#a8b8a4);padding:6px 0;}
+#territorio-painel button {cursor:pointer;white-space:normal;}
+#territorio-painel button:disabled {opacity:.5;cursor:wait;}
+#territorio-painel input,#territorio-painel select,#territorio-painel textarea {width:100%;box-sizing:border-box;margin:6px 0 12px;}
+#territorio-painel label {display:block;font-size:.88rem;}
+.territorio-toolbar {display:flex;gap:12px;flex-wrap:wrap;margin:18px 0;}
+.territorio-cards {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:18px 0;}
+.territorio-card,#territorio-detalhe,.territorio-registro {border:1px solid #3c4842;border-radius:12px;padding:22px;background:#18221d;}
+.territorio-nivel {display:inline-block;border:1px solid #627267;border-radius:16px;padding:2px 10px;font-size:.8rem;color:#cdd8bd;}
+.territorio-nota {font-size:.88rem;color:#b0bcb4;}
+#territorio-status {min-height:24px;line-height:1.5;}
+#territorio-lista {display:grid;gap:8px;margin:14px 0;max-height:380px;overflow:auto;}
+#territorio-painel .territorio-linha {display:flex;justify-content:space-between;gap:12px;align-items:center;text-align:left;background:#202c25;color:#e4e9e1;border:1px solid #455248;border-radius:8px;padding:14px;}
+.territorio-linha span {font-size:.85rem;font-weight:400;}
+.territorio-fatos {display:grid;grid-template-columns:1fr auto;gap:8px;}
+.territorio-fatos dd {margin:0;font-weight:bold;}
+.territorio-form-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 16px;}
+#territorio-nivel {max-width:300px;}
+@media(max-width:720px){.territorio-cards,.territorio-form-grid {grid-template-columns:1fr;}#territorio-painel .territorio-linha {display:block;}.territorio-linha span {display:block;margin-top:6px;}.territorio-card,#territorio-detalhe,.territorio-registro {padding:16px;}}

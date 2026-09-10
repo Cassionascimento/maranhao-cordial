@@ -101,5 +101,30 @@ class Territorial(unittest.TestCase):
         self.assertEqual(r['presenca_digital']['snapshot_existente']['metricas_globais']['usuarios_ativos'],200)
         self.assertNotIn('usuarios_ativos',self.group(r,'São Paulo / SP')['fatos'])
 
+    def test_potencial_evento_nao_inventa_oportunidade_identificada(self):
+        r=agregar({'leads_crm':[rel('a',potencial_eventos=True)]})
+        b=self.group(r,'São Paulo / SP')
+        self.assertEqual(b['fatos']['relacoes_com_eventos'],0)
+        self.assertEqual(b['fatos']['sinais_potencial_eventos'],1)
+        self.assertEqual(r['decisoes']['eventos']['classificacao'],'dados insuficientes')
+        self.assertTrue(any('não comprova evento' in s for s in b['sinais']))
+
+    def test_circulacao_e_custo_sinteticos_nao_entram_nos_fatos(self):
+        common=dict(cidade='São Paulo',uf='SP',origem='homologacao protegida',status='realizado')
+        r=agregar({'territorio_registros':[
+            dict(common,id='a',tipo_registro='circulacao',quantidade=50,unidade='garrafas'),
+            dict(common,id='b',tipo_registro='midia',metricas={'custo_centavos':100,'conversoes':2})]})
+        self.assertEqual(r['niveis']['cidade'],[])
+        self.assertEqual(r['cobertura']['registros_excluidos'],2)
+
+    def test_dados_financeiros_e_fisicos_ausentes_permanecem_desconhecidos(self):
+        r=agregar({'leads_crm':[rel('a',recebeu_amostra=True,compra_confirmada=True)]})
+        b=self.group(r,'São Paulo / SP')
+        self.assertEqual(b['fatos']['relacoes_com_amostra_registrada'],1)
+        self.assertEqual(b['fatos']['relacoes_com_conversao'],1)
+        self.assertEqual(b['circulacao'],{})
+        self.assertEqual(b['metricas'],{})
+        self.assertIsNone(b['indicadores']['custo_por_conversao_midia_centavos'])
+
 
 if __name__=='__main__':unittest.main()

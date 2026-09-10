@@ -384,6 +384,7 @@ summary{
     .summary{gap:12px;}
 }
 </style>
+<link rel="stylesheet" href="/inteligencia-territorial.css">
 </head>
 
 <body>
@@ -404,6 +405,7 @@ summary{
             <button class="admin-tab" data-tab="presenca-digital">Social</button>
             <button class="admin-tab" data-tab="empresa">Empresa</button>
             <button class="admin-tab active" data-tab="ia-empresarial">IA</button>
+            <button class="admin-tab" data-tab="inteligencia-territorial">Inteligência Territorial</button>
         </nav>
 
         <section class="login-panel" id="loginPanel">
@@ -1446,6 +1448,45 @@ summary{
 
             </section>
 
+
+            <section class="tab-panel" data-panel="inteligencia-territorial" id="territorio-painel">
+  <h2>Inteligência Territorial</h2>
+  <p>Relações, interações e resultados para orientar as próximas decisões da Maranhão Cordial.</p>
+  <p class="territorio-nota">Esta camada analisa e recomenda. Ações externas seguem proposta → aprovação → execução → auditoria.</p>
+  <div class="territorio-toolbar"><button type="button" id="territorio-atualizar">Atualizar dados</button><button type="button" id="territorio-interpretar">Interpretar com IA</button></div>
+  <p id="territorio-status" role="status" aria-live="polite">Abra esta seção para consultar os registros.</p>
+  <div id="territorio-conteudo" hidden>
+    <p id="territorio-cobertura"></p><p id="territorio-digital" class="territorio-nota"></p><p id="territorio-ia-status" class="territorio-nota"></p>
+    <div id="territorio-cards" class="territorio-cards"></div>
+    <h3>Aprofundar por território</h3>
+    <label for="territorio-nivel">Agrupar por</label><select id="territorio-nivel"><option value="cidade">Cidade</option><option value="bairro">Bairro</option><option value="uf">UF</option><option value="regiao">Região</option></select>
+    <div id="territorio-lista"></div><div id="territorio-detalhe" hidden></div>
+    <details><summary>Critérios e limites desta leitura</summary><div id="territorio-limites"></div></details>
+  </div>
+  <details class="territorio-registro"><summary>Registrar fato observado</summary>
+    <p class="territorio-nota">Registre apenas o que foi observado. Campos vazios permanecem desconhecidos. Este registro não envia mensagens nem movimenta garrafas ou estoque.</p>
+    <form id="territorio-form">
+      <div class="territorio-form-grid">
+        <label>Tipo de registro<select name="tipo_registro" required><option value="relacao">Relação / estabelecimento</option><option value="circulacao">Circulação física</option><option value="midia">Mídia</option><option value="evento">Evento / oportunidade</option><option value="resultado">Resultado</option></select></label>
+        <label>Contato / estabelecimento<input name="estabelecimento" maxlength="2000"></label>
+        <label>Tipo de relação<input name="tipo_relacao" placeholder="Ex.: bartender, bar, fábrica" maxlength="2000"></label>
+        <label>Bairro<input name="bairro" maxlength="2000"></label><label>Cidade<input name="cidade" maxlength="2000"></label><label>UF<input name="uf" maxlength="2" pattern="[A-Za-z]{2}"></label>
+        <label>Finalidade<input name="finalidade" maxlength="2000"></label><label>Data observada<input name="ocorrido_em" type="date"></label>
+        <label>Status<select name="status"><option value="">Desconhecido</option><option value="planejado">Planejado / oportunidade</option><option value="realizado">Realizado</option><option value="entregue">Entregue</option><option value="cancelado">Cancelado</option></select></label>
+        <label>Origem / evidência do registro<input name="origem" required maxlength="2000" placeholder="Ex.: visita registrada, relatório de campanha"></label>
+        <label>Responsável pelo registro<input name="responsavel" required maxlength="2000"></label>
+        <label>Retorno observado<input name="retorno" maxlength="2000"></label><label>Resultado observado<input name="resultado" maxlength="2000"></label>
+      </div>
+      <details><summary>Lote e quantidade, quando houver circulação</summary><div class="territorio-form-grid">
+        <label>Lote<input name="lote" maxlength="2000"></label><label>Quantidade<input name="quantidade" type="number" min="0.001" max="100000000" step="any"></label><label>Unidade<select name="unidade"><option value="">Desconhecida</option><option value="garrafas">Garrafas</option><option value="amostras">Amostras</option><option value="litros">Litros</option><option value="unidades">Unidades</option></select></label>
+      </div></details>
+      <details><summary>Métricas e custos observados, quando disponíveis</summary><p class="territorio-nota">Use números do mesmo território, período e ação. Não some relatórios que se sobrepõem. Custos e receitas em centavos; planejamentos não entram no desempenho.</p><div class="territorio-form-grid">
+        <label>Contatos realizados<input name="metrica_contatos_realizados" type="number" min="0" step="1"></label><label>Respostas<input name="metrica_respostas" type="number" min="0" step="1"></label><label>Interesses confirmados<input name="metrica_interesses" type="number" min="0" step="1"></label><label>Conversões<input name="metrica_conversoes" type="number" min="0" step="1"></label><label>Impressões<input name="metrica_impressoes" type="number" min="0" step="1"></label><label>Cliques<input name="metrica_cliques" type="number" min="0" step="1"></label><label>Custo (centavos)<input name="metrica_custo_centavos" type="number" min="0" step="1"></label><label>Receita (centavos)<input name="metrica_receita_centavos" type="number" min="0" step="1"></label>
+      </div></details>
+      <button type="submit" id="territorio-salvar">Registrar fato</button>
+    </form>
+  </details>
+</section>
 
             <section class="tab-panel active" data-panel="ia-empresarial">
 
@@ -8728,5 +8769,6 @@ function conectarGmailP0() {
 }
 </script>
 <script src="/acoes-comerciais.js" defer></script>
+<script src="/inteligencia-territorial.js" defer></script>
 </body>
 </html>
