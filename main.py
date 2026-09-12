@@ -436,6 +436,10 @@ PROFISSIONAIS_CADASTRO_KEY = os.getenv(
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db_connection():
+    from entrada_segura import conexao_entrada_atual
+    compartilhada = conexao_entrada_atual()
+    if compartilhada is not None:
+        return compartilhada
     if not DATABASE_URL:
         raise RuntimeError(
             "DATABASE_URL não configurada. Adicione a Internal Database URL "
@@ -29432,7 +29436,7 @@ def gerar_briefing_executivo_ia():
 # IA EMPRESARIAL — ENVIAR BRIEFING EXECUTIVO
 # =====================================================
 
-def enviar_briefing_executivo_email(forcar=False):
+def _enviar_briefing_legado(forcar=False, transporte=None):
     """
     Gera e envia o briefing executivo para a direção.
 
@@ -29784,7 +29788,9 @@ def enviar_briefing_executivo_email(forcar=False):
         + situacao
     )
 
-    envio = gmail_enviar_email(
+    if transporte is None:
+        raise PermissionError("briefing_sem_reserva")
+    envio = transporte(
         EMAIL_BRIEFING_DIRECAO,
         assunto,
         corpo
@@ -29858,6 +29864,11 @@ def enviar_briefing_executivo_email(forcar=False):
 # =====================================================
 # IA EMPRESARIAL — AGENDADOR LEVE DE BRIEFING
 # =====================================================
+
+def enviar_briefing_executivo_email(forcar=False):
+    from autonomia_supervisionada import briefing
+    return briefing(globals())
+
 
 def executar_agendador_briefing_executivo():
     intervalo_segundos = 6 * 60 * 60
@@ -38661,26 +38672,8 @@ except Exception as erro:
 # =====================================================
 
 def iniciar_briefing_executivo_automatico():
-    if os.getenv("RENDER_SERVICE_TYPE") != "web":
-        return
-
-    if not EMAIL_BRIEFING_DIRECAO:
-        print(
-            "BRIEFING AUTOMÁTICO NÃO INICIADO: "
-            "destinatário não configurado."
-        )
-        return
-
-    thread = threading.Thread(
-        target=executar_agendador_briefing_executivo,
-        name="briefing-executivo-ia",
-        daemon=True
-    )
-    thread.start()
-
-    print(
-        "✓ BRIEFING EXECUTIVO AUTOMÁTICO INICIALIZADO"
-    )
+    # Integração isolada: nenhum scheduler/transportador real é instalado.
+    return
 
 
 try:
@@ -39466,3 +39459,9 @@ registrar_territorio(app, get_db_connection, validar_admin_request)
 
 from mi_painel import registrar_rotas_mi_painel
 registrar_rotas_mi_painel(app, get_db_connection, validar_admin_request)
+
+from autonomia_supervisionada import registrar_rotas as registrar_autonomia_supervisionada
+registrar_autonomia_supervisionada(app, globals())
+
+from tiktok_shop import registrar_rotas as registrar_rotas_tiktok_shop
+registrar_rotas_tiktok_shop(app, get_db_connection, validar_admin_omnichannel)

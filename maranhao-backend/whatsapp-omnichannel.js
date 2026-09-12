@@ -12,7 +12,7 @@
         cache:'no-store',headers:{'X-Admin-Key':window.adminKeyAtual}});
       const data=await response.json();
       if(!response.ok || !data.success)throw new Error(data.error || 'Não foi possível consultar o WhatsApp.');
-      status.textContent=`${data.conector.estado} · envio bloqueado. Aprovar uma resposta não envia mensagem.`;
+      status.textContent=`${data.conector.prontidao?.estado || data.conector.estado} · envio bloqueado. Aprovar uma resposta não envia mensagem.`;
       $('resumo').replaceChildren(el('p',Object.entries(data.processamentos).map(([k,v])=>`${k}: ${v}`).join(' · ') || 'Nenhuma entrada interna registrada.'));
       $('meta').replaceChildren(el('p',data.conector.verificacao_remota));
       for(const item of data.conector.dependencias_meta)$('meta').append(el('p',item));

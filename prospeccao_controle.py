@@ -179,6 +179,10 @@ def validar_contexto(destinatario, cc=None):
     if (aprovado and aprovado.get('_resposta_validada') and not aprovado.get('_consumida')
             and not cc and destinatario.strip().lower() == aprovado['destinatario']):
         return
+    if (aprovado and aprovado.get('_continuacao_politica') == 'supervisionada-v1'
+            and not aprovado.get('_consumida') and not cc
+            and destinatario.strip().lower() == aprovado['destinatario']):
+        return
     if os.getenv('EMAIL_APENAS_PROSPECCAO_CONTROLADA') != 'true':
         return
     r = _reserva.get()

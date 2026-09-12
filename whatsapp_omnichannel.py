@@ -10,13 +10,13 @@ from whatsapp_meta import normalizar_eventos
 CLASSES = {'atendimento','interesse_comercial_b2b','degustacao','suporte','spam','comunicacao_automatica'}
 
 
-def status_conector(environ=None):
+def status_conector(environ=None, *, evidencia=None, empresa_id=None, conector_id=None, agora=None):
     env=os.environ if environ is None else environ
     campos={'token':'WHATSAPP_ACCESS_TOKEN','phone_number_id':'WHATSAPP_PHONE_NUMBER_ID',
             'app_secret':'META_APP_SECRET','verify_token':'META_WEBHOOK_VERIFY_TOKEN'}
     presentes={k:bool(env.get(v)) for k,v in campos.items()}
     # Presença de credencial não comprova número online, assinatura de WABA ou permissões.
-    return {'estado':'aguardando_meta' if presentes['token'] and presentes['phone_number_id'] else 'disconnected',
+    resultado = {'estado':'aguardando_meta' if presentes['token'] and presentes['phone_number_id'] else 'disconnected',
             'configuracao_presente':presentes,'faltantes':[k for k,v in presentes.items() if not v],
             'dependencias_meta':['número online e verificado','WABA vinculada e assinatura do webhook messages',
                 'Phone Number ID correspondente ao número','token válido com whatsapp_business_messaging e acesso ao ativo',
@@ -24,6 +24,56 @@ def status_conector(environ=None):
             'verificacao_remota':'não realizada; número permanece offline/não verificado conforme estado informado',
             'entrada_interna':'pronta para payloads simulados','envio_liberado':False,
             'motivo':'Aguardando validação Meta e autorização de operação. Aprovar uma resposta não envia.'}
+    resultado['prontidao'] = avaliar_prontidao(
+        env, evidencia, empresa_id=empresa_id, conector_id=conector_id, agora=agora)
+    # Compatibilidade: o estado legado continua aguardando_meta sem evidência.
+    # Prontidão é observação, nunca autorização de transporte.
+    if resultado['prontidao']['estado'] in ('conectado', 'homologado'):
+        resultado['estado'] = resultado['prontidao']['estado']
+        resultado['verificacao_remota'] = 'Evidência externa fornecida pelo backend, válida para este conector.'
+    return resultado
+
+
+def avaliar_prontidao(config, evidencia=None, *, empresa_id=None, conector_id=None, agora=None):
+    """Projeção pura, sem rede/persistência. Evidência deve vir de verificador confiável.
+
+    Não aceita evidências de requests públicos. Nenhum provider de evidências é
+    instalado nesta rodada. IDs são vinculados ao conector e à empresa explícitos.
+    """
+    from datetime import datetime, timezone
+    campos = ('WHATSAPP_ACCESS_TOKEN','WHATSAPP_PHONE_NUMBER_ID',
+              'WHATSAPP_BUSINESS_ACCOUNT_ID','META_APP_SECRET','META_WEBHOOK_VERIFY_TOKEN')
+    base = {'estado':'disconnected', 'envio_liberado':False}
+    if not all(config.get(k) for k in campos):
+        return dict(base, motivo='configuracao_incompleta')
+    base['estado']='configurado'
+    if not isinstance(evidencia,dict) or not empresa_id or not conector_id:
+        return dict(base,motivo='validacao_externa_pendente')
+    esperado = {'empresa_id':empresa_id, 'conector_id':conector_id,
+                'phone_number_id':config['WHATSAPP_PHONE_NUMBER_ID'],
+                'waba_id':config['WHATSAPP_BUSINESS_ACCOUNT_ID']}
+    if any(evidencia.get(k)!=v for k,v in esperado.items()):
+        return dict(base,motivo='evidencia_de_outro_conector')
+    now=agora or datetime.now(timezone.utc)
+    try:
+        verificado=datetime.fromisoformat(evidencia['verificado_em'])
+        validade=datetime.fromisoformat(evidencia['valido_ate'])
+        if not verificado <= now < validade:
+            return dict(base,motivo='evidencia_expirada_ou_futura')
+    except (KeyError,TypeError,ValueError):
+        return dict(base,motivo='data_de_evidencia_invalida')
+    requisitos=('numero_online','token_valido','app_vinculado','webhook_validado',
+                'messages_assinado','messaging_autorizado','management_autorizado')
+    if not all(evidencia.get(k) is True for k in requisitos):
+        return dict(base,motivo='meta_pendente')
+    base['estado']='conectado'
+    fluxo=evidencia.get('homologacao')
+    if isinstance(fluxo,dict) and all(fluxo.get(k) for k in
+            ('entrada_id','interacao_id','lead_id','proposta_id','aprovacao_id','auditoria_id')):
+        if fluxo.get('real') is True:
+            base['estado']='homologado'
+    return dict(base,motivo='transporte_bloqueado_aguardando_liberacao_operacional')
+
 
 
 def validar_interpretacao(result):

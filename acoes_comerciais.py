@@ -46,6 +46,8 @@ def propor(factory, dados, origem_tipo, origem_id):
     tipo = dados.get('tipo')
     if tipo == 'primeiro_contato':
         chave = 'primeiro_contato:' + email
+    elif tipo == 'followup':
+        chave = 'followup:' + email
     elif tipo == 'resposta':
         chave = 'resposta:' + email + ':' + str(UUID(str(dados.get('origem_mensagem'))))
     else:
@@ -98,6 +100,8 @@ def autorizar_transporte(destinatario, assunto, texto, cc=None):
     d = conteudo_aprovado(destinatario)
     if cc or d.get('_consumida') or assunto != d['assunto'] or texto != d['mensagem']:
         raise PermissionError('transporte_fora_da_aprovacao')
+    if d.get('_validar_politica'):
+        d['_validar_politica']()
     d['_consumida'] = True
 
 
