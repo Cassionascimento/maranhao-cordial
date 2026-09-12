@@ -83,6 +83,10 @@ def carregar(factory):
                 data[fonte]=rows[:5000]
             cur.execute("SELECT id,payload_json,criado_em FROM eventos_empresariais WHERE fonte='google_analytics' AND tipo='snapshot_ga4' ORDER BY id DESC LIMIT 1")
             data['snapshot_ga4']=[dict(row) for row in cur.fetchall()]
+            from mi_eventos import consumo_territorial
+            mi_rows=consumo_territorial(cur)
+            if len(mi_rows)>5000:limitadas.append('mi_eventos')
+            data['mi_eventos']=mi_rows[:5000]
         return agregar(data,limitadas)
     finally:conn.close()
 
@@ -206,7 +210,7 @@ def agregar(data,limitadas=()):
             ident,label,known=agrupo(loc,nivel)
             if ident not in buckets:
                 buckets[ident]={'id':ident,'territorio':label,'localizacao_completa':known,'fatos':Counter(),
-                    'tipos':Counter(),'evidencias':[],'circulacao':Counter(),'metricas':Counter(),
+                    'tipos':Counter(),'evidencias':[],'circulacao':Counter(),'metricas':Counter(),'fatos_mi':Counter(),
                     'metricas_presentes':set(),'midia_custo_pareado':0,'midia_conversoes_pareadas':0,'contatos_pareados':0,'respostas_pareadas':0}
             return buckets[ident]
         for e in entities:
@@ -250,6 +254,10 @@ def agregar(data,limitadas=()):
                     b['contatos_pareados']+=m['contatos_realizados'];b['respostas_pareadas']+=m['respostas']
                 if record['tipo_registro']=='midia' and m.get('custo_centavos') is not None and m.get('conversoes',0)>0:
                     b['midia_custo_pareado']+=m['custo_centavos'];b['midia_conversoes_pareadas']+=m['conversoes']
+        for evento in data.get('mi_eventos',[]):
+            # Fato isolado do Maranhão Intelligence: nenhum contador antigo (fatos/metricas/
+            # circulacao) tem equivalência semântica com scan/ativacao/presenca/venda/feedback.
+            bucket(localizacao(evento))['fatos_mi'][evento['tipo_evento']]+=1
         total=sum(b['fatos']['relacoes'] for b in buckets.values() if b['localizacao_completa'])
         for b in buckets.values():
             f=b['fatos'];n=f['contatados'];r=f['respostas_com_abordagem']

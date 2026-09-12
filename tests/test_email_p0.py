@@ -337,9 +337,10 @@ class Rotas(Offline):
                 self.assertFalse(self.banco.pausado)
 
     def test_cors_gmail_origens_explicitas_e_sem_bypass(self):
-        self.ns['ORIGENS_PERMITIDAS_SAC'] = {'https://maranhaocordial.com.br', 'https://www.maranhaocordial.com.br'}
-        carregar_funcoes('main.py', ['adicionar_cors_sac'], self.ns)
-        self.app.after_request(self.ns['adicionar_cors_sac'])
+        import cors_sac
+        patch.object(cors_sac, 'ORIGENS_PERMITIDAS_SAC', {'https://maranhaocordial.com.br', 'https://www.maranhaocordial.com.br'}).start()
+        self.addCleanup(patch.stopall)
+        self.app.after_request(cors_sac.adicionar_cors_sac)
         for origem in ('https://maranhaocordial.com.br', 'https://maranhao-cordial.onrender.com'):
             r = self.client.options('/api/gmail/conectar', headers={'Origin': origem, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'X-Admin-Key'})
             self.assertEqual(r.status_code, 200)
@@ -421,11 +422,10 @@ class Adaptadores(Offline):
         ns["obter_gmail_service_fase56"].assert_not_called()
 
     def test_gmail_legado_bloqueia_antes_de_credenciais(self):
-        ns = dict(verificar_envio=seguranca.verificar_envio, get_db_connection=self.banco)
-        carregar_funcoes("main.py", ["gmail_enviar_email"], ns)
+        from gmail_legado import gmail_enviar_email
         self.banco.pausado = True
         with self.assertRaises(PermissionError):
-            ns["gmail_enviar_email"]("boa@example.com", "assunto", "texto")
+            gmail_enviar_email("boa@example.com", "assunto", "texto")
 
     def test_fase56_permitido_so_envia_ao_mock(self):
         from email.mime.multipart import MIMEMultipart

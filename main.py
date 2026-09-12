@@ -241,101 +241,7 @@ mas não a apresente como uso confirmado.
 """
 
 
-def normalizar_texto_publico(texto):
-    texto = unicodedata.normalize("NFKD", str(texto))
-    texto = "".join(
-        caractere
-        for caractere in texto
-        if not unicodedata.combining(caractere)
-    )
-    return texto.lower()
-
-
-def limpar_resposta_publica(texto):
-    texto = str(texto or "").strip()
-
-    # Corrige espaços depois de pontuação
-    texto = re.sub(r",(?=\S)", ", ", texto)
-    texto = re.sub(r"\.(?=\S)", ". ", texto)
-    texto = re.sub(r";(?=\S)", "; ", texto)
-
-    # Remove excesso de espaços e quebras
-    texto = re.sub(r"[ \t]+", " ", texto)
-    texto = re.sub(r"\n\s*\n+", "\n", texto)
-
-    return texto.strip()
-
-
-def validar_resposta_publica(mensagem, resposta):
-    texto = normalizar_texto_publico(resposta)
-    pergunta = normalizar_texto_publico(mensagem)
-
-    termos_bloqueados = [
-        "molho",
-        "marinada",
-        "sobremesa",
-        "minibar",
-        "pronto para servir",
-        "prontos para servir",
-        "pronta para servir",
-        "prontas para servir",
-        "reduz erros",
-        "reducao de erros",
-        "reduz custos",
-        "reducao de custos",
-        "ganho de produtividade",
-        "ganhos de produtividade",
-        "receita para",
-        "receitas para",
-        "aplicacoes na cozinha",
-        "aplicacao na cozinha",
-        "rapidez e consistencia",
-        "reduzindo tempo",
-        "reduzindo erros"
-    ]
-
-    if not any(
-        termo in texto
-        for termo in termos_bloqueados
-    ):
-        return resposta.strip()
-
-    print(
-        "RESPOSTA IA BLOQUEADA POR VALIDACAO:",
-        resposta
-    )
-
-    if "restaurante" in pergunta:
-        return (
-            "O Maranhão Cordial pode ampliar a carta de bebidas "
-            "com preparações em pequenas doses e combinações com "
-            "água com gás, água tônica, vodka, cachaça e café. "
-            "Outras aplicações gastronômicas precisam ser "
-            "avaliadas e validadas antes de serem recomendadas."
-        )
-
-    if "hotel" in pergunta:
-        return (
-            "O Maranhão Cordial pode integrar a carta de bebidas "
-            "do hotel em preparações com água com gás, tônica, "
-            "vodka, cachaça e café. Outras aplicações podem ser "
-            "avaliadas conforme a proposta do estabelecimento."
-        )
-
-    if "bar" in pergunta:
-        return (
-            "O Maranhão Cordial pode ser utilizado em pequenas "
-            "doses no preparo de bebidas com água com gás, tônica, "
-            "vodka e cachaça. Aplicações adicionais devem ser "
-            "avaliadas antes de serem apresentadas como uso validado."
-        )
-
-    return (
-        "Maranhão Cordial é um concentrado premium não alcoólico "
-        "de guaraná e gengibre para preparo de bebidas em pequenas "
-        "doses. Para usos não previstos na base oficial, a aplicação "
-        "precisa ser avaliada antes de ser recomendada."
-    )
+from respostas_publicas import normalizar_texto_publico, limpar_resposta_publica, validar_resposta_publica
 
 
 HIERARQUIA_DECISAO_EMPRESARIAL = """
@@ -3892,54 +3798,9 @@ def executar_email_supervisionado(ident):
 # CORS — SAC MARANHÃO CORDIAL
 # =====================================================
 
-ORIGENS_PERMITIDAS_SAC = {
-    "https://maranhaocordial.com.br",
-    "https://www.maranhaocordial.com.br",
-    "https://maranhao-cordial.onrender.com",
-}
+from cors_sac import ORIGENS_PERMITIDAS_SAC, adicionar_cors_sac
 
-
-@app.after_request
-def adicionar_cors_sac(response):
-
-    if request.path.startswith("/api/gmail/"):
-        origem = request.headers.get("Origin")
-        if origem in ORIGENS_PERMITIDAS_SAC | {"https://maranhao-cordial.onrender.com"}:
-            response.headers["Access-Control-Allow-Origin"] = origem
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Admin-Key"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.vary.add("Origin")
-        response.headers["Cache-Control"] = "no-store"
-
-    if (
-        request.path.startswith("/api/sac")
-        or request.path.startswith("/api/admin")
-        or request.path.startswith("/api/profissional/cadastro")
-        or request.path.startswith("/api/parceiros/fabricas/cadastro")
-    ):
-
-        origem = request.headers.get("Origin")
-
-        if origem in ORIGENS_PERMITIDAS_SAC:
-
-            response.headers[
-                "Access-Control-Allow-Origin"
-            ] = origem
-
-            response.headers[
-                "Vary"
-            ] = "Origin"
-
-            response.headers[
-                "Access-Control-Allow-Headers"
-            ] = "Content-Type, X-Admin-Key"
-
-            response.headers[
-                "Access-Control-Allow-Methods"
-            ] = "GET, POST, PATCH, PUT, DELETE, OPTIONS"
-
-    return response
+app.after_request(adicionar_cors_sac)
 
 
 socketio = SocketIO(
@@ -17406,9 +17267,7 @@ def gmail_callback():
 # GOOGLE / GMAIL — ENVIAR E-MAIL
 # =====================================================
 
-def gmail_enviar_email(destinatario, assunto, corpo):
-    # Rotas legadas não possuem aprovação vinculada a conteúdo imutável.
-    raise PermissionError("use_executor_de_acao_comercial_aprovada")
+from gmail_legado import gmail_enviar_email
 
 # =====================================================
 # GOOGLE / GMAIL — SINCRONIZAR COM IA EMPRESARIAL
@@ -39604,3 +39463,6 @@ registrar_acoes_comerciais(app, globals())
 
 from territorio_api import registrar_rotas as registrar_territorio
 registrar_territorio(app, get_db_connection, validar_admin_request)
+
+from mi_painel import registrar_rotas_mi_painel
+registrar_rotas_mi_painel(app, get_db_connection, validar_admin_request)

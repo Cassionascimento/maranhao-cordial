@@ -6,7 +6,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const scripts = file => [...fs.readFileSync(path.join(root, file), 'utf8').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(x => x[1]);
-const admin = scripts('maranhao-backend/admin.html').find(s => s.includes('function conectarGmailP0'));
+// conectarGmailP0 foi extraído de admin.html para gmail-admin.js (ETAPA 4.5); lido direto do arquivo, não mais de um <script> inline.
+const admin = fs.readFileSync(path.join(root, 'maranhao-backend/gmail-admin.js'), 'utf8');
 const bridge = scripts('maranhao-backend/gmail-oauth.html')[0];
 const api = 'https://maranhao-cordial-api.onrender.com';
 const origemPainel = 'https://maranhaocordial.com.br';
@@ -50,6 +51,7 @@ test('sintaxe de todos os scripts inline do painel e da janela OAuth', () => {
     for (const file of ['maranhao-backend/admin.html', 'maranhao-backend/gmail-oauth.html']) {
         for (const s of scripts(file)) new vm.Script(s, {filename: file});
     }
+    new vm.Script(admin, {filename: 'maranhao-backend/gmail-admin.js'});
 });
 
 test('painel não inicia OAuth sem autenticação ou com popup bloqueado', () => {

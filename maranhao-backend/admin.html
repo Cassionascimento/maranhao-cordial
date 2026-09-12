@@ -387,6 +387,9 @@ summary{
 }
 </style>
 <link rel="stylesheet" href="/inteligencia-territorial.css">
+<link rel="stylesheet" href="/maranhao-intelligence.css">
+<link rel="stylesheet" href="/app-shell.css">
+<link rel="stylesheet" href="/visao-geral.css">
 </head>
 
 <body>
@@ -400,14 +403,34 @@ summary{
             Sua central de decisão, acompanhamento e ação da Maranhão Cordial.
         </p>
 
-        <nav class="admin-tabs" id="adminTabs">
-            <button class="admin-tab" data-tab="visao-geral">Início</button>
-            <button class="admin-tab" data-tab="crm">Contatos</button>
-            <button class="admin-tab" data-tab="b2b">Oportunidades</button>
-            <button class="admin-tab" data-tab="presenca-digital">Social</button>
-            <button class="admin-tab" data-tab="empresa">Empresa</button>
-            <button class="admin-tab active" data-tab="ia-empresarial">IA</button>
-            <button class="admin-tab" data-tab="inteligencia-territorial">Inteligência Territorial</button>
+        <nav class="admin-tabs app-shell-nav" id="adminTabs">
+            <div class="app-shell-grupo" data-app-grupo="visao-geral">
+                <span class="app-shell-grupo-titulo">Visão Geral</span>
+                <button class="admin-tab" data-tab="visao-geral" data-grupo="visao-geral">Início</button>
+                <button class="admin-tab active" data-tab="ia-empresarial" data-grupo="visao-geral">IA</button>
+            </div>
+            <div class="app-shell-grupo" data-app-grupo="comercial">
+                <span class="app-shell-grupo-titulo">Comercial</span>
+                <button class="admin-tab" data-tab="crm" data-grupo="comercial">Contatos</button>
+                <button class="admin-tab" data-tab="b2b" data-grupo="comercial">Oportunidades</button>
+                <button class="admin-tab" data-tab="presenca-digital" data-grupo="comercial">Social</button>
+            </div>
+            <div class="app-shell-grupo" data-app-grupo="maranhao-intelligence">
+                <span class="app-shell-grupo-titulo">Maranhão Intelligence</span>
+                <button class="admin-tab" data-tab="maranhao-intelligence" data-grupo="maranhao-intelligence">Maranhão Intelligence</button>
+            </div>
+            <div class="app-shell-grupo" data-app-grupo="territorio">
+                <span class="app-shell-grupo-titulo">Território</span>
+                <button class="admin-tab" data-tab="inteligencia-territorial" data-grupo="territorio">Inteligência Territorial</button>
+            </div>
+            <div class="app-shell-grupo" data-app-grupo="operacao">
+                <span class="app-shell-grupo-titulo">Operação</span>
+                <button class="admin-tab" data-tab="empresa" data-grupo="operacao">Empresa</button>
+            </div>
+            <div class="app-shell-grupo" data-app-grupo="governanca">
+                <span class="app-shell-grupo-titulo">Governança</span>
+                <button class="admin-tab" data-tab="governanca" data-grupo="governanca">Aprovações</button>
+            </div>
         </nav>
 
         <section class="login-panel" id="loginPanel">
@@ -438,20 +461,61 @@ summary{
             class="admin-content"
         >
 
-            <div>
+            <div data-app-futuro-grupo="operacao">
                 <button type="button" onclick="conectarGmailP0()">Conectar Gmail institucional</button>
                 <span id="gmailP0Status" role="status"></span>
             </div>
 
-            <section class="card" aria-labelledby="titulo-acoes-comerciais">
-                <h2 id="titulo-acoes-comerciais">Ações aguardando aprovação</h2>
-                <p>Aprovar registra sua decisão. Nenhuma mensagem é enviada por este botão.</p>
-                <button type="button" id="atualizar-acoes-comerciais">Atualizar ações</button>
-                <p id="status-acoes-comerciais" role="status"></p>
-                <div id="lista-acoes-comerciais"></div>
+            <section class="tab-panel" data-panel="governanca" id="governanca-painel">
+                <div class="app-shell-cabecalho">
+                    <p class="app-shell-eyebrow">GOVERNANÇA</p>
+                    <h2>Aprovações e controles</h2>
+                    <p class="app-shell-descricao">Decisões pendentes sobre ações propostas pela IA. Aprovar registra a decisão; nenhuma mensagem é enviada por este botão.</p>
+                </div>
+                <section class="card" aria-labelledby="titulo-acoes-comerciais">
+                    <h2 id="titulo-acoes-comerciais">Ações aguardando aprovação</h2>
+                    <p>Aprovar registra sua decisão. Nenhuma mensagem é enviada por este botão.</p>
+                    <button type="button" id="atualizar-acoes-comerciais">Atualizar ações</button>
+                    <p id="status-acoes-comerciais" role="status"></p>
+                    <div id="lista-acoes-comerciais"></div>
+                </section>
             </section>
 
             <section class="tab-panel" data-panel="visao-geral">
+            <div id="visao-geral-executiva">
+                <div class="mi-topo">
+                    <p class="mi-eyebrow">ESTADO DA MARANHÃO</p>
+                    <h2>O que está acontecendo agora?</h2>
+                    <p class="mi-subtitle">Leitura rápida do que precisa da sua atenção — aprovações, canais e Maranhão Intelligence.</p>
+                </div>
+                <div class="mi-toolbar"><button type="button" id="vg-atualizar">Atualizar dados</button></div>
+                <p id="vg-status" role="status" aria-live="polite">Abra esta seção para consultar os dados.</p>
+                <div id="vg-conteudo" hidden>
+                    <div id="vg-kpis" class="mi-resumo"></div>
+                    <p class="vg-nota">* Scans de hoje estimados a partir dos eventos mais recentes do Maranhão Intelligence; não é uma contagem exaustiva.</p>
+                    <section class="mi-bloco">
+                        <h3>Leitura executiva</h3>
+                        <div id="vg-leitura"></div>
+                    </section>
+                    <section class="mi-bloco">
+                        <h3>O que exige atenção</h3>
+                        <div id="vg-atencao"></div>
+                    </section>
+                    <section class="mi-bloco">
+                        <h3>Canais</h3>
+                        <div id="vg-canais" class="vg-canais"></div>
+                    </section>
+                    <section class="mi-bloco">
+                        <h3>Comercial</h3>
+                        <p class="mi-subtitle">Funil detalhado logo abaixo, na Visão executiva já existente.</p>
+                    </section>
+                    <section class="mi-bloco">
+                        <h3>Maranhão Intelligence</h3>
+                        <div id="vg-mi"></div>
+                        <button type="button" data-vg-tab="maranhao-intelligence">Ver painel completo →</button>
+                    </section>
+                </div>
+            </div>
             <section id="painel-executivo" aria-labelledby="executivo-titulo">
                 <div class="exec-heading"><div><p class="exec-label">MARANHÃO CORDIAL · DIREÇÃO</p><h2 id="executivo-titulo">Visão executiva</h2><p class="exec-muted">O essencial para decidir. Evidências antes de ações.</p></div><span class="exec-badge">Leitura dos dados existentes</span></div>
                 <div id="exec-kpis" class="exec-kpis"></div>
@@ -1495,6 +1559,38 @@ summary{
       <button type="submit" id="territorio-salvar">Registrar fato</button>
     </form>
   </details>
+</section>
+
+            <section class="tab-panel" data-panel="maranhao-intelligence" id="mi-painel">
+  <div class="mi-topo">
+    <p class="mi-eyebrow">MARANHÃO INTELLIGENCE</p>
+    <h2>Produto → Unidade → Mercado → Território</h2>
+    <p class="mi-subtitle">Rastreabilidade de produto e leitura territorial dos eventos registrados.</p>
+  </div>
+  <div class="mi-toolbar"><button type="button" id="mi-atualizar">Atualizar dados</button></div>
+  <p id="mi-status" role="status" aria-live="polite">Abra esta seção para consultar os dados.</p>
+  <div id="mi-conteudo" hidden>
+    <section class="mi-bloco" aria-labelledby="mi-resumo-titulo">
+      <h3 id="mi-resumo-titulo">Resumo executivo</h3>
+      <div id="mi-resumo" class="mi-resumo"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="mi-atividade-titulo">
+      <h3 id="mi-atividade-titulo">Atividade recente</h3>
+      <div id="mi-atividade"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="mi-produto-titulo">
+      <h3 id="mi-produto-titulo">Produto e unidades</h3>
+      <div id="mi-produto"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="mi-estabelecimentos-titulo">
+      <h3 id="mi-estabelecimentos-titulo">Estabelecimentos</h3>
+      <div id="mi-estabelecimentos"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="mi-territorio-titulo">
+      <h3 id="mi-territorio-titulo">Território</h3>
+      <div id="mi-territorio"></div>
+    </section>
+  </div>
 </section>
 
             <section class="tab-panel active" data-panel="ia-empresarial">
@@ -8766,36 +8862,12 @@ async function criarCampanha57(){
 }
 </script>
 
-<script>
-function conectarGmailP0() {
-    const status = document.getElementById("gmailP0Status");
-    const chave = window.adminKeyAtual;
-    if (!chave) {
-        status.textContent = "Entre na Central com a chave administrativa.";
-        return;
-    }
-    const origemApi = "https://maranhao-cordial-api.onrender.com";
-    const janela = window.open(origemApi + "/api/gmail/painel", "_blank", "width=640,height=760");
-    if (!janela) {
-        status.textContent = "Permita a abertura da janela para conectar o Gmail.";
-        return;
-    }
-    status.textContent = "Conclua a autorização na janela do Gmail.";
-    const receber = (evento) => {
-        if (evento.origin !== origemApi || evento.source !== janela || evento.data?.tipo !== "gmail-p0-pronto") return;
-        window.removeEventListener("message", receber);
-        clearTimeout(prazo);
-        janela.postMessage({tipo: "gmail-p0-autorizar", chave}, origemApi);
-    };
-    window.addEventListener("message", receber);
-    const prazo = setTimeout(() => {
-        window.removeEventListener("message", receber);
-        status.textContent = "Conexão não iniciada. Feche a janela e tente novamente.";
-    }, 60000);
-}
-</script>
+<script src="/gmail-admin.js" defer></script>
 <script src="/acoes-comerciais.js" defer></script>
 <script src="/inteligencia-territorial.js" defer></script>
+<script src="/maranhao-intelligence.js" defer></script>
+<script src="/app-shell.js" defer></script>
+<script src="/visao-geral.js" defer></script>
 <script src="/whatsapp-omnichannel.js" defer></script>
 </body>
 </html>

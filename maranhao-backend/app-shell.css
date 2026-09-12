@@ -1,0 +1,138 @@
+/* Estrutura/apresentação global do shell administrativo. Nenhuma lógica de negócio aqui. */
+.app-shell-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.app-shell-grupo {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+}
+.app-shell-grupo-titulo {
+    font-size: 9px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--muted, #817f78);
+    min-width: 150px;
+}
+@media(max-width: 780px) {
+    .app-shell-grupo { flex-direction: column; gap: 2px 0; }
+    .app-shell-grupo-titulo { min-width: 0; margin-bottom: 2px; }
+}
+
+/* Destaque discreto para abas que exigem atenção — nunca decorativo, só um sinal. */
+.admin-tab.app-shell-alerta {
+    position: relative;
+}
+.admin-tab.app-shell-alerta::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    right: -8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gold, #b3a078);
+}
+
+/* Cabeçalho curto por domínio, reutilizável em qualquer tab-panel novo. */
+.app-shell-cabecalho {
+    margin: 8px 0 26px;
+    max-width: 640px;
+}
+.app-shell-eyebrow {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold, #b3a078);
+    margin: 0 0 6px;
+}
+.app-shell-cabecalho h2 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    font-size: 28px;
+    line-height: 1.2;
+    margin: 0 0 8px;
+}
+.app-shell-descricao {
+    color: var(--muted, #817f78);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Sidebar desktop (ETAPA 4.7). Fora do breakpoint largo, nada muda ainda —
+   o comportamento mobile fica para a ETAPA 4.8. */
+.app-sidebar { display: none; }
+
+@media (min-width: 1024px) {
+    /* A sidebar é position:fixed (fora do fluxo normal). O deslocamento
+       precisa ficar no <body>, não só em .admin-shell: outras seções já
+       existentes (ex. fase55Governanca, fase57Comando) são irmãs de
+       .admin-shell direto no <body>, fora deste componente -- um
+       margin-left só em .admin-shell as deixaria escondidas atrás da
+       sidebar. padding-left no body desloca todo mundo de uma vez, sem
+       tornar o body um flex container (isso quebraria o empilhamento
+       normal dessas seções). */
+    body.app-shell-sidebar-ativa {
+        padding-left: 240px;
+        box-sizing: border-box;
+    }
+    /* A fileira de abas legada não é removida, só ocultada -- reversível,
+       e evita duas navegações funcionais visíveis ao mesmo tempo. */
+    body.app-shell-sidebar-ativa .app-shell-nav {
+        display: none;
+    }
+    .app-sidebar {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 240px;
+        height: 100vh;
+        overflow-y: auto;
+        box-sizing: border-box;
+        padding: 28px 0;
+        background: #0d0e0c;
+        border-right: 1px solid #2c3630;
+        z-index: 20;
+    }
+}
+
+.app-sidebar-marca {
+    padding: 0 22px 22px;
+    font-size: 11px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--gold, #b3a078);
+    border-bottom: 1px solid #2c3630;
+    margin-bottom: 14px;
+}
+.app-sidebar-grupo { margin-bottom: 18px; }
+.app-sidebar-grupo-titulo {
+    padding: 0 22px 6px;
+    font-size: 9px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #6f7a71;
+    margin: 0;
+}
+.app-sidebar-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 9px 22px;
+    border: 0;
+    border-left: 2px solid transparent;
+    background: transparent;
+    color: #b9c4bb;
+    font-size: 13px;
+    cursor: pointer;
+}
+.app-sidebar-item:hover { color: var(--text, #eeeae2); }
+.app-sidebar-item.active {
+    color: var(--text, #eeeae2);
+    border-left-color: var(--gold, #b3a078);
+    background: rgba(179, 160, 120, 0.08);
+}

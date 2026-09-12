@@ -1,5 +1,6 @@
 import unittest
-from inteligencia_territorial import agregar,localizacao
+from unittest.mock import MagicMock,patch
+from inteligencia_territorial import agregar,localizacao,carregar
 
 
 def rel(ident,city='São Paulo',uf='SP',**kw):
@@ -125,6 +126,65 @@ class Territorial(unittest.TestCase):
         self.assertEqual(b['circulacao'],{})
         self.assertEqual(b['metricas'],{})
         self.assertIsNone(b['indicadores']['custo_por_conversao_midia_centavos'])
+
+
+def mi_evento(**kw):
+    return {**dict(id=1,tipo_evento='scan',canal='qr',sku=None,ocorrido_em=None,
+                   cidade=None,uf=None,bairro=None),**kw}
+
+
+class MiEventosTerritorio(unittest.TestCase):
+    def group(self,r,city):return next(t for t in r['niveis']['cidade'] if t['territorio']==city)
+
+    def test_evento_com_localizacao_contribui_no_territorio_correto(self):
+        r=agregar({'mi_eventos':[mi_evento(cidade='Salvador',uf='BA')]})
+        b=self.group(r,'Salvador / BA')
+        self.assertEqual(b['fatos_mi']['scan'],1)
+        self.assertTrue(b['localizacao_completa'])
+
+    def test_evento_sem_localizacao_fica_desconhecido_sem_inventar(self):
+        r=agregar({'mi_eventos':[mi_evento()]})
+        b=next(x for x in r['niveis']['cidade'] if not x['localizacao_completa'])
+        self.assertEqual(b['territorio'],'Localização desconhecida')
+        self.assertEqual(b['fatos_mi']['scan'],1)
+
+    def test_mi_eventos_nao_altera_relacoes_ou_identidade_crm(self):
+        r=agregar({'leads_crm':[rel('a','Salvador','BA',email='a@real.com')],
+                   'mi_eventos':[mi_evento(cidade='Salvador',uf='BA',tipo_evento='venda')]})
+        self.assertEqual(r['cobertura']['relacoes_unicas'],1)
+        b=self.group(r,'Salvador / BA')
+        self.assertEqual(b['fatos']['relacoes'],1)
+        self.assertEqual(b['fatos_mi']['venda'],1)
+
+    def test_nao_inventa_equivalencia_com_contadores_antigos(self):
+        r=agregar({'mi_eventos':[mi_evento(cidade='Salvador',uf='BA',tipo_evento='venda'),
+                                  mi_evento(cidade='Salvador',uf='BA',tipo_evento='ativacao')]})
+        b=self.group(r,'Salvador / BA')
+        self.assertEqual(b['fatos']['eventos_registrados'],0)
+        self.assertEqual(b['fatos']['relacoes_com_conversao'],0)
+        self.assertEqual(b['circulacao'],{})
+        self.assertEqual(b['metricas'],{})
+
+
+class CarregarComMiEventos(unittest.TestCase):
+    def test_le_mi_eventos_no_mesmo_cursor_e_aplica_limite_5000(self):
+        conn=MagicMock()
+        cur=conn.cursor.return_value.__enter__.return_value
+        cur.fetchall.return_value=[]
+        linhas=[mi_evento(id=i) for i in range(5001)]
+        with patch('mi_eventos.consumo_territorial',return_value=linhas) as mocked:
+            report=carregar(lambda:conn)
+        mocked.assert_called_once_with(cur)
+        self.assertIn('mi_eventos',report['cobertura']['fontes_limitadas'])
+        self.assertEqual(cur.execute.call_count,15)  # 13 fontes + statement_timeout + snapshot_ga4, sem regressão
+
+    def test_sem_mi_eventos_nao_marca_fonte_limitada(self):
+        conn=MagicMock()
+        cur=conn.cursor.return_value.__enter__.return_value
+        cur.fetchall.return_value=[]
+        with patch('mi_eventos.consumo_territorial',return_value=[]):
+            report=carregar(lambda:conn)
+        self.assertNotIn('mi_eventos',report['cobertura']['fontes_limitadas'])
 
 
 if __name__=='__main__':unittest.main()
