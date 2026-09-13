@@ -15024,13 +15024,18 @@ def cadastro_profissional_rede():
 
 
 @app.route("/experience")
+@app.route("/experience.html")
 def experience():
-    return renderizar_html("experience.html")
+    # Homepage radicalmente simplificada: página retirada da navegação
+    # pública, mas o arquivo continua no projeto (reversível) -- só o
+    # acesso direto (link antigo, favorito, busca) redireciona para a home.
+    return redirect("/", code=302)
 
 
 @app.route("/raizes")
+@app.route("/raizes.html")
 def raizes():
-    return renderizar_html("raizes.html")
+    return redirect("/", code=302)
 
 
 @app.route("/politica-de-privacidade")

@@ -160,13 +160,18 @@ test('clique fora de qualquer elemento marcado nao dispara nada alem do load aut
   assert.equal(t.chamadas.length, antes);
 });
 
-test('index.html liga consentimento.js/site-sinais.js e marca os 3 CTAs reais',()=>{
+test('index.html (homepage minimalista) liga consentimento.js/site-sinais.js e marca o CTA de Shop',()=>{
+  // Homepage radicalmente simplificada: Nossas Raízes e Maranhão Experience
+  // saíram da navegação pública (main.py agora redireciona /raizes e
+  // /experience para a home), então os data-mc-cta antigos ligados a essas
+  // páginas não existem mais -- só cabeçalho (logo + Shop) permanece.
   const html = fs.readFileSync('maranhao-backend/index.html','utf8');
   assert.match(html,/<link rel="stylesheet" href="consentimento\.css">/);
   assert.match(html,/<script src="consentimento\.js" defer><\/script>/);
   assert.match(html,/<script src="site-sinais\.js" defer><\/script>/);
-  assert.match(html,/data-mc-cta="experience"/);
-  assert.match(html,/data-mc-cta="compreaqui"/);
-  assert.match(html,/data-mc-produto="guarana"/);
-  assert.match(html,/data-mc-cta="profissional"/);
+  assert.match(html,/data-mc-cta="shop_header"/);
+  assert.match(html,/data-mc-cta="logo_home"/);
+  assert.doesNotMatch(html,/data-mc-cta="experience"/);
+  assert.doesNotMatch(html,/href="\/raizes\.html"/);
+  assert.doesNotMatch(html,/href="\/experience\.html"/);
 });

@@ -1,7 +1,21 @@
-/* Conselho de Agentes: reaproveita a base visual do Maranhão Intelligence. */
+/* Conselho de Agentes: reaproveita a base visual do Maranhão Intelligence.
+
+   Correção de layout: um token técnico longo sem espaços (UUID de sinal_id,
+   slug de tipo_evento etc.) dentro de qualquer card/parágrafo forçava
+   overflow horizontal do próprio elemento -- sem limite de contenção, esse
+   overflow escapava da caixa e empurrava a página inteira para o lado,
+   cortando texto da sidebar e sobrepondo blocos vizinhos. `overflow-wrap` +
+   `min-width:0` nos itens de grid/flex fecham essa classe de bug em
+   qualquer conteúdo futuro, não só no caso que a reproduziu. */
+#conselho-painel { overflow-x: hidden; }
 #conselho-painel .mi-topo { margin: 24px 0 4px; }
 #conselho-painel .mi-eyebrow { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold, #a8b8a4); margin: 0 0 6px; }
 #conselho-painel .mi-subtitle { color: #b0bcb4; max-width: 640px; margin: 0 0 18px; line-height: 1.5; }
+#conselho-painel p, #conselho-painel li, #conselho-painel pre, #conselho-painel td, #conselho-painel th, #conselho-painel summary, #conselho-painel strong, #conselho-painel span {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+#conselho-painel .mi-stat, #conselho-painel .mi-resumo { min-width: 0; }
 
 .conselho-consulta { border: 1px solid #4b5d52; background: linear-gradient(180deg,#151d18,#101612); }
 .conselho-consulta-head { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; flex-wrap:wrap; margin-bottom:16px; }
@@ -28,7 +42,7 @@
 .conselho-resultado-topo h4, .conselho-sintese h4 { margin:0 0 5px; color:#eeeae2; }
 .conselho-resultado-meta { color:#8f9c92; font-size:.78rem; margin:0; }
 .conselho-pareceres-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin:14px 0; }
-.conselho-parecer-card { border:1px solid #39463e; border-radius:10px; padding:14px; background:#101713; }
+.conselho-parecer-card { border:1px solid #39463e; border-radius:10px; padding:14px; background:#101713; min-width: 0; }
 .conselho-parecer-card p { color:#c4d0c7; font-size:.82rem; line-height:1.45; margin:8px 0 0; }
 .conselho-parecer-nome { display:block; color:#eeeae2; }
 .conselho-parecer-confianca { display:block; color:#829086; font-size:.72rem; margin-top:3px; text-transform:uppercase; letter-spacing:.3px; }
@@ -36,12 +50,34 @@
 .conselho-parecer-acao { border-top:1px solid #2f3933; padding-top:8px; }
 .conselho-parecer-veto { border-color:#a96666; }
 .conselho-veto-texto { color:#d99a9a !important; font-weight:600; }
-.conselho-sintese { border:1px solid #46564c; border-radius:10px; padding:14px; background:#172019; margin:12px 0; }
+.conselho-sintese { border:1px solid #46564c; border-radius:10px; padding:14px; background:#172019; margin:12px 0; min-width: 0; }
 .conselho-sintese p { margin:5px 0 0; color:#d5ded7; font-size:.85rem; line-height:1.5; }
 .conselho-alerta { border-left:3px solid #c6a66b; padding:8px 10px; color:#d8c69d; font-size:.82rem; background:#211d14; }
 
+/* Rótulos (Conclusão/Evidências/Riscos/Recomendação) e badge de confiança
+   do parecer executivo por agente nas Atas -- reaproveita .conselho-
+   parecer-card/.conselho-sintese acima (mesma linguagem visual da consulta
+   interativa), só adiciona a granularidade que faltava. */
+.conselho-parecer-cabecalho { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.conselho-parecer-rotulo { font-size:.68rem; letter-spacing:.5px; text-transform:uppercase; color:#9aa89e; margin:10px 0 3px; font-weight:600; }
+.conselho-parecer-rotulo:first-of-type { margin-top:2px; }
+.conselho-parecer-lista { margin:8px 0 0; padding-left:18px; font-size:.82rem; color:#c4d0c7; line-height:1.45; }
+.conselho-parecer-vazio { font-size:.82rem; color:#8a968c; font-style:italic; margin:8px 0 0; }
+.conselho-badge { font-size:.68rem; letter-spacing:.4px; text-transform:uppercase; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+.conselho-badge-alta { border:1px solid #8fbf8a; color:#8fbf8a; }
+.conselho-badge-media { border:1px solid #c9b46a; color:#c9b46a; }
+.conselho-badge-baixa { border:1px solid #c98a8a; color:#c98a8a; }
+
+/* Seções recolhíveis -- vazio já é uma linha só; com conteúdo, abre por
+   padrão e o Diretor pode recolher depois (nunca um bloco grande fixo
+   ocupando a tela sem necessidade). */
+.conselho-secao-recolhivel > summary { cursor:pointer; font-size:.78rem; color:#9aa89e; padding:4px 0; list-style:revert; }
+.conselho-secao-recolhivel[open] > summary { margin-bottom:8px; }
+.conselho-auditoria { margin-top:12px; border-top:1px dashed #2c3630; padding-top:8px; }
+.conselho-auditoria > summary { cursor:pointer; font-size:.72rem; letter-spacing:.4px; text-transform:uppercase; color:#8a968c; list-style:revert; }
+
 .conselho-agentes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
-.conselho-agente-card { border:1px solid #3c4842; border-radius:12px; padding:16px 18px; background:#141b17; display:flex; flex-direction:column; gap:5px; }
+.conselho-agente-card { border:1px solid #3c4842; border-radius:12px; padding:16px 18px; background:#141b17; display:flex; flex-direction:column; gap:5px; min-width: 0; }
 .conselho-agente-nome { font-size:1.05rem; color:var(--text,#eeeae2); }
 .conselho-agente-area { font-size:.78rem; color:#9aa89e; text-transform:uppercase; letter-spacing:.4px; }
 .conselho-agente-status { align-self:flex-start; font-size:.68rem; letter-spacing:.4px; text-transform:uppercase; padding:2px 8px; border-radius:999px; margin:4px 0 6px; }
@@ -55,11 +91,11 @@
 .conselho-json-card { border:1px solid #3c4842; border-radius:10px; padding:12px 14px; margin-bottom:12px; }
 .conselho-json-card--veto { border-color:#c98a8a; }
 .conselho-json-card--veto strong { color:#c98a8a; }
-.conselho-ata-card { border:1px solid #3c4842; border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+.conselho-ata-card { border:1px solid #3c4842; border-radius:12px; padding:16px 18px; margin-bottom:14px; min-width: 0; }
 .conselho-ata-cabecalho { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; gap:12px; flex-wrap:wrap; }
 .conselho-ata-cabecalho strong { color:var(--text,#eeeae2); font-size:1rem; }
 .conselho-ata-cabecalho span { color:#9aa89e; font-size:.8rem; }
-.conselho-ata-card p { font-size:.85rem; color:#cdd8bd; margin:0 0 6px; line-height:1.5; }
+.conselho-ata-card > p { font-size:.85rem; color:#cdd8bd; margin:0 0 6px; line-height:1.5; }
 
 @media (max-width:720px) {
   .conselho-agentes-grid,.conselho-modos,.conselho-pareceres-grid { grid-template-columns:1fr; }

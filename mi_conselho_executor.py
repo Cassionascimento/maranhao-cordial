@@ -162,9 +162,24 @@ def _consolidar(avaliado, pareceres, erros, excedeu_limite=False):
     """Monta o corpo para `mi_conselho.registrar_registro` a partir dos
     pareceres coletados -- reaproveita a estrutura já existente (tipo/
     participantes/posicoes/conflitos/vetos/recomendacoes/precisa_diretor),
-    nenhum campo novo no schema."""
+    nenhum campo novo no schema.
+
+    `posicoes[agente]` carrega um objeto (conclusao/confianca/dados_utilizados/
+    riscos) em vez de só o texto da conclusão -- mesma coluna JSONB de sempre
+    (sem migration), só um payload mais rico para o painel Admin poder
+    apresentar Evidências/Riscos por agente sem inventar dado nenhum. Um
+    registro antigo com `posicoes[agente]` como string simples continua
+    válido (o painel trata os dois formatos)."""
     participantes = [p['agente'] for p in pareceres]
-    posicoes = {p['agente']: p['conclusao'] for p in pareceres}
+    posicoes = {
+        p['agente']: {
+            'conclusao': p['conclusao'],
+            'confianca': p['confianca'],
+            'dados_utilizados': p.get('dados_utilizados') or '',
+            'riscos': p.get('riscos') or '',
+        }
+        for p in pareceres
+    }
     vetos = {p['agente']: p['veto_motivo'] for p in pareceres if p.get('veto')}
     conflitos = {p['agente']: p['divergencias'] for p in pareceres
                  if (p.get('divergencias') or '').strip().lower() not in _SEM_DIVERGENCIA}

@@ -194,6 +194,20 @@ class Consolidar(unittest.TestCase):
         corpo2 = e._consolidar(avaliado, [self.parecer('marie')], [])
         self.assertEqual(corpo1['chave'], corpo2['chave'])
 
+    def test_posicoes_carrega_objeto_estruturado_para_o_painel_sem_inventar_dado(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        parecer = self.parecer('iris', confianca='alta', dados_utilizados='3 leituras', riscos='nenhum')
+        corpo = e._consolidar(avaliado, [parecer], [])
+        self.assertEqual(corpo['posicoes']['iris'], {
+            'conclusao': 'ok', 'confianca': 'alta', 'dados_utilizados': '3 leituras', 'riscos': 'nenhum',
+        })
+
+    def test_posicoes_preenche_dados_utilizados_e_riscos_ausentes_com_string_vazia(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer('marie')], [])
+        self.assertEqual(corpo['posicoes']['marie']['dados_utilizados'], '')
+        self.assertEqual(corpo['posicoes']['marie']['riscos'], '')
+
 
 class ProcessarERegistrar(unittest.TestCase):
     def _conn_com_um_pendente(self, sinal):
