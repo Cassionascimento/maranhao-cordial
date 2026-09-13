@@ -1,0 +1,70 @@
+/* Conselho de Agentes: reaproveita .mi-topo/.mi-eyebrow/.mi-subtitle/.mi-toolbar/
+   .mi-bloco/.mi-resumo/.mi-stat/.mi-vazio/.mi-tabela (maranhao-intelligence.css)
+   -- só o que é específico desta tela fica aqui. */
+#conselho-painel .mi-topo { margin: 24px 0 4px; }
+#conselho-painel .mi-eyebrow { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold, #a8b8a4); margin: 0 0 6px; }
+#conselho-painel .mi-subtitle { color: #b0bcb4; max-width: 640px; margin: 0 0 18px; line-height: 1.5; }
+
+.conselho-agentes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.conselho-agente-card {
+    border: 1px solid #3c4842;
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: #141b17;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.conselho-agente-nome { font-size: 1.05rem; color: var(--text, #eeeae2); }
+.conselho-agente-area { font-size: .78rem; color: #9aa89e; text-transform: uppercase; letter-spacing: .4px; }
+.conselho-agente-status {
+    align-self: flex-start;
+    font-size: .68rem;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin: 4px 0 6px;
+}
+.conselho-agente-trabalhando .conselho-agente-status { border: 1px solid #8fbf8a; color: #8fbf8a; }
+.conselho-agente-sem_demanda .conselho-agente-status { border: 1px solid #6f7a71; color: #9aa89e; }
+.conselho-agente-card p { font-size: .82rem; color: #cdd8bd; margin: 0; line-height: 1.4; }
+.conselho-agente-nota { color: #8a968c; font-style: italic; margin-top: 4px !important; }
+
+.conselho-json-bloco, .conselho-json-card { margin-top: 8px; }
+.conselho-json-rotulo { display: block; font-size: .7rem; letter-spacing: .4px; text-transform: uppercase; color: #9aa89e; margin-bottom: 4px; }
+.conselho-json-pre {
+    background: #0e1512;
+    border: 1px solid #2c3630;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: .78rem;
+    color: #cdd8bd;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+}
+.conselho-json-card {
+    border: 1px solid #3c4842;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+}
+.conselho-json-card--veto { border-color: #c98a8a; }
+.conselho-json-card--veto strong { color: #c98a8a; }
+
+.conselho-ata-card {
+    border: 1px solid #3c4842;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+}
+.conselho-ata-cabecalho { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; gap: 12px; flex-wrap: wrap; }
+.conselho-ata-cabecalho strong { color: var(--text, #eeeae2); font-size: 1rem; }
+.conselho-ata-cabecalho span { color: #9aa89e; font-size: .8rem; }
+.conselho-ata-card p { font-size: .85rem; color: #cdd8bd; margin: 0 0 6px; line-height: 1.5; }
+
+@media (max-width: 720px) {
+    .conselho-agentes-grid { grid-template-columns: 1fr; }
+}

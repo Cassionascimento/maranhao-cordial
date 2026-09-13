@@ -3948,6 +3948,7 @@ def salvar_pedido_postgres(pedido):
                         tracking_code = EXCLUDED.tracking_code,
                         tracking_url = EXCLUDED.tracking_url,
                         atualizado_em = NOW()
+                    RETURNING (xmax = 0) AS foi_criado
                 """, (
                     str(uuid.uuid4()),
                     pedido.get("code"),
@@ -3969,8 +3970,25 @@ def salvar_pedido_postgres(pedido):
                     pedido.get("delivery", {}).get("tracking_url")
                 ))
 
+                linha = cur.fetchone()
+                foi_criado = bool(linha and linha[0])
+
     finally:
         conn.close()
+
+    # xmax=0 é o único jeito confiável de distinguir INSERT de UPDATE num
+    # upsert; nunca reportar os pedidos sintéticos de /api/pedidos/teste-postgres.
+    if foi_criado and pedido.get("status") != "teste" and pedido.get("payment_origin") != "teste":
+        from mi_sinais import emitir
+        emitir(
+            get_db_connection,
+            natureza="fato",
+            origem="pedidos",
+            tipo_evento="pedido_criado",
+            origem_id=pedido.get("code"),
+            canal=pedido.get("payment_origin"),
+            payload={"quantidade": pedido.get("quantity"), "valor_centavos": pedido.get("amount")},
+        )
 
 
 def avaliar_politica_execucao(
@@ -15271,6 +15289,20 @@ def cadastrar_empresa():
                 repr(erro_rede)
             )
 
+        from mi_sinais import emitir
+        uf_site = estado_rede.strip().upper() if estado_rede else ""
+        emitir(
+            get_db_connection,
+            natureza="fato",
+            origem="site",
+            tipo_evento="interesse_profissional_b2b",
+            origem_id=cadastro_id,
+            canal="site",
+            territorio_uf=uf_site if re.fullmatch(r"[A-Z]{2}", uf_site) else None,
+            territorio_cidade=cidade_rede or None,
+            payload={"origem_cadastro": origem},
+        )
+
         return jsonify({
             "success": True,
             "message": "Cadastro profissional recebido.",
@@ -15341,6 +15373,16 @@ def cadastrar_degustacao():
                     ))
         finally:
             conn.close()
+
+        from mi_sinais import emitir
+        emitir(
+            get_db_connection,
+            natureza="fato",
+            origem="site",
+            tipo_evento="interesse_degustacao",
+            origem_id=degustacao_id,
+            canal="site",
+        )
 
         return jsonify({
             "success": True,
@@ -21031,6 +21073,20 @@ def admin_criar_lead_crm():
 
                 lead = cur.fetchone()
 
+        from mi_sinais import emitir
+        uf = (estado or "").strip().upper()
+        emitir(
+            get_db_connection,
+            natureza="fato",
+            origem="crm",
+            tipo_evento="lead_criado",
+            origem_id=lead_id,
+            canal=canal,
+            territorio_uf=uf if re.fullmatch(r"[A-Z]{2}", uf) else None,
+            territorio_cidade=cidade,
+            payload={"tipo_lead": tipo_lead, "estagio": estagio},
+        )
+
         return jsonify({
             "success": True,
             "lead": lead
@@ -21185,13 +21241,26 @@ def admin_atualizar_lead_crm(lead_id):
 
     valores.append(lead_id)
 
+    estagio_solicitado = None
+    if "estagio" in dados:
+        estagio_solicitado = str(dados.get("estagio")).strip().lower()
+
     conn = get_db_connection()
+    estagio_anterior = None
 
     try:
         with conn:
             with conn.cursor(
                 cursor_factory=RealDictCursor
             ) as cur:
+
+                if estagio_solicitado is not None:
+                    cur.execute(
+                        "SELECT estagio FROM leads_crm WHERE id = %s",
+                        (lead_id,)
+                    )
+                    linha_atual = cur.fetchone()
+                    estagio_anterior = linha_atual["estagio"] if linha_atual else None
 
                 query = f"""
                     UPDATE leads_crm
@@ -21212,6 +21281,31 @@ def admin_atualizar_lead_crm(lead_id):
                         "success": False,
                         "error": "Lead não encontrado."
                     }), 404
+
+        if (
+            estagio_solicitado is not None
+            and estagio_anterior is not None
+            and estagio_anterior != estagio_solicitado
+        ):
+            from mi_sinais import emitir
+            emitir(
+                get_db_connection,
+                natureza="fato",
+                origem="crm",
+                tipo_evento="lead_estagio_mudou",
+                origem_id=lead_id,
+                discriminador=estagio_solicitado,
+                payload={"estagio_anterior": estagio_anterior, "estagio_novo": estagio_solicitado},
+            )
+            if estagio_solicitado == "qualificacao":
+                emitir(
+                    get_db_connection,
+                    natureza="fato",
+                    origem="crm",
+                    tipo_evento="lead_qualificado",
+                    origem_id=lead_id,
+                    payload={"estagio_anterior": estagio_anterior},
+                )
 
         return jsonify({
             "success": True,
@@ -39459,6 +39553,18 @@ registrar_territorio(app, get_db_connection, validar_admin_request)
 
 from mi_painel import registrar_rotas_mi_painel
 registrar_rotas_mi_painel(app, get_db_connection, validar_admin_request)
+
+from mi_calendario import registrar_rotas_mi_calendario
+registrar_rotas_mi_calendario(app, get_db_connection, validar_admin_request)
+
+from mi_diretor import registrar_rotas_mi_diretor
+registrar_rotas_mi_diretor(app, get_db_connection, validar_admin_request)
+
+from mi_conselho import registrar_rotas_conselho
+registrar_rotas_conselho(app, get_db_connection, validar_admin_request)
+
+from site_sinais import registrar_rotas_site_sinais
+registrar_rotas_site_sinais(app, get_db_connection)
 
 from autonomia_supervisionada import registrar_rotas as registrar_autonomia_supervisionada
 registrar_autonomia_supervisionada(app, globals())

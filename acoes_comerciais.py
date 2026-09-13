@@ -5,6 +5,7 @@ import re
 from contextvars import ContextVar
 from uuid import UUID
 from psycopg2.extras import RealDictCursor, Json
+from mi_sinais import emitir
 
 _aprovacao = ContextVar("acao_comercial_aprovada", default=None)
 
@@ -66,27 +67,38 @@ def propor(factory, dados, origem_tipo, origem_id):
                     cur.execute("INSERT INTO auditoria_acoes_comerciais(acao_id,evento,ator) VALUES(%s,'proposta','ia')", (nova['id'],))
                 cur.execute("SELECT id,status,digest,origem_tipo,origem_id FROM acoes_comerciais_propostas WHERE chave=%s", (chave,))
                 row = dict(cur.fetchone())
-                return dict(success=True, proposta_criada=bool(nova), enviado=False, acao=row)
     finally:
         conn.close()
+    if nova:
+        # Proposta da IA pendente de decisão humana: recomendação, nunca fato confirmado.
+        emitir(factory, natureza='recomendacao', origem='acoes_comerciais', tipo_evento='acao_proposta',
+               origem_id=str(row['id']), canal=dados.get('canal'),
+               payload={'tipo': dados.get('tipo'), 'origem_tipo': origem_tipo})
+    return dict(success=True, proposta_criada=bool(nova), enviado=False, acao=row)
 
 
 def decidir(factory, identificador, esperado, aprovar, ator='direcao'):
     conn = factory()
+    status = 'aprovada' if aprovar else 'rejeitada'
+    sucesso = False
     try:
         with conn:
             with conn.cursor() as cur:
-                status = 'aprovada' if aprovar else 'rejeitada'
                 cur.execute("""UPDATE acoes_comerciais_propostas SET status=%s,decidido_em=NOW(),
                     decidido_por=%s,digest_aprovado=%s,atualizado_em=NOW()
                     WHERE id=%s AND status='aguardando_aprovacao' AND digest=%s RETURNING id""",
                     (status, ator, esperado if aprovar else None, identificador, esperado))
-                if not cur.fetchone():
-                    return {'success': False, 'motivo': 'estado_ou_conteudo_alterado'}
-                cur.execute("INSERT INTO auditoria_acoes_comerciais(acao_id,evento,ator) VALUES(%s,%s,%s)", (identificador,status,ator))
-                return {'success': True, 'status': status, 'enviado': False}
+                if cur.fetchone():
+                    sucesso = True
+                    cur.execute("INSERT INTO auditoria_acoes_comerciais(acao_id,evento,ator) VALUES(%s,%s,%s)", (identificador,status,ator))
     finally:
         conn.close()
+    if not sucesso:
+        return {'success': False, 'motivo': 'estado_ou_conteudo_alterado'}
+    # Decisão humana de fato tomada: ação, não mais recomendação pendente.
+    emitir(factory, natureza='acao', origem='acoes_comerciais', tipo_evento='acao_' + status,
+           origem_id=str(identificador), payload={'ator': ator})
+    return {'success': True, 'status': status, 'enviado': False}
 
 
 def conteudo_aprovado(destinatario=None):
@@ -150,6 +162,10 @@ def executar(factory, identificador, executor, resposta_executor=None):
                 cur.execute("INSERT INTO auditoria_acoes_comerciais(acao_id,evento,ator) VALUES(%s,%s,'executor_aprovado')", (identificador,status))
     finally:
         conn.close()
+    # Desfecho observável da execução -- resultado, não a ação em si.
+    tipo_sinal = 'acao_bloqueada' if status == 'bloqueada' else 'acao_executada'
+    emitir(factory, natureza='resultado', origem='acoes_comerciais', tipo_evento=tipo_sinal,
+           origem_id=str(identificador), resultado=status, payload={'tipo': d.get('tipo')})
     return {'success': status == 'enviada', 'status': status, 'resultado': resultado}
 
 
