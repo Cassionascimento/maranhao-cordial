@@ -1,0 +1,110 @@
+/* Modo Diretor (ETAPA 5.3): camada executiva sobre o Admin técnico.
+   Reaproveita .mi-topo/.mi-eyebrow/.mi-subtitle/.mi-resumo/.mi-stat/.mi-bloco
+   e .vg-vazio/.vg-canal* já existentes -- só o que é específico desta tela
+   fica aqui. Poucas tabelas, cards grandes, muito espaço. */
+#modo-diretor { max-width: 1180px; margin: 0 auto 32px; }
+
+.md-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border: 1px solid #3c4842;
+    border-radius: 12px;
+    background: #18221d;
+    margin: 0 0 22px;
+    font-size: 0.95rem;
+}
+.md-status-ponto { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.md-status-trabalhando .md-status-ponto { background: #8fbf8a; }
+.md-status-aguardando .md-status-ponto { background: #9aa89e; }
+.md-status-precisa .md-status-ponto { background: var(--gold, #b3a078); }
+.md-status strong { color: var(--text, #eeeae2); }
+
+.md-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 900px) { .md-grid { grid-template-columns: 1fr; } }
+
+.md-card {
+    border: 1px solid #3c4842;
+    border-radius: 12px;
+    padding: 20px 22px;
+    background: #141b17;
+}
+.md-card h3 { margin: 0 0 12px; font-size: 0.82rem; letter-spacing: 0.6px; text-transform: uppercase; color: #cdd8bd; }
+.md-card--largo { grid-column: 1 / -1; }
+
+.md-proxima { font-size: 1.05rem; line-height: 1.5; }
+.md-proxima strong { color: var(--text, #eeeae2); }
+.md-proxima .md-motivo { display: block; margin-top: 6px; color: #9aa89e; font-size: 0.85rem; }
+
+.md-precisa-nada { color: #8fbf8a; font-size: 0.95rem; }
+.md-precisa-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.md-precisa-lista li { border-left: 2px solid var(--gold, #b3a078); padding: 4px 0 4px 12px; font-size: 0.9rem; color: #cdd8bd; }
+
+.md-top10 { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.md-top10 li { display: flex; align-items: baseline; gap: 10px; font-size: 0.92rem; }
+.md-top10 .md-posicao { color: #6f7a71; font-variant-numeric: tabular-nums; width: 1.4em; flex: none; }
+.md-top10 .md-tema { color: var(--text, #eeeae2); flex: 1; }
+.md-top10 .md-tendencia { flex: none; }
+.md-tendencia-subindo { color: #8fbf8a; }
+.md-tendencia-caindo { color: #c98a8a; }
+.md-tendencia-estavel, .md-tendencia-novo { color: #9aa89e; }
+
+/* Selo de natureza: distinção epistêmica sem poluir -- pequeno, discreto. */
+.md-natureza {
+    font-size: 0.62rem;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 999px;
+    flex: none;
+}
+.md-natureza-fato { border: 1px solid #8fbf8a; color: #8fbf8a; }
+.md-natureza-interesse_observado { border: 1px solid #9aa89e; color: #9aa89e; }
+.md-natureza-inferencia { border: 1px dashed #9aa89e; color: #9aa89e; }
+.md-natureza-recomendacao { border: 1px dashed var(--gold, #b3a078); color: var(--gold, #b3a078); }
+.md-natureza-acao, .md-natureza-resultado { border: 1px solid var(--gold, #b3a078); color: var(--gold, #b3a078); }
+
+.md-conteudo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 900px) { .md-conteudo-grid { grid-template-columns: 1fr; } }
+.md-conteudo-card {
+    border: 1px solid #3c4842;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.md-conteudo-slot { font-size: 0.7rem; letter-spacing: 0.6px; text-transform: uppercase; color: var(--gold, #b3a078); }
+.md-conteudo-tema { font-size: 1rem; color: var(--text, #eeeae2); }
+.md-conteudo-meta { font-size: 0.78rem; color: #9aa89e; }
+.md-conteudo-cta { font-size: 0.85rem; color: #cdd8bd; margin-top: 4px; }
+
+.md-calendario-strip { display: flex; gap: 0; border: 1px solid #3c4842; border-radius: 12px; background: #18221d; overflow: hidden; }
+.md-calendario-strip > div { flex: 1 1 0; padding: 14px 16px; border-left: 1px solid #2c3630; text-align: center; }
+.md-calendario-strip > div:first-child { border-left: none; }
+.md-calendario-strip strong { display: block; font-size: 1.4rem; color: var(--text, #eeeae2); }
+.md-calendario-strip span { font-size: 0.75rem; color: #9aa89e; }
+@media (max-width: 720px) {
+    .md-calendario-strip { flex-wrap: wrap; }
+    .md-calendario-strip > div { flex: 1 1 45%; border-left: none; border-top: 1px solid #2c3630; }
+    .md-calendario-strip > div:nth-child(-n+2) { border-top: none; }
+}
+
+.md-conselho-stats { display: flex; gap: 22px; margin: 0 0 16px; }
+.md-conselho-bloco { margin: 0 0 16px; }
+.md-conselho-bloco:last-child { margin-bottom: 0; }
+.md-conselho-bloco h4 { margin: 0 0 8px; font-size: 0.72rem; letter-spacing: 0.5px; text-transform: uppercase; color: #9aa89e; }
+.md-conselho-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.md-conselho-lista li { border-left: 2px solid var(--gold, #b3a078); padding: 4px 0 4px 12px; font-size: 0.9rem; color: #cdd8bd; }
+.md-conselho-conclusao { color: #9aa89e; font-size: 0.85rem; margin-top: 4px; }
+
+.md-indisponivel {
+    color: #9aa89e;
+    font-size: 0.9rem;
+    border: 1px dashed #3c4842;
+    border-radius: 10px;
+    padding: 18px;
+    margin: 0;
+    line-height: 1.6;
+}

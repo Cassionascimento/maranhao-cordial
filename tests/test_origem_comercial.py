@@ -189,3 +189,30 @@ class Origens(TestCase):
         send=Mock()
         self.assertEqual(a.executar(db,'1',send)['motivo'],'executor_da_origem_nao_habilitado')
         send.assert_not_called()
+
+
+class PropostaSinaisMI(TestCase):
+    """ETAPA 4.9: propor() -> mi_sinais (recomendação, não fato confirmado)."""
+
+    def test_proposta_criada_emite_recomendacao_apos_commit(self):
+        db = Store()
+        with patch('acoes_comerciais.emitir') as emitir:
+            r = a.propor(db, dict(DADOS), 'prospecto_fase57', ID57)
+        self.assertTrue(r['proposta_criada'])
+        emitir.assert_called_once_with(db, natureza='recomendacao', origem='acoes_comerciais',
+            tipo_evento='acao_proposta', origem_id=r['acao']['id'], canal='email',
+            payload={'tipo': 'primeiro_contato', 'origem_tipo': 'prospecto_fase57'})
+
+    def test_proposta_duplicada_nao_reemite(self):
+        db = Store()
+        with patch('acoes_comerciais.emitir') as emitir:
+            a.propor(db, dict(DADOS), 'prospecto_fase57', ID57)
+            a.propor(db, dict(DADOS), 'prospecto_fase57', ID57)
+        emitir.assert_called_once()
+
+    def test_origem_invalida_nao_emite_nada(self):
+        db = Store()
+        with patch('acoes_comerciais.emitir') as emitir:
+            with self.assertRaises(ValueError):
+                a.propor(db, DADOS, 'prospecto_fase56', ID57)
+        emitir.assert_not_called()

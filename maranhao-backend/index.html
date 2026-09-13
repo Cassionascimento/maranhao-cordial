@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Maranhão Cordial — Concentrado premium sem álcool</title>
 <link rel="stylesheet" href="public-journey.css">
+<link rel="stylesheet" href="consentimento.css">
 </head>
 <body>
 <meta name="p:domain_verify" content="4da6d76e86fa475755daa4ce435bcacd"/>
@@ -15,6 +16,14 @@
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
+  // Google Consent Mode (ETAPA 5.4C): nega por padrão até consentimento.js
+  // (mesmo banner da 5.4B, sem duplicar) atualizar conforme a decisão real.
+  gtag('consent', 'default', {
+    'analytics_storage': 'denied',
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied'
+  });
   gtag('js', new Date());
 
   gtag('config', 'G-JPD3R3NG3S');
@@ -934,7 +943,7 @@
 </script>
 
 
-<section class="mc-next" aria-label="Continue sua experiência"><h2>Seu drink. Sua expressão.</h2><p>Maranhão entra como ingrediente. Você escolhe a combinação, a música e o momento.</p><nav class="mc-paths" aria-label="Próximos caminhos"><a href="experience.html">Explore Maranhão Experience →</a><a href="compreaqui.html">Conheça o produto →</a><a href="profissional.html">Maranhão para seu negócio →</a></nav></section>
+<section class="mc-next" aria-label="Continue sua experiência"><h2>Seu drink. Sua expressão.</h2><p>Maranhão entra como ingrediente. Você escolhe a combinação, a música e o momento.</p><nav class="mc-paths" aria-label="Próximos caminhos"><a href="experience.html" data-mc-cta="experience">Explore Maranhão Experience →</a><a href="compreaqui.html" data-mc-cta="compreaqui" data-mc-produto="guarana">Conheça o produto →</a><a href="profissional.html" data-mc-cta="profissional">Maranhão para seu negócio →</a></nav></section>
 <!-- Inclusão do FontAwesome via CDN para carregar os ícones minimalistas lineares oficiais -->
 
 
@@ -2460,5 +2469,7 @@
 }
 </style>
 
+<script src="consentimento.js" defer></script>
+<script src="site-sinais.js" defer></script>
 </body>
 </html>
