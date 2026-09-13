@@ -1,5 +1,12 @@
 /* Conselho de Agentes -- leitura + consulta interativa no Admin.
-   A análise só gera pareceres. Enviar ao Diretor exige um segundo clique explícito. */
+   A análise só gera pareceres. Enviar ao Diretor exige um segundo clique explícito.
+
+   Apresentação executiva da leitura histórica (Atas): os campos brutos de
+   auditoria (posicoes, dados_apresentados, conflitos, recomendacoes, vetos,
+   pendencias, conclusao consolidada) continuam vindo inteiros da API e
+   ficam dentro de "Dados técnicos (auditoria)" em cada ata -- nada é
+   descartado, só reorganizado: primeiro Conclusão/Evidências/Riscos/
+   Recomendação por agente e uma Síntese do Conselho, nunca um dump técnico. */
 (() => {
   'use strict';
   const panel = document.getElementById('conselho-painel');
@@ -14,6 +21,8 @@
     marie: ['Marie', 'Produto'], rua: ['Rua', 'Operações'],
     dicio: ['Dicio', 'Jurídico'], iris: ['Iris', 'Dados'],
   };
+  const nomeDe = codigo => (NOMES[codigo] && NOMES[codigo][0]) || codigo;
+  const areaDe = codigo => (NOMES[codigo] && NOMES[codigo][1]) || '—';
 
   const el = (tag, text, cls) => {
     const e = document.createElement(tag);
@@ -198,13 +207,29 @@
     }
   }
 
-  function tabela(container, colunas, linhas, vazioTexto) {
+  // ---- Seções recolhíveis: vazio continua uma linha só (já compacto);
+  // com conteúdo, abre por padrão dentro de <details> para o Diretor poder
+  // recolher depois -- nunca um bloco grande fixo ocupando a tela. ----
+  function tabela(container, colunas, linhas, vazioTexto, rotuloPlural) {
     container.replaceChildren();
     if (!linhas.length) { container.append(el('p', vazioTexto, 'mi-vazio')); return; }
+    const detalhes = el('details', undefined, 'conselho-secao-recolhivel');
+    detalhes.open = true;
+    detalhes.append(el('summary', linhas.length + ' ' + (rotuloPlural || 'registro(s)')));
     const wrap = el('div', undefined, 'mi-tabela-wrap'); const tabelaEl = el('table', undefined, 'mi-tabela');
     const thead = el('thead'); const trh = el('tr'); for (const c of colunas) trh.append(el('th', c)); thead.append(trh); tabelaEl.append(thead);
     const tbody = el('tbody'); for (const linha of linhas) { const tr = el('tr'); for (const valor of linha) tr.append(el('td', valor)); tbody.append(tr); }
-    tabelaEl.append(tbody); wrap.append(tabelaEl); container.append(wrap);
+    tabelaEl.append(tbody); wrap.append(tabelaEl); detalhes.append(wrap); container.append(detalhes);
+  }
+
+  function listaRecolhivel(container, itens, vazioTexto, rotuloPlural, montarItem) {
+    container.replaceChildren();
+    if (!itens.length) { container.append(el('p', vazioTexto, 'mi-vazio')); return; }
+    const detalhes = el('details', undefined, 'conselho-secao-recolhivel');
+    detalhes.open = true;
+    detalhes.append(el('summary', itens.length + ' ' + rotuloPlural));
+    for (const item of itens) detalhes.append(montarItem(item));
+    container.append(detalhes);
   }
 
   function jsonBloco(rotulo, valor) {
@@ -226,21 +251,170 @@
       const demandaAtual = agente.status === 'trabalhando' && [...reunioes, ...relatorios].filter(r => participaDe(r, agente.codigo)).sort((a,b)=>new Date(b.criado_em)-new Date(a.criado_em))[0];
       card.append(el('p', 'Demanda atual: ' + (demandaAtual ? (demandaAtual.demanda || '—') : 'nenhuma')));
       const ultimaMensagem = mensagens.find(m => m.de_agente === agente.codigo); card.append(el('p', 'Última mensagem: ' + (ultimaMensagem ? ('"'+ultimaMensagem.texto+'"') : 'nenhuma')));
-      const ultimoRelatorio = relatorios.find(r => participaDe(r, agente.codigo)); card.append(el('p', 'Último relatório: ' + (ultimoRelatorio ? (ultimoRelatorio.conclusao || ultimoRelatorio.demanda || '—') : 'nenhum')));
+      // Mostra a demanda (fato curto), nunca a conclusao consolidada bruta
+      // (que concatena "Nome: texto; Nome2: texto2" -- dump técnico).
+      const ultimoRelatorio = relatorios.find(r => participaDe(r, agente.codigo)); card.append(el('p', 'Último relatório: ' + (ultimoRelatorio ? (ultimoRelatorio.demanda || '—') : 'nenhum')));
       card.append(el('p', 'Próxima atividade: nenhuma agendada (agentes só atuam por demanda real)', 'conselho-agente-nota')); container.append(card);
     }
   }
 
-  function renderMensagens() { tabela($('mensagens'), ['Quando','De','Para','Demanda','Mensagem'], (conselho.mensagens_recentes||[]).map(m=>[dataHora(m.criado_em),m.de_agente,m.para_agente||'todos',m.demanda_referencia||'—',m.texto]), 'Nenhuma mensagem registrada entre agentes ainda.'); }
-  function renderReunioes() { tabela($('reunioes'), ['Quando','Tipo','Demanda','Participantes','Precisa Diretor'], (conselho.reunioes_recentes||[]).map(r=>[dataHora(r.criado_em),r.tipo==='conclave'?'Conclave':'Reunião',r.demanda||'—',(r.participantes||[]).join(', ')||'—',r.precisa_diretor?'Sim':'Não']), 'Nenhuma reunião ou conclave registrado ainda.'); }
-  function renderAtas() {
-    const container=$('atas'); container.replaceChildren(); const registros=conselho.reunioes_recentes||[]; if(!registros.length){container.append(el('p','Nenhuma ata registrada ainda.','mi-vazio'));return;}
-    for(const r of registros){const card=el('div',undefined,'conselho-ata-card'),cab=el('div',undefined,'conselho-ata-cabecalho');cab.append(el('strong',(r.tipo==='conclave'?'Conclave':'Reunião')+' — v'+r.versao),el('span',dataHora(r.criado_em)));card.append(cab,el('p','Demanda: '+(r.demanda||'—')),el('p','Contexto: '+(r.contexto||'—')),el('p','Conclusão: '+(r.conclusao||'—')),el('p','Precisa do Diretor: '+(r.precisa_diretor?'Sim':'Não')));for(const [rotulo,valor] of [['Participantes',r.participantes],['Dados apresentados',r.dados_apresentados],['Posições',r.posicoes],['Conflitos',r.conflitos],['Recomendações',r.recomendacoes],['Vetos',r.vetos],['Pendências',r.pendencias]]){const b=jsonBloco(rotulo,valor);if(b)card.append(b);}container.append(card);}
+  function renderMensagens() { tabela($('mensagens'), ['Quando','De','Para','Demanda','Mensagem'], (conselho.mensagens_recentes||[]).map(m=>[dataHora(m.criado_em),m.de_agente,m.para_agente||'todos',m.demanda_referencia||'—',m.texto]), 'Nenhuma mensagem registrada entre agentes ainda.', 'mensagem(ns)'); }
+  function renderReunioes() { tabela($('reunioes'), ['Quando','Tipo','Demanda','Participantes','Precisa Diretor'], (conselho.reunioes_recentes||[]).map(r=>[dataHora(r.criado_em),r.tipo==='conclave'?'Conclave':'Reunião',r.demanda||'—',(r.participantes||[]).join(', ')||'—',r.precisa_diretor?'Sim':'Não']), 'Nenhuma reunião ou conclave registrado ainda.', 'reunião(ões)/conclave(s)'); }
+
+  // ---- Apresentação executiva por parecer histórico (Atas) ----
+  // `posicoes[agente]` normalmente é o objeto estruturado que
+  // mi_conselho_executor._consolidar grava (conclusao/confianca/
+  // dados_utilizados/riscos); um registro antigo pode trazer só uma string
+  // (conclusão pura) -- os dois formatos são aceitos, nunca inventamos os
+  // campos que faltarem.
+  function posicaoDoAgente(registro, codigo) {
+    const bruta = (registro.posicoes || {})[codigo];
+    if (bruta == null) return null;
+    if (typeof bruta === 'string') return { conclusao: bruta, confianca: null, dados_utilizados: '', riscos: '' };
+    return bruta;
   }
-  function renderRelatorios(){tabela($('relatorios'),['Quando','Demanda','Participantes','Conclusão','Precisa Diretor'],(conselho.relatorios_recentes||[]).map(r=>[dataHora(r.criado_em),r.demanda||'—',(r.participantes||[]).join(', ')||'—',r.conclusao||'—',r.precisa_diretor?'Sim':'Não']),'Nenhum relatório registrado ainda (só é gerado quando há atividade real).');}
-  function renderConflitos(){const c=$('conflitos');c.replaceChildren();const lista=conselho.conflitos||[];if(!lista.length){c.append(el('p','Nenhum conflito identificado até o momento.','mi-vazio'));return;}for(const item of lista){const b=el('div',undefined,'conselho-json-card');b.append(el('strong',(item.tipo==='conclave'?'Conclave':'Reunião')+' — registro '+item.registro_id),el('pre',JSON.stringify(item.conflitos,null,2),'conselho-json-pre'));c.append(b);}}
-  function renderVetos(){const c=$('vetos');c.replaceChildren();const lista=conselho.vetos||[];if(!lista.length){c.append(el('p','Nenhum veto registrado.','mi-vazio'));return;}for(const item of lista){const b=el('div',undefined,'conselho-json-card conselho-json-card--veto');b.append(el('strong',(item.tipo==='conclave'?'Conclave':'Reunião')+' — registro '+item.registro_id),el('pre',JSON.stringify(item.vetos,null,2),'conselho-json-pre'));c.append(b);}}
-  function renderAguardandoDiretor(){tabela($('diretor'),['Quando','Tipo','Demanda','Conclusão'],(conselho.aguardando_diretor||[]).map(r=>[dataHora(r.criado_em),{reuniao:'Reunião',conclave:'Conclave',relatorio:'Relatório'}[r.tipo]||r.tipo,r.demanda||'—',r.conclusao||'—']),'Nenhum item aguardando decisão do Diretor.');}
+
+  const RISCO_TRIVIAL = new Set(['', 'nenhum', 'nenhum risco', 'nenhum risco imediato', 'sem risco', 'não há risco', 'nao ha risco', 'n/a']);
+  const trivial = (texto, conjunto) => conjunto.has((texto || '').trim().toLowerCase());
+
+  function bulletsDeEvidencia(texto, limite) {
+    if (!texto || !texto.trim()) return null;
+    const partes = texto.split(/(?<=[.;])\s+/).map(s => s.trim()).filter(Boolean);
+    return partes.length ? partes.slice(0, limite || 4) : null;
+  }
+
+  function parecerExecutivoCard(registro, codigo) {
+    const posicao = posicaoDoAgente(registro, codigo);
+    const card = el('div', undefined, 'conselho-parecer-card');
+
+    const cabecalho = el('div', undefined, 'conselho-parecer-cabecalho');
+    cabecalho.append(el('strong', nomeDe(codigo) + ' · ' + areaDe(codigo), 'conselho-parecer-nome'));
+    if (posicao && posicao.confianca) {
+      cabecalho.append(el('span', 'Confiança: ' + posicao.confianca, 'conselho-badge conselho-badge-' + posicao.confianca));
+    }
+    card.append(cabecalho);
+
+    if (!posicao || !(posicao.conclusao || '').trim()) {
+      card.append(el('p', 'Não há dados suficientes para concluir.', 'conselho-parecer-vazio'));
+      return card;
+    }
+
+    card.append(el('h4', 'Conclusão', 'conselho-parecer-rotulo'));
+    card.append(el('p', posicao.conclusao, 'conselho-parecer-conclusao'));
+
+    card.append(el('h4', 'Evidências', 'conselho-parecer-rotulo'));
+    const evidencias = bulletsDeEvidencia(posicao.dados_utilizados, 4);
+    if (evidencias) {
+      const lista = el('ul', undefined, 'conselho-parecer-lista');
+      for (const item of evidencias) lista.append(el('li', item));
+      card.append(lista);
+    } else {
+      card.append(el('p', 'Não há dados suficientes para concluir.', 'conselho-parecer-vazio'));
+    }
+
+    if (posicao.riscos && !trivial(posicao.riscos, RISCO_TRIVIAL)) {
+      card.append(el('h4', 'Riscos / incertezas', 'conselho-parecer-rotulo'));
+      card.append(el('p', posicao.riscos));
+    }
+
+    const recomendacao = (registro.recomendacoes || []).find(r => r.responsavel === codigo);
+    card.append(el('h4', 'Recomendação', 'conselho-parecer-rotulo'));
+    card.append(el('p', recomendacao ? recomendacao.descricao : 'Nenhuma ação recomendada.', 'conselho-parecer-acao'));
+
+    if (registro.vetos && registro.vetos[codigo]) {
+      card.classList.add('conselho-parecer-veto');
+      card.append(el('p', 'VETO: ' + registro.vetos[codigo], 'conselho-veto-texto'));
+    }
+
+    return card;
+  }
+
+  // ---- Síntese do Conselho para um registro histórico ----
+  // Nunca repete a prosa de um parecer: monta a leitura a partir de fatos
+  // estruturados (quem recomendou o quê, se há veto, se há pendência) --
+  // mesmo com um único agente convocado, o texto aqui é outro, derivado só
+  // de recomendações/veto/pendências, nunca da conclusão do agente.
+  function sinteseDoConselho(registro) {
+    const bloco = el('div', undefined, 'conselho-sintese');
+    bloco.append(el('h4', 'Síntese do Conselho'));
+
+    const participantes = registro.participantes || [];
+    const recomendacoes = registro.recomendacoes || [];
+    const vetos = registro.vetos || {};
+    const agentesComVeto = Object.keys(vetos);
+
+    let decisao;
+    if (agentesComVeto.length) {
+      decisao = agentesComVeto.map(nomeDe).join(' e ') + ' vetou esta demanda -- ação bloqueada até decisão do Diretor.';
+    } else if (recomendacoes.length) {
+      const responsaveis = [...new Set(recomendacoes.map(r => nomeDe(r.responsavel)))];
+      decisao = 'O Conselho recomenda seguir com a orientação de ' + responsaveis.join(' e ') + '.';
+    } else {
+      decisao = 'O Conselho não chegou a uma recomendação de ação para esta demanda.';
+    }
+    bloco.append(el('p', decisao));
+
+    const evidencias = [];
+    for (const codigo of participantes) {
+      const posicao = posicaoDoAgente(registro, codigo);
+      const partes = posicao && bulletsDeEvidencia(posicao.dados_utilizados, 3 - evidencias.length);
+      if (partes) evidencias.push(...partes);
+      if (evidencias.length >= 3) break;
+    }
+    if (evidencias.length) {
+      const lista = el('ul', undefined, 'conselho-parecer-lista');
+      for (const item of evidencias.slice(0, 3)) lista.append(el('li', item));
+      bloco.append(lista);
+    }
+
+    bloco.append(el('p', recomendacoes.length ? recomendacoes[0].descricao : 'Nenhuma ação recomendada.'));
+
+    const pendencias = registro.pendencias || {};
+    let motivo = '';
+    if (agentesComVeto.length) motivo = 'veto registrado';
+    else if (pendencias.agentes_com_falha) motivo = 'falha de especialista(s) convocado(s)';
+    else if (pendencias.especialistas_acima_do_limite) motivo = 'demanda excedeu o limite de especialistas automáticos';
+    else if (registro.precisa_diretor) motivo = 'necessidade sinalizada por especialista convocado';
+    bloco.append(el('p', 'Precisa do Diretor: ' + (registro.precisa_diretor ? 'Sim' : 'Não') + (motivo ? ' — ' + motivo + '.' : '.')));
+
+    return bloco;
+  }
+
+  function renderAtas() {
+    const registros = conselho.reunioes_recentes || [];
+    listaRecolhivel($('atas'), registros, 'Nenhuma ata registrada ainda.', 'ata(s)', r => {
+      const card = el('div', undefined, 'conselho-ata-card');
+      const cabecalho = el('div', undefined, 'conselho-ata-cabecalho');
+      cabecalho.append(el('strong', (r.tipo === 'conclave' ? 'Conclave' : 'Reunião') + ' — v' + r.versao), el('span', dataHora(r.criado_em)));
+      card.append(cabecalho, el('p', 'Demanda: ' + (r.demanda || '—')));
+
+      const participantes = r.participantes || [];
+      if (participantes.length) {
+        const pareceresWrap = el('div', undefined, 'conselho-pareceres-grid');
+        for (const codigo of participantes) pareceresWrap.append(parecerExecutivoCard(r, codigo));
+        card.append(pareceresWrap);
+      }
+
+      card.append(sinteseDoConselho(r));
+
+      const auditoria = el('details', undefined, 'conselho-auditoria');
+      auditoria.append(el('summary', 'Dados técnicos (auditoria)'));
+      auditoria.append(el('p', 'Contexto: ' + (r.contexto || '—')));
+      auditoria.append(el('p', 'Conclusão consolidada (registro bruto): ' + (r.conclusao || '—')));
+      auditoria.append(el('p', 'Precisa do Diretor: ' + (r.precisa_diretor ? 'Sim' : 'Não')));
+      for (const [rotulo, valor] of [['Participantes', r.participantes], ['Dados apresentados', r.dados_apresentados], ['Posições', r.posicoes], ['Conflitos', r.conflitos], ['Recomendações', r.recomendacoes], ['Vetos', r.vetos], ['Pendências', r.pendencias]]) {
+        const b = jsonBloco(rotulo, valor); if (b) auditoria.append(b);
+      }
+      card.append(auditoria);
+
+      return card;
+    });
+  }
+
+  function renderRelatorios(){tabela($('relatorios'),['Quando','Demanda','Participantes','Conclusão','Precisa Diretor'],(conselho.relatorios_recentes||[]).map(r=>[dataHora(r.criado_em),r.demanda||'—',(r.participantes||[]).join(', ')||'—',r.conclusao||'—',r.precisa_diretor?'Sim':'Não']),'Nenhum relatório registrado ainda (só é gerado quando há atividade real).','relatório(s)');}
+  function renderConflitos(){listaRecolhivel($('conflitos'), conselho.conflitos||[], 'Nenhum conflito identificado até o momento.', 'conflito(s)', item => { const b=el('div',undefined,'conselho-json-card'); b.append(el('strong',(item.tipo==='conclave'?'Conclave':'Reunião')+' — registro '+item.registro_id),el('pre',JSON.stringify(item.conflitos,null,2),'conselho-json-pre')); return b; });}
+  function renderVetos(){listaRecolhivel($('vetos'), conselho.vetos||[], 'Nenhum veto registrado.', 'veto(s)', item => { const b=el('div',undefined,'conselho-json-card conselho-json-card--veto'); b.append(el('strong',(item.tipo==='conclave'?'Conclave':'Reunião')+' — registro '+item.registro_id),el('pre',JSON.stringify(item.vetos,null,2),'conselho-json-pre')); return b; });}
+  function renderAguardandoDiretor(){tabela($('diretor'),['Quando','Tipo','Demanda','Conclusão'],(conselho.aguardando_diretor||[]).map(r=>[dataHora(r.criado_em),{reuniao:'Reunião',conclave:'Conclave',relatorio:'Relatório'}[r.tipo]||r.tipo,r.demanda||'—',r.conclusao||'—']),'Nenhum item aguardando decisão do Diretor.','item(ns)');}
 
   function render(){const resumo=$('resumo');resumo.replaceChildren();for(const [label,valor] of [['Agentes disponíveis',(conselho.agentes||[]).length],['Trabalhando',conselho.trabalhando],['Sem demanda',conselho.sem_demanda],['Conflitos',(conselho.conflitos||[]).length],['Vetos',(conselho.vetos||[]).length],['Aguardando Diretor',(conselho.aguardando_diretor||[]).length]]){const stat=el('div',undefined,'mi-stat');stat.append(el('strong',fmt(valor)),el('span',label));resumo.append(stat);}renderAgentes();renderMensagens();renderReunioes();renderAtas();renderRelatorios();renderConflitos();renderVetos();renderAguardandoDiretor();$('conteudo').hidden=false;}
 
