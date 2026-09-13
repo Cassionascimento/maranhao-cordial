@@ -1,15 +1,19 @@
-/* Conselho de Agentes -- painel somente leitura, detalhado, dentro de
-   Maranhão Intelligence. Só consome GET /api/admin/mi/conselho (mi_conselho.
-   leitura_conselho); nenhuma escrita, nenhuma invocação de agente, nenhum
-   /conclave é disparado por esta tela. Mesmo padrão de maranhao-
-   intelligence.js: busca, guarda em memória, desenha. */
+/* Conselho de Agentes -- leitura + consulta interativa no Admin.
+   A análise só gera pareceres. Enviar ao Diretor exige um segundo clique explícito. */
 (() => {
   'use strict';
   const panel = document.getElementById('conselho-painel');
   if (!panel) return;
   const api = 'https://maranhao-cordial-api.onrender.com/api/admin/mi/conselho';
   const $ = id => document.getElementById('conselho-' + id);
-  let conselho = null, busy = false;
+  let conselho = null, busy = false, ultimoResultado = null;
+
+  const NOMES = {
+    pirret: ['Pirret', 'Marketing'], standard: ['Standard', 'Financeiro'],
+    zilda: ['Zilda', 'Pessoas'], leonard: ['Leonard', 'Vendas'],
+    marie: ['Marie', 'Produto'], rua: ['Rua', 'Operações'],
+    dicio: ['Dicio', 'Jurídico'], iris: ['Iris', 'Dados'],
+  };
 
   const el = (tag, text, cls) => {
     const e = document.createElement(tag);
@@ -23,13 +27,11 @@
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('pt-BR');
   };
+  const authHeaders = extra => Object.assign({ 'X-Admin-Key': window.adminKeyAtual || '' }, extra || {});
 
   async function call() {
     if (!window.adminKeyAtual) throw new Error('Entre no Admin para consultar o Conselho.');
-    const response = await fetch(api, {
-      cache: 'no-store',
-      headers: { 'X-Admin-Key': window.adminKeyAtual, 'Content-Type': 'application/json' },
-    });
+    const response = await fetch(api, { cache: 'no-store', headers: authHeaders({ 'Content-Type': 'application/json' }) });
     const body = await response.json();
     if (!response.ok || !body.success) throw new Error(body.error || 'Não foi possível consultar o Conselho.');
     return body.conselho;
@@ -38,241 +40,214 @@
   function controls(value) {
     busy = value;
     $('atualizar').disabled = value;
+    const analisar = document.getElementById('conselho-analisar');
+    if (analisar) analisar.disabled = value;
+  }
+
+  function criarConsulta() {
+    if (document.getElementById('conselho-consulta')) return;
+    const box = el('section', undefined, 'mi-bloco conselho-consulta');
+    box.id = 'conselho-consulta';
+    const h = el('div', undefined, 'conselho-consulta-head');
+    h.append(el('div', undefined, 'conselho-consulta-title'));
+    h.firstChild.append(el('span', 'Conselho executivo', 'mi-eyebrow'), el('h3', 'Perguntar ao Conselho'));
+    h.append(el('p', 'Os agentes analisam e recomendam. Nenhuma ação externa é executada.', 'conselho-consulta-seguranca'));
+    box.append(h);
+
+    const form = document.createElement('form');
+    form.id = 'conselho-form';
+    const labelPergunta = el('label', 'Pergunta ou demanda', 'conselho-label');
+    const area = document.createElement('textarea');
+    area.id = 'conselho-demanda'; area.name = 'demanda'; area.rows = 5;
+    area.placeholder = 'Ex.: Devemos priorizar produção, feira ou prospecção nas próximas quatro semanas?';
+    labelPergunta.append(area); form.append(labelPergunta);
+
+    const modos = el('div', undefined, 'conselho-modos');
+    [
+      ['automatico', 'Seleção automática', 'O sistema chama só as áreas pertinentes.'],
+      ['especialistas', 'Escolher especialistas', 'Você define exatamente quem participa.'],
+      ['conclave', 'Conclave completo', 'Convoca os oito agentes. Usa mais tokens.'],
+    ].forEach(([valor, titulo, ajuda], i) => {
+      const lab = el('label', undefined, 'conselho-modo-card');
+      const radio = document.createElement('input');
+      radio.type = 'radio'; radio.name = 'modo'; radio.value = valor; radio.checked = i === 0;
+      const texto = el('span'); texto.append(el('strong', titulo), el('small', ajuda));
+      lab.append(radio, texto); modos.append(lab);
+    });
+    form.append(modos);
+
+    const escolhas = el('div', undefined, 'conselho-especialistas');
+    escolhas.id = 'conselho-especialistas';
+    Object.entries(NOMES).forEach(([codigo, info]) => {
+      const lab = el('label', undefined, 'conselho-check');
+      const check = document.createElement('input'); check.type = 'checkbox'; check.value = codigo; check.name = 'agentes';
+      lab.append(check, el('span', info[0] + ' · ' + info[1])); escolhas.append(lab);
+    });
+    form.append(escolhas);
+
+    const arquivoWrap = el('label', 'Anexar documento (opcional)', 'conselho-label');
+    const arquivo = document.createElement('input');
+    arquivo.id = 'conselho-documento'; arquivo.type = 'file'; arquivo.name = 'documento';
+    arquivo.accept = '.pdf,.docx,.txt,.md,.csv,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/csv,application/json';
+    arquivoWrap.append(arquivo, el('small', 'PDF, DOCX, TXT, MD, CSV ou JSON · até 8 MB. O arquivo é lido para esta análise e não é salvo como upload.', 'conselho-ajuda'));
+    form.append(arquivoWrap);
+
+    const acoes = el('div', undefined, 'conselho-consulta-acoes');
+    const analisar = el('button', 'Analisar', 'btn btn-primary'); analisar.type = 'submit'; analisar.id = 'conselho-analisar';
+    const estado = el('span', 'Pronto para uma nova análise.', 'conselho-consulta-status'); estado.id = 'conselho-consulta-status';
+    acoes.append(analisar, estado); form.append(acoes);
+    box.append(form);
+
+    const resultado = el('div', undefined, 'conselho-resultado'); resultado.id = 'conselho-resultado'; resultado.hidden = true; box.append(resultado);
+    const alvo = $('resumo') || panel.firstElementChild;
+    if (alvo && alvo.parentNode) alvo.parentNode.insertBefore(box, alvo);
+    else panel.prepend(box);
+
+    const atualizarEscolhas = () => {
+      const modo = form.querySelector('input[name="modo"]:checked').value;
+      escolhas.hidden = modo !== 'especialistas';
+    };
+    form.querySelectorAll('input[name="modo"]').forEach(r => r.addEventListener('change', atualizarEscolhas));
+    atualizarEscolhas();
+    form.addEventListener('submit', analisarConselho);
+  }
+
+  async function analisarConselho(event) {
+    event.preventDefault();
+    if (busy) return;
+    if (!window.adminKeyAtual) { document.getElementById('conselho-consulta-status').textContent = 'Entre no Admin antes de analisar.'; return; }
+    const form = document.getElementById('conselho-form');
+    const demanda = document.getElementById('conselho-demanda').value.trim();
+    if (!demanda) { document.getElementById('conselho-consulta-status').textContent = 'Digite a pergunta ou demanda.'; return; }
+    const modo = form.querySelector('input[name="modo"]:checked').value;
+    const fd = new FormData(); fd.append('demanda', demanda); fd.append('modo', modo);
+    const agentes = [...form.querySelectorAll('input[name="agentes"]:checked')].map(i => i.value);
+    fd.append('agentes', JSON.stringify(agentes));
+    const arquivo = document.getElementById('conselho-documento').files[0]; if (arquivo) fd.append('documento', arquivo);
+
+    controls(true); ultimoResultado = null;
+    document.getElementById('conselho-consulta-status').textContent = modo === 'conclave' ? 'Convocando o Conclave completo…' : 'Consultando especialistas…';
+    try {
+      const response = await fetch(api + '/analisar', { method: 'POST', headers: authHeaders(), body: fd });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Não foi possível concluir a análise.');
+      ultimoResultado = body.resultado;
+      renderResultado(body.resultado);
+      document.getElementById('conselho-consulta-status').textContent = 'Análise concluída. Nada foi executado externamente.';
+    } catch (e) {
+      document.getElementById('conselho-consulta-status').textContent = e.message;
+    } finally { controls(false); }
+  }
+
+  function renderResultado(resultado) {
+    const container = document.getElementById('conselho-resultado'); container.replaceChildren(); container.hidden = false;
+    const topo = el('div', undefined, 'conselho-resultado-topo');
+    topo.append(el('h4', 'Pareceres do Conselho'));
+    const meta = [];
+    meta.push(resultado.modo === 'conclave' ? 'Conclave completo' : resultado.modo === 'especialistas' ? 'Especialistas escolhidos' : 'Seleção automática');
+    meta.push((resultado.selecionados || []).map(a => NOMES[a]?.[0] || a).join(', '));
+    if (resultado.documento) meta.push('Documento: ' + resultado.documento.nome + (resultado.documento.truncado ? ' (texto limitado)' : ''));
+    topo.append(el('p', meta.filter(Boolean).join(' · '), 'conselho-resultado-meta')); container.append(topo);
+
+    const grid = el('div', undefined, 'conselho-pareceres-grid');
+    (resultado.pareceres || []).forEach(p => {
+      const card = el('article', undefined, 'conselho-parecer-card' + (p.veto ? ' conselho-parecer-veto' : ''));
+      const nome = NOMES[p.agente] || [p.agente, ''];
+      card.append(el('strong', nome[0] + ' · ' + nome[1], 'conselho-parecer-nome'));
+      card.append(el('span', 'Confiança: ' + (p.confianca || '—'), 'conselho-parecer-confianca'));
+      card.append(el('p', p.conclusao || 'Sem conclusão.', 'conselho-parecer-conclusao'));
+      if (p.riscos) card.append(el('p', 'Riscos: ' + p.riscos));
+      if (p.divergencias) card.append(el('p', 'Divergências: ' + p.divergencias));
+      if (p.acao_sugerida) card.append(el('p', 'Ação sugerida: ' + p.acao_sugerida, 'conselho-parecer-acao'));
+      if (p.veto) card.append(el('p', 'VETO: ' + (p.veto_motivo || 'revisão jurídica necessária'), 'conselho-veto-texto'));
+      grid.append(card);
+    });
+    container.append(grid);
+
+    if ((resultado.erros || []).length) {
+      container.append(el('p', 'Alguns especialistas não responderam: ' + resultado.erros.map(e => NOMES[e.agente]?.[0] || e.agente).join(', ') + '. A falha não é tratada como concordância.', 'conselho-alerta'));
+    }
+    const sintese = el('div', undefined, 'conselho-sintese');
+    sintese.append(el('h4', 'Síntese'));
+    sintese.append(el('p', resultado.sintese?.resumo || 'Sem síntese disponível.'));
+    if (resultado.sintese?.ha_veto) sintese.append(el('p', 'Existe veto jurídico nesta análise.', 'conselho-veto-texto'));
+    container.append(sintese);
+
+    const acoes = el('div', undefined, 'conselho-diretor-acoes');
+    const botao = el('button', 'Enviar para decisão do Diretor', 'btn btn-primary'); botao.type = 'button'; botao.id = 'conselho-enviar-diretor';
+    botao.addEventListener('click', enviarDiretor);
+    acoes.append(botao, el('span', 'Só este clique registra a análise como aguardando sua decisão.', 'conselho-ajuda'));
+    container.append(acoes);
+  }
+
+  async function enviarDiretor() {
+    if (!ultimoResultado || busy) return;
+    const botao = document.getElementById('conselho-enviar-diretor'); botao.disabled = true;
+    document.getElementById('conselho-consulta-status').textContent = 'Enviando para o Modo Diretor…';
+    try {
+      const response = await fetch(api + '/enviar-diretor', {
+        method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ resultado: ultimoResultado }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) throw new Error(body.error || 'Não foi possível enviar ao Diretor.');
+      botao.textContent = 'Enviado ao Diretor';
+      document.getElementById('conselho-consulta-status').textContent = 'Registrado no Modo Diretor. Aguardando decisão humana.';
+      await load();
+    } catch (e) {
+      botao.disabled = false; document.getElementById('conselho-consulta-status').textContent = e.message;
+    }
   }
 
   function tabela(container, colunas, linhas, vazioTexto) {
     container.replaceChildren();
-    if (!linhas.length) {
-      container.append(el('p', vazioTexto, 'mi-vazio'));
-      return;
-    }
-    const wrap = el('div', undefined, 'mi-tabela-wrap');
-    const tabelaEl = el('table', undefined, 'mi-tabela');
-    const thead = el('thead');
-    const trh = el('tr');
-    for (const c of colunas) trh.append(el('th', c));
-    thead.append(trh);
-    tabelaEl.append(thead);
-    const tbody = el('tbody');
-    for (const linha of linhas) {
-      const tr = el('tr');
-      for (const valor of linha) tr.append(el('td', valor));
-      tbody.append(tr);
-    }
-    tabelaEl.append(tbody);
-    wrap.append(tabelaEl);
-    container.append(wrap);
+    if (!linhas.length) { container.append(el('p', vazioTexto, 'mi-vazio')); return; }
+    const wrap = el('div', undefined, 'mi-tabela-wrap'); const tabelaEl = el('table', undefined, 'mi-tabela');
+    const thead = el('thead'); const trh = el('tr'); for (const c of colunas) trh.append(el('th', c)); thead.append(trh); tabelaEl.append(thead);
+    const tbody = el('tbody'); for (const linha of linhas) { const tr = el('tr'); for (const valor of linha) tr.append(el('td', valor)); tbody.append(tr); }
+    tabelaEl.append(tbody); wrap.append(tabelaEl); container.append(wrap);
   }
 
   function jsonBloco(rotulo, valor) {
-    if (valor == null || (Array.isArray(valor) && !valor.length) || (typeof valor === 'object' && !Array.isArray(valor) && !Object.keys(valor).length)) {
-      return null;
-    }
-    const bloco = el('div', undefined, 'conselho-json-bloco');
-    bloco.append(el('span', rotulo, 'conselho-json-rotulo'));
-    bloco.append(el('pre', JSON.stringify(valor, null, 2), 'conselho-json-pre'));
-    return bloco;
+    if (valor == null || (Array.isArray(valor) && !valor.length) || (typeof valor === 'object' && !Array.isArray(valor) && !Object.keys(valor).length)) return null;
+    const bloco = el('div', undefined, 'conselho-json-bloco'); bloco.append(el('span', rotulo, 'conselho-json-rotulo')); bloco.append(el('pre', JSON.stringify(valor, null, 2), 'conselho-json-pre')); return bloco;
   }
 
-  const NOMES_EVENTO = {
-    mensagem_enviada: 'Troca de mensagem', reuniao_registrada: 'Reunião registrada',
-    conclave_registrado: 'Conclave registrado', relatorio_registrado: 'Relatório registrado',
-  };
-
-  function participaDe(registro, codigo) {
-    return Array.isArray(registro.participantes) && registro.participantes.includes(codigo);
-  }
+  const NOMES_EVENTO = { mensagem_enviada: 'Troca de mensagem', reuniao_registrada: 'Reunião registrada', conclave_registrado: 'Conclave registrado', relatorio_registrado: 'Relatório registrado' };
+  const participaDe = (registro, codigo) => Array.isArray(registro.participantes) && registro.participantes.includes(codigo);
 
   function renderAgentes() {
-    const container = $('agentes');
-    container.replaceChildren();
-    const mensagens = conselho.mensagens_recentes || [];
-    const relatorios = conselho.relatorios_recentes || [];
-    const reunioes = conselho.reunioes_recentes || [];
+    const container = $('agentes'); container.replaceChildren();
+    const mensagens = conselho.mensagens_recentes || [], relatorios = conselho.relatorios_recentes || [], reunioes = conselho.reunioes_recentes || [];
     for (const agente of conselho.agentes || []) {
       const card = el('div', undefined, 'conselho-agente-card conselho-agente-' + agente.status);
-      card.append(el('strong', agente.nome, 'conselho-agente-nome'));
-      card.append(el('span', agente.area, 'conselho-agente-area'));
-      card.append(el('span', agente.status === 'trabalhando' ? 'Trabalhando' : 'Sem demanda', 'conselho-agente-status'));
-
+      card.append(el('strong', agente.nome, 'conselho-agente-nome'), el('span', agente.area, 'conselho-agente-area'), el('span', agente.status === 'trabalhando' ? 'Trabalhando' : 'Sem demanda', 'conselho-agente-status'));
       const atividade = agente.ultima_atividade;
-      card.append(el('p', 'Última atividade: ' + (atividade
-        ? (NOMES_EVENTO[atividade.tipo_evento] || atividade.tipo_evento) + ' em ' + dataHora(atividade.criado_em)
-        : 'nenhuma registrada')));
-
-      const demandaAtual = agente.status === 'trabalhando' && [...reunioes, ...relatorios]
-        .filter(r => participaDe(r, agente.codigo))
-        .sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))[0];
+      card.append(el('p', 'Última atividade: ' + (atividade ? (NOMES_EVENTO[atividade.tipo_evento] || atividade.tipo_evento) + ' em ' + dataHora(atividade.criado_em) : 'nenhuma registrada')));
+      const demandaAtual = agente.status === 'trabalhando' && [...reunioes, ...relatorios].filter(r => participaDe(r, agente.codigo)).sort((a,b)=>new Date(b.criado_em)-new Date(a.criado_em))[0];
       card.append(el('p', 'Demanda atual: ' + (demandaAtual ? (demandaAtual.demanda || '—') : 'nenhuma')));
-
-      const ultimaMensagem = mensagens.find(m => m.de_agente === agente.codigo);
-      card.append(el('p', 'Última mensagem: ' + (ultimaMensagem ? ('"' + ultimaMensagem.texto + '"') : 'nenhuma')));
-
-      const ultimoRelatorio = relatorios.find(r => participaDe(r, agente.codigo));
-      card.append(el('p', 'Último relatório: ' + (ultimoRelatorio ? (ultimoRelatorio.conclusao || ultimoRelatorio.demanda || '—') : 'nenhum')));
-
-      card.append(el('p', 'Próxima atividade: nenhuma agendada (agentes só atuam por demanda real)', 'conselho-agente-nota'));
-      container.append(card);
+      const ultimaMensagem = mensagens.find(m => m.de_agente === agente.codigo); card.append(el('p', 'Última mensagem: ' + (ultimaMensagem ? ('"'+ultimaMensagem.texto+'"') : 'nenhuma')));
+      const ultimoRelatorio = relatorios.find(r => participaDe(r, agente.codigo)); card.append(el('p', 'Último relatório: ' + (ultimoRelatorio ? (ultimoRelatorio.conclusao || ultimoRelatorio.demanda || '—') : 'nenhum')));
+      card.append(el('p', 'Próxima atividade: nenhuma agendada (agentes só atuam por demanda real)', 'conselho-agente-nota')); container.append(card);
     }
   }
 
-  function renderMensagens() {
-    tabela(
-      $('mensagens'),
-      ['Quando', 'De', 'Para', 'Demanda', 'Mensagem'],
-      (conselho.mensagens_recentes || []).map(m => [
-        dataHora(m.criado_em), m.de_agente, m.para_agente || 'todos', m.demanda_referencia || '—', m.texto,
-      ]),
-      'Nenhuma mensagem registrada entre agentes ainda.'
-    );
-  }
-
-  function renderReunioes() {
-    tabela(
-      $('reunioes'),
-      ['Quando', 'Tipo', 'Demanda', 'Participantes', 'Precisa Diretor'],
-      (conselho.reunioes_recentes || []).map(r => [
-        dataHora(r.criado_em), r.tipo === 'conclave' ? 'Conclave' : 'Reunião', r.demanda || '—',
-        (r.participantes || []).join(', ') || '—', r.precisa_diretor ? 'Sim' : 'Não',
-      ]),
-      'Nenhuma reunião ou conclave registrado ainda.'
-    );
-  }
-
+  function renderMensagens() { tabela($('mensagens'), ['Quando','De','Para','Demanda','Mensagem'], (conselho.mensagens_recentes||[]).map(m=>[dataHora(m.criado_em),m.de_agente,m.para_agente||'todos',m.demanda_referencia||'—',m.texto]), 'Nenhuma mensagem registrada entre agentes ainda.'); }
+  function renderReunioes() { tabela($('reunioes'), ['Quando','Tipo','Demanda','Participantes','Precisa Diretor'], (conselho.reunioes_recentes||[]).map(r=>[dataHora(r.criado_em),r.tipo==='conclave'?'Conclave':'Reunião',r.demanda||'—',(r.participantes||[]).join(', ')||'—',r.precisa_diretor?'Sim':'Não']), 'Nenhuma reunião ou conclave registrado ainda.'); }
   function renderAtas() {
-    const container = $('atas');
-    container.replaceChildren();
-    const registros = conselho.reunioes_recentes || [];
-    if (!registros.length) {
-      container.append(el('p', 'Nenhuma ata registrada ainda.', 'mi-vazio'));
-      return;
-    }
-    for (const r of registros) {
-      const card = el('div', undefined, 'conselho-ata-card');
-      const cabecalho = el('div', undefined, 'conselho-ata-cabecalho');
-      cabecalho.append(el('strong', (r.tipo === 'conclave' ? 'Conclave' : 'Reunião') + ' — v' + r.versao));
-      cabecalho.append(el('span', dataHora(r.criado_em)));
-      card.append(cabecalho);
-      card.append(el('p', 'Demanda: ' + (r.demanda || '—')));
-      card.append(el('p', 'Contexto: ' + (r.contexto || '—')));
-      card.append(el('p', 'Conclusão: ' + (r.conclusao || '—')));
-      card.append(el('p', 'Precisa do Diretor: ' + (r.precisa_diretor ? 'Sim' : 'Não')));
-      for (const [rotulo, valor] of [
-        ['Participantes', r.participantes], ['Dados apresentados', r.dados_apresentados],
-        ['Posições', r.posicoes], ['Conflitos', r.conflitos], ['Recomendações', r.recomendacoes],
-        ['Vetos', r.vetos], ['Pendências', r.pendencias],
-      ]) {
-        const bloco = jsonBloco(rotulo, valor);
-        if (bloco) card.append(bloco);
-      }
-      container.append(card);
-    }
+    const container=$('atas'); container.replaceChildren(); const registros=conselho.reunioes_recentes||[]; if(!registros.length){container.append(el('p','Nenhuma ata registrada ainda.','mi-vazio'));return;}
+    for(const r of registros){const card=el('div',undefined,'conselho-ata-card'),cab=el('div',undefined,'conselho-ata-cabecalho');cab.append(el('strong',(r.tipo==='conclave'?'Conclave':'Reunião')+' — v'+r.versao),el('span',dataHora(r.criado_em)));card.append(cab,el('p','Demanda: '+(r.demanda||'—')),el('p','Contexto: '+(r.contexto||'—')),el('p','Conclusão: '+(r.conclusao||'—')),el('p','Precisa do Diretor: '+(r.precisa_diretor?'Sim':'Não')));for(const [rotulo,valor] of [['Participantes',r.participantes],['Dados apresentados',r.dados_apresentados],['Posições',r.posicoes],['Conflitos',r.conflitos],['Recomendações',r.recomendacoes],['Vetos',r.vetos],['Pendências',r.pendencias]]){const b=jsonBloco(rotulo,valor);if(b)card.append(b);}container.append(card);}
   }
+  function renderRelatorios(){tabela($('relatorios'),['Quando','Demanda','Participantes','Conclusão','Precisa Diretor'],(conselho.relatorios_recentes||[]).map(r=>[dataHora(r.criado_em),r.demanda||'—',(r.participantes||[]).join(', ')||'—',r.conclusao||'—',r.precisa_diretor?'Sim':'Não']),'Nenhum relatório registrado ainda (só é gerado quando há atividade real).');}
+  function renderConflitos(){const c=$('conflitos');c.replaceChildren();const lista=conselho.conflitos||[];if(!lista.length){c.append(el('p','Nenhum conflito identificado até o momento.','mi-vazio'));return;}for(const item of lista){const b=el('div',undefined,'conselho-json-card');b.append(el('strong',(item.tipo==='conclave'?'Conclave':'Reunião')+' — registro '+item.registro_id),el('pre',JSON.stringify(item.conflitos,null,2),'conselho-json-pre'));c.append(b);}}
+  function renderVetos(){const c=$('vetos');c.replaceChildren();const lista=conselho.vetos||[];if(!lista.length){c.append(el('p','Nenhum veto registrado.','mi-vazio'));return;}for(const item of lista){const b=el('div',undefined,'conselho-json-card conselho-json-card--veto');b.append(el('strong',(item.tipo==='conclave'?'Conclave':'Reunião')+' — registro '+item.registro_id),el('pre',JSON.stringify(item.vetos,null,2),'conselho-json-pre'));c.append(b);}}
+  function renderAguardandoDiretor(){tabela($('diretor'),['Quando','Tipo','Demanda','Conclusão'],(conselho.aguardando_diretor||[]).map(r=>[dataHora(r.criado_em),{reuniao:'Reunião',conclave:'Conclave',relatorio:'Relatório'}[r.tipo]||r.tipo,r.demanda||'—',r.conclusao||'—']),'Nenhum item aguardando decisão do Diretor.');}
 
-  function renderRelatorios() {
-    tabela(
-      $('relatorios'),
-      ['Quando', 'Demanda', 'Participantes', 'Conclusão', 'Precisa Diretor'],
-      (conselho.relatorios_recentes || []).map(r => [
-        dataHora(r.criado_em), r.demanda || '—', (r.participantes || []).join(', ') || '—',
-        r.conclusao || '—', r.precisa_diretor ? 'Sim' : 'Não',
-      ]),
-      'Nenhum relatório registrado ainda (só é gerado quando há atividade real).'
-    );
-  }
+  function render(){const resumo=$('resumo');resumo.replaceChildren();for(const [label,valor] of [['Agentes disponíveis',(conselho.agentes||[]).length],['Trabalhando',conselho.trabalhando],['Sem demanda',conselho.sem_demanda],['Conflitos',(conselho.conflitos||[]).length],['Vetos',(conselho.vetos||[]).length],['Aguardando Diretor',(conselho.aguardando_diretor||[]).length]]){const stat=el('div',undefined,'mi-stat');stat.append(el('strong',fmt(valor)),el('span',label));resumo.append(stat);}renderAgentes();renderMensagens();renderReunioes();renderAtas();renderRelatorios();renderConflitos();renderVetos();renderAguardandoDiretor();$('conteudo').hidden=false;}
 
-  function renderConflitos() {
-    const container = $('conflitos');
-    container.replaceChildren();
-    const lista = conselho.conflitos || [];
-    if (!lista.length) {
-      container.append(el('p', 'Nenhum conflito identificado até o momento.', 'mi-vazio'));
-      return;
-    }
-    for (const item of lista) {
-      const bloco = el('div', undefined, 'conselho-json-card');
-      bloco.append(el('strong', (item.tipo === 'conclave' ? 'Conclave' : 'Reunião') + ' — registro ' + item.registro_id));
-      bloco.append(el('pre', JSON.stringify(item.conflitos, null, 2), 'conselho-json-pre'));
-      container.append(bloco);
-    }
-  }
+  async function load(){if(busy)return;controls(true);$('status').textContent='Consultando o Conselho…';try{conselho=await call();render();$('status').textContent='Leitura atualizada. Nenhuma ação foi executada.';}catch(e){$('status').textContent=e.message;}finally{controls(false);}}
 
-  function renderVetos() {
-    const container = $('vetos');
-    container.replaceChildren();
-    const lista = conselho.vetos || [];
-    if (!lista.length) {
-      container.append(el('p', 'Nenhum veto registrado.', 'mi-vazio'));
-      return;
-    }
-    for (const item of lista) {
-      const bloco = el('div', undefined, 'conselho-json-card conselho-json-card--veto');
-      bloco.append(el('strong', (item.tipo === 'conclave' ? 'Conclave' : 'Reunião') + ' — registro ' + item.registro_id));
-      bloco.append(el('pre', JSON.stringify(item.vetos, null, 2), 'conselho-json-pre'));
-      container.append(bloco);
-    }
-  }
-
-  function renderAguardandoDiretor() {
-    tabela(
-      $('diretor'),
-      ['Quando', 'Tipo', 'Demanda', 'Conclusão'],
-      (conselho.aguardando_diretor || []).map(r => [
-        dataHora(r.criado_em), { reuniao: 'Reunião', conclave: 'Conclave', relatorio: 'Relatório' }[r.tipo] || r.tipo,
-        r.demanda || '—', r.conclusao || '—',
-      ]),
-      'Nenhum item aguardando decisão do Diretor.'
-    );
-  }
-
-  function render() {
-    const resumo = $('resumo');
-    resumo.replaceChildren();
-    for (const [label, valor] of [
-      ['Agentes disponíveis', (conselho.agentes || []).length],
-      ['Trabalhando', conselho.trabalhando],
-      ['Sem demanda', conselho.sem_demanda],
-      ['Conflitos', (conselho.conflitos || []).length],
-      ['Vetos', (conselho.vetos || []).length],
-      ['Aguardando Diretor', (conselho.aguardando_diretor || []).length],
-    ]) {
-      const stat = el('div', undefined, 'mi-stat');
-      stat.append(el('strong', fmt(valor)), el('span', label));
-      resumo.append(stat);
-    }
-
-    renderAgentes();
-    renderMensagens();
-    renderReunioes();
-    renderAtas();
-    renderRelatorios();
-    renderConflitos();
-    renderVetos();
-    renderAguardandoDiretor();
-
-    $('conteudo').hidden = false;
-  }
-
-  async function load() {
-    if (busy) return;
-    controls(true);
-    $('status').textContent = 'Consultando o Conselho…';
-    try {
-      conselho = await call();
-      render();
-      $('status').textContent = 'Leitura atualizada. Painel somente leitura; nenhuma ação foi executada.';
-    } catch (e) {
-      $('status').textContent = e.message;
-    } finally {
-      controls(false);
-    }
-  }
-
-  $('atualizar').addEventListener('click', load);
-  document.querySelector('[data-tab="conselho-de-agentes"]').addEventListener('click', () => {
-    if (!conselho && window.adminKeyAtual) load();
-  });
-  window.addEventListener('admin-autorizado', () => {
-    if (panel.classList.contains('active')) load();
-  });
+  criarConsulta();
+  $('atualizar').addEventListener('click',load);
+  const tab=document.querySelector('[data-tab="conselho-de-agentes"]'); if(tab)tab.addEventListener('click',()=>{if(!conselho&&window.adminKeyAtual)load();});
+  window.addEventListener('admin-autorizado',()=>{if(panel.classList.contains('active'))load();});
 })();
