@@ -272,6 +272,22 @@ a { color: inherit; }
     }
     .mc-player-track { max-width: 30vw; font-size: 11px; }
 }
+
+/* Abaixo de 600px o botão flutuante do SAC (.mc-sac-trigger, canto inferior
+   direito) fica largo o bastante para colidir com o player centralizado.
+   Empilha o player acima do SAC, em toda a largura -- nunca a mesma faixa
+   horizontal, então não sobrepõe em nenhuma combinação de conteúdo/tela. */
+@media (max-width: 600px) {
+    .mc-player {
+        left: 12px;
+        right: 12px;
+        bottom: 88px;
+        transform: none;
+        max-width: none;
+        justify-content: center;
+    }
+    .mc-player-track { max-width: 38vw; }
+}
 </style>
 </head>
 <body>
@@ -328,7 +344,6 @@ a { color: inherit; }
         <a href="https://x.com" target="_blank" rel="noopener" aria-label="X"><svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
         <a href="https://linkedin.com" target="_blank" rel="noopener" aria-label="LinkedIn"><svg viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg></a>
     </div>
-    <p>INFORMAÇÃO CONSUMIDOR: CONTÉM CERCA DE 160 mg DE CAFEÍNA POR EMBALAGEM (200ml) PROVENIENTE DE PÓ PURO DE GUARANÁ NATURAL.</p>
     <p>© 2026 MARANHÃO CORDIAL GROUP. TODOS OS DIREITOS RESERVADOS. PROTEGIDO POR PROPRIEDADE INDUSTRIAL.</p>
 </footer>
 
