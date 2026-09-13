@@ -49,10 +49,6 @@ def _validar_agente(codigo, obrigatorio=True):
     return codigo
 
 
-# =====================================================
-# MENSAGENS -- append-only (nunca há UPDATE/DELETE aqui).
-# =====================================================
-
 def validar_mensagem(body):
     if not isinstance(body, dict):
         raise ValueError('corpo_invalido')
@@ -72,8 +68,6 @@ def validar_mensagem(body):
 
 
 def registrar_mensagem(factory, body):
-    """Idempotente por chave (mesma disciplina de mi_sinais/mi_decisao);
-    nunca reescreve uma mensagem já registrada."""
     chave, dados = validar_mensagem(body)
     conn = factory()
     try:
@@ -93,11 +87,6 @@ def registrar_mensagem(factory, body):
         conn.close()
 
 
-# =====================================================
-# REGISTROS -- reunião / conclave / relatório.
-# Correção nunca sobrescreve: ver nova_versao_registro().
-# =====================================================
-
 def validar_registro(body):
     if not isinstance(body, dict):
         raise ValueError('corpo_invalido')
@@ -113,7 +102,6 @@ def validar_registro(body):
     precisa_diretor = bool(body.get('precisa_diretor'))
     vetos = body.get('vetos')
     if vetos and not precisa_diretor:
-        # Todo veto exige Diretor -- nunca fica silenciosamente sem sinalizar.
         precisa_diretor = True
     dados = {
         'tipo': tipo,
@@ -161,8 +149,6 @@ def registrar_registro(factory, body):
 
 
 def nova_versao_registro(factory, registro_anterior_id, campos_atualizados, ator):
-    """Correção = nova linha, nunca UPDATE de conteúdo (mesma disciplina de
-    'ata não pode ser alterada silenciosamente')."""
     registro_anterior_id = str(UUID(str(registro_anterior_id)))
     conn = factory()
     try:
@@ -189,14 +175,7 @@ def nova_versao_registro(factory, registro_anterior_id, campos_atualizados, ator
         conn.close()
 
 
-# =====================================================
-# PONTE PARA A FILA JÁ EXISTENTE (mi_decisao) -- nenhuma fila nova.
-# =====================================================
-
 def recomendacao_para_atividade(recomendacao, precisa_diretor=False, executar_em=None):
-    """Converte UMA recomendação de um registro do Conselho no mesmo formato
-    de atividade de mi_decisao._decisao(). Quem persiste é
-    mi_decisao.registrar_item_fila (já existente, não duplicado aqui)."""
     responsavel = recomendacao.get('responsavel')
     descricao = recomendacao.get('descricao') or recomendacao.get('acao') or 'recomendação do Conselho'
     item = _decisao(
@@ -206,7 +185,7 @@ def recomendacao_para_atividade(recomendacao, precisa_diretor=False, executar_em
         recomendacao.get('prioridade', 'normal'),
         recomendacao.get('confianca'),
         'decidir_recomendacao_conselho',
-        exige_aprovacao=True,  # recomendação estratégica: sempre aguarda humano
+        exige_aprovacao=True,
         executar_em=executar_em,
     )
     if precisa_diretor:
@@ -215,10 +194,6 @@ def recomendacao_para_atividade(recomendacao, precisa_diretor=False, executar_em
 
 
 def atividades_pendentes_fila(cur):
-    """Recomendações do Conselho já persistidas em mi_fila_operacional
-    (ETAPA 5.0/5.1, não duplicada aqui) e ainda não concluídas/bloqueadas --
-    para o Calendário Inteligente já existente conseguir mostrá-las junto
-    com as demais atividades, sem um calendário paralelo."""
     cur.execute(
         "SELECT origem, origem_id, tipo_decisao, fatos, inferencia, prioridade, confianca, "
         "proxima_acao, exige_aprovacao, executar_em, estado, chave FROM mi_fila_operacional "
@@ -235,10 +210,6 @@ def atividades_pendentes_fila(cur):
     return atividades
 
 
-# =====================================================
-# LEITURA -- painel Admin / Modo Diretor.
-# =====================================================
-
 def _ultima_versao_apenas(cur, tipos, limite):
     placeholders = ",".join(["%s"] * len(tipos))
     cur.execute(
@@ -251,9 +222,6 @@ def _ultima_versao_apenas(cur, tipos, limite):
 
 
 def status_agentes(cur, dias=14):
-    """Última atividade de cada agente, a partir de mi_sinais (origem=
-    'conselho', payload->>'agente'). Agente sem fato recente = 'sem
-    demanda' -- nunca inventamos atividade para preencher a lista."""
     cur.execute(
         "SELECT payload->>'agente' AS agente, tipo_evento, criado_em FROM mi_sinais "
         "WHERE origem='conselho' AND payload ? 'agente' "
@@ -279,8 +247,6 @@ def status_agentes(cur, dias=14):
 
 
 def leitura_conselho(factory, limite=10):
-    """Ponto único de leitura para o painel Admin e o Modo Diretor. Somente
-    leitura -- mesma sessão readonly usada por mi_decisao/mi_diretor."""
     conn = factory()
     try:
         conn.set_session(readonly=True, isolation_level='REPEATABLE READ')
@@ -327,3 +293,7 @@ def registrar_rotas_conselho(app, factory, autorizado):
         except Exception:
             app.logger.exception('Falha ao gerar leitura do Conselho de Agentes')
             return jsonify(success=False, error='Conselho indisponível.'), 503
+
+    # A camada interativa reutiliza o mesmo Conselho e a mesma autenticação.
+    from mi_conselho_interativo import registrar_rotas_conselho_interativo
+    registrar_rotas_conselho_interativo(app, factory, autorizado)
