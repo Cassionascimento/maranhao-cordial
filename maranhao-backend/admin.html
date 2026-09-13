@@ -390,6 +390,8 @@ summary{
 <link rel="stylesheet" href="/maranhao-intelligence.css">
 <link rel="stylesheet" href="/app-shell.css">
 <link rel="stylesheet" href="/visao-geral.css">
+<link rel="stylesheet" href="/modo-diretor.css">
+<link rel="stylesheet" href="/conselho-agentes.css">
 </head>
 
 <body>
@@ -418,6 +420,7 @@ summary{
             <div class="app-shell-grupo" data-app-grupo="maranhao-intelligence">
                 <span class="app-shell-grupo-titulo">Maranhão Intelligence</span>
                 <button class="admin-tab" data-tab="maranhao-intelligence" data-grupo="maranhao-intelligence">Maranhão Intelligence</button>
+                <button class="admin-tab" data-tab="conselho-de-agentes" data-grupo="maranhao-intelligence">Conselho de Agentes</button>
             </div>
             <div class="app-shell-grupo" data-app-grupo="territorio">
                 <span class="app-shell-grupo-titulo">Território</span>
@@ -482,6 +485,67 @@ summary{
             </section>
 
             <section class="tab-panel" data-panel="visao-geral">
+            <div id="modo-diretor">
+                <div class="mi-topo">
+                    <p class="mi-eyebrow">MARANHÃO INTELLIGENCE</p>
+                    <h2>Modo Diretor</h2>
+                    <p class="mi-subtitle">A IA trabalha; você acompanha. Esta tela resume o que ela já fez, o que fará e o que só você pode decidir.</p>
+                </div>
+                <div class="mi-toolbar"><button type="button" id="md-atualizar">Atualizar</button></div>
+                <p id="md-status-texto" role="status" aria-live="polite">Abra esta seção para consultar o Modo Diretor.</p>
+                <p id="md-indisponivel" class="md-indisponivel" hidden></p>
+                <div id="md-conteudo-geral" hidden>
+                    <div id="md-status"></div>
+
+                    <section class="md-card md-card--largo">
+                        <h3>Hoje</h3>
+                        <div id="md-hoje" class="mi-resumo"></div>
+                    </section>
+
+                    <section class="md-card md-card--largo">
+                        <h3>Conselho de agentes</h3>
+                        <div id="md-conselho"></div>
+                        <button type="button" data-vg-tab="conselho-de-agentes">Ver conselho completo →</button>
+                    </section>
+
+                    <div class="md-grid">
+                        <section class="md-card">
+                            <h3>Próxima ação</h3>
+                            <div id="md-proxima"></div>
+                        </section>
+                        <section class="md-card">
+                            <h3>Precisa de você</h3>
+                            <div id="md-precisa"></div>
+                        </section>
+                    </div>
+
+                    <section class="md-card md-card--largo">
+                        <h3>Público agora</h3>
+                        <div id="md-top10"></div>
+                    </section>
+
+                    <section class="md-card md-card--largo">
+                        <h3>Conteúdo de hoje</h3>
+                        <div id="md-conteudo"></div>
+                    </section>
+
+                    <section class="md-card md-card--largo">
+                        <h3>Comercial</h3>
+                        <div id="md-comercial" class="mi-resumo"></div>
+                    </section>
+
+                    <section class="md-card md-card--largo">
+                        <h3>Site agora</h3>
+                        <div id="md-site" class="mi-resumo"></div>
+                        <p id="md-site-destaque" class="vg-nota"></p>
+                    </section>
+
+                    <section class="md-card md-card--largo">
+                        <h3>Calendário</h3>
+                        <div id="md-calendario"></div>
+                    </section>
+                </div>
+            </div>
             <div id="visao-geral-executiva">
                 <div class="mi-topo">
                     <p class="mi-eyebrow">ESTADO DA MARANHÃO</p>
@@ -1589,6 +1653,55 @@ summary{
     <section class="mi-bloco" aria-labelledby="mi-territorio-titulo">
       <h3 id="mi-territorio-titulo">Território</h3>
       <div id="mi-territorio"></div>
+    </section>
+  </div>
+</section>
+
+            <section class="tab-panel" data-panel="conselho-de-agentes" id="conselho-painel">
+  <div class="mi-topo">
+    <p class="mi-eyebrow">MARANHÃO INTELLIGENCE</p>
+    <h2>Conselho de Agentes</h2>
+    <p class="mi-subtitle">Camada de especialistas que analisa demandas reais e recomenda -- nada aqui executa gasto, contratação, demissão, publicação ou envio sozinho. Tudo é recomendação até aprovação humana.</p>
+  </div>
+  <div class="mi-toolbar"><button type="button" id="conselho-atualizar">Atualizar Conselho</button></div>
+  <p id="conselho-status" role="status" aria-live="polite">Abra esta seção para consultar o Conselho.</p>
+  <div id="conselho-conteudo" hidden>
+    <section class="mi-bloco" aria-labelledby="conselho-resumo-titulo">
+      <h3 id="conselho-resumo-titulo">Resumo</h3>
+      <div id="conselho-resumo" class="mi-resumo"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="conselho-agentes-titulo">
+      <h3 id="conselho-agentes-titulo">Agentes</h3>
+      <div id="conselho-agentes" class="conselho-agentes-grid"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="conselho-mensagens-titulo">
+      <h3 id="conselho-mensagens-titulo">Mensagens do Conselho</h3>
+      <div id="conselho-mensagens"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="conselho-reunioes-titulo">
+      <h3 id="conselho-reunioes-titulo">Reuniões</h3>
+      <div id="conselho-reunioes"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="conselho-atas-titulo">
+      <h3 id="conselho-atas-titulo">Atas</h3>
+      <p class="mi-subtitle">A ata é o próprio registro da reunião/conclave, com todos os campos. Correções nunca sobrescrevem -- geram uma nova versão, mantendo a anterior.</p>
+      <div id="conselho-atas"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="conselho-relatorios-titulo">
+      <h3 id="conselho-relatorios-titulo">Relatórios</h3>
+      <div id="conselho-relatorios"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="conselho-conflitos-titulo">
+      <h3 id="conselho-conflitos-titulo">Conflitos</h3>
+      <div id="conselho-conflitos"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="conselho-vetos-titulo">
+      <h3 id="conselho-vetos-titulo">Vetos</h3>
+      <div id="conselho-vetos"></div>
+    </section>
+    <section class="mi-bloco" aria-labelledby="conselho-diretor-titulo">
+      <h3 id="conselho-diretor-titulo">Aguardando Diretor</h3>
+      <div id="conselho-diretor"></div>
     </section>
   </div>
 </section>
@@ -8868,6 +8981,8 @@ async function criarCampanha57(){
 <script src="/maranhao-intelligence.js" defer></script>
 <script src="/app-shell.js" defer></script>
 <script src="/visao-geral.js" defer></script>
+<script src="/modo-diretor.js" defer></script>
+<script src="/conselho-agentes.js" defer></script>
 <script src="/whatsapp-omnichannel.js" defer></script>
 </body>
 </html>

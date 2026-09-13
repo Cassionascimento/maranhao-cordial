@@ -1,0 +1,40 @@
+/* Banner de consentimento (ETAPA 5.4B) -- discreto, uma faixa no rodapé. */
+#mc-consentimento-banner {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 40;
+    max-width: 640px;
+    margin: 0 auto;
+    background: #12100d;
+    border: 1px solid rgba(212, 175, 55, .3);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, .4);
+    color: #f4ece1;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+#mc-consentimento-banner p { margin: 0 0 12px; }
+#mc-consentimento-banner a { color: #d4af37; }
+.mc-consentimento-botoes { display: flex; gap: 10px; justify-content: flex-end; }
+.mc-consentimento-botoes button {
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    border: 1px solid rgba(212, 175, 55, .4);
+    background: transparent;
+    color: #f4ece1;
+}
+.mc-consentimento-botoes button.mc-consentimento-aceitar {
+    background: #d4af37;
+    color: #12100d;
+    border-color: #d4af37;
+    font-weight: 600;
+}
+@media (max-width: 480px) {
+    .mc-consentimento-botoes { flex-direction: column-reverse; }
+    .mc-consentimento-botoes button { width: 100%; }
+}

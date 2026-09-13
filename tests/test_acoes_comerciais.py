@@ -121,6 +121,68 @@ class Acoes(f.Offline):
         self.assertEqual(client.post('/api/admin/acoes-comerciais/00000000-0000-0000-0000-000000000001/decisao',headers={'X-Admin-Key':'invalida'},json={}).status_code,401)
         self.assertEqual(client.post('/api/admin/acoes-comerciais/00000000-0000-0000-0000-000000000001/decisao',headers={'X-Admin-Key':'teste'},json={}).status_code,400)
 
+class SinaisMI(f.Offline):
+    """ETAPA 4.9: acoes_comerciais -> mi_sinais, sem tocar no comportamento existente.
+
+    propor() é coberto em test_origem_comercial.py (usa Store, que reconhece o
+    INSERT em acoes_comerciais_propostas; o Banco daqui não reconhece)."""
+
+    def test_aprovacao_emite_acao_aprovada(self):
+        b = Banco('aguardando_aprovacao')
+        with patch('acoes_comerciais.emitir') as emitir:
+            r = a.decidir(b, '1', b.row['digest'], True)
+        self.assertTrue(r['success'])
+        emitir.assert_called_once_with(b, natureza='acao', origem='acoes_comerciais',
+            tipo_evento='acao_aprovada', origem_id='1', payload={'ator': 'direcao'})
+
+    def test_rejeicao_emite_acao_rejeitada(self):
+        b = Banco('aguardando_aprovacao')
+        with patch('acoes_comerciais.emitir') as emitir:
+            r = a.decidir(b, '1', b.row['digest'], False)
+        self.assertTrue(r['success'])
+        emitir.assert_called_once_with(b, natureza='acao', origem='acoes_comerciais',
+            tipo_evento='acao_rejeitada', origem_id='1', payload={'ator': 'direcao'})
+
+    def test_decisao_recusada_nao_emite_nada(self):
+        b = Banco('aguardando_aprovacao')
+        with patch('acoes_comerciais.emitir') as emitir:
+            r = a.decidir(b, '1', 'digest-errado', True)
+        self.assertFalse(r['success'])
+        emitir.assert_not_called()
+
+    def test_execucao_enviada_emite_resultado_executada(self):
+        b = Banco()
+        send = Mock(return_value={'success': True, 'message_id': 'gmail-mock'})
+        with patch('acoes_comerciais.emitir') as emitir:
+            r = a.executar(b, '1', send)
+        self.assertEqual(r['status'], 'enviada')
+        emitir.assert_called_once_with(b, natureza='resultado', origem='acoes_comerciais',
+            tipo_evento='acao_executada', origem_id='1', resultado='enviada', payload={'tipo': 'primeiro_contato'})
+
+    def test_execucao_incerta_emite_resultado_executada_com_resultado_incerta(self):
+        b = Banco()
+        send = Mock(side_effect=TimeoutError)
+        with patch('acoes_comerciais.emitir') as emitir:
+            r = a.executar(b, '1', send)
+        self.assertEqual(r['status'], 'incerta')
+        emitir.assert_called_once_with(b, natureza='resultado', origem='acoes_comerciais',
+            tipo_evento='acao_executada', origem_id='1', resultado='incerta', payload={'tipo': 'primeiro_contato'})
+
+    def test_execucao_sem_aprovacao_nao_emite_nada(self):
+        b = Banco('rejeitada')
+        with patch('acoes_comerciais.emitir') as emitir:
+            a.executar(b, '1', Mock())
+        emitir.assert_not_called()
+
+    def test_falha_real_do_registro_de_sinal_nao_derruba_decisao(self):
+        """emitir() de verdade (nao mockado): SQL de mi_sinais nao reconhecido
+        pelo Banco fake levanta AssertionError, mas isso nunca deveria escapar
+        -- e de fato nao escapa, porque emitir() intercepta tudo."""
+        b = Banco('aguardando_aprovacao')
+        r = a.decidir(b, '1', b.row['digest'], True)
+        self.assertTrue(r['success'])
+
+
 class Meta(f.Offline):
     def test_hmac_corpo_original_e_ausencia(self):
         raw=b'{"object":"instagram"}'

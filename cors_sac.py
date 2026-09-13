@@ -27,6 +27,7 @@ def adicionar_cors_sac(response):
         or request.path.startswith("/api/admin")
         or request.path.startswith("/api/profissional/cadastro")
         or request.path.startswith("/api/parceiros/fabricas/cadastro")
+        or request.path.startswith("/api/site/")
     ):
 
         origem = request.headers.get("Origin")
