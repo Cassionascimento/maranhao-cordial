@@ -75,6 +75,10 @@ test('css protege contra overflow de token tecnico longo (causa real do bug de s
   assert.match(css,/\.conselho-parecer-card[^}]*min-width:\s*0/s);
 });
 
+test('radio/checkbox do modo e dos especialistas nao herdam o input{width:100%} global (causa real medida em producao: radio ~192px, checkbox ~64px, texto espremido em 2 linhas)',()=>{
+  assert.match(css,/\.conselho-modo-card input,\s*\n?\s*\.conselho-check input\s*\{[^}]*width:\s*auto/);
+});
+
 test('compatibilidade: Conselho, Maranhão Intelligence e Modo Diretor permanecem no Admin',()=>{
   assert.ok(html.includes('id="conselho-painel"'));
   assert.ok(html.includes('id="mi-painel"'));
