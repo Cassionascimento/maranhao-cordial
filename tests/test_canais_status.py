@@ -20,7 +20,7 @@ class StatusTodosOsCanais(unittest.TestCase):
         with patch.dict('os.environ', {}, clear=True):
             canais = cs.status_todos_os_canais()
         campos = {'canal', 'estado', 'ultima_sincronizacao', 'leitura_disponivel',
-                  'escrita_disponivel', 'aprovacao_exigida', 'ultimo_erro'}
+                  'escrita_disponivel', 'aprovacao_exigida', 'ultimo_erro', 'proximo_passo'}
         for c in canais:
             self.assertEqual(set(c.keys()), campos)
 
@@ -29,6 +29,14 @@ class StatusTodosOsCanais(unittest.TestCase):
             canais = cs.status_todos_os_canais()
         instagram = next(c for c in canais if c['canal'] == 'Instagram')
         self.assertEqual(instagram['estado'], 'conectado')
+
+    def test_proximo_passo_orienta_o_portal_exato_quando_pendente_e_fica_none_quando_conectado(self):
+        with patch.dict('os.environ', {}, clear=True):
+            linkedin = next(c for c in cs.status_todos_os_canais() if c['canal'] == 'LinkedIn')
+        self.assertIn('LinkedIn Developer Portal', linkedin['proximo_passo'])
+        with patch.dict('os.environ', {'LINKEDIN_CLIENT_ID': 'a', 'LINKEDIN_CLIENT_SECRET': 'b', 'LINKEDIN_ACCESS_TOKEN': 'c'}, clear=True):
+            linkedin = next(c for c in cs.status_todos_os_canais() if c['canal'] == 'LinkedIn')
+        self.assertIsNone(linkedin['proximo_passo'])
 
     def test_whatsapp_falha_ao_consultar_status_vira_bloqueado_nao_derruba_o_painel(self):
         with patch('whatsapp_omnichannel.status_conector', side_effect=RuntimeError('x')):

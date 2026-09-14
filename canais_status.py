@@ -21,6 +21,25 @@ def _estado(conectado, motivo_pendente):
     return "bloqueado"
 
 
+# Passo externo concreto por canal/estado -- texto fixo, não é uma métrica;
+# só orienta qual credencial/config falta em cada portal quando pendente.
+_PROXIMO_PASSO = {
+    "LinkedIn": "Criar app no LinkedIn Developer Portal (produto Community Management aprovado) e definir LINKEDIN_CLIENT_ID/SECRET/ACCESS_TOKEN.",
+    "Pinterest": "Criar app no Pinterest Developers e definir PINTEREST_CLIENT_ID/SECRET/ACCESS_TOKEN.",
+    "X": "Criar app OAuth2 no X Developer Portal e definir X_CLIENT_ID/ACCESS_TOKEN.",
+    "Instagram": "Definir INSTAGRAM_ACCESS_TOKEN (ou META_INSTAGRAM_ACCESS_TOKEN) via Meta Business.",
+    "Gmail": "Definir GMAIL_REFRESH_TOKEN (ou GOOGLE_REFRESH_TOKEN) via Google Cloud OAuth.",
+}
+
+
+def _proximo_passo(canal, estado, motivo=None):
+    if estado == "conectado":
+        return None
+    if canal == "WhatsApp":
+        return motivo or "Concluir validação Meta (WABA/número/assinatura de webhook)."
+    return _PROXIMO_PASSO.get(canal)
+
+
 def _canal_whatsapp():
     try:
         from whatsapp_omnichannel import status_conector
@@ -37,12 +56,14 @@ def _canal_whatsapp():
             "escrita_disponivel": conectado,
             "aprovacao_exigida": True,
             "ultimo_erro": prontidao.get("motivo") if estado == "bloqueado" else None,
+            "proximo_passo": _proximo_passo("WhatsApp", estado, prontidao.get("motivo")),
         }
     except Exception as erro:
         return {
             "canal": "WhatsApp", "estado": "bloqueado", "ultima_sincronizacao": None,
             "leitura_disponivel": False, "escrita_disponivel": False,
             "aprovacao_exigida": True, "ultimo_erro": type(erro).__name__,
+            "proximo_passo": _proximo_passo("WhatsApp", "bloqueado"),
         }
 
 
@@ -56,6 +77,7 @@ def _canal_instagram():
         "escrita_disponivel": False,
         "aprovacao_exigida": True,
         "ultimo_erro": None,
+        "proximo_passo": _proximo_passo("Instagram", "conectado" if conectado else "pendente"),
     }
 
 
@@ -69,19 +91,22 @@ def _canal_gmail():
         "escrita_disponivel": conectado,
         "aprovacao_exigida": True,
         "ultimo_erro": None,
+        "proximo_passo": _proximo_passo("Gmail", "conectado" if conectado else "pendente"),
     }
 
 
 def _canal_generico(nome, modulo):
     s = modulo.status()
+    estado = _estado(s["conectado"], s["motivo_pendente"])
     return {
         "canal": nome,
-        "estado": _estado(s["conectado"], s["motivo_pendente"]),
+        "estado": estado,
         "ultima_sincronizacao": None,
         "leitura_disponivel": s["leitura_disponivel"],
         "escrita_disponivel": s["escrita_disponivel"],
         "aprovacao_exigida": True,
         "ultimo_erro": None,
+        "proximo_passo": _proximo_passo(nome, estado),
     }
 
 

@@ -32,7 +32,7 @@
     const tabela = el('table', undefined, 'mi-tabela');
     const thead = el('thead');
     const trh = el('tr');
-    for (const c of ['Canal', 'Estado', 'Última sincronização', 'Leitura', 'Escrita', 'Aprovação exigida', 'Último erro']) trh.append(el('th', c));
+    for (const c of ['Canal', 'Estado', 'Última sincronização', 'Leitura', 'Escrita', 'Aprovação exigida', 'Último erro', 'Próximo passo externo']) trh.append(el('th', c));
     thead.append(trh);
     tabela.append(thead);
     const tbody = el('tbody');
@@ -46,6 +46,7 @@
         el('td', simNao(canal.escrita_disponivel)),
         el('td', simNao(canal.aprovacao_exigida)),
         el('td', canal.ultimo_erro || '—'),
+        el('td', canal.proximo_passo || '—'),
       );
       tbody.append(tr);
     }
