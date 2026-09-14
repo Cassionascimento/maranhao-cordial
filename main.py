@@ -39581,5 +39581,8 @@ registrar_rotas_canais(app, validar_admin_request)
 from linkedin_conector import registrar_rotas_linkedin
 registrar_rotas_linkedin(app, validar_admin_request)
 
+from pinterest_conector import registrar_rotas_pinterest
+registrar_rotas_pinterest(app, validar_admin_request)
+
 from site_sinais import registrar_rotas_site_sinais
 registrar_rotas_site_sinais(app, get_db_connection)
