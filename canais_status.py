@@ -25,7 +25,7 @@ def _estado(conectado, motivo_pendente):
 # só orienta qual credencial/config falta em cada portal quando pendente.
 _PROXIMO_PASSO = {
     "LinkedIn": "Criar app no LinkedIn Developer Portal (produto Community Management aprovado) e definir LINKEDIN_CLIENT_ID/SECRET/ACCESS_TOKEN.",
-    "Pinterest": "Criar app no Pinterest Developers e definir PINTEREST_CLIENT_ID/SECRET/ACCESS_TOKEN.",
+    "Pinterest": "Criar app no Pinterest Developers, cadastrar o callback e completar /api/admin/pinterest/connect para obter PINTEREST_ACCESS_TOKEN/REFRESH_TOKEN.",
     "X": "Criar app OAuth2 no X Developer Portal e definir X_CLIENT_ID/ACCESS_TOKEN.",
     "Instagram": "Definir INSTAGRAM_ACCESS_TOKEN (ou META_INSTAGRAM_ACCESS_TOKEN) via Meta Business.",
     "Gmail": "Definir GMAIL_REFRESH_TOKEN (ou GOOGLE_REFRESH_TOKEN) via Google Cloud OAuth.",
