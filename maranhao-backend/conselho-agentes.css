@@ -11,7 +11,10 @@
 #conselho-painel .mi-topo { margin: 24px 0 4px; }
 #conselho-painel .mi-eyebrow { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold, #a8b8a4); margin: 0 0 6px; }
 #conselho-painel .mi-subtitle { color: #b0bcb4; max-width: 640px; margin: 0 0 18px; line-height: 1.5; }
-#conselho-painel p, #conselho-painel li, #conselho-painel pre, #conselho-painel td, #conselho-painel th, #conselho-painel summary, #conselho-painel strong, #conselho-painel span {
+#conselho-painel p, #conselho-painel li, #conselho-painel td, #conselho-painel th, #conselho-painel summary, #conselho-painel strong, #conselho-painel span {
+    overflow-wrap: break-word;
+}
+#conselho-painel pre {
     overflow-wrap: anywhere;
     word-break: break-word;
 }
