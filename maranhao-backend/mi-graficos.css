@@ -1,0 +1,16 @@
+/* Gráficos leves (SVG inline, sem biblioteca) para o painel Maranhão
+   Intelligence -- reaproveita .mi-bloco/.mi-eyebrow já existentes. */
+.mig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 14px 0; }
+.mig-card { border: 1px solid #3c4842; border-radius: 12px; padding: 16px 18px; background: #141b17; min-width: 0; }
+.mig-card h4 { margin: 0 0 12px; font-size: .78rem; letter-spacing: .4px; text-transform: uppercase; color: #9aa89e; }
+.mig-card svg { display: block; width: 100%; height: auto; overflow: visible; }
+.mig-bar-label, .mig-donut-label, .mig-funil-label { font-size: 11px; fill: #cdd8bd; }
+.mig-bar-valor, .mig-donut-valor { font-size: 11px; fill: #eeeae2; font-weight: 600; }
+.mig-linha { fill: none; stroke: #d4af37; stroke-width: 2; }
+.mig-linha-area { fill: rgba(212, 175, 55, .12); stroke: none; }
+.mig-funil-etapa { fill: #1b261e; stroke: #344139; }
+.mig-canais-lista { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; }
+.mig-canais-lista span.mig-badge { font-size: .68rem; text-transform: uppercase; letter-spacing: .3px; margin-left: 8px; }
+.mig-badge-conectado { color: #8fbf8a; }
+.mig-badge-pendente { color: #c9b46a; }
+.mig-badge-bloqueado { color: #c98a8a; }
