@@ -148,35 +148,32 @@
     if (!window.adminKeyAtual) return;
     const grid = el('div', undefined, 'mig-grid');
     raiz.append(grid);
-    try {
-      const [painelBody, diretorBody, canaisBody] = await Promise.all([
-        buscar('https://maranhao-cordial-api.onrender.com/api/admin/mi/painel'),
-        buscar('https://maranhao-cordial-api.onrender.com/api/admin/mi/diretor').catch(() => null),
-        buscar('https://maranhao-cordial-api.onrender.com/api/admin/canais/status').catch(() => null),
-      ]);
+    // Cada fonte é buscada e tratada de forma independente -- a falha de
+    // uma (ex.: mi/painel indisponível) não pode apagar os demais gráficos
+    // já prontos para exibir; cada card mostra seu próprio estado vazio.
+    const [painelBody, diretorBody, canaisBody] = await Promise.all([
+      buscar('https://maranhao-cordial-api.onrender.com/api/admin/mi/painel').catch(() => null),
+      buscar('https://maranhao-cordial-api.onrender.com/api/admin/mi/diretor').catch(() => null),
+      buscar('https://maranhao-cordial-api.onrender.com/api/admin/canais/status').catch(() => null),
+    ]);
 
-      barras(grid, 'Eventos por SKU', (painelBody.produto?.por_sku || []).map(p => ({ rotulo: p.produto_nome || p.sku, valor: p.total })));
-      donut(grid, 'Unidades por estado', Object.entries(painelBody.secundario?.unidades_por_estado || {}).map(([rotulo, valor]) => ({ rotulo, valor })));
-      linhaTemporal(grid, 'Atividade recente (ordem cronológica)', (painelBody.atividade_recente || []).slice().reverse().map((a, i) => ({ rotulo: (a.tipo_evento || '') + ' #' + (i + 1), valor: i + 1 })));
+    barras(grid, 'Eventos por SKU', (painelBody?.produto?.por_sku || []).map(p => ({ rotulo: p.produto_nome || p.sku, valor: p.total })));
+    donut(grid, 'Unidades por estado', Object.entries(painelBody?.secundario?.unidades_por_estado || {}).map(([rotulo, valor]) => ({ rotulo, valor })));
+    linhaTemporal(grid, 'Atividade recente (ordem cronológica)', (painelBody?.atividade_recente || []).slice().reverse().map((a, i) => ({ rotulo: (a.tipo_evento || '') + ' #' + (i + 1), valor: i + 1 })));
 
-      if (diretorBody) {
-        funil(grid, 'Funil comercial (30 dias)', [
-          { rotulo: 'Prospectos encontrados', valor: diretorBody.comercial?.prospectos_encontrados || 0 },
-          { rotulo: 'Prospectos qualificados', valor: diretorBody.comercial?.prospectos_qualificados || 0 },
-          { rotulo: 'Oportunidades', valor: (diretorBody.comercial?.oportunidades || []).length },
-        ]);
-        barras(grid, 'Conselho de Agentes', [
-          { rotulo: 'Trabalhando', valor: diretorBody.conselho?.trabalhando || 0 },
-          { rotulo: 'Sem demanda', valor: diretorBody.conselho?.sem_demanda || 0 },
-          { rotulo: 'Conflitos', valor: (diretorBody.conselho?.conflitos || []).length },
-          { rotulo: 'Vetos', valor: (diretorBody.conselho?.vetos || []).length },
-          { rotulo: 'Aguardando Diretor', valor: (diretorBody.conselho?.aguardando_diretor || []).length },
-        ]);
-      }
-      if (canaisBody) listaCanais(grid, canaisBody.canais);
-    } catch (e) {
-      raiz.replaceChildren(el('p', e.message, 'mi-vazio'));
-    }
+    funil(grid, 'Funil comercial (30 dias)', diretorBody ? [
+      { rotulo: 'Prospectos encontrados', valor: diretorBody.comercial?.prospectos_encontrados || 0 },
+      { rotulo: 'Prospectos qualificados', valor: diretorBody.comercial?.prospectos_qualificados || 0 },
+      { rotulo: 'Oportunidades', valor: (diretorBody.comercial?.oportunidades || []).length },
+    ] : []);
+    barras(grid, 'Conselho de Agentes', diretorBody ? [
+      { rotulo: 'Trabalhando', valor: diretorBody.conselho?.trabalhando || 0 },
+      { rotulo: 'Sem demanda', valor: diretorBody.conselho?.sem_demanda || 0 },
+      { rotulo: 'Conflitos', valor: (diretorBody.conselho?.conflitos || []).length },
+      { rotulo: 'Vetos', valor: (diretorBody.conselho?.vetos || []).length },
+      { rotulo: 'Aguardando Diretor', valor: (diretorBody.conselho?.aguardando_diretor || []).length },
+    ] : []);
+    listaCanais(grid, canaisBody?.canais);
   }
 
   const btnMi = document.getElementById('mi-atualizar');

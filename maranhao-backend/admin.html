@@ -2440,7 +2440,7 @@ summary{
                     const data =
                         await response.json();
 
-                    if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
 
                         throw new Error(
                             data.error ||
@@ -2448,12 +2448,20 @@ summary{
                         );
                     }
 
+                    // Chave aceita (não é 401/403) mas os pedidos podem falhar
+                    // por motivo alheio à autenticação (ex.: banco instável).
+                    // Isso não pode travar o resto do Admin -- só esta seção
+                    // mostra estado indisponível, sem inventar zero.
+                    const pedidosOk = response.ok;
+
                     const pedidos =
-                        data.pedidos || [];
-                    window.dispatchEvent(new CustomEvent('executivo-dados', {detail:{fonte:'pedidos',dados:data.pedidos}}));
+                        pedidosOk ? (data.pedidos || []) : [];
+                    if (pedidosOk) {
+                        window.dispatchEvent(new CustomEvent('executivo-dados', {detail:{fonte:'pedidos',dados:data.pedidos}}));
+                    }
 
                     totalPedidos.textContent =
-                        pedidos.length;
+                        pedidosOk ? pedidos.length : "—";
 
                     const total =
                         pedidos.reduce(
@@ -2467,13 +2475,17 @@ summary{
                         );
 
                     valorTotal.textContent =
-                        dinheiro(total);
+                        pedidosOk ? dinheiro(total) : "—";
 
                     tbody.innerHTML = "";
 
                     if (!pedidos.length) {
                         emptyState.style.display =
                             "block";
+                        emptyState.textContent =
+                            pedidosOk
+                                ? "Nenhum pedido encontrado."
+                                : (data.error || "Pedidos indisponíveis no momento.");
                     } else {
                         emptyState.style.display =
                             "none";
@@ -2502,6 +2514,12 @@ summary{
                             tbody.appendChild(tr);
                         }
                     );
+
+                    // Chave já validada pelos pedidos acima -- daqui em diante,
+                    // falha nestas listas auxiliares não pode travar o resto
+                    // do Admin (Canais, Conselho, Maranhão Intelligence etc.).
+                    let dadosAuxiliaresErro = null;
+                    try {
 
                     const responseAtendimentos = await fetch(
                         "https://maranhao-cordial-api.onrender.com/api/admin/atendimentos",
@@ -2664,6 +2682,10 @@ summary{
                         atendimentosBody.appendChild(tr);
                     });
 
+                    } catch (erroAuxiliar) {
+                        dadosAuxiliaresErro = erroAuxiliar;
+                    }
+
                     content.classList.add(
                         "show"
                     );
@@ -2673,8 +2695,9 @@ summary{
 
                     carregarAnalytics();
 
-                    status.textContent =
-                        "Acesso autorizado.";
+                    status.textContent = dadosAuxiliaresErro
+                        ? "Acesso autorizado. Algumas listas auxiliares não carregaram agora."
+                        : "Acesso autorizado.";
 
                     const fabricasWorkflowSection =
                         document.getElementById(

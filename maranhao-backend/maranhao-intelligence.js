@@ -147,6 +147,9 @@
       $('status').textContent = 'Leitura atualizada. Painel somente leitura; nenhuma ação foi executada.';
     } catch (e) {
       $('status').textContent = e.message;
+      // Falha aqui não pode esconder as demais seções (Visão gráfica
+      // inclusive) -- elas têm sua própria leitura/estado vazio.
+      $('conteudo').hidden = false;
     } finally {
       controls(false);
     }
