@@ -54,7 +54,20 @@ def leitura_diretor(factory, agora=None):
     finally:
         conn.close()
 
-    conselho = leitura_conselho(factory)
+    # Isolado de propósito: o Conselho de Agentes é uma integração aditiva
+    # (mi_conselho_registros/mi_conselho_mensagens, migration 016) -- se
+    # essa tabela ainda não existir no banco em uso, leitura_conselho()
+    # lança, e sem isolar aqui o /api/admin/mi/diretor inteiro cairia em
+    # 503, escondendo também os dados comerciais/funil que não dependem
+    # do Conselho. Uma leitura vazia e honesta substitui a exceção.
+    try:
+        conselho = leitura_conselho(factory)
+    except Exception:
+        conselho = {
+            'agentes': [], 'trabalhando': 0, 'sem_demanda': 0,
+            'mensagens_recentes': [], 'reunioes_recentes': [], 'relatorios_recentes': [],
+            'conflitos': [], 'vetos': [], 'aguardando_diretor': [],
+        }
 
     top10 = calendario['inteligencia_de_publico']['top10']
     oportunidades = _por_tipo(todas_atividades, 'oportunidade_parada')
