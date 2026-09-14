@@ -28,7 +28,7 @@ _PROXIMO_PASSO = {
     "Pinterest": "Criar app no Pinterest Developers, cadastrar o callback e completar /api/admin/pinterest/connect para obter PINTEREST_ACCESS_TOKEN/REFRESH_TOKEN.",
     "X": "Criar app no X Developer Portal, cadastrar o callback e completar /api/admin/x/connect para obter X_ACCESS_TOKEN/REFRESH_TOKEN.",
     "Instagram": "Definir INSTAGRAM_ACCESS_TOKEN (ou META_INSTAGRAM_ACCESS_TOKEN) via Meta Business.",
-    "Gmail": "Definir GMAIL_REFRESH_TOKEN (ou GOOGLE_REFRESH_TOKEN) via Google Cloud OAuth.",
+    "Gmail": "Clicar em \"Conectar Gmail institucional\" no ADM e concluir o login Google (rotas /api/gmail/conectar e /api/gmail/callback já existentes).",
 }
 
 
@@ -81,12 +81,34 @@ def _canal_instagram():
     }
 
 
-def _canal_gmail():
-    conectado = bool(os.getenv("GMAIL_REFRESH_TOKEN") or os.getenv("GOOGLE_REFRESH_TOKEN"))
+def _credencial_oauth_gmail(factory):
+    """A conexão institucional (botão "Conectar Gmail institucional" no ADM,
+    rotas /api/gmail/conectar|callback) persiste em gmail_oauth_credentials,
+    não em env var -- só essa tabela reflete se aquele fluxo foi concluído."""
+    conn = factory()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT atualizado_em FROM gmail_oauth_credentials ORDER BY atualizado_em DESC LIMIT 1")
+            linha = cur.fetchone()
+            return linha[0] if linha else None
+    finally:
+        conn.close()
+
+
+def _canal_gmail(factory):
+    via_env = bool(os.getenv("GMAIL_REFRESH_TOKEN") or os.getenv("GOOGLE_REFRESH_TOKEN"))
+    ultima_sincronizacao = None
+    try:
+        atualizado_em = _credencial_oauth_gmail(factory)
+    except Exception:
+        atualizado_em = None
+    conectado = via_env or bool(atualizado_em)
+    if atualizado_em:
+        ultima_sincronizacao = atualizado_em.isoformat()
     return {
         "canal": "Gmail",
         "estado": "conectado" if conectado else "pendente",
-        "ultima_sincronizacao": None,
+        "ultima_sincronizacao": ultima_sincronizacao,
         "leitura_disponivel": conectado,
         "escrita_disponivel": conectado,
         "aprovacao_exigida": True,
@@ -110,7 +132,7 @@ def _canal_generico(nome, modulo):
     }
 
 
-def status_todos_os_canais():
+def status_todos_os_canais(factory):
     """Ordem fixa pedida: Instagram, WhatsApp, LinkedIn, Pinterest, X, Gmail."""
     return [
         _canal_instagram(),
@@ -118,15 +140,15 @@ def status_todos_os_canais():
         _canal_generico("LinkedIn", linkedin_conector),
         _canal_generico("Pinterest", pinterest_conector),
         _canal_generico("X", x_conector),
-        _canal_gmail(),
+        _canal_gmail(factory),
     ]
 
 
-def registrar_rotas_canais(app, validar_admin_request):
+def registrar_rotas_canais(app, factory, validar_admin_request):
     from flask import jsonify, request
 
     @app.route("/api/admin/canais/status", methods=["GET"])
     def canais_status_rota():
         if not validar_admin_request():
             return jsonify(success=False, error="nao_autorizado"), 401
-        return jsonify(success=True, canais=status_todos_os_canais())
+        return jsonify(success=True, canais=status_todos_os_canais(factory))

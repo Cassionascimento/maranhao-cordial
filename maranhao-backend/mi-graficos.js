@@ -173,6 +173,13 @@
       { rotulo: 'Vetos', valor: (diretorBody.conselho?.vetos || []).length },
       { rotulo: 'Aguardando Diretor', valor: (diretorBody.conselho?.aguardando_diretor || []).length },
     ] : []);
+    const contagemPorEstado = {};
+    for (const c of (canaisBody?.canais || [])) contagemPorEstado[c.estado] = (contagemPorEstado[c.estado] || 0) + 1;
+    donut(grid, 'Canais por status', [
+      { rotulo: 'Conectado', valor: contagemPorEstado.conectado || 0 },
+      { rotulo: 'Pendente', valor: contagemPorEstado.pendente || 0 },
+      { rotulo: 'Bloqueado', valor: contagemPorEstado.bloqueado || 0 },
+    ]);
     listaCanais(grid, canaisBody?.canais);
   }
 

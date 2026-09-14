@@ -51,6 +51,24 @@ test('com dados reais, desenha graficos sem inventar numeros',async()=>{
   assert.match(texto, /Guaraná/);
   assert.match(texto, /Funil comercial/);
   assert.match(texto, /LinkedIn/);
+  assert.match(texto, /Canais por status/);
+});
+
+test('donut de canais por status soma corretamente, sem inventar',async()=>{
+  const t = setup({
+    painel: {produto:{por_sku:[]}, secundario:{unidades_por_estado:{}}, atividade_recente:[]},
+    diretor: {comercial:{prospectos_encontrados:0,prospectos_qualificados:0,oportunidades:[]}, conselho:{trabalhando:0,sem_demanda:0,conflitos:[],vetos:[],aguardando_diretor:[]}},
+    canais: [
+      {canal:'LinkedIn', estado:'conectado'}, {canal:'Pinterest', estado:'pendente'},
+      {canal:'X', estado:'pendente'}, {canal:'WhatsApp', estado:'bloqueado'},
+    ],
+  });
+  await t.elementos['mi-atualizar'].listeners.click();
+  const donutCard = t.raiz.children[0].children.find(c => JSON.stringify(c).includes('Canais por status'));
+  const texto = JSON.stringify(donutCard);
+  assert.match(texto, /Conectado: 1/);
+  assert.match(texto, /Pendente: 2/);
+  assert.match(texto, /Bloqueado: 1/);
 });
 
 test('sem dado nenhum, mostra estado vazio, nunca numero fabricado',async()=>{

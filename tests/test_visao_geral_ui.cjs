@@ -15,7 +15,13 @@ const RESPOSTAS_OK = {
   '/api/admin/mi/painel': {success:true, resumo:{unidades:10,eventos:20,scans_qr:5,estabelecimentos:2,territorios_ativos:1},
     atividade_recente:[{tipo_evento:'scan',criado_em:new Date().toISOString()},{tipo_evento:'venda',criado_em:'2020-01-01T00:00:00Z'}]},
   '/api/admin/ia-empresarial/hoje': {success:true, resumo:{total_atencao:1,total_novos_prospectos:2,total_proximas_acoes:3}, precisa_atencao:['Revisar prospecto X']},
+  '/api/admin/mi/diretor': {success:true, leitura:{comercial:{oportunidades:[{},{}]}}},
+  '/api/admin/mi/conselho': {success:true, conselho:{reunioes_recentes:[{}], relatorios_recentes:[{},{}], aguardando_diretor:[{}]}},
+  '/api/admin/canais/status': {success:true, canais:[{estado:'conectado'},{estado:'pendente'},{estado:'bloqueado'}]},
+  '/api/admin/pedidos': {success:true, pedidos:[{},{},{}]},
 };
+
+const ROTULOS_KPIS = ['Leads ativos','Oportunidades','Ações comerciais pendentes','Vendas/pedidos','Demandas do Conselho','Aguardando o Diretor','Canais conectados','Canais pendentes/bloqueados'];
 
 function no(tag='div') {
   return {tag,children:[],listeners:{},textContent:'',disabled:false,hidden:true,dataset:{},
@@ -63,19 +69,25 @@ function setup({respostas=RESPOSTAS_OK, falharChave=[], semChave=false, semAdmin
   return {document,window,elementos,tabButtons,calls,eventos};
 }
 
-test('carrega exatamente os 4 KPIs esperados, na ordem certa',async()=>{
+test('carrega exatamente os 8 KPIs esperados, na ordem certa',async()=>{
   const t=setup();
   await t.elementos['vg-atualizar'].listeners.click();
   const rotulos=t.elementos['vg-kpis'].children.map(c=>c.children[1].textContent);
-  assert.deepEqual(rotulos,['Leads ativos','Aprovações pendentes','Scans hoje*','Alertas abertos']);
+  assert.deepEqual(rotulos,ROTULOS_KPIS);
 });
 
-test('conta leads ativos excluindo cliente/perdido/arquivado, e aprovações pendentes corretamente',async()=>{
+test('conta leads/oportunidades/acoes/pedidos/conselho/canais corretamente, sem inventar',async()=>{
   const t=setup();
   await t.elementos['vg-atualizar'].listeners.click();
   const valores=t.elementos['vg-kpis'].children.map(c=>c.children[0].textContent);
-  assert.equal(valores[0],'2'); // negociacao + novo (cliente/perdido/arquivado excluídos)
-  assert.equal(valores[1],'2'); // 2 aguardando_aprovacao
+  assert.equal(valores[0],'2'); // leads: negociacao + novo (cliente/perdido/arquivado excluídos)
+  assert.equal(valores[1],'2'); // oportunidades
+  assert.equal(valores[2],'2'); // acoes aguardando_aprovacao
+  assert.equal(valores[3],'3'); // pedidos
+  assert.equal(valores[4],'3'); // demandas do conselho: 1 reunião + 2 relatórios
+  assert.equal(valores[5],'1'); // aguardando diretor
+  assert.equal(valores[6],'1'); // canais conectados
+  assert.equal(valores[7],'2'); // canais pendentes/bloqueados
 });
 
 test('estado vazio elegante quando nada exige atenção',async()=>{
@@ -98,14 +110,14 @@ test('falha de um endpoint não derruba a tela: as outras seções continuam ren
   assert.match(t.elementos['vg-mi'].children[0].textContent,/indisponível/);
   // KPIs de outras fontes continuam presentes
   const rotulos=t.elementos['vg-kpis'].children.map(c=>c.children[1].textContent);
-  assert.deepEqual(rotulos,['Leads ativos','Aprovações pendentes','Scans hoje*','Alertas abertos']);
+  assert.deepEqual(rotulos,ROTULOS_KPIS);
   assert.equal(t.elementos['vg-status'].textContent,'Leitura atualizada. Nenhuma ação foi executada.');
 });
 
 test('nenhuma chamada é de escrita (todas as buscas são GET, sem method/body)',async()=>{
   const t=setup();
   await t.elementos['vg-atualizar'].listeners.click();
-  assert.equal(t.calls.length,6);
+  assert.equal(t.calls.length,10);
   for (const url of t.calls) assert.ok(!/method|POST|PUT|DELETE/i.test(url));
 });
 
@@ -126,7 +138,7 @@ test('sem chave administrativa, nenhuma chamada é feita ao abrir a aba ou após
 test('carrega automaticamente quando a aba já está ativa no evento admin-autorizado',async()=>{
   const t=setup();
   await t.eventos['admin-autorizado']();
-  assert.equal(t.calls.length,6);
+  assert.equal(t.calls.length,10);
 });
 
 test('botão de atalho para Maranhão Intelligence aciona a aba correspondente, sem duplicar a seção',async()=>{

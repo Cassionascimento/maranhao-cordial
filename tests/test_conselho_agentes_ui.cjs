@@ -314,8 +314,48 @@ test('participante sem posicao registrada mostra "nao ha dados suficientes"',asy
 test('conflitos e vetos vazios mostram estado explicado',async()=>{
   const t=setup();
   await t.elementos['conselho-atualizar'].listeners.click();
-  assert.match(t.elementos['conselho-conflitos'].children[0].textContent,/Nenhum conflito/);
+  assert.match(t.elementos['conselho-conflitos'].children[0].textContent,/Nenhuma divergência relevante/);
   assert.match(t.elementos['conselho-vetos'].children[0].textContent,/Nenhum veto/);
+});
+
+test('divergencia mostra agente -> posicao e sintese, nunca JSON cru',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, conflitos:[
+    {registro_id:'r1', tipo:'reuniao', conflitos:{iris:'dado insuficiente', leonard:'vendas discorda'}},
+  ]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const texto=JSON.stringify(t.elementos['conselho-conflitos']);
+  assert.match(texto,/Iris/);
+  assert.match(texto,/dado insuficiente/);
+  assert.match(texto,/Leonard/);
+  assert.match(texto,/Síntese/);
+  assert.doesNotMatch(texto,/"agente_a"/);
+});
+
+test('topo executivo mostra demandas analisadas, recomendacoes abertas e precisam do diretor',async()=>{
+  const t=setup();
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const texto=JSON.stringify(t.elementos['conselho-topo-executivo']);
+  assert.match(texto,/Demandas analisadas/);
+  assert.match(texto,/Recomendações abertas/);
+  assert.match(texto,/Precisam do Diretor/);
+});
+
+test('relatorio aparece como card compacto, nao tabela nem JSON cru',async()=>{
+  const t=setup();
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const container=t.elementos['conselho-relatorios'];
+  const card=container.children[0].children[1];
+  assert.equal(card.tag,'div');
+  const texto=JSON.stringify(container);
+  assert.match(texto,/Margem dentro do esperado/);
+  assert.doesNotMatch(texto,/"tag":"table"/);
+});
+
+test('card do agente mostra contagem de demandas participadas',async()=>{
+  const t=setup();
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const texto=JSON.stringify(t.elementos['conselho-agentes']);
+  assert.match(texto,/Demandas participadas: \d/);
 });
 
 test('veto registrado (lista) nunca fica silenciosamente ignorado -- aparece em Vetos',async()=>{

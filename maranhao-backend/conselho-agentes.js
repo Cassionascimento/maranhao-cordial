@@ -248,7 +248,9 @@
       card.append(el('strong', agente.nome, 'conselho-agente-nome'), el('span', agente.area, 'conselho-agente-area'), el('span', agente.status === 'trabalhando' ? 'Trabalhando' : 'Sem demanda', 'conselho-agente-status'));
       const atividade = agente.ultima_atividade;
       card.append(el('p', 'Última atividade: ' + (atividade ? (NOMES_EVENTO[atividade.tipo_evento] || atividade.tipo_evento) + ' em ' + dataHora(atividade.criado_em) : 'nenhuma registrada')));
-      const demandaAtual = agente.status === 'trabalhando' && [...reunioes, ...relatorios].filter(r => participaDe(r, agente.codigo)).sort((a,b)=>new Date(b.criado_em)-new Date(a.criado_em))[0];
+      const participacoes = [...reunioes, ...relatorios].filter(r => participaDe(r, agente.codigo)).sort((a,b)=>new Date(b.criado_em)-new Date(a.criado_em));
+      card.append(el('p', 'Demandas participadas: ' + participacoes.length, 'conselho-agente-contagem'));
+      const demandaAtual = agente.status === 'trabalhando' && participacoes[0];
       card.append(el('p', 'Demanda atual: ' + (demandaAtual ? (demandaAtual.demanda || '—') : 'nenhuma')));
       const ultimaMensagem = mensagens.find(m => m.de_agente === agente.codigo); card.append(el('p', 'Última mensagem: ' + (ultimaMensagem ? ('"'+ultimaMensagem.texto+'"') : 'nenhuma')));
       // Mostra a demanda (fato curto), nunca a conclusao consolidada bruta
@@ -411,12 +413,64 @@
     });
   }
 
-  function renderRelatorios(){tabela($('relatorios'),['Quando','Demanda','Participantes','Conclusão','Precisa Diretor'],(conselho.relatorios_recentes||[]).map(r=>[dataHora(r.criado_em),r.demanda||'—',(r.participantes||[]).join(', ')||'—',r.conclusao||'—',r.precisa_diretor?'Sim':'Não']),'Nenhum relatório registrado ainda (só é gerado quando há atividade real).','relatório(s)');}
-  function renderConflitos(){listaRecolhivel($('conflitos'), conselho.conflitos||[], 'Nenhum conflito identificado até o momento.', 'conflito(s)', item => { const b=el('div',undefined,'conselho-json-card'); b.append(el('strong',(item.tipo==='conclave'?'Conclave':'Reunião')+' — registro '+item.registro_id),el('pre',JSON.stringify(item.conflitos,null,2),'conselho-json-pre')); return b; });}
+  function relatorioCard(r) {
+    const card = el('div', undefined, 'conselho-ata-card');
+    const cabecalho = el('div', undefined, 'conselho-ata-cabecalho');
+    cabecalho.append(el('strong', 'Relatório'), el('span', dataHora(r.criado_em)));
+    card.append(cabecalho, el('p', 'Demanda: ' + (r.demanda || '—')));
+    card.append(el('p', 'Participantes: ' + ((r.participantes || []).map(nomeDe).join(', ') || '—')));
+    card.append(el('p', r.conclusao || 'Sem conclusão.', 'conselho-parecer-conclusao'));
+    const recomendacao = (r.recomendacoes || [])[0];
+    if (recomendacao) card.append(el('p', 'Recomendação: ' + recomendacao.descricao, 'conselho-parecer-acao'));
+    card.append(el('p', 'Precisa do Diretor: ' + (r.precisa_diretor ? 'Sim' : 'Não'), 'conselho-agente-nota'));
+    return card;
+  }
+  function renderRelatorios(){listaRecolhivel($('relatorios'), conselho.relatorios_recentes||[], 'Nenhum relatório registrado ainda (só é gerado quando há atividade real).', 'relatório(s)', relatorioCard);}
+
+  // `conflitos[i].conflitos` é {agente_codigo: texto_da_divergencia} (ver
+  // mi_conselho_executor._consolidar) -- cada entrada já é "agente ->
+  // posição"; a síntese aqui é derivada só de quem diverge, nunca repete a
+  // prosa do agente.
+  function divergenciaCard(item) {
+    const card = el('div', undefined, 'conselho-json-card conselho-divergencia-card');
+    card.append(el('strong', (item.tipo === 'conclave' ? 'Conclave' : 'Reunião') + ' — registro ' + item.registro_id));
+    const posicoes = item.conflitos || {};
+    const codigos = Object.keys(posicoes);
+    for (const codigo of codigos) {
+      const linha = el('p');
+      linha.append(el('strong', nomeDe(codigo) + ' → '), el('span', posicoes[codigo]));
+      card.append(linha);
+    }
+    if (codigos.length) {
+      card.append(el('p', 'Síntese: ' + codigos.map(nomeDe).join(' e ') + ' divergem nesta demanda -- decisão cabe ao Diretor.', 'conselho-divergencia-sintese'));
+    }
+    return card;
+  }
+  function renderConflitos(){listaRecolhivel($('conflitos'), conselho.conflitos||[], 'Nenhuma divergência relevante.', 'divergência(s)', divergenciaCard);}
   function renderVetos(){listaRecolhivel($('vetos'), conselho.vetos||[], 'Nenhum veto registrado.', 'veto(s)', item => { const b=el('div',undefined,'conselho-json-card conselho-json-card--veto'); b.append(el('strong',(item.tipo==='conclave'?'Conclave':'Reunião')+' — registro '+item.registro_id),el('pre',JSON.stringify(item.vetos,null,2),'conselho-json-pre')); return b; });}
   function renderAguardandoDiretor(){tabela($('diretor'),['Quando','Tipo','Demanda','Conclusão'],(conselho.aguardando_diretor||[]).map(r=>[dataHora(r.criado_em),{reuniao:'Reunião',conclave:'Conclave',relatorio:'Relatório'}[r.tipo]||r.tipo,r.demanda||'—',r.conclusao||'—']),'Nenhum item aguardando decisão do Diretor.','item(ns)');}
 
-  function render(){const resumo=$('resumo');resumo.replaceChildren();for(const [label,valor] of [['Agentes disponíveis',(conselho.agentes||[]).length],['Trabalhando',conselho.trabalhando],['Sem demanda',conselho.sem_demanda],['Conflitos',(conselho.conflitos||[]).length],['Vetos',(conselho.vetos||[]).length],['Aguardando Diretor',(conselho.aguardando_diretor||[]).length]]){const stat=el('div',undefined,'mi-stat');stat.append(el('strong',fmt(valor)),el('span',label));resumo.append(stat);}renderAgentes();renderMensagens();renderReunioes();renderAtas();renderRelatorios();renderConflitos();renderVetos();renderAguardandoDiretor();$('conteudo').hidden=false;}
+  // Três cards executivos no topo -- leitura rápida antes de entrar no
+  // detalhe técnico do Resumo abaixo. Derivados só de arrays já retornados
+  // pelo endpoint (nenhuma chamada nova, nenhum número inventado).
+  function renderTopoExecutivo() {
+    const container = $('topo-executivo'); if (!container) return; container.replaceChildren();
+    const reunioes = conselho.reunioes_recentes || [], relatorios = conselho.relatorios_recentes || [];
+    const demandasAnalisadas = reunioes.length + relatorios.length;
+    const recomendacoesAbertas = [...reunioes, ...relatorios].reduce((soma, r) => soma + (r.recomendacoes || []).length, 0);
+    const precisamDiretor = (conselho.aguardando_diretor || []).length;
+    for (const [label, valor] of [
+      ['Demandas analisadas', demandasAnalisadas],
+      ['Recomendações abertas', recomendacoesAbertas],
+      ['Precisam do Diretor', precisamDiretor],
+    ]) {
+      const card = el('div', undefined, 'conselho-topo-card');
+      card.append(el('strong', fmt(valor)), el('span', label));
+      container.append(card);
+    }
+  }
+
+  function render(){renderTopoExecutivo();const resumo=$('resumo');resumo.replaceChildren();for(const [label,valor] of [['Agentes disponíveis',(conselho.agentes||[]).length],['Trabalhando',conselho.trabalhando],['Sem demanda',conselho.sem_demanda],['Conflitos',(conselho.conflitos||[]).length],['Vetos',(conselho.vetos||[]).length],['Aguardando Diretor',(conselho.aguardando_diretor||[]).length]]){const stat=el('div',undefined,'mi-stat');stat.append(el('strong',fmt(valor)),el('span',label));resumo.append(stat);}renderAgentes();renderMensagens();renderReunioes();renderAtas();renderRelatorios();renderConflitos();renderVetos();renderAguardandoDiretor();$('conteudo').hidden=false;}
 
   async function load(){if(busy)return;controls(true);$('status').textContent='Consultando o Conselho…';try{conselho=await call();render();$('status').textContent='Leitura atualizada. Nenhuma ação foi executada.';}catch(e){$('status').textContent=e.message;$('conteudo').hidden=false;}finally{controls(false);}}
 

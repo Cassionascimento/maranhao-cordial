@@ -39576,7 +39576,7 @@ from mi_conselho import registrar_rotas_conselho
 registrar_rotas_conselho(app, get_db_connection, validar_admin_request)
 
 from canais_status import registrar_rotas_canais
-registrar_rotas_canais(app, validar_admin_request)
+registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
 from linkedin_conector import registrar_rotas_linkedin
 registrar_rotas_linkedin(app, validar_admin_request)
