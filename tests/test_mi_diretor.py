@@ -146,6 +146,24 @@ class LeituraDiretorConselho(unittest.TestCase):
             leitura = md.leitura_diretor(lambda: conn)
         self.assertIn('Conselho de Agentes aguardando decisão', leitura['chamar_diretor']['motivos'])
 
+    def test_falha_do_conselho_nao_derruba_o_restante_da_leitura(self):
+        """Se mi_conselho_registros/mensagens ainda não existirem no banco em
+        uso (migration 016 aditiva, não necessariamente aplicada em todo
+        ambiente), leitura_conselho() lança -- comercial/funil não podem
+        desaparecer por causa disso; o Conselho só fica com leitura vazia."""
+        conn = MagicMock()
+        cur = conn.cursor.return_value.__enter__.return_value
+        cur.fetchall.side_effect = [
+            [{'tipo_evento': 'prospecto_encontrado', 'total': 5}], [], [], [], [], [], [],
+        ]
+        with patch.object(md, 'gerar_calendario_mi', return_value=calendario_base()), \
+             patch.object(md, 'leitura_conselho', side_effect=Exception('relation "mi_conselho_registros" does not exist')):
+            leitura = md.leitura_diretor(lambda: conn)
+        self.assertEqual(leitura['comercial']['prospectos_encontrados'], 5)
+        self.assertEqual(leitura['conselho']['trabalhando'], 0)
+        self.assertEqual(leitura['conselho']['agentes'], [])
+        self.assertFalse(leitura['chamar_diretor']['necessario'])
+
     def test_sem_atividade_do_conselho_nao_chama_diretor(self):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
