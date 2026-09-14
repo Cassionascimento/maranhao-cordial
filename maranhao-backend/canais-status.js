@@ -1,10 +1,13 @@
-/* Canais -- painel somente leitura. Só consome GET /api/admin/canais/status
-   (canais_status.py); nenhuma ação, nenhum envio, nenhum dado inventado. */
+/* Canais -- painel somente leitura + ações reais já existentes no backend
+   (connect/testar/desconectar/reconectar). Só consome GET /api/admin/canais/status
+   (canais_status.py) para leitura; nenhum dado inventado, nenhum botão sem
+   rota correspondente no conector do canal. */
 (() => {
   'use strict';
   const panel = document.getElementById('canais-painel');
   if (!panel) return;
-  const api = 'https://maranhao-cordial-api.onrender.com/api/admin/canais/status';
+  const base = 'https://maranhao-cordial-api.onrender.com';
+  const api = base + '/api/admin/canais/status';
   const $ = id => document.getElementById('canais-' + id);
   let busy = false;
 
@@ -15,7 +18,22 @@
     return e;
   };
   const ESTADO_ROTULO = { conectado: 'Conectado', pendente: 'Pendente', bloqueado: 'Bloqueado' };
-  const simNao = v => (v ? 'Sim' : 'Não');
+  const LEITURA_ROTULO = (canal) => (canal.leitura_disponivel ? 'Ativa' : (canal.estado === 'bloqueado' ? 'Não disponível' : 'Pendente'));
+  const ESCRITA_ROTULO = (canal) => (canal.escrita_disponivel ? (canal.aprovacao_exigida ? 'Ativa (exige aprovação)' : 'Ativa') : 'Não disponível');
+  // Só canais com rotas reais de OAuth registradas (ver registrar_rotas_*
+  // nos respectivos conectores) ganham botões -- nenhum botão sem backend.
+  const ROTA_PREFIXO = { LinkedIn: 'linkedin', Pinterest: 'pinterest', X: 'x' };
+
+  async function chamar(caminho, opcoes) {
+    const resposta = await fetch(base + caminho, {
+      cache: 'no-store',
+      headers: { 'X-Admin-Key': window.adminKeyAtual || '' },
+      ...opcoes,
+    });
+    const corpo = await resposta.json().catch(() => ({}));
+    if (!resposta.ok || corpo.success === false) throw new Error(corpo.error || 'Falha na operação.');
+    return corpo;
+  }
 
   async function call() {
     if (!window.adminKeyAtual) throw new Error('Entre no Admin para consultar os Canais.');
@@ -25,34 +43,79 @@
     return body.canais;
   }
 
+  function linha(rotulo, valor) {
+    const item = el('div', undefined, 'canais-card-linha');
+    item.append(el('span', rotulo, 'canais-card-rotulo'), el('span', valor, 'canais-card-valor'));
+    return item;
+  }
+
+  function cardAcao(rotulo, acao, mensagemEl) {
+    const botao = el('button', rotulo, 'btn');
+    botao.type = 'button';
+    botao.addEventListener('click', async () => {
+      botao.disabled = true;
+      mensagemEl.textContent = 'Executando ' + rotulo.toLowerCase() + '…';
+      try {
+        const resultado = await acao();
+        mensagemEl.textContent = resultado || 'Concluído.';
+        load();
+      } catch (e) {
+        mensagemEl.textContent = e.message;
+      } finally {
+        botao.disabled = false;
+      }
+    });
+    return botao;
+  }
+
+  function card(canal) {
+    const box = el('article', undefined, 'canais-card canais-card-' + canal.estado);
+    const cabecalho = el('div', undefined, 'canais-card-cabecalho');
+    cabecalho.append(el('h4', canal.canal), el('span', ESTADO_ROTULO[canal.estado] || canal.estado, 'canais-badge canais-badge-' + canal.estado));
+    box.append(cabecalho);
+
+    box.append(
+      linha('Leitura', LEITURA_ROTULO(canal)),
+      linha('Escrita', ESCRITA_ROTULO(canal)),
+      linha('Última sincronização', canal.ultima_sincronizacao || 'Nunca sincronizado'),
+      linha('Último erro', canal.ultimo_erro || 'Nenhum'),
+    );
+    box.append(el('p', canal.proximo_passo || 'Nenhum próximo passo pendente.', 'canais-card-proximo'));
+
+    const prefixo = ROTA_PREFIXO[canal.canal];
+    if (prefixo) {
+      const mensagem = el('p', '', 'canais-card-mensagem');
+      const acoes = el('div', undefined, 'canais-card-acoes');
+      acoes.append(
+        cardAcao('Conectar', async () => {
+          const r = await chamar(`/api/admin/${prefixo}/connect`);
+          if (r.url) window.open(r.url, '_blank', 'noopener');
+          return 'Autorização aberta em nova aba.';
+        }, mensagem),
+        cardAcao('Testar', async () => {
+          const r = await chamar(`/api/admin/${prefixo}/testar`);
+          return r.conexao === 'ok' ? 'Conexão OK.' : 'Teste concluído.';
+        }, mensagem),
+        cardAcao('Reconectar', async () => {
+          await chamar(`/api/admin/${prefixo}/reconectar`, { method: 'POST' });
+          return 'Reconectado localmente.';
+        }, mensagem),
+        cardAcao('Desconectar', async () => {
+          await chamar(`/api/admin/${prefixo}/desconectar`, { method: 'POST' });
+          return 'Desconectado localmente.';
+        }, mensagem),
+      );
+      box.append(acoes, mensagem);
+    }
+    return box;
+  }
+
   function render(canais) {
     const container = $('conteudo');
     container.replaceChildren();
-    const wrap = el('div', undefined, 'mi-tabela-wrap');
-    const tabela = el('table', undefined, 'mi-tabela');
-    const thead = el('thead');
-    const trh = el('tr');
-    for (const c of ['Canal', 'Estado', 'Última sincronização', 'Leitura', 'Escrita', 'Aprovação exigida', 'Último erro', 'Próximo passo externo']) trh.append(el('th', c));
-    thead.append(trh);
-    tabela.append(thead);
-    const tbody = el('tbody');
-    for (const canal of canais) {
-      const tr = el('tr', undefined, 'canais-linha-' + canal.estado);
-      tr.append(
-        el('td', canal.canal),
-        el('td', ESTADO_ROTULO[canal.estado] || canal.estado, 'canais-badge canais-badge-' + canal.estado),
-        el('td', canal.ultima_sincronizacao || 'nunca sincronizado'),
-        el('td', simNao(canal.leitura_disponivel)),
-        el('td', simNao(canal.escrita_disponivel)),
-        el('td', simNao(canal.aprovacao_exigida)),
-        el('td', canal.ultimo_erro || '—'),
-        el('td', canal.proximo_passo || '—'),
-      );
-      tbody.append(tr);
-    }
-    tabela.append(tbody);
-    wrap.append(tabela);
-    container.append(wrap);
+    const grid = el('div', undefined, 'canais-grid');
+    for (const canal of canais) grid.append(card(canal));
+    container.append(grid);
     $('conteudo').hidden = false;
   }
 
@@ -64,7 +127,7 @@
     try {
       const canais = await call();
       render(canais);
-      $('status').textContent = 'Leitura atualizada. Nenhuma ação foi executada.';
+      $('status').textContent = 'Leitura atualizada. Nenhuma ação automática foi executada.';
     } catch (e) {
       $('status').textContent = e.message;
     } finally {

@@ -20,6 +20,11 @@
 }
 #conselho-painel .mi-stat, #conselho-painel .mi-resumo { min-width: 0; }
 
+.conselho-topo-executivo { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:6px 0 18px; }
+.conselho-topo-card { border:1px solid #4b5d52; border-radius:12px; padding:16px 18px; background:linear-gradient(180deg,#151d18,#101612); display:flex; flex-direction:column; gap:4px; min-width:0; }
+.conselho-topo-card strong { font-size:1.7rem; color:var(--text,#eeeae2); line-height:1.1; }
+.conselho-topo-card span { font-size:.78rem; color:#9aa89e; text-transform:uppercase; letter-spacing:.4px; }
+
 .conselho-consulta { border: 1px solid #4b5d52; background: linear-gradient(180deg,#151d18,#101612); }
 .conselho-consulta-head { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; flex-wrap:wrap; margin-bottom:16px; }
 .conselho-consulta-title h3 { margin:0; color:var(--text,#eeeae2); font-size:1.2rem; }
@@ -88,7 +93,10 @@
 .conselho-agente-trabalhando .conselho-agente-status { border:1px solid #8fbf8a; color:#8fbf8a; }
 .conselho-agente-sem_demanda .conselho-agente-status { border:1px solid #6f7a71; color:#9aa89e; }
 .conselho-agente-card p { font-size:.82rem; color:#cdd8bd; margin:0; line-height:1.4; }
+.conselho-agente-contagem { color:#9caf98 !important; font-weight:600; }
 .conselho-agente-nota { color:#8a968c; font-style:italic; margin-top:4px !important; }
+.conselho-divergencia-card p { color:#c4d0c7; font-size:.82rem; line-height:1.45; margin:8px 0 0; }
+.conselho-divergencia-sintese { color:#c9b46a !important; font-style:italic; border-top:1px solid #2f3933; padding-top:8px; margin-top:10px !important; }
 .conselho-json-bloco,.conselho-json-card { margin-top:8px; }
 .conselho-json-rotulo { display:block; font-size:.7rem; letter-spacing:.4px; text-transform:uppercase; color:#9aa89e; margin-bottom:4px; }
 .conselho-json-pre { background:#0e1512; border:1px solid #2c3630; border-radius:8px; padding:10px 12px; font-size:.78rem; color:#cdd8bd; overflow-x:auto; white-space:pre-wrap; word-break:break-word; margin:0; }

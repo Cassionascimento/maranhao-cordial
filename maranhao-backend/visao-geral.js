@@ -43,13 +43,6 @@
     return acoes.body.acoes.filter(a => a.status === 'aguardando_aprovacao').length;
   }
 
-  function scansHoje(mi) {
-    if (!mi.ok || !Array.isArray(mi.body.atividade_recente)) return null;
-    const hoje = new Date().toISOString().slice(0, 10);
-    return mi.body.atividade_recente.filter(e => e.tipo_evento === 'scan'
-      && String(e.criado_em || '').slice(0, 10) === hoje).length;
-  }
-
   function estadoWhatsapp(whatsapp) {
     if (!whatsapp.ok) return 'indisponivel';
     if (whatsapp.body.envio_liberado) return 'operacional';
@@ -75,14 +68,18 @@
     return itens;
   }
 
-  function renderKpis({ leads, acoesQtd, scans, atencaoQtd }) {
+  function renderKpis({ leads, oportunidades, acoesQtd, pedidosQtd, demandasConselho, aguardandoDiretor, canaisConectados, canaisPendentesBloqueados }) {
     const container = $('kpis');
     container.replaceChildren();
     for (const [label, valor] of [
       ['Leads ativos', leads],
-      ['Aprovações pendentes', acoesQtd],
-      ['Scans hoje*', scans],
-      ['Alertas abertos', atencaoQtd],
+      ['Oportunidades', oportunidades],
+      ['Ações comerciais pendentes', acoesQtd],
+      ['Vendas/pedidos', pedidosQtd],
+      ['Demandas do Conselho', demandasConselho],
+      ['Aguardando o Diretor', aguardandoDiretor],
+      ['Canais conectados', canaisConectados],
+      ['Canais pendentes/bloqueados', canaisPendentesBloqueados],
     ]) {
       const stat = el('div', undefined, 'mi-stat');
       stat.append(el('strong', fmt(valor)), el('span', label));
@@ -170,13 +167,17 @@
     controles(true);
     $('status').textContent = 'Consultando o estado atual…';
     try {
-      const [leads, acoes, whatsapp, c6, mi, ia] = await Promise.all([
+      const [leads, acoes, whatsapp, c6, mi, ia, diretor, conselho, canais, pedidos] = await Promise.all([
         chamar('/api/admin/crm/leads'),
         chamar('/api/admin/acoes-comerciais'),
         chamar('/api/admin/omnichannel/whatsapp'),
         chamar('/api/c6/status'),
         chamar('/api/admin/mi/painel'),
         chamar('/api/admin/ia-empresarial/hoje'),
+        chamar('/api/admin/mi/diretor'),
+        chamar('/api/admin/mi/conselho'),
+        chamar('/api/admin/canais/status'),
+        chamar('/api/admin/pedidos'),
       ]);
 
       const whatsappEstado = estadoWhatsapp(whatsapp);
@@ -184,11 +185,18 @@
       const acoesQtd = acoesPendentes(acoes);
       const itensAtencao = pontosDeAtencao({ acoesQtd: acoesQtd || 0, whatsappEstado, c6Estado, ia });
 
+      const listaCanais = (canais.ok && Array.isArray(canais.body.canais)) ? canais.body.canais : null;
+      const conselhoBody = (conselho.ok && conselho.body.conselho) ? conselho.body.conselho : null;
+
       renderKpis({
         leads: leadsAtivos(leads),
+        oportunidades: (diretor.ok && Array.isArray(diretor.body.leitura?.comercial?.oportunidades)) ? diretor.body.leitura.comercial.oportunidades.length : null,
         acoesQtd,
-        scans: scansHoje(mi),
-        atencaoQtd: itensAtencao.length,
+        pedidosQtd: (pedidos.ok && Array.isArray(pedidos.body.pedidos)) ? pedidos.body.pedidos.length : null,
+        demandasConselho: conselhoBody ? ((conselhoBody.reunioes_recentes || []).length + (conselhoBody.relatorios_recentes || []).length) : null,
+        aguardandoDiretor: conselhoBody ? (conselhoBody.aguardando_diretor || []).length : null,
+        canaisConectados: listaCanais ? listaCanais.filter(c => c.estado === 'conectado').length : null,
+        canaisPendentesBloqueados: listaCanais ? listaCanais.filter(c => c.estado !== 'conectado').length : null,
       });
       renderLeitura(ia);
       renderAtencao(itensAtencao);

@@ -39,8 +39,14 @@
     validos.forEach((d, i) => {
       const y = i * alturaLinha;
       const larguraBarra = Math.max(2, (d.valor / max) * (largura - 42));
-      const rotulo = svgEl('text', { x: 0, y: y + 9, class: 'mig-bar-label' });
-      rotulo.textContent = d.rotulo.length > 16 ? d.rotulo.slice(0, 15) + '…' : d.rotulo;
+      const truncado = d.rotulo.length > 16;
+      // Rótulo truncado ainda podia colidir visualmente com o valor à direita
+      // (SVG não faz auto-fit de texto) -- textLength força o desenho a caber
+      // no espaço reservado, sem sobrepor o número.
+      const atributosRotulo = { x: 0, y: y + 9, class: 'mig-bar-label' };
+      if (truncado) { atributosRotulo.textLength = largura - 26; atributosRotulo.lengthAdjust = 'spacingAndGlyphs'; }
+      const rotulo = svgEl('text', atributosRotulo);
+      rotulo.textContent = truncado ? d.rotulo.slice(0, 15) + '…' : d.rotulo;
       svg.append(rotulo);
       svg.append(svgEl('rect', { x: 0, y: y + 12, width: larguraBarra, height: 6, rx: 2, fill: '#d4af37' }));
       const txt = svgEl('text', { x: largura, y: y + 9, class: 'mig-bar-valor', 'text-anchor': 'end' });
@@ -148,35 +154,42 @@
     if (!window.adminKeyAtual) return;
     const grid = el('div', undefined, 'mig-grid');
     raiz.append(grid);
-    try {
-      const [painelBody, diretorBody, canaisBody] = await Promise.all([
-        buscar('https://maranhao-cordial-api.onrender.com/api/admin/mi/painel'),
-        buscar('https://maranhao-cordial-api.onrender.com/api/admin/mi/diretor').catch(() => null),
-        buscar('https://maranhao-cordial-api.onrender.com/api/admin/canais/status').catch(() => null),
-      ]);
+    // Cada fonte é buscada e tratada de forma independente -- a falha de
+    // uma (ex.: mi/painel indisponível) não pode apagar os demais gráficos
+    // já prontos para exibir; cada card mostra seu próprio estado vazio.
+    const [painelBody, diretorBody, canaisBody] = await Promise.all([
+      buscar('https://maranhao-cordial-api.onrender.com/api/admin/mi/painel').catch(() => null),
+      buscar('https://maranhao-cordial-api.onrender.com/api/admin/mi/diretor').catch(() => null),
+      buscar('https://maranhao-cordial-api.onrender.com/api/admin/canais/status').catch(() => null),
+    ]);
 
-      barras(grid, 'Eventos por SKU', (painelBody.produto?.por_sku || []).map(p => ({ rotulo: p.produto_nome || p.sku, valor: p.total })));
-      donut(grid, 'Unidades por estado', Object.entries(painelBody.secundario?.unidades_por_estado || {}).map(([rotulo, valor]) => ({ rotulo, valor })));
-      linhaTemporal(grid, 'Atividade recente (ordem cronológica)', (painelBody.atividade_recente || []).slice().reverse().map((a, i) => ({ rotulo: (a.tipo_evento || '') + ' #' + (i + 1), valor: i + 1 })));
+    barras(grid, 'Eventos por SKU', (painelBody?.produto?.por_sku || []).map(p => ({ rotulo: p.produto_nome || p.sku, valor: p.total })));
+    donut(grid, 'Unidades por estado', Object.entries(painelBody?.secundario?.unidades_por_estado || {}).map(([rotulo, valor]) => ({ rotulo, valor })));
+    linhaTemporal(grid, 'Atividade recente (ordem cronológica)', (painelBody?.atividade_recente || []).slice().reverse().map((a, i) => ({ rotulo: (a.tipo_evento || '') + ' #' + (i + 1), valor: i + 1 })));
 
-      if (diretorBody) {
-        funil(grid, 'Funil comercial (30 dias)', [
-          { rotulo: 'Prospectos encontrados', valor: diretorBody.comercial?.prospectos_encontrados || 0 },
-          { rotulo: 'Prospectos qualificados', valor: diretorBody.comercial?.prospectos_qualificados || 0 },
-          { rotulo: 'Oportunidades', valor: (diretorBody.comercial?.oportunidades || []).length },
-        ]);
-        barras(grid, 'Conselho de Agentes', [
-          { rotulo: 'Trabalhando', valor: diretorBody.conselho?.trabalhando || 0 },
-          { rotulo: 'Sem demanda', valor: diretorBody.conselho?.sem_demanda || 0 },
-          { rotulo: 'Conflitos', valor: (diretorBody.conselho?.conflitos || []).length },
-          { rotulo: 'Vetos', valor: (diretorBody.conselho?.vetos || []).length },
-          { rotulo: 'Aguardando Diretor', valor: (diretorBody.conselho?.aguardando_diretor || []).length },
-        ]);
-      }
-      if (canaisBody) listaCanais(grid, canaisBody.canais);
-    } catch (e) {
-      raiz.replaceChildren(el('p', e.message, 'mi-vazio'));
-    }
+    // /api/admin/mi/diretor devolve {success, leitura:{comercial,conselho}} --
+    // a leitura fica embrulhada em `leitura`, nunca solta na raiz do corpo.
+    const leituraDiretor = diretorBody?.leitura;
+    funil(grid, 'Funil comercial (30 dias)', leituraDiretor ? [
+      { rotulo: 'Prospectos encontrados', valor: leituraDiretor.comercial?.prospectos_encontrados || 0 },
+      { rotulo: 'Prospectos qualificados', valor: leituraDiretor.comercial?.prospectos_qualificados || 0 },
+      { rotulo: 'Oportunidades', valor: (leituraDiretor.comercial?.oportunidades || []).length },
+    ] : []);
+    barras(grid, 'Conselho de Agentes', leituraDiretor ? [
+      { rotulo: 'Trabalhando', valor: leituraDiretor.conselho?.trabalhando || 0 },
+      { rotulo: 'Sem demanda', valor: leituraDiretor.conselho?.sem_demanda || 0 },
+      { rotulo: 'Conflitos', valor: (leituraDiretor.conselho?.conflitos || []).length },
+      { rotulo: 'Vetos', valor: (leituraDiretor.conselho?.vetos || []).length },
+      { rotulo: 'Aguardando Diretor', valor: (leituraDiretor.conselho?.aguardando_diretor || []).length },
+    ] : []);
+    const contagemPorEstado = {};
+    for (const c of (canaisBody?.canais || [])) contagemPorEstado[c.estado] = (contagemPorEstado[c.estado] || 0) + 1;
+    donut(grid, 'Canais por status', [
+      { rotulo: 'Conectado', valor: contagemPorEstado.conectado || 0 },
+      { rotulo: 'Pendente', valor: contagemPorEstado.pendente || 0 },
+      { rotulo: 'Bloqueado', valor: contagemPorEstado.bloqueado || 0 },
+    ]);
+    listaCanais(grid, canaisBody?.canais);
   }
 
   const btnMi = document.getElementById('mi-atualizar');

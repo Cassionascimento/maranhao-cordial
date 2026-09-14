@@ -1,9 +1,28 @@
-/* Canais: reaproveita .mi-topo/.mi-eyebrow/.mi-subtitle/.mi-toolbar/.mi-tabela
+/* Canais: reaproveita .mi-topo/.mi-eyebrow/.mi-subtitle/.mi-toolbar
    (maranhao-intelligence.css) -- só o específico desta tela fica aqui. */
+#canais-painel { overflow-x: hidden; }
 #canais-painel .mi-topo { margin: 24px 0 4px; }
 #canais-painel .mi-eyebrow { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold, #a8b8a4); margin: 0 0 6px; }
 #canais-painel .mi-subtitle { color: #b0bcb4; max-width: 640px; margin: 0 0 18px; line-height: 1.5; }
-.canais-badge { font-size: .72rem; letter-spacing: .3px; text-transform: uppercase; }
-.canais-linha-conectado .canais-badge-conectado { color: #8fbf8a; }
-.canais-linha-pendente .canais-badge-pendente { color: #c9b46a; }
-.canais-linha-bloqueado .canais-badge-bloqueado { color: #c98a8a; }
+
+.canais-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.canais-card { border: 1px solid #3c4842; border-radius: 12px; padding: 16px 18px; background: #141b17; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.canais-card-conectado { border-color: #4f7a4c; }
+.canais-card-bloqueado { border-color: #a96666; }
+.canais-card-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.canais-card-cabecalho h4 { margin: 0; font-size: 1.05rem; color: var(--text, #eeeae2); }
+.canais-badge { font-size: .68rem; letter-spacing: .4px; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.canais-badge-conectado { border: 1px solid #8fbf8a; color: #8fbf8a; }
+.canais-badge-pendente { border: 1px solid #c9b46a; color: #c9b46a; }
+.canais-badge-bloqueado { border: 1px solid #c98a8a; color: #c98a8a; }
+.canais-card-linha { display: flex; justify-content: space-between; gap: 10px; font-size: .82rem; }
+.canais-card-rotulo { color: #9aa89e; }
+.canais-card-valor { color: #cdd8bd; text-align: right; overflow-wrap: break-word; }
+.canais-card-proximo { margin: 4px 0 0; font-size: .8rem; color: #c9b46a; line-height: 1.4; overflow-wrap: break-word; }
+.canais-card-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.canais-card-acoes .btn { font-size: .74rem; padding: 6px 11px; }
+.canais-card-mensagem { font-size: .76rem; color: #9aa89e; margin: 2px 0 0; min-height: 1em; }
+
+@media (max-width: 720px) {
+  .canais-grid { grid-template-columns: 1fr; }
+}
