@@ -39575,5 +39575,8 @@ registrar_rotas_mi_diretor(app, get_db_connection, validar_admin_request)
 from mi_conselho import registrar_rotas_conselho
 registrar_rotas_conselho(app, get_db_connection, validar_admin_request)
 
+from canais_status import registrar_rotas_canais
+registrar_rotas_canais(app, validar_admin_request)
+
 from site_sinais import registrar_rotas_site_sinais
 registrar_rotas_site_sinais(app, get_db_connection)
