@@ -1,0 +1,9 @@
+/* Canais: reaproveita .mi-topo/.mi-eyebrow/.mi-subtitle/.mi-toolbar/.mi-tabela
+   (maranhao-intelligence.css) -- só o específico desta tela fica aqui. */
+#canais-painel .mi-topo { margin: 24px 0 4px; }
+#canais-painel .mi-eyebrow { font-size: .72rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold, #a8b8a4); margin: 0 0 6px; }
+#canais-painel .mi-subtitle { color: #b0bcb4; max-width: 640px; margin: 0 0 18px; line-height: 1.5; }
+.canais-badge { font-size: .72rem; letter-spacing: .3px; text-transform: uppercase; }
+.canais-linha-conectado .canais-badge-conectado { color: #8fbf8a; }
+.canais-linha-pendente .canais-badge-pendente { color: #c9b46a; }
+.canais-linha-bloqueado .canais-badge-bloqueado { color: #c98a8a; }

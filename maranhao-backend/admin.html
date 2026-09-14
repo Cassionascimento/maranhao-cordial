@@ -392,6 +392,7 @@ summary{
 <link rel="stylesheet" href="/visao-geral.css">
 <link rel="stylesheet" href="/modo-diretor.css">
 <link rel="stylesheet" href="/conselho-agentes.css">
+<link rel="stylesheet" href="/canais-status.css">
 </head>
 
 <body>
@@ -421,6 +422,7 @@ summary{
                 <span class="app-shell-grupo-titulo">Maranhão Intelligence</span>
                 <button class="admin-tab" data-tab="maranhao-intelligence" data-grupo="maranhao-intelligence">Maranhão Intelligence</button>
                 <button class="admin-tab" data-tab="conselho-de-agentes" data-grupo="maranhao-intelligence">Conselho de Agentes</button>
+                <button class="admin-tab" data-tab="canais" data-grupo="maranhao-intelligence">Canais</button>
             </div>
             <div class="app-shell-grupo" data-app-grupo="territorio">
                 <span class="app-shell-grupo-titulo">Território</span>
@@ -1704,6 +1706,17 @@ summary{
       <div id="conselho-diretor"></div>
     </section>
   </div>
+</section>
+
+            <section class="tab-panel" data-panel="canais" id="canais-painel">
+  <div class="mi-topo">
+    <p class="mi-eyebrow">MARANHÃO INTELLIGENCE</p>
+    <h2>Canais</h2>
+    <p class="mi-subtitle">Status de leitura/escrita dos canais externos já demandados -- só organiza o que existe, nenhuma ação é disparada aqui.</p>
+  </div>
+  <div class="mi-toolbar"><button type="button" id="canais-atualizar">Atualizar Canais</button></div>
+  <p id="canais-status" role="status" aria-live="polite">Abra esta seção para consultar os canais.</p>
+  <div id="canais-conteudo" hidden></div>
 </section>
 
             <section class="tab-panel active" data-panel="ia-empresarial">
@@ -8983,6 +8996,7 @@ async function criarCampanha57(){
 <script src="/visao-geral.js" defer></script>
 <script src="/modo-diretor.js" defer></script>
 <script src="/conselho-agentes.js" defer></script>
+<script src="/canais-status.js" defer></script>
 <script src="/whatsapp-omnichannel.js" defer></script>
 </body>
 </html>

@@ -28,7 +28,8 @@
 .conselho-label textarea, .conselho-label input[type="file"] { width:100%; box-sizing:border-box; border:1px solid #3c4842; border-radius:9px; background:#0e1512; color:#eeeae2; padding:11px 12px; font:inherit; }
 .conselho-label textarea { resize:vertical; min-height:105px; line-height:1.45; }
 .conselho-label textarea:focus, .conselho-label input:focus { outline:1px solid #8fa68f; border-color:#8fa68f; }
-.conselho-modos { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+.conselho-modos { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:12px; }
+.conselho-modo-card { min-width: 0; }
 .conselho-modo-card { display:flex; gap:9px; align-items:flex-start; border:1px solid #344139; border-radius:10px; padding:11px; cursor:pointer; background:#111814; }
 .conselho-modo-card:has(input:checked) { border-color:#9caf98; background:#18221b; }
 .conselho-modo-card input { margin-top:3px; }
