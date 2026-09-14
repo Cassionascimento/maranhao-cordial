@@ -418,7 +418,7 @@
 
   function render(){const resumo=$('resumo');resumo.replaceChildren();for(const [label,valor] of [['Agentes disponíveis',(conselho.agentes||[]).length],['Trabalhando',conselho.trabalhando],['Sem demanda',conselho.sem_demanda],['Conflitos',(conselho.conflitos||[]).length],['Vetos',(conselho.vetos||[]).length],['Aguardando Diretor',(conselho.aguardando_diretor||[]).length]]){const stat=el('div',undefined,'mi-stat');stat.append(el('strong',fmt(valor)),el('span',label));resumo.append(stat);}renderAgentes();renderMensagens();renderReunioes();renderAtas();renderRelatorios();renderConflitos();renderVetos();renderAguardandoDiretor();$('conteudo').hidden=false;}
 
-  async function load(){if(busy)return;controls(true);$('status').textContent='Consultando o Conselho…';try{conselho=await call();render();$('status').textContent='Leitura atualizada. Nenhuma ação foi executada.';}catch(e){$('status').textContent=e.message;}finally{controls(false);}}
+  async function load(){if(busy)return;controls(true);$('status').textContent='Consultando o Conselho…';try{conselho=await call();render();$('status').textContent='Leitura atualizada. Nenhuma ação foi executada.';}catch(e){$('status').textContent=e.message;$('conteudo').hidden=false;}finally{controls(false);}}
 
   criarConsulta();
   $('atualizar').addEventListener('click',load);
