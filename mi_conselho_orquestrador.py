@@ -51,9 +51,15 @@ _INSTRUCAO_GOVERNANCA_SESSAO = (
     "chame nenhuma ferramenta de envio, publicacao, pagamento, deploy ou migration. "
     "Responda apenas com o parecer estruturado definido no seu proprio arquivo de "
     "persona (campos: agente, data/hora, demanda, dados utilizados, conclusao, "
-    "confianca, riscos, divergencias, acao sugerida, necessidade de Diretor, decisao "
-    "humana posterior). Nunca exponha raciocinio interno passo a passo -- entregue "
-    "conclusoes e evidencias resumidas, nunca chain-of-thought."
+    "confianca, riscos, divergencias, natureza da divergencia, lacunas, numeros "
+    "citados com proveniencia, acao sugerida, necessidade de Diretor, motivo do "
+    "Diretor, decisao humana posterior). Divergencia so existe entre posicoes "
+    "realmente incompativeis sobre a MESMA decisao atual -- dado ausente, risco e "
+    "hipotese (\"se outro agente aprovar...\") nunca contam como divergencia. "
+    "Necessidade de Diretor = SIM sempre vem com motivo concreto no proprio texto; "
+    "dado ausente ou divergencia aparente nunca escalam sozinhos. Nunca exponha "
+    "raciocinio interno passo a passo -- entregue conclusoes e evidencias "
+    "resumidas, nunca chain-of-thought."
 )
 
 

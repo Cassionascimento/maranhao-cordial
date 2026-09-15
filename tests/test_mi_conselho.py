@@ -213,6 +213,95 @@ class AtividadesPendentesFila(unittest.TestCase):
         self.assertIn("NOT IN ('concluida','bloqueada')", sql)
 
 
+class RegistrarResultadoRecomendacao(unittest.TestCase):
+    """Item 7 -- loop de aprendizado: DEMANDA -> DECISAO -> ACAO ->
+    RESULTADO -> EVIDENCIA -> AVALIACAO. Sempre uma escrita humana
+    explícita; nada aqui promove uma conclusão automaticamente."""
+
+    def body(self, **kw):
+        return {**dict(registro_id=str(uuid4()), resultado_observado='Fornecedor entregou 5 dias depois do combinado.',
+                       resultado_esperado='Entrega em até 7 dias.', hipotese='refutada', ator='diretor'), **kw}
+
+    def test_registro_inexistente_nao_emite_sinal(self):
+        conn = MagicMock()
+        cur = conn.cursor.return_value.__enter__.return_value
+        cur.fetchone.return_value = None
+        with patch('mi_conselho.emitir') as emitir_mock:
+            resultado = c.registrar_resultado_recomendacao(lambda: conn, self.body())
+        self.assertFalse(resultado['success'])
+        self.assertEqual(resultado['motivo'], 'registro_nao_encontrado')
+        emitir_mock.assert_not_called()
+
+    def test_registro_existente_emite_sinal_de_resultado(self):
+        conn = MagicMock()
+        cur = conn.cursor.return_value.__enter__.return_value
+        cur.fetchone.return_value = {'id': 'r1', 'demanda': 'Fornecedor de gengibre'}
+        with patch('mi_conselho.emitir', return_value=({'success': True, 'id': 's1', 'criado': True}, 201)) as emitir_mock:
+            resultado = c.registrar_resultado_recomendacao(lambda: conn, self.body())
+        self.assertTrue(resultado['success'])
+        kwargs = emitir_mock.call_args.kwargs
+        self.assertEqual(kwargs['natureza'], 'resultado')
+        self.assertEqual(kwargs['origem'], 'conselho')
+        self.assertEqual(kwargs['tipo_evento'], 'resultado_recomendacao')
+        self.assertEqual(kwargs['payload']['hipotese'], 'refutada')
+
+    def test_hipotese_fora_do_vocabulario_e_rejeitada(self):
+        with self.assertRaises(ValueError):
+            c.registrar_resultado_recomendacao(lambda: MagicMock(), self.body(hipotese='provavelmente'))
+
+    def test_resultado_observado_vazio_e_rejeitado(self):
+        with self.assertRaises(ValueError):
+            c.registrar_resultado_recomendacao(lambda: MagicMock(), self.body(resultado_observado='  '))
+
+    def test_ator_ausente_e_rejeitado(self):
+        with self.assertRaises(ValueError):
+            c.registrar_resultado_recomendacao(lambda: MagicMock(), self.body(ator=''))
+
+    def test_falha_ao_emitir_sinal_nao_levanta_e_reporta_insucesso(self):
+        conn = MagicMock()
+        cur = conn.cursor.return_value.__enter__.return_value
+        cur.fetchone.return_value = {'id': 'r1', 'demanda': 'x'}
+        with patch('mi_conselho.emitir', return_value=None):
+            resultado = c.registrar_resultado_recomendacao(lambda: conn, self.body())
+        self.assertFalse(resultado['success'])
+
+
+class HistoricoResultados(unittest.TestCase):
+    def test_le_apenas_resultados_do_registro_pedido(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = [{'payload': {'hipotese': 'confirmada'}, 'criado_em': 'agora'}]
+        historico = c.historico_resultados(cur, 'r1')
+        self.assertEqual(len(historico), 1)
+        sql = cur.execute.call_args.args[0]
+        self.assertIn("tipo_evento='resultado_recomendacao'", sql)
+
+
+class RotaResultadoConselho(unittest.TestCase):
+    def _app(self, factory, autorizado):
+        app = Flask(__name__)
+        c.registrar_rotas_conselho(app, factory, autorizado)
+        return app.test_client()
+
+    def test_exige_autenticacao(self):
+        client = self._app(MagicMock(side_effect=AssertionError('nao deveria conectar')), lambda: False)
+        resposta = client.post('/api/admin/mi/conselho/resultado', json={})
+        self.assertEqual(resposta.status_code, 401)
+
+    def test_registro_nao_encontrado_devolve_404(self):
+        conn = MagicMock()
+        conn.cursor.return_value.__enter__.return_value.fetchone.return_value = None
+        client = self._app(lambda: conn, lambda: True)
+        resposta = client.post('/api/admin/mi/conselho/resultado', json={
+            'registro_id': str(uuid4()), 'resultado_observado': 'x', 'ator': 'diretor',
+        })
+        self.assertEqual(resposta.status_code, 404)
+
+    def test_corpo_invalido_devolve_400_sem_vazar_stacktrace(self):
+        client = self._app(lambda: MagicMock(), lambda: True)
+        resposta = client.post('/api/admin/mi/conselho/resultado', json={'registro_id': 'nao-e-uuid'})
+        self.assertEqual(resposta.status_code, 400)
+
+
 class LeituraConselho(unittest.TestCase):
     def test_agrega_agentes_mensagens_reunioes_relatorios(self):
         conn = MagicMock()
@@ -222,6 +311,7 @@ class LeituraConselho(unittest.TestCase):
             [{'de_agente': 'leonard', 'para_agente': 'rua', 'texto': 'x'}],  # mensagens
             [{'id': 'r1', 'tipo': 'conclave', 'conflitos': ['x'], 'vetos': None, 'precisa_diretor': True}],  # reunioes
             [],  # relatorios
+            [],  # resultados_recentes (item 7: loop de aprendizado)
         ]
         resultado = c.leitura_conselho(lambda: conn)
         self.assertEqual(resultado['trabalhando'], 0)
@@ -229,6 +319,7 @@ class LeituraConselho(unittest.TestCase):
         self.assertEqual(len(resultado['mensagens_recentes']), 1)
         self.assertEqual(len(resultado['conflitos']), 1)
         self.assertEqual(len(resultado['aguardando_diretor']), 1)
+        self.assertEqual(resultado['resultados_recentes'], [])
 
     def test_e_somente_leitura_e_fecha_conexao(self):
         conn = MagicMock()

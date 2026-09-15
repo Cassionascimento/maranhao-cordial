@@ -285,6 +285,275 @@
     return partes.length ? partes.slice(0, limite || 4) : null;
   }
 
+  // ---- Painel executivo compacto por ata (correção de UX) ----
+  // Objetivo: em ~5 segundos o Diretor entende status/risco/bloqueio/
+  // decisão/necessidade de Diretor, sem abrir nada. Detalhe completo
+  // (pareceres inteiros, síntese de sempre, auditoria) nunca é removido --
+  // só passa a viver dentro de "Visão completa" (details), reaproveitando
+  // exatamente as mesmas funções (parecerExecutivoCard/sinteseDoConselho/
+  // jsonBloco) já existentes acima.
+  function chip(rotulo, valor, tom, detalhe) {
+    const c = el('div', undefined, 'conselho-chip' + (tom ? ' conselho-chip--' + tom : ''));
+    c.append(el('span', rotulo, 'conselho-chip-rotulo'));
+    c.append(el('strong', String(valor), 'conselho-chip-valor'));
+    if (detalhe) c.append(el('span', detalhe, 'conselho-chip-detalhe'));
+    return c;
+  }
+
+  // Nunca confiar só na cor -- todo tag carrega um símbolo + texto.
+  const SIMBOLO_TAG = {
+    fato: '✓', 'evidencia-ausente': '⚠', divergencia: '⇄', convergencia: '✓',
+    bloqueio: '⚠', decisao: '●', acao: '→', 'em-andamento': '●', concluido: '✓',
+  };
+
+  function bloqueiosDaSintese(sintese) {
+    if (!sintese || !sintese.bloqueios) return [];
+    const b = sintese.bloqueios;
+    return [
+      ...(b.veto ? Object.keys(b.veto) : []),
+      ...(b.numeros_sem_evidencia || []),
+      ...(b.agentes_com_falha || []),
+    ];
+  }
+
+  // "Precisa do Diretor" sempre com motivo explícito (correção de
+  // escalonamento) -- nunca um texto genérico tipo "necessidade
+  // sinalizada". SIM usa sintese.motivos_diretor (mi_conselho_executor);
+  // NÃO usa a primeira lacuna pendente como "o que ainda falta", nunca
+  // inventando um motivo que os dados não sustentam.
+  function motivoDiretorTexto(registro, sintese) {
+    if (registro.precisa_diretor) {
+      const motivos = (sintese && sintese.motivos_diretor) || [];
+      if (!motivos.length) return 'Motivo não especificado pelo agente.';
+      return motivos.map(m => (m.agente ? m.agente + ': ' : '') + m.motivo).join(' · ');
+    }
+    const lacunas = (sintese && sintese.o_que_nao_sabemos) || [];
+    if (lacunas.length) {
+      return 'Aguardando: ' + lacunas[0] + (lacunas.length > 1 ? ' (+' + (lacunas.length - 1) + ')' : '.');
+    }
+    return sintese ? 'Nenhuma pendência sinalizada.' : 'NÃO CONFIRMADO';
+  }
+
+  // Resumo executivo: STATUS/RISCO/PRAZO/BLOQUEADORES/DADOS AUSENTES/
+  // DIRETOR -- nunca inventa valor para preencher um campo sem evidência
+  // (usa "NÃO CONFIRMADO" em vez de um placeholder otimista).
+  function resumoExecutivoStrip(registro) {
+    const sintese = (registro.dados_apresentados || {}).sintese_estruturada;
+    const temVeto = Object.keys(registro.vetos || {}).length > 0;
+    const bloqueios = bloqueiosDaSintese(sintese);
+    const dadosAusentes = (sintese && sintese.o_que_nao_sabemos) || [];
+
+    let status = 'Em análise', statusTom = 'neutro';
+    if (temVeto) { status = 'Bloqueada por veto'; statusTom = 'critico'; }
+    else if (registro.precisa_diretor) { status = 'Aguardando Diretor'; statusTom = 'atencao'; }
+    else if (sintese && sintese.decisao_possivel_agora) { status = 'Decisão possível agora'; statusTom = 'ok'; }
+
+    let risco = 'NÃO CONFIRMADO', riscoTom = 'neutro';
+    if (temVeto) { risco = 'Alto'; riscoTom = 'critico'; }
+    else if (bloqueios.length) { risco = 'Atenção'; riscoTom = 'atencao'; }
+    else if (sintese) { risco = 'Nenhum sinalizado'; riscoTom = 'ok'; }
+
+    const dadosAusentesValor = dadosAusentes.length
+      ? dadosAusentes.length + ' · ' + dadosAusentes.slice(0, 2).join(' · ') + (dadosAusentes.length > 2 ? '…' : '')
+      : (sintese ? 'Nenhum' : 'NÃO CONFIRMADO');
+
+    const strip = el('div', undefined, 'conselho-resumo-executivo');
+    strip.append(chip('Status', status, statusTom));
+    strip.append(chip('Risco', risco, riscoTom));
+    strip.append(chip('Prazo', 'NÃO CONFIRMADO', 'neutro'));
+    strip.append(chip('Bloqueadores', bloqueios.length, bloqueios.length ? 'atencao' : 'ok'));
+    strip.append(chip('Dados ausentes', dadosAusentesValor, dadosAusentes.length ? 'atencao' : 'ok'));
+    strip.append(chip('Diretor', registro.precisa_diretor ? 'Sim' : 'Não',
+                       registro.precisa_diretor ? 'atencao' : 'ok', motivoDiretorTexto(registro, sintese)));
+    return strip;
+  }
+
+  // Cabeçalho da demanda: nunca abre o texto inteiro por padrão -- clamp
+  // visual (CSS) + botão que remove o clamp, sem duplicar o texto.
+  function demandaBloco(registro) {
+    const wrap = el('div', undefined, 'conselho-demanda');
+    wrap.append(el('span', 'DEMANDA', 'conselho-demanda-rotulo'));
+    const texto = registro.demanda || '—';
+    const paragrafo = el('p', texto, 'conselho-demanda-texto conselho-clamp-3');
+    wrap.append(paragrafo);
+
+    const botao = el('button', 'Ver demanda completa', 'conselho-link-botao');
+    botao.type = 'button';
+    botao.setAttribute('aria-expanded', 'false');
+    botao.addEventListener('click', () => {
+      const aberto = !paragrafo.classList.contains('conselho-clamp-3');
+      paragrafo.classList.toggle('conselho-clamp-3', aberto);
+      botao.textContent = aberto ? 'Ver demanda completa' : 'Ver menos';
+      botao.setAttribute('aria-expanded', String(!aberto));
+    });
+    wrap.append(botao);
+    return wrap;
+  }
+
+  // Decisão do Conselho: um card curto -- nunca repete os pareceres
+  // individuais, só o que já foi consolidado.
+  function decisaoAgoraBloco(registro, sintese) {
+    const bloco = el('div', undefined, 'conselho-decisao-agora');
+    bloco.append(el('span', 'DECISÃO AGORA', 'conselho-decisao-rotulo'));
+
+    let texto;
+    if (Object.keys(registro.vetos || {}).length) {
+      texto = 'Bloqueada por veto jurídico — aguardando revisão humana antes de qualquer ação.';
+    } else if (sintese) {
+      texto = sintese.decisao_possivel_agora
+        ? (sintese.proxima_acao || 'Recomendação registrada, sem detalhe adicional.')
+        : 'Ainda não há decisão segura com a evidência atual (ver Dados ausentes acima).';
+    } else {
+      texto = registro.conclusao || 'Nenhuma decisão registrada ainda.';
+    }
+    bloco.append(el('p', texto, 'conselho-decisao-texto'));
+
+    const acoes = registro.recomendacoes || [];
+    if (acoes.length) {
+      bloco.append(el('span', 'PRÓXIMAS AÇÕES', 'conselho-decisao-rotulo'));
+      const item = a => el('li', nomeDe(a.responsavel) + ' — ' + a.descricao);
+      const lista = el('ul', undefined, 'conselho-decisao-lista');
+      for (const a of acoes.slice(0, 3)) lista.append(item(a));
+      bloco.append(lista);
+      if (acoes.length > 3) {
+        const verTodas = el('details', undefined, 'conselho-secao-recolhivel');
+        verTodas.append(el('summary', 'Ver todas (' + acoes.length + ')'));
+        const listaCompleta = el('ul', undefined, 'conselho-decisao-lista');
+        for (const a of acoes) listaCompleta.append(item(a));
+        verTodas.append(listaCompleta);
+        bloco.append(verTodas);
+      }
+    }
+
+    const jaEmAndamento = (registro.dados_apresentados || {}).recomendacoes_ja_em_andamento;
+    if (jaEmAndamento && jaEmAndamento.length) {
+      const linha = el('p', undefined, 'conselho-decisao-em-andamento');
+      linha.append(el('span', SIMBOLO_TAG['em-andamento'] + ' EM ANDAMENTO', 'conselho-tag conselho-tag--em-andamento'));
+      linha.append(el('span', ' ' + jaEmAndamento.map(a => nomeDe(a.responsavel) + ': ' + a.descricao).join(' · ')));
+      bloco.append(linha);
+    }
+
+    return bloco;
+  }
+
+  // Convergência condensada: uma linha só, nunca repetida por agente --
+  // "próxima ação" já É o ponto em que os convergentes concordam (mesmo
+  // cálculo que gerou a recomendação consolidada).
+  function convergenciaCondensada(sintese) {
+    if (!sintese || !sintese.convergencias || sintese.convergencias.length < 2) return null;
+    const bloco = el('div', undefined, 'conselho-convergencia');
+    bloco.append(el('span', SIMBOLO_TAG.convergencia + ' CONVERGÊNCIA', 'conselho-tag conselho-tag--convergencia'));
+    bloco.append(el('strong', sintese.convergencias.join(' · '), 'conselho-convergencia-agentes'));
+    bloco.append(el('p', sintese.proxima_acao || 'Sem ação consolidada registrada ainda.', 'conselho-convergencia-texto'));
+    return bloco;
+  }
+
+  // Síntese estruturada: as 11 seções produzidas por
+  // mi_conselho_executor._consolidar quando o registro já vem no formato
+  // novo. Registros antigos (sem dados_apresentados.sintese_estruturada)
+  // continuam mostrando só a Síntese do Conselho de sempre -- nenhum dado
+  // é inventado para preencher esta seção.
+  function listaOuVazio(itens, vazioTexto) {
+    if (!itens || !itens.length) return el('p', vazioTexto, 'conselho-parecer-vazio');
+    const lista = el('ul', undefined, 'conselho-parecer-lista');
+    for (const item of itens) lista.append(el('li', typeof item === 'string' ? item : JSON.stringify(item)));
+    return lista;
+  }
+
+  function sinteseEstruturadaBloco(registro) {
+    const sintese = (registro.dados_apresentados || {}).sintese_estruturada;
+    if (!sintese) return null;
+    const bloco = el('div', undefined, 'conselho-sintese-estruturada');
+    bloco.append(el('strong', 'Leitura estruturada do Conselho', 'conselho-sintese-titulo'));
+
+    const secao = (rotulo, tag, conteudoEl) => {
+      const cab = el('div', undefined, 'conselho-sintese-secao-cab');
+      cab.append(el('span', rotulo, 'conselho-sintese-rotulo'));
+      if (tag) {
+        const simbolo = SIMBOLO_TAG[tag.tom] ? SIMBOLO_TAG[tag.tom] + ' ' : '';
+        cab.append(el('span', simbolo + tag.texto, 'conselho-tag conselho-tag--' + tag.tom));
+      }
+      bloco.append(cab);
+      bloco.append(conteudoEl);
+    };
+    const TAG_FATO = {texto: 'FATO', tom: 'fato'};
+    const TAG_SEM_EVIDENCIA = {texto: 'SEM EVIDÊNCIA', tom: 'evidencia-ausente'};
+    const TAG_DIVERGENCIA = {texto: 'DIVERGÊNCIA', tom: 'divergencia'};
+    const TAG_BLOQUEIO = {texto: 'BLOQUEIO', tom: 'bloqueio'};
+    const TAG_DECISAO = {texto: 'DECISÃO', tom: 'decisao'};
+    const TAG_ACAO = {texto: 'AÇÃO', tom: 'acao'};
+
+    secao('O que sabemos', TAG_FATO, listaOuVazio(
+      (sintese.o_que_sabemos || []).map(f => (f.agente ? f.agente + ': ' : '') + f.dados_utilizados),
+      'Nenhum dado apresentado ainda.',
+    ));
+    secao('O que não sabemos', TAG_SEM_EVIDENCIA, listaOuVazio(sintese.o_que_nao_sabemos, 'Nenhuma lacuna sinalizada.'));
+    secao('Convergências', null, listaOuVazio(sintese.convergencias, 'Nenhuma convergência explícita.'));
+    secao('Divergências', TAG_DIVERGENCIA, listaOuVazio(
+      Object.entries(sintese.divergencias || {}).map(([agente, texto]) => agente + ': ' + texto),
+      'Nenhuma divergência real registrada (dado ausente/risco/hipótese não contam).',
+    ));
+    secao('Riscos', null, listaOuVazio(
+      Object.entries(sintese.riscos || {}).map(([agente, texto]) => agente + ': ' + texto),
+      'Nenhum risco material sinalizado.',
+    ));
+    secao('Bloqueios', TAG_BLOQUEIO, listaOuVazio(bloqueiosDaSintese(sintese), 'Nenhum bloqueio.'));
+    secao('Decisão possível agora', TAG_DECISAO, el('p', sintese.decisao_possivel_agora ? 'Sim' : 'Não', 'conselho-sintese-texto'));
+    secao('Próxima ação', TAG_ACAO, el('p', sintese.proxima_acao || 'Nenhuma ação recomendada ainda.', 'conselho-sintese-texto'));
+    secao('Responsável', null, el('p', sintese.responsavel || '—', 'conselho-sintese-texto'));
+    secao('Evidência necessária', TAG_SEM_EVIDENCIA, listaOuVazio(sintese.evidencia_necessaria, 'Nenhuma.'));
+    secao('Precisa do Diretor', null, el('p',
+      (sintese.precisa_diretor ? 'Sim' : 'Não') + ' — ' + motivoDiretorTexto({precisa_diretor: sintese.precisa_diretor, vetos: {}}, sintese),
+      'conselho-sintese-texto'));
+
+    return bloco;
+  }
+
+  // Card de agente compacto: 2-3 linhas + chips; detalhe completo só em
+  // "Ver análise" (reaproveita parecerExecutivoCard sem alterar seu
+  // conteúdo -- nunca remove informação, só adia a exibição).
+  function agenteCompactoCard(registro, codigo, classificacaoPorAgente) {
+    const posicao = posicaoDoAgente(registro, codigo);
+    const card = el('div', undefined, 'conselho-agente-compacto');
+
+    const cab = el('div', undefined, 'conselho-agente-compacto-cab');
+    cab.append(el('strong', nomeDe(codigo) + ' · ' + areaDe(codigo).toUpperCase()));
+    if (posicao && posicao.confianca) {
+      cab.append(el('span', 'Confiança: ' + posicao.confianca, 'conselho-badge conselho-badge-' + posicao.confianca));
+    }
+    card.append(cab);
+
+    const tags = el('div', undefined, 'conselho-agente-compacto-tags');
+    let temTag = false;
+    if (posicao && posicao.riscos && !trivial(posicao.riscos, RISCO_TRIVIAL)) {
+      tags.append(el('span', SIMBOLO_TAG.bloqueio + ' RISCO', 'conselho-tag conselho-tag--bloqueio'));
+      temTag = true;
+    }
+    if (classificacaoPorAgente[codigo] === 'divergencia_real') {
+      tags.append(el('span', SIMBOLO_TAG.divergencia + ' DIVERGÊNCIA', 'conselho-tag conselho-tag--divergencia'));
+      temTag = true;
+    }
+    if ((registro.recomendacoes || []).some(r => r.responsavel === codigo)) {
+      tags.append(el('span', SIMBOLO_TAG.acao + ' AÇÃO SUGERIDA', 'conselho-tag conselho-tag--acao'));
+      temTag = true;
+    }
+    if (registro.vetos && registro.vetos[codigo]) {
+      tags.append(el('span', '⚠ VETO', 'conselho-tag conselho-tag--bloqueio'));
+      temTag = true;
+    }
+    if (temTag) card.append(tags);
+
+    const excerto = posicao && (posicao.conclusao || '').trim() ? posicao.conclusao : 'Não há dados suficientes para concluir.';
+    card.append(el('p', excerto, 'conselho-agente-compacto-texto conselho-clamp-3'));
+
+    const detalhes = el('details', undefined, 'conselho-agente-detalhes');
+    detalhes.append(el('summary', 'Ver análise'));
+    detalhes.append(parecerExecutivoCard(registro, codigo));
+    card.append(detalhes);
+
+    return card;
+  }
+
   function parecerExecutivoCard(registro, codigo) {
     const posicao = posicaoDoAgente(registro, codigo);
     const card = el('div', undefined, 'conselho-parecer-card');
@@ -385,30 +654,58 @@
   function renderAtas() {
     const registros = conselho.reunioes_recentes || [];
     listaRecolhivel($('atas'), registros, 'Nenhuma ata registrada ainda.', 'ata(s)', r => {
+      const sintese = (r.dados_apresentados || {}).sintese_estruturada;
+      const classificacaoPorAgente = {};
+      for (const c of (r.dados_apresentados || {}).classificacao_divergencia || []) classificacaoPorAgente[c.agente] = c.natureza;
+      const participantes = r.participantes || [];
+
       const card = el('div', undefined, 'conselho-ata-card');
       const cabecalho = el('div', undefined, 'conselho-ata-cabecalho');
       cabecalho.append(el('strong', (r.tipo === 'conclave' ? 'Conclave' : 'Reunião') + ' — v' + r.versao), el('span', dataHora(r.criado_em)));
-      card.append(cabecalho, el('p', 'Demanda: ' + (r.demanda || '—')));
+      card.append(cabecalho);
 
-      const participantes = r.participantes || [];
+      // Painel executivo (visível por padrão): demanda resumida + resumo
+      // em chips + decisão + convergência condensada + agentes compactos.
+      card.append(demandaBloco(r));
+      card.append(resumoExecutivoStrip(r));
+      card.append(decisaoAgoraBloco(r, sintese));
+
+      const convergencia = convergenciaCondensada(sintese);
+      if (convergencia) card.append(convergencia);
+
+      if (participantes.length) {
+        const grid = el('div', undefined, 'conselho-agentes-compactos');
+        for (const codigo of participantes) grid.append(agenteCompactoCard(r, codigo, classificacaoPorAgente));
+        card.append(grid);
+      }
+
+      // Visão completa: tudo que já existia antes desta correção continua
+      // aqui, inteiro -- só passou a vir recolhido por padrão.
+      const visaoCompleta = el('details', undefined, 'conselho-visao-completa');
+      visaoCompleta.append(el('summary', 'Visão completa (agentes, evidências, divergências, auditoria)'));
+
+      const sinteseNova = sinteseEstruturadaBloco(r);
+      if (sinteseNova) visaoCompleta.append(sinteseNova);
+      visaoCompleta.append(sinteseDoConselho(r));
+
       if (participantes.length) {
         const pareceresWrap = el('div', undefined, 'conselho-pareceres-grid');
         for (const codigo of participantes) pareceresWrap.append(parecerExecutivoCard(r, codigo));
-        card.append(pareceresWrap);
+        visaoCompleta.append(pareceresWrap);
       }
-
-      card.append(sinteseDoConselho(r));
 
       const auditoria = el('details', undefined, 'conselho-auditoria');
       auditoria.append(el('summary', 'Dados técnicos (auditoria)'));
+      auditoria.append(el('p', 'Demanda completa: ' + (r.demanda || '—')));
       auditoria.append(el('p', 'Contexto: ' + (r.contexto || '—')));
       auditoria.append(el('p', 'Conclusão consolidada (registro bruto): ' + (r.conclusao || '—')));
       auditoria.append(el('p', 'Precisa do Diretor: ' + (r.precisa_diretor ? 'Sim' : 'Não')));
       for (const [rotulo, valor] of [['Participantes', r.participantes], ['Dados apresentados', r.dados_apresentados], ['Posições', r.posicoes], ['Conflitos', r.conflitos], ['Recomendações', r.recomendacoes], ['Vetos', r.vetos], ['Pendências', r.pendencias]]) {
         const b = jsonBloco(rotulo, valor); if (b) auditoria.append(b);
       }
-      card.append(auditoria);
+      visaoCompleta.append(auditoria);
 
+      card.append(visaoCompleta);
       return card;
     });
   }

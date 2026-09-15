@@ -22,6 +22,7 @@ import re
 from uuid import UUID, uuid4
 from psycopg2.extras import RealDictCursor, Json
 from mi_decisao import _decisao
+from mi_sinais import emitir
 
 AGENTES = {
     'pirret': {'nome': 'Pirret', 'area': 'Marketing'},
@@ -246,6 +247,91 @@ def status_agentes(cur, dias=14):
     return status
 
 
+# =====================================================
+# LOOP DE APRENDIZADO -- DEMANDA -> DECISAO -> ACAO -> RESULTADO ->
+# EVIDENCIA -> AVALIACAO. Reaproveita mi_sinais (natureza='resultado', já
+# prevista no barramento desde a ETAPA 4.9) -- nenhuma tabela nova. Só um
+# humano chama isto: dizer que uma hipótese foi confirmada/refutada é
+# julgamento humano, nunca inferido automaticamente só porque uma ação foi
+# executada (`emitir` também nunca propaga exceção -- falha aqui é
+# observabilidade perdida, nunca um erro que trava o Admin).
+# =====================================================
+
+HIPOTESES_RESULTADO = ('confirmada', 'refutada', 'inconclusiva')
+
+
+def registrar_resultado_recomendacao(factory, body):
+    """Liga o resultado observado de uma recomendação de volta ao registro
+    (ata/relatório) que a originou. Não promove nada automaticamente: só
+    persiste o que um humano observou e como ele classificou a hipótese."""
+    if not isinstance(body, dict):
+        raise ValueError('corpo_invalido')
+    registro_id = str(UUID(str(body.get('registro_id'))))
+
+    resultado_observado = body.get('resultado_observado')
+    if not isinstance(resultado_observado, str) or not resultado_observado.strip():
+        raise ValueError('resultado_observado_obrigatorio')
+
+    resultado_esperado = body.get('resultado_esperado')
+    if resultado_esperado is not None and not isinstance(resultado_esperado, str):
+        raise ValueError('resultado_esperado_invalido')
+
+    hipotese = body.get('hipotese')
+    if hipotese is not None and hipotese not in HIPOTESES_RESULTADO:
+        raise ValueError('hipotese_invalida')
+
+    ator = body.get('ator')
+    if not isinstance(ator, str) or not ator.strip():
+        raise ValueError('ator_obrigatorio')
+
+    conn = factory()
+    try:
+        conn.set_session(readonly=True, isolation_level='REPEATABLE READ')
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SET LOCAL statement_timeout='15s'")
+            cur.execute("SELECT id, demanda FROM mi_conselho_registros WHERE id=%s", (registro_id,))
+            registro = cur.fetchone()
+    finally:
+        conn.close()
+    if not registro:
+        return {'success': False, 'motivo': 'registro_nao_encontrado'}
+
+    emitido = emitir(
+        factory, natureza='resultado', origem='conselho', tipo_evento='resultado_recomendacao',
+        origem_id=registro_id,
+        payload={
+            'demanda': registro['demanda'], 'resultado_esperado': resultado_esperado,
+            'resultado_observado': resultado_observado.strip(), 'hipotese': hipotese, 'ator': ator.strip(),
+        },
+    )
+    if emitido is None:
+        return {'success': False, 'motivo': 'falha_ao_registrar_sinal'}
+    corpo, _status = emitido
+    return {**corpo, 'registro_id': registro_id}
+
+
+def historico_resultados(cur, registro_id, limite=20):
+    """Todos os resultados já observados para UM registro -- histórico
+    completo, nunca só o mais recente (uma recomendação pode ter sido
+    reavaliada mais de uma vez)."""
+    cur.execute(
+        "SELECT payload, criado_em FROM mi_sinais WHERE origem='conselho' "
+        "AND tipo_evento='resultado_recomendacao' AND origem_id=%s "
+        "ORDER BY criado_em DESC LIMIT %s",
+        (str(registro_id), limite),
+    )
+    return [dict(r) for r in cur.fetchall()]
+
+
+def _resultados_recentes(cur, limite):
+    cur.execute(
+        "SELECT origem_id, payload, criado_em FROM mi_sinais WHERE origem='conselho' "
+        "AND tipo_evento='resultado_recomendacao' ORDER BY criado_em DESC LIMIT %s",
+        (limite,),
+    )
+    return [dict(r) for r in cur.fetchall()]
+
+
 def leitura_conselho(factory, limite=10):
     conn = factory()
     try:
@@ -259,6 +345,7 @@ def leitura_conselho(factory, limite=10):
             mensagens = [dict(r) for r in cur.fetchall()]
             reunioes = _ultima_versao_apenas(cur, ('reuniao', 'conclave'), limite)
             relatorios = _ultima_versao_apenas(cur, ('relatorio',), limite)
+            resultados_recentes = _resultados_recentes(cur, limite)
     finally:
         conn.close()
 
@@ -278,11 +365,12 @@ def leitura_conselho(factory, limite=10):
         'conflitos': conflitos,
         'vetos': vetos,
         'aguardando_diretor': aguardando_diretor,
+        'resultados_recentes': resultados_recentes,
     }
 
 
 def registrar_rotas_conselho(app, factory, autorizado):
-    from flask import jsonify
+    from flask import jsonify, request
 
     @app.route('/api/admin/mi/conselho', methods=['GET'])
     def mi_conselho():
@@ -293,6 +381,24 @@ def registrar_rotas_conselho(app, factory, autorizado):
         except Exception:
             app.logger.exception('Falha ao gerar leitura do Conselho de Agentes')
             return jsonify(success=False, error='Conselho indisponível.'), 503
+
+    @app.route('/api/admin/mi/conselho/resultado', methods=['POST'])
+    def mi_conselho_registrar_resultado():
+        # Loop de aprendizado: SEMPRE uma escrita humana explícita -- nenhum
+        # caminho automático desta aplicação chama esta rota.
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            resultado = registrar_resultado_recomendacao(factory, request.get_json(force=True, silent=True) or {})
+        except ValueError as erro:
+            return jsonify(success=False, error=str(erro)), 400
+        except Exception:
+            app.logger.exception('Falha ao registrar resultado de recomendação do Conselho')
+            return jsonify(success=False, error='Não foi possível registrar o resultado.'), 503
+        if not resultado.get('success', True):
+            status = 404 if resultado.get('motivo') == 'registro_nao_encontrado' else 503
+            return jsonify(resultado), status
+        return jsonify(resultado), 201
 
     # A camada interativa reutiliza o mesmo Conselho e a mesma autenticação.
     from mi_conselho_interativo import registrar_rotas_conselho_interativo

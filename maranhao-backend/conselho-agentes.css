@@ -116,14 +116,76 @@
 .conselho-json-card { border:1px solid #3c4842; border-radius:10px; padding:12px 14px; margin-bottom:12px; }
 .conselho-json-card--veto { border-color:#c98a8a; }
 .conselho-json-card--veto strong { color:#c98a8a; }
-.conselho-ata-card { border:1px solid #3c4842; border-radius:12px; padding:16px 18px; margin-bottom:14px; min-width: 0; }
-.conselho-ata-cabecalho { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; gap:12px; flex-wrap:wrap; }
-.conselho-ata-cabecalho strong { color:var(--text,#eeeae2); font-size:1rem; }
+.conselho-ata-card { border:1px solid #3c4842; border-radius:14px; padding:18px 20px; margin-bottom:16px; min-width: 0; display:flex; flex-direction:column; gap:14px; }
+.conselho-ata-cabecalho { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.conselho-ata-cabecalho strong { color:var(--text,#eeeae2); font-size:1.05rem; letter-spacing:.2px; }
 .conselho-ata-cabecalho span { color:#9aa89e; font-size:.8rem; }
 .conselho-ata-card > p { font-size:.85rem; color:#cdd8bd; margin:0 0 6px; line-height:1.5; }
 
+/* Correção de UX (painel executivo compacto): truncamento reutilizável,
+   resumo em chips, decisão condensada, convergência, agentes compactos e
+   visão completa recolhida por padrão. Nenhuma classe abaixo colide com
+   as já existentes acima -- são todas aditivas. */
+.conselho-clamp-3 { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; }
+.conselho-link-botao { align-self:flex-start; background:none; border:none; padding:2px 0; font-size:.76rem; color:var(--gold,#a8b8a4); text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.conselho-link-botao:hover, .conselho-link-botao:focus-visible { color:#c8d6c4; }
+.conselho-link-botao:focus-visible { outline:1px solid var(--gold,#a8b8a4); outline-offset:2px; }
+
+.conselho-demanda { display:flex; flex-direction:column; gap:4px; }
+.conselho-demanda-rotulo { font-size:.66rem; letter-spacing:.6px; text-transform:uppercase; color:#9aa89e; }
+.conselho-demanda-texto { font-size:.95rem; color:var(--text,#eeeae2); line-height:1.5; margin:0; }
+
+.conselho-resumo-executivo { display:flex; flex-wrap:wrap; gap:10px; margin:0; padding:10px 12px; border:1px solid #3c4842; border-radius:10px; background:#10160f; }
+.conselho-chip { display:flex; flex-direction:column; gap:2px; min-width:108px; max-width:220px; }
+.conselho-chip-rotulo { font-size:.64rem; letter-spacing:.4px; text-transform:uppercase; color:#9aa89e; }
+.conselho-chip-valor { font-size:.88rem; color:var(--text,#eeeae2); font-weight:600; }
+.conselho-chip-detalhe { font-size:.74rem; color:#9aa89e; line-height:1.35; }
+.conselho-chip--ok .conselho-chip-valor { color:#8fbf8a; }
+.conselho-chip--atencao .conselho-chip-valor { color:#c9b46a; }
+.conselho-chip--critico .conselho-chip-valor { color:#c98a8a; }
+.conselho-chip--neutro .conselho-chip-valor { color:var(--text,#eeeae2); }
+
+.conselho-decisao-agora { border:1px solid var(--gold,#a8b8a4); border-radius:10px; padding:14px 16px; background:#172019; display:flex; flex-direction:column; gap:6px; min-width:0; }
+.conselho-decisao-rotulo { font-size:.68rem; letter-spacing:.6px; text-transform:uppercase; color:var(--gold,#a8b8a4); font-weight:700; margin-top:6px; }
+.conselho-decisao-rotulo:first-child { margin-top:0; }
+.conselho-decisao-texto { font-size:.92rem; color:var(--text,#eeeae2); line-height:1.5; margin:0; }
+.conselho-decisao-lista { margin:0; padding-left:18px; font-size:.85rem; color:#cdd8bd; line-height:1.6; }
+.conselho-decisao-em-andamento { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; font-size:.82rem; color:#9aa89e; margin:4px 0 0; }
+
+.conselho-convergencia { border:1px solid #3c4842; border-radius:10px; padding:10px 14px; background:#10160f; display:flex; flex-direction:column; gap:4px; min-width:0; }
+.conselho-convergencia-agentes { font-size:.82rem; color:var(--text,#eeeae2); }
+.conselho-convergencia-texto { font-size:.85rem; color:#cdd8bd; margin:0; line-height:1.5; }
+
+.conselho-agentes-compactos { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+.conselho-agente-compacto { border:1px solid #3c4842; border-radius:10px; padding:12px 14px; background:#10160f; display:flex; flex-direction:column; gap:6px; min-width:0; }
+.conselho-agente-compacto-cab { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.conselho-agente-compacto-cab strong { font-size:.86rem; color:var(--text,#eeeae2); letter-spacing:.2px; }
+.conselho-agente-compacto-tags { display:flex; flex-wrap:wrap; gap:6px; }
+.conselho-agente-compacto-texto { font-size:.82rem; color:#cdd8bd; line-height:1.5; margin:0; }
+.conselho-agente-detalhes > summary { cursor:pointer; font-size:.76rem; color:var(--gold,#a8b8a4); list-style:revert; padding:2px 0; }
+.conselho-agente-detalhes[open] > summary { margin-bottom:8px; }
+
+.conselho-tag { font-size:.62rem; letter-spacing:.4px; font-weight:700; padding:1px 7px; border-radius:999px; white-space:nowrap; }
+.conselho-tag--fato, .conselho-tag--convergencia { background:rgba(143,191,138,.15); color:#8fbf8a; }
+.conselho-tag--evidencia-ausente { background:rgba(201,180,106,.15); color:#c9b46a; }
+.conselho-tag--divergencia, .conselho-tag--bloqueio { background:rgba(201,138,138,.15); color:#c98a8a; }
+.conselho-tag--decisao, .conselho-tag--acao, .conselho-tag--em-andamento { background:rgba(168,184,164,.18); color:var(--gold,#a8b8a4); }
+
+.conselho-sintese-estruturada { border:1px solid var(--gold,#a8b8a4); border-radius:10px; padding:14px 16px; background:#172019; margin:0 0 14px; min-width:0; }
+.conselho-sintese-titulo { display:block; color:var(--gold,#a8b8a4); font-size:.8rem; letter-spacing:.6px; text-transform:uppercase; margin-bottom:8px; }
+.conselho-sintese-secao-cab { display:flex; align-items:center; gap:8px; margin:10px 0 3px; }
+.conselho-sintese-secao-cab:first-of-type { margin-top:2px; }
+.conselho-sintese-texto { font-size:.85rem; color:#eeeae2; margin:0; line-height:1.5; }
+
+.conselho-visao-completa { border-top:1px dashed #2c3630; padding-top:10px; }
+.conselho-visao-completa > summary { cursor:pointer; font-size:.8rem; font-weight:600; letter-spacing:.2px; color:var(--gold,#a8b8a4); list-style:revert; padding:4px 0; }
+.conselho-visao-completa[open] > summary { margin-bottom:10px; }
+
 @media (max-width:720px) {
-  .conselho-agentes-grid,.conselho-modos,.conselho-pareceres-grid { grid-template-columns:1fr; }
+  .conselho-agentes-grid,.conselho-modos,.conselho-pareceres-grid,.conselho-agentes-compactos { grid-template-columns:1fr; }
   .conselho-consulta-head { display:block; }
   .conselho-consulta-seguranca { margin-top:8px; }
+  .conselho-resumo-executivo { gap:12px 16px; }
+  .conselho-chip { min-width:42%; }
+  .conselho-ata-card { padding:14px; }
 }

@@ -66,7 +66,7 @@ def leitura_diretor(factory, agora=None):
         conselho = {
             'agentes': [], 'trabalhando': 0, 'sem_demanda': 0,
             'mensagens_recentes': [], 'reunioes_recentes': [], 'relatorios_recentes': [],
-            'conflitos': [], 'vetos': [], 'aguardando_diretor': [],
+            'conflitos': [], 'vetos': [], 'aguardando_diretor': [], 'resultados_recentes': [],
         }
 
     top10 = calendario['inteligencia_de_publico']['top10']

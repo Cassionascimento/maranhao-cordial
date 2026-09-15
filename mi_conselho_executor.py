@@ -24,12 +24,15 @@ condicionadas a ele -- nesta etapa é só informativo.
 """
 import json
 import os
+import re
 from datetime import datetime, timezone
 from uuid import NAMESPACE_URL, uuid5
 
 from openai import OpenAI
 
 from mi_conselho import AGENTES, registrar_registro
+from mi_conselho_estado import montar_pacote_estado
+from mi_conselho_fatos import registrar_fato
 from mi_conselho_gatilho import processar_sinais_pendentes
 from mi_conselho_orquestrador import formatar_contexto_factual, montar_prompt, ordenar_execucao
 
@@ -49,6 +52,26 @@ _NAMESPACE_EXECUCAO = uuid5(NAMESPACE_URL, 'maranhao-cordial:mi_conselho_executo
 _SEM_DIVERGENCIA = {'', 'nenhuma', 'não aplicável', 'nao aplicavel', 'n/a',
                      'não há divergência', 'nao ha divergencia', 'não há divergências'}
 
+# Todo número que o agente cita e que pesa na decisão precisa vir com
+# proveniência -- schema novo, mas os campos são adicionados como
+# OPCIONAIS para a validação interna (_CAMPOS_OBRIGATORIOS_PARECER, abaixo,
+# continua o mesmo conjunto de sempre): uma resposta antiga/parcial sem
+# 'numeros'/'lacunas'/'acao_ja_em_andamento' continua sendo um parecer
+# válido (só sem esses extras), nunca vira RespostaLLMInvalida por isso.
+TIPOS_ORIGEM_NUMERO = ('FONTE_INTERNA', 'FORNECEDOR', 'POLITICA', 'CALCULO', 'ESTIMATIVA')
+_SCHEMA_NUMERO = {
+    'type': 'object',
+    'properties': {
+        'valor': {'type': 'string'},
+        'unidade': {'type': 'string'},
+        'origem': {'type': 'string', 'enum': list(TIPOS_ORIGEM_NUMERO)},
+        'fonte_detalhe': {'type': 'string'},
+        'confianca': {'type': 'string', 'enum': ['alta', 'media', 'baixa']},
+    },
+    'required': ['valor', 'unidade', 'origem', 'fonte_detalhe', 'confianca'],
+    'additionalProperties': False,
+}
+
 _SCHEMA_PARECER = {
     'type': 'object',
     'properties': {
@@ -62,12 +85,55 @@ _SCHEMA_PARECER = {
         'motivo_diretor': {'type': 'string'},
         'veto': {'type': 'boolean'},
         'veto_motivo': {'type': 'string'},
+        'numeros': {'type': 'array', 'items': _SCHEMA_NUMERO},
+        'lacunas': {'type': 'array', 'items': {'type': 'string'}},
+        'acao_ja_em_andamento': {'type': 'boolean'},
+        'natureza_divergencia': {'type': 'string',
+                                  'enum': ['divergencia_real', 'dado_ausente', 'risco', 'hipotese', 'nenhuma']},
     },
     'required': ['dados_utilizados', 'conclusao', 'confianca', 'riscos', 'divergencias',
-                 'acao_sugerida', 'necessidade_diretor', 'motivo_diretor', 'veto', 'veto_motivo'],
+                 'acao_sugerida', 'necessidade_diretor', 'motivo_diretor', 'veto', 'veto_motivo',
+                 'numeros', 'lacunas', 'acao_ja_em_andamento', 'natureza_divergencia'],
     'additionalProperties': False,
 }
-_CAMPOS_OBRIGATORIOS_PARECER = tuple(_SCHEMA_PARECER['required'])
+NATUREZAS_DIVERGENCIA = ('divergencia_real', 'dado_ausente', 'risco', 'hipotese', 'nenhuma')
+# Só os campos originais continuam OBRIGATÓRIOS para um parecer ser válido
+# -- ver comentário acima. `required` do schema (mais rígido, com os campos
+# novos) é o que a OpenAI exige em modo strict; a validação interna é
+# deliberadamente mais tolerante para nunca quebrar um parecer só porque
+# faltou um campo aditivo.
+_CAMPOS_OBRIGATORIOS_PARECER = ('dados_utilizados', 'conclusao', 'confianca', 'riscos', 'divergencias',
+                                'acao_sugerida', 'necessidade_diretor', 'motivo_diretor', 'veto', 'veto_motivo')
+
+_PADRAO_NUMERO_CITADO = re.compile(r'(?<![\w.])(\d+(?:[.,]\d+)?)\s*(?:%|dias?|semanas?|meses?|reais?|r\$)?', re.I)
+_CAMPOS_TEXTO_DECISORIO = ('conclusao', 'riscos', 'acao_sugerida', 'divergencias', 'motivo_diretor')
+
+
+def _numeros_citados_no_texto(parecer):
+    texto = ' '.join(str(parecer.get(campo) or '') for campo in _CAMPOS_TEXTO_DECISORIO)
+    return {m.group(1) for m in _PADRAO_NUMERO_CITADO.finditer(texto)}
+
+
+def validar_proveniencia_numeros(parecer):
+    """Validação PROGRAMÁTICA (não só instrução de prompt/persona): todo
+    número que aparece nos campos decisórios do parecer (conclusão, riscos,
+    ação sugerida, divergências, motivo do Diretor) e não está listado em
+    `numeros` (com origem/fonte declaradas) volta aqui como 'sem
+    proveniência' -- é isso que impede um '+50%' ou um '7-14 dias' de
+    passar como se fosse fato ou política confirmada só porque o modelo
+    escreveu um número com confiança.
+
+    Escopo deliberado: números em `dados_utilizados` não entram nesta
+    checagem -- ali é onde o agente CITA evidência (ex.: '3 leituras'),
+    não onde ele afirma um número que pesa na decisão."""
+    citados = _numeros_citados_no_texto(parecer)
+    if not citados:
+        return []
+    tagueados = set()
+    for numero in (parecer.get('numeros') or []):
+        for m in _PADRAO_NUMERO_CITADO.finditer(str(numero.get('valor') or '')):
+            tagueados.add(m.group(1))
+    return sorted(citados - tagueados)
 
 
 class RespostaLLMInvalida(RuntimeError):
@@ -141,6 +207,12 @@ def executar_especialista(agente, demanda, snapshot=None, posicao_conflitante=No
     if confianca not in ('alta', 'media', 'baixa'):
         confianca = 'baixa'
 
+    # Validação programática de proveniência (não só instrução de persona):
+    # um número decisório sem tag em `numeros` força necessidade_diretor,
+    # nunca sustenta autorização automática sozinho.
+    numeros_sem_evidencia = validar_proveniencia_numeros(parecer)
+    necessidade_diretor = bool(parecer.get('necessidade_diretor')) or veto or bool(numeros_sem_evidencia)
+
     return {
         'agente': agente, 'ciclo': ciclo, 'demanda': demanda,
         'gerado_em': datetime.now(timezone.utc).isoformat(),
@@ -150,19 +222,50 @@ def executar_especialista(agente, demanda, snapshot=None, posicao_conflitante=No
         'riscos': parecer.get('riscos', ''),
         'divergencias': parecer.get('divergencias', ''),
         'acao_sugerida': parecer.get('acao_sugerida', ''),
-        'necessidade_diretor': bool(parecer.get('necessidade_diretor')) or veto,
+        'necessidade_diretor': necessidade_diretor,
         'motivo_diretor': parecer.get('motivo_diretor', ''),
         'veto': veto,
         'veto_motivo': parecer.get('veto_motivo') if veto else None,
+        'numeros': parecer.get('numeros') or [],
+        'numeros_sem_evidencia': numeros_sem_evidencia,
+        'lacunas': [l for l in (parecer.get('lacunas') or []) if isinstance(l, str) and l.strip()],
+        'acao_ja_em_andamento': bool(parecer.get('acao_ja_em_andamento')),
+        # None (não veio do modelo) sinaliza "parecer legado/sem classificação"
+        # para _consolidar cair no critério conservador de antes -- nunca
+        # tratado como 'nenhuma' (que apagaria uma divergência real por
+        # ausência do campo).
+        'natureza_divergencia': parecer.get('natureza_divergencia') if parecer.get('natureza_divergencia') in NATUREZAS_DIVERGENCIA else None,
         'modelo': MODELO_PADRAO,
     }
+
+
+def _classificar_natureza_divergencia(parecer):
+    """Correção de classificação de divergência: usa o que o próprio
+    agente declarou em `natureza_divergencia` (divergencia_real/
+    dado_ausente/risco/hipotese/nenhuma) quando presente. Um parecer
+    LEGADO (sem esse campo -- registros de antes desta correção) cai no
+    critério conservador de sempre: texto não trivial em `divergencias`
+    conta como divergência real, para nunca fazer uma ata antiga perder
+    uma divergência que já estava registrada como tal."""
+    natureza = parecer.get('natureza_divergencia')
+    if natureza is not None:
+        return natureza
+    texto = (parecer.get('divergencias') or '').strip().lower()
+    return 'nenhuma' if texto in _SEM_DIVERGENCIA else 'divergencia_real'
 
 
 def _consolidar(avaliado, pareceres, erros, excedeu_limite=False):
     """Monta o corpo para `mi_conselho.registrar_registro` a partir dos
     pareceres coletados -- reaproveita a estrutura já existente (tipo/
     participantes/posicoes/conflitos/vetos/recomendacoes/precisa_diretor),
-    nenhum campo novo no schema.
+    só ACRESCENTA campos dentro de `dados_apresentados` (JSONB livre, sem
+    migration): `sintese_estruturada` com as 11 seções pedidas (o que
+    sabemos / o que não sabemos / convergências / divergências / riscos /
+    bloqueios / decisão possível agora / próxima ação / responsável /
+    evidência necessária / precisa do Diretor), `motivos_diretor`,
+    `classificacao_divergencia` e `recomendacoes_ja_em_andamento` (item 1:
+    ações que o agente já viu em curso no pacote de estado e por isso NÃO
+    viram recomendação nova).
 
     `posicoes[agente]` carrega um objeto (conclusao/confianca/dados_utilizados/
     riscos) em vez de só o texto da conclusão -- mesma coluna JSONB de sempre
@@ -181,21 +284,95 @@ def _consolidar(avaliado, pareceres, erros, excedeu_limite=False):
         for p in pareceres
     }
     vetos = {p['agente']: p['veto_motivo'] for p in pareceres if p.get('veto')}
-    conflitos = {p['agente']: p['divergencias'] for p in pareceres
-                 if (p.get('divergencias') or '').strip().lower() not in _SEM_DIVERGENCIA}
+
+    # Correção de classificação de divergência: dado ausente, risco,
+    # hipótese ("caso outro agente...") e dimensões diferentes NÃO são
+    # divergência -- só conta quando dois ou mais agentes têm posições
+    # incompatíveis sobre a MESMA decisão atual (natureza_divergencia ==
+    # 'divergencia_real'). `conflitos` (campo já existente, lido pelo
+    # painel/testes de sempre) passa a refletir só divergências reais.
+    classificacao_divergencia = [
+        {'agente': p['agente'], 'natureza': _classificar_natureza_divergencia(p), 'texto': p.get('divergencias') or ''}
+        for p in pareceres if (p.get('divergencias') or '').strip()
+    ]
+    conflitos = {c['agente']: c['texto'] for c in classificacao_divergencia if c['natureza'] == 'divergencia_real'}
+
+    # Item 1: um agente que sinaliza acao_ja_em_andamento (porque o pacote
+    # de estado já mostrava essa ação em curso/concluída) não vira
+    # recomendação NOVA -- fica só como confirmação, nunca duplicada na
+    # fila operacional.
     recomendacoes = [{'responsavel': p['agente'], 'descricao': p['acao_sugerida'], 'confianca': p['confianca']}
-                      for p in pareceres if (p.get('acao_sugerida') or '').strip()]
+                      for p in pareceres
+                      if (p.get('acao_sugerida') or '').strip() and not p.get('acao_ja_em_andamento')]
+    recomendacoes_ja_em_andamento = [
+        {'responsavel': p['agente'], 'descricao': p['acao_sugerida']}
+        for p in pareceres if (p.get('acao_sugerida') or '').strip() and p.get('acao_ja_em_andamento')
+    ]
+
+    dados_ausentes = sorted({lacuna for p in pareceres for lacuna in (p.get('lacunas') or [])})
+    numeros_sem_evidencia = sorted({n for p in pareceres for n in (p.get('numeros_sem_evidencia') or [])})
 
     pendencias = {}
     if erros:
         pendencias['agentes_com_falha'] = [e['agente'] for e in erros]
     if excedeu_limite:
         pendencias['especialistas_acima_do_limite'] = True
+    if numeros_sem_evidencia:
+        pendencias['numeros_sem_evidencia'] = numeros_sem_evidencia
 
     precisa_diretor = (bool(vetos) or bool(erros) or excedeu_limite
                        or any(p.get('necessidade_diretor') for p in pareceres))
     conclusao = ('; '.join(f"{AGENTES[p['agente']]['nome']}: {p['conclusao']}" for p in pareceres)
                  or 'Nenhum parecer obtido -- todos os especialistas convocados falharam.')
+
+    # Escalonamento do Diretor sempre com MOTIVO explícito -- nunca só
+    # "necessidade sinalizada por especialista" (a causa real observada de
+    # falsa escalada: dado ausente ou divergência aparente virando "cabe
+    # ao Diretor" sem dizer por quê).
+    motivos_diretor = []
+    for agente, motivo in vetos.items():
+        motivos_diretor.append({'agente': AGENTES[agente]['nome'], 'motivo': f'veto jurídico — {motivo}'})
+    for p in pareceres:
+        if not p.get('necessidade_diretor') or p.get('veto'):
+            continue
+        motivo_texto = (p.get('motivo_diretor') or '').strip()
+        if p.get('numeros_sem_evidencia'):
+            extra = f"número(s) sem proveniência: {', '.join(p['numeros_sem_evidencia'])}"
+            motivo_texto = f'{motivo_texto} ({extra})' if motivo_texto else extra
+        motivos_diretor.append({
+            'agente': AGENTES[p['agente']]['nome'],
+            'motivo': motivo_texto or 'motivo não especificado pelo agente',
+        })
+    for erro in erros:
+        nome = AGENTES.get(erro['agente'], {}).get('nome', erro['agente'])
+        motivos_diretor.append({'agente': nome, 'motivo': 'falha ao consultar este especialista'})
+    if excedeu_limite:
+        motivos_diretor.append({'agente': None, 'motivo': 'demanda excedeu o limite de especialistas automáticos'})
+
+    sintese_estruturada = {
+        'o_que_sabemos': [
+            {'agente': AGENTES[p['agente']]['nome'], 'dados_utilizados': p.get('dados_utilizados') or ''}
+            for p in pareceres if (p.get('dados_utilizados') or '').strip()
+        ],
+        'o_que_nao_sabemos': dados_ausentes,
+        'convergencias': [
+            AGENTES[p['agente']]['nome'] for p in pareceres
+            if (p.get('divergencias') or '').strip().lower() in _SEM_DIVERGENCIA
+        ],
+        'divergencias': {AGENTES[a]['nome']: texto for a, texto in conflitos.items()},
+        'riscos': {AGENTES[p['agente']]['nome']: p['riscos'] for p in pareceres if (p.get('riscos') or '').strip()},
+        'bloqueios': {
+            'veto': {AGENTES[a]['nome']: motivo for a, motivo in vetos.items()} or None,
+            'numeros_sem_evidencia': numeros_sem_evidencia or None,
+            'agentes_com_falha': [e['agente'] for e in erros] or None,
+        },
+        'decisao_possivel_agora': bool(recomendacoes) and not precisa_diretor,
+        'proxima_acao': recomendacoes[0]['descricao'] if recomendacoes else None,
+        'responsavel': AGENTES[recomendacoes[0]['responsavel']]['nome'] if recomendacoes else None,
+        'evidencia_necessaria': dados_ausentes,
+        'precisa_diretor': precisa_diretor,
+        'motivos_diretor': motivos_diretor or None,
+    }
 
     return {
         'chave': str(uuid5(_NAMESPACE_EXECUCAO, avaliado['sinal_id'])),
@@ -203,7 +380,12 @@ def _consolidar(avaliado, pareceres, erros, excedeu_limite=False):
         'demanda': avaliado['demanda'],
         'participantes': participantes,
         'contexto': avaliado['motivo'],
-        'dados_apresentados': {'sinal_id': avaliado['sinal_id'], 'tipo_evento': avaliado['tipo_evento']},
+        'dados_apresentados': {
+            'sinal_id': avaliado['sinal_id'], 'tipo_evento': avaliado['tipo_evento'],
+            'sintese_estruturada': sintese_estruturada,
+            'recomendacoes_ja_em_andamento': recomendacoes_ja_em_andamento or None,
+            'classificacao_divergencia': classificacao_divergencia or None,
+        },
         'posicoes': posicoes or None,
         'conflitos': conflitos or None,
         'conclusao': conclusao,
@@ -212,6 +394,55 @@ def _consolidar(avaliado, pareceres, erros, excedeu_limite=False):
         'pendencias': pendencias or None,
         'precisa_diretor': precisa_diretor,
     }
+
+
+_SLUG_INVALIDO = re.compile(r'[^a-z0-9_]+')
+
+
+def _slug_topico(base, agente, indice):
+    """Nome de tópico best-effort para mi_conselho_fatos a partir da
+    unidade/descrição que o próprio agente informou -- nunca inventa um
+    nome de negócio que não veio do parecer. Sem nada aproveitável, cai
+    para `<agente>_numero_<indice>` (ainda assim consultável/auditável)."""
+    slug = _SLUG_INVALIDO.sub('_', (base or '').strip().lower()).strip('_')
+    slug = f'{agente}_{slug}' if slug else f'{agente}_numero_{indice}'
+    if not slug[:1].isalpha():
+        slug = 'n_' + slug
+    return slug[:128]
+
+
+def _extrair_registro_id(registro):
+    corpo = registro[0] if isinstance(registro, tuple) else registro
+    return (corpo or {}).get('id')
+
+
+def _registrar_fatos_dos_pareceres(factory, pareceres, registro_id):
+    """Item 4 (Iris) / item 3 (validade temporal): cada número que um
+    especialista citou COM proveniência (parecer['numeros']) vira uma linha
+    em mi_conselho_fatos -- é isso que transforma 'fatos confirmados
+    reutilizáveis' de expectativa de prompt em tabela consultável de
+    verdade. Só registra o que o próprio agente já tagueou (nunca infere
+    origem/confiança aqui); um número sem origem reconhecida é ignorado
+    (ele já força necessidade_diretor em executar_especialista, não precisa
+    também virar 'fato'). Falha ao registrar um fato é só bookkeeping
+    perdido -- nunca derruba o registro principal, já persistido."""
+    for parecer in pareceres:
+        for indice, numero in enumerate(parecer.get('numeros') or []):
+            valor = str(numero.get('valor') or '').strip()
+            origem = numero.get('origem')
+            if not valor or origem not in TIPOS_ORIGEM_NUMERO:
+                continue
+            chave = str(uuid5(_NAMESPACE_EXECUCAO, f"fato:{registro_id}:{parecer['agente']}:{indice}"))
+            try:
+                registrar_fato(factory, {
+                    'chave': chave,
+                    'topico': _slug_topico(numero.get('unidade'), parecer['agente'], indice),
+                    'valor': valor, 'unidade': numero.get('unidade'), 'origem_tipo': origem,
+                    'fonte_detalhe': numero.get('fonte_detalhe'), 'confianca': numero.get('confianca'),
+                    'agente_registrante': parecer['agente'], 'registro_id': registro_id,
+                })
+            except Exception:
+                continue
 
 
 def _registrar_conclave_completo_pendente(factory, avaliado):
@@ -236,10 +467,18 @@ def _registrar_conclave_completo_pendente(factory, avaliado):
 
 def processar_e_registrar(factory, limite=50, max_especialistas=MAX_ESPECIALISTAS_POR_DEMANDA, cliente=None):
     """Ponto único desta etapa: lê sinais pendentes (mi_conselho_gatilho,
-    não alterado), para cada demanda relevante executa só os especialistas
-    já selecionados pelo classificador existente (nunca mais que
-    `max_especialistas`, nunca Conclave completo automático), consolida e
-    registra em mi_conselho -- nunca executa nenhuma ação externa."""
+    não alterado), para cada demanda relevante monta o pacote de estado
+    (mi_conselho_estado -- item 1: ações concluídas/em andamento,
+    bloqueios, prazos, evidências), executa só os especialistas já
+    selecionados pelo classificador existente (nunca mais que
+    `max_especialistas`, nunca Conclave completo automático) já COM esse
+    contexto, consolida e registra em mi_conselho -- nunca executa nenhuma
+    ação externa.
+
+    Antes desta etapa, `executar_especialista` nunca recebia snapshot
+    algum aqui (bug real, não só melhoria): cada especialista automático
+    respondia só com a frase curta da demanda, cego para o que já estava
+    em andamento -- causa direta de recomendações duplicadas."""
     avaliados = processar_sinais_pendentes(factory, limite=limite)
     resultados = []
     for avaliado in avaliados:
@@ -258,10 +497,22 @@ def processar_e_registrar(factory, limite=50, max_especialistas=MAX_ESPECIALISTA
         excedeu_limite = len(selecionados) > max_especialistas
         agentes_a_executar = ordenar_execucao(selecionados[:max_especialistas])
 
+        # Pacote de estado montado UMA vez por demanda e compartilhado por
+        # todos os especialistas convocados nesta rodada. Falha ao montar
+        # nunca impede a rodada -- cai para snapshot=None, o mesmo
+        # marcador "dado indisponível" que mi_conselho_orquestrador já
+        # trata (nunca inventa contexto no lugar de uma falha de leitura).
+        try:
+            pacote_estado = montar_pacote_estado(factory, avaliado['demanda'], classificacao)
+        except Exception:
+            pacote_estado = None
+
         pareceres, erros = [], []
         for agente in agentes_a_executar:
             try:
-                pareceres.append(executar_especialista(agente, avaliado['demanda'], cliente=cliente))
+                pareceres.append(executar_especialista(
+                    agente, avaliado['demanda'], snapshot=pacote_estado, cliente=cliente,
+                ))
             except Exception as erro:
                 # Falha de um agente nunca libera ação nem é tratada como
                 # "sem objeção" -- fica registrada como pendência explícita
@@ -270,5 +521,6 @@ def processar_e_registrar(factory, limite=50, max_especialistas=MAX_ESPECIALISTA
 
         consolidado = _consolidar(avaliado, pareceres, erros, excedeu_limite)
         registro = registrar_registro(factory, consolidado)
+        _registrar_fatos_dos_pareceres(factory, pareceres, _extrair_registro_id(registro))
         resultados.append({**avaliado, 'pareceres': pareceres, 'erros': erros, 'registro': registro})
     return resultados
