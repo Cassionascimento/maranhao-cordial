@@ -145,15 +145,67 @@ const REGISTRO_ESTRUTURADO = {
   conclusao: 'Iris: Ainda não há evidência suficiente...; Leonard: Vendas concorda com o teste...',
 };
 
+// Registro no formato mais novo ainda: já com dados_apresentados.
+// sintese_estruturada/classificacao_divergencia/recomendacoes_ja_em_andamento
+// (correção de UX/divergência) -- usado para testar o painel executivo
+// compacto, sem afetar os testes acima (que continuam usando registros
+// sem esses campos).
+const REGISTRO_COM_SINTESE = {
+  ...REGISTRO_ESTRUTURADO,
+  id: 'r3',
+  precisa_diretor: true,
+  dados_apresentados: {
+    sinal_id: 's1', tipo_evento: 'custo_ingrediente',
+    recomendacoes_ja_em_andamento: [{responsavel: 'rua', descricao: 'acionar fornecedor alternativo'}],
+    classificacao_divergencia: [
+      {agente: 'leonard', natureza: 'divergencia_real', texto: 'discorda do prazo proposto por Rua'},
+    ],
+    sintese_estruturada: {
+      o_que_sabemos: [{agente: 'Iris', dados_utilizados: 'Há 3 leituras de preço confirmadas pelo fornecedor.'}],
+      o_que_nao_sabemos: ['MOQ do fornecedor X não confirmado', 'lead time não confirmado'],
+      convergencias: ['Iris', 'Leonard'],
+      divergencias: {Leonard: 'discorda do prazo proposto por Rua'},
+      riscos: {Standard: 'variação de câmbio pode elevar custo'},
+      bloqueios: {veto: null, numeros_sem_evidencia: ['50'], agentes_com_falha: null},
+      decisao_possivel_agora: false,
+      proxima_acao: 'Confirmar MOQ e lead time com o fornecedor antes de negociar preço.',
+      responsavel: 'Iris',
+      evidencia_necessaria: ['MOQ do fornecedor X não confirmado', 'lead time não confirmado'],
+      precisa_diretor: true,
+      motivos_diretor: [{agente: 'Standard', motivo: 'número(s) sem proveniência: 50'}],
+    },
+  },
+};
+
+// className e classList sincronizados nos dois sentidos -- mesma
+// semântica do DOM real (setar className atualiza classList e
+// vice-versa), necessário porque o código de produção mistura os dois
+// (el() define className na criação; toggles de progressive disclosure
+// usam classList.toggle depois).
 function no(tag='div') {
-  return {tag,children:[],listeners:{},textContent:'',disabled:false,hidden:true,dataset:{},
-    className:'',open:undefined,
-    classList:{_c:new Set(),add(c){this._c.add(c);},toggle(c,v){v?this._c.add(c):this._c.delete(c);},contains(c){return this._c.has(c);}},
+  const obj = {tag,children:[],listeners:{},textContent:'',disabled:false,hidden:true,dataset:{},
+    open:undefined,type:undefined,_atributos:{},_classNameInterna:'',
     append(...xs){this.children.push(...xs);},replaceChildren(...xs){this.children=xs;},
     addEventListener(k,fn){this.listeners[k]=fn;},
     closest(){return null;},
     querySelector(){return null;}, querySelectorAll(){return [];},
+    setAttribute(k,v){this._atributos[k]=String(v);},
+    getAttribute(k){return Object.prototype.hasOwnProperty.call(this._atributos,k)?this._atributos[k]:null;},
+    removeAttribute(k){delete this._atributos[k];},
   };
+  const sincronizar = () => { obj._classNameInterna = [...obj.classList._c].join(' '); };
+  obj.classList = {
+    _c: new Set(),
+    add(c){this._c.add(c); sincronizar();},
+    remove(c){this._c.delete(c); sincronizar();},
+    toggle(c,v){ (v===undefined ? !this._c.has(c) : v) ? this._c.add(c) : this._c.delete(c); sincronizar(); },
+    contains(c){return this._c.has(c);},
+  };
+  Object.defineProperty(obj, 'className', {
+    get(){ return obj._classNameInterna; },
+    set(v){ obj._classNameInterna = v || ''; obj.classList._c = new Set((v || '').split(/\s+/).filter(Boolean)); },
+  });
+  return obj;
 }
 
 function setup({respostaConselho=CONSELHO_OK, ok=true, semChave=false, semPainel=false}={}) {
@@ -384,4 +436,138 @@ test('nenhuma escrita na leitura: GET simples para o Conselho',async()=>{
   const t=setup();
   await t.elementos['conselho-atualizar'].listeners.click();
   for (const url of t.calls) assert.ok(url.includes('/api/admin/mi/conselho'));
+});
+
+// ---------------------------------------------------------------------
+// Correção de UX (painel executivo compacto) e correção de classificação
+// de divergência -- ambas sobre o mesmo harness de DOM acima.
+// ---------------------------------------------------------------------
+
+function acharTodosPorClasse(no_, classe, achados=[]) {
+  const classes = String(no_.className || '').split(/\s+/);
+  if (classes.includes(classe)) achados.push(no_);
+  for (const filho of (no_.children || [])) acharTodosPorClasse(filho, classe, achados);
+  return achados;
+}
+
+test('resumo executivo, decisao, agentes compactos e visao completa aparecem nesta ordem',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const card=acharPorClasse(t.elementos['conselho-atas'],'conselho-ata-card');
+  const idxResumo=card.children.findIndex(c=>c.className==='conselho-resumo-executivo');
+  const idxDecisao=card.children.findIndex(c=>c.className==='conselho-decisao-agora');
+  const idxAgentesCompactos=card.children.findIndex(c=>c.className==='conselho-agentes-compactos');
+  const idxVisaoCompleta=card.children.findIndex(c=>c.className==='conselho-visao-completa');
+  assert.ok(idxResumo>=0 && idxDecisao>=0 && idxAgentesCompactos>=0 && idxVisaoCompleta>=0);
+  assert.ok(idxResumo<idxDecisao && idxDecisao<idxAgentesCompactos && idxAgentesCompactos<idxVisaoCompleta);
+});
+
+test('resumo executivo mostra status, risco, dados ausentes e diretor com motivo real',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const resumo=acharPorClasse(t.elementos['conselho-atas'],'conselho-resumo-executivo');
+  const texto=JSON.stringify(resumo);
+  assert.match(texto,/Status/);
+  assert.match(texto,/Aguardando Diretor/);
+  assert.match(texto,/Dados ausentes/);
+  assert.match(texto,/MOQ do fornecedor X não confirmado/);
+  assert.match(texto,/Standard: número\(s\) sem proveniência: 50/); // motivo real, nunca generico
+  assert.doesNotMatch(texto,/necessidade sinalizada/);
+});
+
+test('demanda aparece truncada por padrao e o botao expande sem duplicar o texto',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const demanda=acharPorClasse(t.elementos['conselho-atas'],'conselho-demanda');
+  const paragrafo=demanda.children.find(c=>c.tag==='p');
+  const botao=demanda.children.find(c=>c.tag==='button');
+  assert.ok(paragrafo.classList.contains('conselho-clamp-3'));
+  assert.equal(botao.getAttribute('aria-expanded'),'false');
+  assert.equal(paragrafo.textContent, REGISTRO_COM_SINTESE.demanda);
+  botao.listeners.click();
+  assert.ok(!paragrafo.classList.contains('conselho-clamp-3'));
+  assert.equal(botao.getAttribute('aria-expanded'),'true');
+});
+
+test('agente compacto fica fechado por padrao mas guarda o parecer completo dentro de "Ver analise"',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const compactos=acharTodosPorClasse(t.elementos['conselho-atas'],'conselho-agente-compacto');
+  assert.equal(compactos.length,2);
+  const detalhes=acharPorClasse(compactos[0],'conselho-agente-detalhes');
+  assert.notEqual(detalhes.open,true);
+  assert.match(JSON.stringify(detalhes),/Há conteúdos para Instagram já previstos no calendário/);
+});
+
+test('agente com divergencia real mostra tag DIVERGENCIA no card compacto',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const compactos=acharTodosPorClasse(t.elementos['conselho-atas'],'conselho-agente-compacto');
+  const leonardCompacto = compactos.find(c => JSON.stringify(c).includes('Leonard'));
+  assert.match(JSON.stringify(leonardCompacto),/DIVERGÊNCIA/);
+});
+
+test('acao ja em andamento aparece com tag EM ANDAMENTO na decisao, nunca duplicada como nova',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const decisao=acharPorClasse(t.elementos['conselho-atas'],'conselho-decisao-agora');
+  const texto=JSON.stringify(decisao);
+  assert.match(texto,/EM ANDAMENTO/);
+  assert.match(texto,/acionar fornecedor alternativo/);
+});
+
+test('convergencia condensada aparece uma vez so quando 2 ou mais agentes convergem',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const convergencias=acharTodosPorClasse(t.elementos['conselho-atas'],'conselho-convergencia');
+  assert.equal(convergencias.length,1);
+  assert.match(convergencias[0].children[1].textContent,/Iris/);
+  assert.match(convergencias[0].children[1].textContent,/Leonard/);
+});
+
+test('sintese estruturada tem as 11 secoes com tag SEM EVIDENCIA (correcao de nomenclatura)',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const bloco=acharPorClasse(t.elementos['conselho-atas'],'conselho-sintese-estruturada');
+  assert.ok(bloco);
+  const texto=JSON.stringify(bloco);
+  for (const rotulo of ['O que sabemos','O que não sabemos','Convergências','Divergências','Riscos',
+                         'Bloqueios','Decisão possível agora','Próxima ação','Responsável',
+                         'Evidência necessária','Precisa do Diretor']) {
+    assert.match(texto,new RegExp(rotulo.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  }
+  assert.match(texto,/SEM EVIDÊNCIA/);
+  assert.doesNotMatch(texto,/EVIDÊNCIA AUSENTE/);
+});
+
+test('registro antigo sem sintese_estruturada nao mostra o bloco novo, so a sintese de sempre',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_ESTRUTURADO]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  assert.equal(acharPorClasse(t.elementos['conselho-atas'],'conselho-sintese-estruturada'),null);
+  assert.ok(acharPorClasse(t.elementos['conselho-atas'],'conselho-sintese'));
+});
+
+test('visao completa preserva demanda completa, pareceres e auditoria -- nunca perde informacao',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const visao=acharPorClasse(t.elementos['conselho-atas'],'conselho-visao-completa');
+  assert.ok(visao);
+  assert.notEqual(visao.open,true);
+  const texto=JSON.stringify(visao);
+  assert.match(texto,new RegExp(REGISTRO_COM_SINTESE.demanda.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  assert.match(texto,/Dados técnicos \(auditoria\)/);
+  assert.match(texto,/Testar uma publicação musical/);
+  assert.match(texto,/conselho-pareceres-grid/);
+});
+
+test('todo tag/chip de natureza usa simbolo + texto, nunca so cor (acessibilidade)',async()=>{
+  const t=setup({respostaConselho:{...CONSELHO_OK, reunioes_recentes:[REGISTRO_COM_SINTESE]}});
+  await t.elementos['conselho-atualizar'].listeners.click();
+  const tags=acharTodosPorClasse(t.elementos['conselho-atas'],'conselho-tag');
+  assert.ok(tags.length>0);
+  for (const tag of tags) assert.match(tag.textContent,/^[^A-Za-zÀ-ú]/);
+});
+
+test('css define line-clamp para nao explodir a altura inicial dos cards',()=>{
+  assert.match(css,/-webkit-line-clamp:\s*3/);
 });

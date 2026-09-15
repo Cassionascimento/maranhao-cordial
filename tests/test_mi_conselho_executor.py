@@ -406,5 +406,303 @@ class JobStandalone(unittest.TestCase):
             self.assertNotIn(proibido, codigo)
 
 
+class ValidarProveniencia(unittest.TestCase):
+    """Item 2: número decisório sem tag em `numeros` nunca passa como fato
+    ou política -- validação programática, não só instrução de persona."""
+
+    def parecer(self, **kw):
+        base = dict(conclusao='', riscos='', acao_sugerida='', divergencias='',
+                    motivo_diretor='', dados_utilizados='', numeros=[])
+        base.update(kw)
+        return base
+
+    def test_numero_decisorio_sem_tag_e_sinalizado(self):
+        parecer = self.parecer(acao_sugerida='Pagar até +50% a mais pelo insumo.')
+        self.assertIn('50', e.validar_proveniencia_numeros(parecer))
+
+    def test_numero_com_tag_correspondente_nao_e_sinalizado(self):
+        parecer = self.parecer(
+            acao_sugerida='Pagar até +50% a mais pelo insumo.',
+            numeros=[{'valor': '50%', 'unidade': '%', 'origem': 'POLITICA',
+                      'fonte_detalhe': 'Política de compras 2026', 'confianca': 'alta'}],
+        )
+        self.assertEqual(e.validar_proveniencia_numeros(parecer), [])
+
+    def test_numero_em_dados_utilizados_nao_conta_como_decisorio(self):
+        # dados_utilizados é onde o agente CITA evidência (ex.: "3
+        # leituras") -- não é onde ele afirma um número que pesa na
+        # decisão, por isso fica fora desta checagem de propósito.
+        parecer = self.parecer(dados_utilizados='3 leituras confirmaram o padrão.')
+        self.assertEqual(e.validar_proveniencia_numeros(parecer), [])
+
+    def test_sem_numero_nenhum_nao_sinaliza_nada(self):
+        parecer = self.parecer(conclusao='Sem alteração relevante.')
+        self.assertEqual(e.validar_proveniencia_numeros(parecer), [])
+
+    def test_janela_de_dias_sem_fonte_e_sinalizada_como_estimativa_nao_confirmada(self):
+        parecer = self.parecer(acao_sugerida='Prazo estimado de 7 a 14 dias para reposição.')
+        sinalizados = e.validar_proveniencia_numeros(parecer)
+        self.assertIn('7', sinalizados)
+        self.assertIn('14', sinalizados)
+
+
+class ClassificacaoDeDivergencia(unittest.TestCase):
+    """Correção: dado ausente, risco, hipótese e dimensões diferentes NÃO
+    são divergência -- só conta quando o próprio agente declara
+    natureza_divergencia='divergencia_real' (ou, em parecer legado sem
+    esse campo, texto não trivial -- critério conservador de antes)."""
+
+    def parecer(self, agente, **kw):
+        base = dict(agente=agente, conclusao='ok', confianca='media', divergencias='',
+                    acao_sugerida='', necessidade_diretor=False, veto=False, veto_motivo=None)
+        base.update(kw)
+        return base
+
+    def test_divergencia_real_declarada_vira_conflito(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer(
+            'standard', divergencias='discordo do prazo proposto', natureza_divergencia='divergencia_real',
+        )], [])
+        self.assertIn('standard', corpo['conflitos'])
+
+    def test_dado_ausente_nao_vira_conflito_mesmo_com_texto_nao_trivial(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer(
+            'iris', divergencias='ainda não confirmamos o estoque do fornecedor', natureza_divergencia='dado_ausente',
+        )], [])
+        self.assertNotIn('iris', corpo['conflitos'] or {})
+
+    def test_risco_nao_vira_conflito(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer(
+            'marie', divergencias='risco de instabilidade se o lote atrasar', natureza_divergencia='risco',
+        )], [])
+        self.assertNotIn('marie', corpo['conflitos'] or {})
+
+    def test_hipotese_de_conflito_nao_vira_conflito(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer(
+            'rua', divergencias='caso Standard não aprove o sobre-preço, o plano muda', natureza_divergencia='hipotese',
+        )], [])
+        self.assertNotIn('rua', corpo['conflitos'] or {})
+
+    def test_parecer_legado_sem_natureza_mantem_criterio_conservador(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer('standard', divergencias='discordo do prazo')], [])
+        self.assertIn('standard', corpo['conflitos'])
+
+    def test_classificacao_divergencia_exposta_para_a_interface(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [
+            self.parecer('standard', divergencias='discordo do prazo', natureza_divergencia='divergencia_real'),
+            self.parecer('iris', divergencias='estoque não confirmado', natureza_divergencia='dado_ausente'),
+        ], [])
+        classificacao = corpo['dados_apresentados']['classificacao_divergencia']
+        naturezas = {c['agente']: c['natureza'] for c in classificacao}
+        self.assertEqual(naturezas, {'standard': 'divergencia_real', 'iris': 'dado_ausente'})
+
+
+class MotivoDoDiretor(unittest.TestCase):
+    """Correção: 'Precisa do Diretor' sempre com motivo explícito -- dado
+    ausente ou divergência aparente não escalam sozinhos."""
+
+    def parecer(self, agente, **kw):
+        base = dict(agente=agente, conclusao='ok', confianca='media', divergencias='',
+                    acao_sugerida='', necessidade_diretor=False, veto=False, veto_motivo=None)
+        base.update(kw)
+        return base
+
+    def test_veto_gera_motivo_com_o_texto_do_veto(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer('dicio', veto=True, veto_motivo='claim sem validação')], [])
+        motivos = corpo['dados_apresentados']['sintese_estruturada']['motivos_diretor']
+        self.assertEqual(motivos, [{'agente': 'Dicio', 'motivo': 'veto jurídico — claim sem validação'}])
+
+    def test_necessidade_diretor_do_agente_usa_motivo_diretor_declarado(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer(
+            'standard', necessidade_diretor=True, motivo_diretor='autorização financeira necessária',
+        )], [])
+        motivos = corpo['dados_apresentados']['sintese_estruturada']['motivos_diretor']
+        self.assertEqual(motivos, [{'agente': 'Standard', 'motivo': 'autorização financeira necessária'}])
+
+    def test_sem_motivo_diretor_declarado_usa_texto_generico_explicito(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer('standard', necessidade_diretor=True)], [])
+        motivos = corpo['dados_apresentados']['sintese_estruturada']['motivos_diretor']
+        self.assertEqual(motivos, [{'agente': 'Standard', 'motivo': 'motivo não especificado pelo agente'}])
+
+    def test_sem_nenhum_motivo_a_lista_e_none_nunca_lista_vazia_silenciosa(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer('marie')], [])
+        self.assertIsNone(corpo['dados_apresentados']['sintese_estruturada']['motivos_diretor'])
+
+    def test_falha_de_agente_gera_motivo_proprio(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer('marie')], [{'agente': 'iris', 'erro': 'Timeout'}])
+        motivos = corpo['dados_apresentados']['sintese_estruturada']['motivos_diretor']
+        self.assertEqual(motivos, [{'agente': 'Iris', 'motivo': 'falha ao consultar este especialista'}])
+
+
+class ExecutarEspecialistaProveniencia(unittest.TestCase):
+    def test_numero_sem_evidencia_forca_necessidade_de_diretor(self):
+        cliente = cliente_mock(acao_sugerida='Pagar +50% a mais pelo insumo.', necessidade_diretor=False)
+        parecer = e.executar_especialista('standard', 'demanda', cliente=cliente)
+        self.assertTrue(parecer['necessidade_diretor'])
+        self.assertIn('50', parecer['numeros_sem_evidencia'])
+
+    def test_numero_com_evidencia_tagueada_nao_forca_necessidade_de_diretor(self):
+        cliente = cliente_mock(
+            acao_sugerida='Pagar +50% a mais pelo insumo.', necessidade_diretor=False,
+            numeros=[{'valor': '50%', 'unidade': '%', 'origem': 'POLITICA',
+                      'fonte_detalhe': 'política de compras', 'confianca': 'alta'}],
+        )
+        parecer = e.executar_especialista('standard', 'demanda', cliente=cliente)
+        self.assertFalse(parecer['necessidade_diretor'])
+        self.assertEqual(parecer['numeros_sem_evidencia'], [])
+
+    def test_lacunas_e_acao_ja_em_andamento_fluem_para_o_parecer(self):
+        cliente = cliente_mock(lacunas=['MOQ do fornecedor não confirmado'], acao_ja_em_andamento=True)
+        parecer = e.executar_especialista('iris', 'demanda', cliente=cliente)
+        self.assertEqual(parecer['lacunas'], ['MOQ do fornecedor não confirmado'])
+        self.assertTrue(parecer['acao_ja_em_andamento'])
+
+    def test_ausencia_dos_campos_novos_na_resposta_nao_quebra_o_parecer(self):
+        # Compatibilidade: uma resposta sem numeros/lacunas/acao_ja_em_andamento
+        # (formato anterior a esta etapa) continua um parecer válido.
+        cliente = cliente_mock()
+        parecer = e.executar_especialista('leonard', 'demanda', cliente=cliente)
+        self.assertEqual(parecer['numeros'], [])
+        self.assertEqual(parecer['lacunas'], [])
+        self.assertFalse(parecer['acao_ja_em_andamento'])
+
+
+class ConsolidarItem1EEstruturada(unittest.TestCase):
+    def parecer(self, agente, **kw):
+        base = dict(agente=agente, conclusao='ok', confianca='media', divergencias='',
+                    acao_sugerida='', necessidade_diretor=False, veto=False, veto_motivo=None)
+        base.update(kw)
+        return base
+
+    def test_acao_ja_em_andamento_nao_vira_recomendacao_nova(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(
+            avaliado, [self.parecer('rua', acao_sugerida='acionar fornecedor', acao_ja_em_andamento=True)], [],
+        )
+        self.assertEqual(corpo['recomendacoes'], [])
+        self.assertEqual(
+            corpo['dados_apresentados']['recomendacoes_ja_em_andamento'],
+            [{'responsavel': 'rua', 'descricao': 'acionar fornecedor'}],
+        )
+
+    def test_acao_nova_de_verdade_continua_virando_recomendacao(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer('rua', acao_sugerida='revisar bancada')], [])
+        self.assertEqual(corpo['recomendacoes'], [{'responsavel': 'rua', 'descricao': 'revisar bancada', 'confianca': 'media'}])
+        self.assertIsNone(corpo['dados_apresentados']['recomendacoes_ja_em_andamento'])
+
+    def test_dados_ausentes_agrega_lacunas_de_todos_os_pareceres_sem_duplicar(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [
+            self.parecer('iris', lacunas=['MOQ não confirmado', 'lead time não confirmado']),
+            self.parecer('rua', lacunas=['lead time não confirmado']),
+        ], [])
+        sintese = corpo['dados_apresentados']['sintese_estruturada']
+        self.assertEqual(sintese['o_que_nao_sabemos'], ['MOQ não confirmado', 'lead time não confirmado'])
+        self.assertEqual(sintese['evidencia_necessaria'], sintese['o_que_nao_sabemos'])
+
+    def test_sintese_estruturada_tem_as_11_secoes_pedidas(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer('marie')], [])
+        self.assertEqual(set(corpo['dados_apresentados']['sintese_estruturada']), {
+            'o_que_sabemos', 'o_que_nao_sabemos', 'convergencias', 'divergencias', 'riscos', 'bloqueios',
+            'decisao_possivel_agora', 'proxima_acao', 'responsavel', 'evidencia_necessaria', 'precisa_diretor',
+            'motivos_diretor',
+        })
+
+    def test_decisao_possivel_agora_e_falsa_quando_precisa_diretor(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(
+            avaliado, [self.parecer('dicio', veto=True, veto_motivo='risco', acao_sugerida='parar campanha')], [],
+        )
+        self.assertFalse(corpo['dados_apresentados']['sintese_estruturada']['decisao_possivel_agora'])
+
+    def test_decisao_possivel_agora_e_verdadeira_com_recomendacao_e_sem_pendencia(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [self.parecer('rua', acao_sugerida='revisar bancada')], [])
+        self.assertTrue(corpo['dados_apresentados']['sintese_estruturada']['decisao_possivel_agora'])
+
+
+class PacoteDeEstadoNaExecucao(unittest.TestCase):
+    def _conn_com_um_pendente(self, sinal):
+        conn = MagicMock()
+        cur = conn.cursor.return_value.__enter__.return_value
+        cur.fetchall.return_value = [sinal]
+        return conn
+
+    def test_pacote_de_estado_e_montado_uma_vez_e_passado_a_cada_especialista(self):
+        sinal = {'id': 's1', 'origem': 'producao', 'tipo_evento': 'nao_conformidade', 'sku': 'X',
+                  'lote_id': None, 'origem_id': None, 'payload': {'descricao': 'x'}, 'criado_em': 'agora'}
+        conn = self._conn_com_um_pendente(sinal)
+        pacote_fake = {'demanda': 'x', 'acoes_em_andamento': []}
+        with patch('mi_conselho_executor.montar_pacote_estado', return_value=pacote_fake) as montar, \
+             patch('mi_conselho_executor.executar_especialista') as executar, \
+             patch('mi_conselho_executor.registrar_registro', return_value={'success': True}):
+            executar.return_value = {
+                'agente': 'dicio', 'conclusao': 'ok', 'confianca': 'media', 'divergencias': '',
+                'acao_sugerida': '', 'necessidade_diretor': False, 'veto': False, 'veto_motivo': None,
+            }
+            e.processar_e_registrar(lambda: conn)
+        montar.assert_called_once()
+        self.assertEqual(executar.call_args.kwargs['snapshot'], pacote_fake)
+
+    def test_falha_ao_montar_pacote_de_estado_nao_impede_a_rodada(self):
+        sinal = {'id': 's1', 'origem': 'producao', 'tipo_evento': 'nao_conformidade', 'sku': 'X',
+                  'lote_id': None, 'origem_id': None, 'payload': {'descricao': 'x'}, 'criado_em': 'agora'}
+        conn = self._conn_com_um_pendente(sinal)
+        with patch('mi_conselho_executor.montar_pacote_estado', side_effect=RuntimeError('db indisponível')), \
+             patch('mi_conselho_executor.executar_especialista') as executar, \
+             patch('mi_conselho_executor.registrar_registro', return_value={'success': True}) as registrar:
+            executar.return_value = {
+                'agente': 'dicio', 'conclusao': 'ok', 'confianca': 'media', 'divergencias': '',
+                'acao_sugerida': '', 'necessidade_diretor': False, 'veto': False, 'veto_motivo': None,
+            }
+            e.processar_e_registrar(lambda: conn)
+        self.assertIsNone(executar.call_args.kwargs['snapshot'])
+        registrar.assert_called_once()
+
+
+class RegistrarFatosDosPareceres(unittest.TestCase):
+    def test_numero_com_origem_reconhecida_e_registrado_como_fato(self):
+        pareceres = [{'agente': 'standard',
+                      'numeros': [{'valor': '120', 'unidade': 'kg', 'origem': 'FORNECEDOR',
+                                   'fonte_detalhe': 'Fornecedor X', 'confianca': 'alta'}]}]
+        with patch('mi_conselho_executor.registrar_fato') as registrar:
+            e._registrar_fatos_dos_pareceres(lambda: None, pareceres, 'reg-1')
+        registrar.assert_called_once()
+        corpo = registrar.call_args.args[1]
+        self.assertEqual(corpo['origem_tipo'], 'FORNECEDOR')
+        self.assertEqual(corpo['registro_id'], 'reg-1')
+        self.assertEqual(corpo['agente_registrante'], 'standard')
+
+    def test_numero_sem_origem_reconhecida_nao_e_registrado(self):
+        pareceres = [{'agente': 'standard', 'numeros': [{'valor': '120', 'origem': 'CHUTE'}]}]
+        with patch('mi_conselho_executor.registrar_fato') as registrar:
+            e._registrar_fatos_dos_pareceres(lambda: None, pareceres, 'reg-1')
+        registrar.assert_not_called()
+
+    def test_falha_ao_registrar_fato_nunca_propaga(self):
+        pareceres = [{'agente': 'standard',
+                      'numeros': [{'valor': '120', 'unidade': 'kg', 'origem': 'CALCULO',
+                                   'fonte_detalhe': '', 'confianca': 'media'}]}]
+        with patch('mi_conselho_executor.registrar_fato', side_effect=RuntimeError('db indisponível')):
+            e._registrar_fatos_dos_pareceres(lambda: None, pareceres, 'reg-1')  # não deve levantar
+
+    def test_sem_numeros_nao_chama_registrar_fato(self):
+        with patch('mi_conselho_executor.registrar_fato') as registrar:
+            e._registrar_fatos_dos_pareceres(lambda: None, [{'agente': 'iris', 'numeros': []}], 'reg-1')
+        registrar.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

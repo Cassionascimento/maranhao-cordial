@@ -28,7 +28,7 @@ class LeituraDiretorSilenciosa(unittest.TestCase):
     def test_sem_nada_pendente_ia_trabalhando_falso_e_nao_chama_diretor(self):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.side_effect = [[], [], [], [], [], [], []]
+        cur.fetchall.side_effect = [[], [], [], [], [], [], [], []]
         with patch.object(md, 'gerar_calendario_mi', return_value=calendario_base()):
             leitura = md.leitura_diretor(lambda: conn)
         self.assertFalse(leitura['ia_trabalhando'])
@@ -39,7 +39,7 @@ class LeituraDiretorSilenciosa(unittest.TestCase):
     def test_atividade_concluida_de_rotina_nao_chama_diretor(self):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.side_effect = [[], [], [], [], [], [], []]
+        cur.fetchall.side_effect = [[], [], [], [], [], [], [], []]
         concluida = {'tipo_decisao': 'pesquisa_necessaria', 'estado': 'concluida'}
         with patch.object(md, 'gerar_calendario_mi',
                            return_value=calendario_base(colunas={'hoje': [], 'proximas': [], 'aguardando': [],
@@ -54,7 +54,7 @@ class LeituraDiretorMotivos(unittest.TestCase):
     def _leitura(self, colunas_extra, acoes=()):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.side_effect = [[], list(acoes), [], [], [], [], []]
+        cur.fetchall.side_effect = [[], list(acoes), [], [], [], [], [], []]
         colunas = {'hoje': [], 'proximas': [], 'aguardando': [], 'concluidas': [],
                    'bloqueadas': [], 'precisa_diretor': []}
         colunas.update(colunas_extra)
@@ -184,7 +184,7 @@ class LeituraDiretorSite(unittest.TestCase):
         cur.fetchall.side_effect = [
             [], [],
             [{'tipo_evento': 'pagina_visitada', 'total': 40}, {'tipo_evento': 'produto_visitado', 'total': 10}],
-            [], [], [], [],
+            [], [], [], [], [],
         ]
         cur.fetchone.side_effect = [{'produto': 'guarana', 'total': 6}, {'canal': 'instagram_bio', 'total': 4}]
         top10 = [{'tema': 'guarana', 'fonte': ['site'], 'tendencia': 'subindo'}]
@@ -200,7 +200,7 @@ class LeituraDiretorSite(unittest.TestCase):
     def test_site_sem_tema_no_top10_nao_marca_mudanca_relevante(self):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.side_effect = [[], [], [], [], [], [], []]
+        cur.fetchall.side_effect = [[], [], [], [], [], [], [], []]
         top10 = [{'tema': 'degustacao', 'fonte': ['crm'], 'tendencia': 'subindo'}]
         with patch.object(md, 'gerar_calendario_mi',
                            return_value=calendario_base(inteligencia_de_publico={'top10': top10,
@@ -213,7 +213,7 @@ class LeituraDiretorSecoes(unittest.TestCase):
     def test_calendario_reaproveita_contagens_das_colunas_sem_recalcular(self):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.side_effect = [[], [], [], [], [], [], []]
+        cur.fetchall.side_effect = [[], [], [], [], [], [], [], []]
         colunas = {'hoje': [{}], 'proximas': [{}, {}], 'aguardando': [], 'concluidas': [{}],
                    'bloqueadas': [], 'precisa_diretor': []}
         with patch.object(md, 'gerar_calendario_mi', return_value=calendario_base(colunas=colunas)):
@@ -226,7 +226,7 @@ class LeituraDiretorSecoes(unittest.TestCase):
         cur.fetchall.side_effect = [
             [{'tipo_evento': 'prospecto_encontrado', 'total': 8}, {'tipo_evento': 'prospecto_qualificado', 'total': 3}],
             [{'tipo_evento': 'acao_aprovada', 'resultado': None, 'total': 2}],
-            [], [], [], [], [],
+            [], [], [], [], [], [],
         ]
         with patch.object(md, 'gerar_calendario_mi', return_value=calendario_base()):
             leitura = md.leitura_diretor(lambda: conn)
@@ -238,7 +238,7 @@ class LeituraDiretorSecoes(unittest.TestCase):
     def test_publico_traz_top10_subindo_e_caindo(self):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.side_effect = [[], [], [], [], [], [], []]
+        cur.fetchall.side_effect = [[], [], [], [], [], [], [], []]
         top10 = [{'tema': 'a', 'tendencia': 'subindo'}, {'tema': 'b', 'tendencia': 'caindo'},
                  {'tema': 'c', 'tendencia': 'estavel'}]
         with patch.object(md, 'gerar_calendario_mi',
@@ -252,7 +252,7 @@ class LeituraDiretorSecoes(unittest.TestCase):
     def test_conteudo_sugerido_hoje_e_filtrado_da_coluna_hoje(self):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.side_effect = [[], [], [], [], [], [], []]
+        cur.fetchall.side_effect = [[], [], [], [], [], [], [], []]
         hoje = [{'tipo_decisao': 'conteudo_sugerido'}, {'tipo_decisao': 'pesquisa_necessaria'}]
         colunas = {'hoje': hoje, 'proximas': [], 'aguardando': [], 'concluidas': [],
                    'bloqueadas': [], 'precisa_diretor': []}
@@ -263,7 +263,7 @@ class LeituraDiretorSecoes(unittest.TestCase):
     def test_proxima_acao_ia_extrai_o_que_quando_motivo(self):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.side_effect = [[], [], [], [], [], [], []]
+        cur.fetchall.side_effect = [[], [], [], [], [], [], [], []]
         proxima = {'proxima_acao': 'pesquisar', 'executar_em': '2026-02-01T09:00:00+00:00', 'motivo': 'faltam contatos'}
         with patch.object(md, 'gerar_calendario_mi', return_value=calendario_base(proxima_atividade=proxima)):
             leitura = md.leitura_diretor(lambda: conn)
@@ -273,7 +273,7 @@ class LeituraDiretorSecoes(unittest.TestCase):
     def test_fecha_a_conexao_propria(self):
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.side_effect = [[], [], [], [], [], [], []]
+        cur.fetchall.side_effect = [[], [], [], [], [], [], [], []]
         with patch.object(md, 'gerar_calendario_mi', return_value=calendario_base()):
             md.leitura_diretor(lambda: conn)
         # duas conexões próprias nesta chamada: a do próprio leitura_diretor
