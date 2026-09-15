@@ -14,7 +14,7 @@ from xml.etree import ElementTree
 from pypdf import PdfReader
 
 from mi_conselho import AGENTES, registrar_registro
-from mi_conselho_executor import executar_especialista
+from mi_conselho_executor import executar_especialista, _consolidar
 from mi_conselho_orquestrador import classificar_especialistas, ordenar_execucao
 
 MAX_DOCUMENTO_BYTES = 8 * 1024 * 1024
@@ -58,13 +58,8 @@ def extrair_documento(arquivo):
     if not texto:
         raise ValueError('documento_sem_texto_extraivel')
     truncado = len(texto) > MAX_TEXTO_DOCUMENTO
-    return {
-        'nome': nome,
-        'tipo': ext.lstrip('.'),
-        'texto': texto[:MAX_TEXTO_DOCUMENTO],
-        'truncado': truncado,
-        'bytes': len(conteudo),
-    }
+    return {'nome': nome, 'tipo': ext.lstrip('.'), 'texto': texto[:MAX_TEXTO_DOCUMENTO],
+            'truncado': truncado, 'bytes': len(conteudo)}
 
 
 def _lista_agentes(valor):
@@ -96,7 +91,6 @@ def _selecionar(modo, demanda, agentes, documento):
         if not escolhidos:
             raise ValueError('selecione_ao_menos_um_especialista')
         return escolhidos, {'conclave_completo': False, 'motivos': {a: ['selecionado pelo Diretor'] for a in escolhidos}}
-
     texto_classificacao = demanda
     if documento:
         texto_classificacao += '\n' + documento['texto'][:8000]
@@ -105,50 +99,55 @@ def _selecionar(modo, demanda, agentes, documento):
     except ValueError as erro:
         if str(erro) != 'nenhum_especialista_identificado':
             raise
-        # Uma pergunta genérica com anexo ainda merece uma leitura factual.
-        classificacao = {
-            'selecionados': ['iris'],
-            'motivos': {'iris': ['demanda genérica/documento: começar por leitura factual']},
-            'excluidos': {}, 'conclave_completo': False,
-        }
+        classificacao = {'selecionados': ['iris'], 'motivos': {'iris': ['demanda genérica/documento: começar por leitura factual']},
+                         'excluidos': {}, 'conclave_completo': False}
     return classificacao['selecionados'], classificacao
 
 
 def _snapshot_base(factory, documento=None):
     snapshot = {}
     try:
-        # Import tardio evita ciclo: mi_diretor importa mi_conselho.
         from mi_diretor import leitura_diretor
         snapshot['empresa'] = leitura_diretor(factory)
     except Exception:
-        # A pergunta continua possível mesmo se a leitura executiva estiver indisponível.
         snapshot['empresa'] = {'status': 'contexto_interno_indisponivel'}
     if documento:
-        snapshot['documento_anexado'] = {
-            'nome': documento['nome'], 'tipo': documento['tipo'],
-            'texto': documento['texto'], 'truncado': documento['truncado'],
-        }
+        snapshot['documento_anexado'] = {'nome': documento['nome'], 'tipo': documento['tipo'],
+                                         'texto': documento['texto'], 'truncado': documento['truncado']}
     return snapshot
 
 
+def _avaliado_interativo(demanda):
+    """Adapta a consulta interativa ao mesmo consolidador do fluxo automático."""
+    return {'sinal_id': str(uuid4()), 'demanda': demanda, 'motivo': 'Análise interativa do Conselho.',
+            'tipo_evento': 'consulta_interativa'}
+
+
+def _corpo_estruturado(demanda, pareceres, erros):
+    """Fonte única da síntese: reutiliza _consolidar e bloqueia como ação
+    confirmada recomendações que contenham números sem proveniência."""
+    seguros = []
+    for parecer in pareceres:
+        p = dict(parecer)
+        if p.get('numeros_sem_evidencia'):
+            p['acao_sugerida'] = ''
+        seguros.append(p)
+    return _consolidar(_avaliado_interativo(demanda), seguros, erros)
+
+
 def _sintese(demanda, pareceres, erros):
+    corpo = _corpo_estruturado(demanda, pareceres, erros)
+    estruturada = (corpo.get('dados_apresentados') or {}).get('sintese_estruturada') or {}
     validos = [p for p in pareceres if p.get('conclusao')]
     vetos = [p for p in validos if p.get('veto')]
-    precisa = [p for p in validos if p.get('necessidade_diretor')]
-    linhas = []
-    for p in validos:
-        nome = AGENTES[p['agente']]['nome']
-        linhas.append(f"{nome}: {p['conclusao']}")
-    consenso = ' | '.join(linhas) if linhas else 'Nenhum parecer válido foi obtido.'
     return {
         'demanda': demanda,
-        'resumo': consenso,
-        'total_pareceres': len(validos),
-        'total_falhas': len(erros),
-        'ha_veto': bool(vetos),
+        'resumo': estruturada.get('proxima_acao') or ('Nenhum parecer válido foi obtido.' if not validos else 'Pareceres disponíveis para revisão.'),
+        'total_pareceres': len(validos), 'total_falhas': len(erros), 'ha_veto': bool(vetos),
         'vetos': [{'agente': p['agente'], 'motivo': p.get('veto_motivo')} for p in vetos],
-        'precisa_diretor': bool(precisa or vetos or erros),
-        'recomendacao': 'Comparar os pareceres e decidir no Modo Diretor; nenhuma ação foi executada.',
+        'precisa_diretor': bool(estruturada.get('precisa_diretor')),
+        'recomendacao': estruturada.get('proxima_acao') or 'Revisar evidências e lacunas; nenhuma ação foi executada.',
+        'sintese_estruturada': estruturada,
     }
 
 
@@ -160,36 +159,25 @@ def analisar(factory, demanda, modo='automatico', agentes=None, documento=None, 
         raise ValueError('demanda_muito_longa')
     selecionados, classificacao = _selecionar(modo, demanda, agentes, documento)
     snapshot = _snapshot_base(factory, documento)
-
     pareceres, erros = [], []
-    ordem = ordenar_execucao(selecionados)
-    for agente in ordem:
+    for agente in ordenar_execucao(selecionados):
         try:
             contexto = dict(snapshot)
             if pareceres and agente != 'iris':
                 iris = next((p for p in pareceres if p['agente'] == 'iris'), None)
                 if iris:
-                    contexto['base_factual_iris'] = {
-                        'dados_utilizados': iris.get('dados_utilizados'),
-                        'conclusao': iris.get('conclusao'),
-                        'riscos': iris.get('riscos'),
-                    }
+                    contexto['base_factual_iris'] = {'dados_utilizados': iris.get('dados_utilizados'),
+                                                     'conclusao': iris.get('conclusao'), 'riscos': iris.get('riscos')}
             pareceres.append(executar_especialista(agente, demanda, snapshot=contexto, cliente=cliente))
         except Exception as erro:
-            erros.append({'agente': agente, 'erro': type(erro).__name__})
-
+            # Categoria + detalhe seguro tornam a falha diagnosticável sem expor prompt/segredo.
+            detalhe = str(erro)[:240] if str(erro) else None
+            erros.append({'agente': agente, 'erro': type(erro).__name__, 'detalhe': detalhe})
     return {
-        'demanda': demanda,
-        'modo': modo,
-        'selecionados': selecionados,
-        'classificacao': classificacao,
-        'documento': None if not documento else {
-            'nome': documento['nome'], 'tipo': documento['tipo'],
-            'truncado': documento['truncado'], 'bytes': documento['bytes'],
-        },
-        'pareceres': pareceres,
-        'erros': erros,
-        'sintese': _sintese(demanda, pareceres, erros),
+        'demanda': demanda, 'modo': modo, 'selecionados': selecionados, 'classificacao': classificacao,
+        'documento': None if not documento else {'nome': documento['nome'], 'tipo': documento['tipo'],
+                                                  'truncado': documento['truncado'], 'bytes': documento['bytes']},
+        'pareceres': pareceres, 'erros': erros, 'sintese': _sintese(demanda, pareceres, erros),
     }
 
 
@@ -206,15 +194,23 @@ def _validar_resultado_para_diretor(resultado):
     for p in pareceres:
         if not isinstance(p, dict) or p.get('agente') not in AGENTES:
             raise ValueError('parecer_invalido')
+        numeros = []
+        for n in (p.get('numeros') or []):
+            if isinstance(n, dict):
+                numeros.append({k: str(n.get(k) or '')[:1000] for k in ('valor','unidade','origem','fonte_detalhe','confianca')})
         limpos.append({
-            'agente': p['agente'],
-            'conclusao': str(p.get('conclusao') or '')[:8000],
+            'agente': p['agente'], 'conclusao': str(p.get('conclusao') or '')[:8000],
             'confianca': p.get('confianca') if p.get('confianca') in ('alta','media','baixa') else 'baixa',
-            'riscos': str(p.get('riscos') or '')[:6000],
-            'divergencias': str(p.get('divergencias') or '')[:6000],
+            'dados_utilizados': str(p.get('dados_utilizados') or '')[:8000],
+            'riscos': str(p.get('riscos') or '')[:6000], 'divergencias': str(p.get('divergencias') or '')[:6000],
             'acao_sugerida': str(p.get('acao_sugerida') or '')[:6000],
-            'veto': bool(p.get('veto')) and p['agente'] == 'dicio',
-            'veto_motivo': str(p.get('veto_motivo') or '')[:6000],
+            'necessidade_diretor': bool(p.get('necessidade_diretor')),
+            'motivo_diretor': str(p.get('motivo_diretor') or '')[:4000],
+            'veto': bool(p.get('veto')) and p['agente'] == 'dicio', 'veto_motivo': str(p.get('veto_motivo') or '')[:6000],
+            'numeros': numeros, 'numeros_sem_evidencia': [str(x)[:100] for x in (p.get('numeros_sem_evidencia') or [])],
+            'lacunas': [str(x)[:2000] for x in (p.get('lacunas') or [])],
+            'acao_ja_em_andamento': bool(p.get('acao_ja_em_andamento')),
+            'natureza_divergencia': p.get('natureza_divergencia'),
         })
     return demanda, limpos
 
@@ -222,29 +218,21 @@ def _validar_resultado_para_diretor(resultado):
 def enviar_para_diretor(factory, resultado):
     demanda, pareceres = _validar_resultado_para_diretor(resultado)
     modo = resultado.get('modo') if resultado.get('modo') in MODOS else 'automatico'
-    posicoes = {p['agente']: p['conclusao'] for p in pareceres}
-    conflitos = {p['agente']: p['divergencias'] for p in pareceres if p['divergencias'].strip()}
-    vetos = {p['agente']: p['veto_motivo'] for p in pareceres if p['veto']}
-    recomendacoes = [
-        {'responsavel': p['agente'], 'descricao': p['acao_sugerida'], 'confianca': p['confianca']}
-        for p in pareceres if p['acao_sugerida'].strip()
-    ]
-    resumo = ' | '.join(f"{AGENTES[p['agente']]['nome']}: {p['conclusao']}" for p in pareceres)
-    corpo = {
-        'chave': str(uuid4()),
-        'tipo': 'conclave' if modo == 'conclave' else ('reuniao' if len(pareceres) > 1 else 'relatorio'),
-        'demanda': demanda,
-        'participantes': [p['agente'] for p in pareceres],
-        'contexto': 'Análise interativa enviada explicitamente pelo Admin ao Modo Diretor.',
-        'dados_apresentados': {'documento': resultado.get('documento'), 'modo': modo},
-        'posicoes': posicoes or None,
-        'conflitos': conflitos or None,
-        'conclusao': resumo or 'Análise sem parecer válido; requer revisão humana.',
-        'recomendacoes': recomendacoes,
-        'vetos': vetos or None,
-        'pendencias': {'origem': 'perguntar_ao_conselho'},
-        'precisa_diretor': True,
-    }
+    erros = resultado.get('erros') if isinstance(resultado.get('erros'), list) else []
+    corpo = _corpo_estruturado(demanda, pareceres, erros)
+    corpo['chave'] = str(uuid4())
+    corpo['tipo'] = 'conclave' if modo == 'conclave' else ('reuniao' if len(pareceres) > 1 else 'relatorio')
+    corpo['contexto'] = 'Análise interativa enviada explicitamente pelo Admin ao Modo Diretor.'
+    dados = corpo.setdefault('dados_apresentados', {})
+    dados['documento'] = resultado.get('documento')
+    dados['modo'] = modo
+    corpo['precisa_diretor'] = True
+    sintese = dados.get('sintese_estruturada') or {}
+    sintese['precisa_diretor'] = True
+    motivos = list(sintese.get('motivos_diretor') or [])
+    motivos.append({'agente': None, 'motivo': 'envio explícito do Diretor pelo Admin'})
+    sintese['motivos_diretor'] = motivos
+    dados['sintese_estruturada'] = sintese
     retorno, status = registrar_registro(factory, corpo)
     return {'registro': retorno, 'status': status, 'precisa_diretor': True}
 
@@ -258,23 +246,16 @@ def registrar_rotas_conselho_interativo(app, factory, autorizado):
             return jsonify(success=False, error='Não autorizado.'), 401
         try:
             documento = extrair_documento(request.files.get('documento'))
-            resultado = analisar(
-                factory,
-                request.form.get('demanda'),
-                request.form.get('modo', 'automatico'),
-                request.form.get('agentes'),
-                documento,
-            )
+            resultado = analisar(factory, request.form.get('demanda'), request.form.get('modo', 'automatico'),
+                                request.form.get('agentes'), documento)
             return jsonify(success=True, resultado=resultado)
         except ValueError as erro:
-            mapa = {
-                'demanda_obrigatoria': 'Digite uma pergunta ou demanda para o Conselho.',
-                'demanda_muito_longa': 'A pergunta está longa demais.',
-                'documento_muito_grande': 'O documento deve ter no máximo 8 MB.',
-                'tipo_documento_nao_suportado': 'Use PDF, DOCX, TXT, MD, CSV ou JSON.',
-                'documento_sem_texto_extraivel': 'Não foi possível extrair texto do documento.',
-                'selecione_ao_menos_um_especialista': 'Selecione ao menos um especialista.',
-            }
+            mapa = {'demanda_obrigatoria': 'Digite uma pergunta ou demanda para o Conselho.',
+                    'demanda_muito_longa': 'A pergunta está longa demais.',
+                    'documento_muito_grande': 'O documento deve ter no máximo 8 MB.',
+                    'tipo_documento_nao_suportado': 'Use PDF, DOCX, TXT, MD, CSV ou JSON.',
+                    'documento_sem_texto_extraivel': 'Não foi possível extrair texto do documento.',
+                    'selecione_ao_menos_um_especialista': 'Selecione ao menos um especialista.'}
             return jsonify(success=False, error=mapa.get(str(erro), 'Parâmetros inválidos.')), 400
         except Exception:
             app.logger.exception('Falha na análise interativa do Conselho')
