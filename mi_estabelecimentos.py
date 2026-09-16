@@ -91,3 +91,48 @@ def buscar_estabelecimento(factory, estabelecimento_id):
             return dict(row) if row else None
     finally:
         conn.close()
+
+
+def listar_estabelecimentos(factory, limite=100):
+    """Só leitura -- mais recentes primeiro."""
+    conn = factory()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id,nome,tipo,cidade,uf,bairro,lead_id,criado_em FROM mi_estabelecimentos "
+                "ORDER BY criado_em DESC LIMIT %s",
+                (limite,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def registrar_rotas_leitura(app, factory, autorizado):
+    """Só GET -- nenhuma rota de escrita nesta etapa."""
+    from flask import jsonify
+
+    @app.route('/api/admin/mi/estabelecimentos', methods=['GET'])
+    def mi_estabelecimentos_listar():
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            return jsonify(success=True, estabelecimentos=listar_estabelecimentos(factory))
+        except Exception:
+            app.logger.exception('Falha ao listar estabelecimentos')
+            return jsonify(success=False, error='Catálogo indisponível.'), 503
+
+    @app.route('/api/admin/mi/estabelecimentos/<estabelecimento_id>', methods=['GET'])
+    def mi_estabelecimentos_buscar(estabelecimento_id):
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            resultado = buscar_estabelecimento(factory, estabelecimento_id)
+        except ValueError:
+            return jsonify(success=False, error='Identificador inválido.'), 400
+        except Exception:
+            app.logger.exception('Falha ao buscar estabelecimento')
+            return jsonify(success=False, error='Catálogo indisponível.'), 503
+        if not resultado:
+            return jsonify(success=False, error='Estabelecimento não encontrado.'), 404
+        return jsonify(success=True, estabelecimento=resultado)

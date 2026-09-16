@@ -120,3 +120,58 @@ def buscar_lote(factory, sku, codigo_lote):
             return dict(row) if row else None
     finally:
         conn.close()
+
+
+def listar_lotes(factory, sku=None, limite=100):
+    """Só leitura. `sku` opcional filtra por produto; sem filtro, lista os
+    lotes mais recentes de qualquer SKU."""
+    conn = factory()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            if sku:
+                cur.execute(
+                    "SELECT id,sku,codigo_lote,fabricado_em,validade,quantidade_produzida,criado_em "
+                    "FROM mi_lotes WHERE sku=%s ORDER BY criado_em DESC LIMIT %s",
+                    (normalizar_sku(sku), limite),
+                )
+            else:
+                cur.execute(
+                    "SELECT id,sku,codigo_lote,fabricado_em,validade,quantidade_produzida,criado_em "
+                    "FROM mi_lotes ORDER BY criado_em DESC LIMIT %s",
+                    (limite,),
+                )
+            return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def registrar_rotas_leitura(app, factory, autorizado):
+    """Só GET -- nenhuma rota de escrita nesta etapa."""
+    from flask import jsonify, request
+
+    @app.route('/api/admin/mi/lotes', methods=['GET'])
+    def mi_lotes_listar():
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            return jsonify(success=True, lotes=listar_lotes(factory, sku=request.args.get('sku')))
+        except ValueError:
+            return jsonify(success=False, error='SKU inválido.'), 400
+        except Exception:
+            app.logger.exception('Falha ao listar lotes')
+            return jsonify(success=False, error='Catálogo indisponível.'), 503
+
+    @app.route('/api/admin/mi/lotes/<sku>/<codigo_lote>', methods=['GET'])
+    def mi_lotes_buscar(sku, codigo_lote):
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            resultado = buscar_lote(factory, sku, codigo_lote)
+        except ValueError:
+            return jsonify(success=False, error='SKU ou código de lote inválido.'), 400
+        except Exception:
+            app.logger.exception('Falha ao buscar lote')
+            return jsonify(success=False, error='Catálogo indisponível.'), 503
+        if not resultado:
+            return jsonify(success=False, error='Lote não encontrado.'), 404
+        return jsonify(success=True, lote=resultado)

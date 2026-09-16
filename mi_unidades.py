@@ -120,6 +120,56 @@ def buscar_unidade_por_codigo(factory, codigo_publico):
         conn.close()
 
 
+def listar_unidades_por_lote(factory, lote_id, limite=100):
+    """Só leitura, escopada a UM lote -- nunca lista todos os códigos
+    públicos do sistema de uma vez (evitaria enumeração em massa)."""
+    lote_id = str(UUID(str(lote_id)))
+    conn = factory()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id,lote_id,codigo_publico,estado,revogada_em,motivo_revogacao,criado_em "
+                "FROM mi_unidades WHERE lote_id=%s ORDER BY criado_em DESC LIMIT %s",
+                (lote_id, limite),
+            )
+            return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def registrar_rotas_leitura(app, factory, autorizado):
+    """Só GET -- nenhuma rota de escrita nesta etapa (emissão/ativação/
+    revogação continuam só chamáveis por código, nunca por HTTP)."""
+    from flask import jsonify
+
+    @app.route('/api/admin/mi/unidades/<codigo_publico>', methods=['GET'])
+    def mi_unidades_buscar(codigo_publico):
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            resultado = buscar_unidade_por_codigo(factory, codigo_publico)
+        except ValueError:
+            return jsonify(success=False, error='Código inválido.'), 400
+        except Exception:
+            app.logger.exception('Falha ao buscar unidade')
+            return jsonify(success=False, error='Catálogo indisponível.'), 503
+        if not resultado:
+            return jsonify(success=False, error='Unidade não encontrada.'), 404
+        return jsonify(success=True, unidade=resultado)
+
+    @app.route('/api/admin/mi/lotes/<lote_id>/unidades', methods=['GET'])
+    def mi_unidades_listar_por_lote(lote_id):
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            return jsonify(success=True, unidades=listar_unidades_por_lote(factory, lote_id))
+        except ValueError:
+            return jsonify(success=False, error='Identificador de lote inválido.'), 400
+        except Exception:
+            app.logger.exception('Falha ao listar unidades do lote')
+            return jsonify(success=False, error='Catálogo indisponível.'), 503
+
+
 def ativar_unidade(factory, codigo_publico):
     """Emitida -> ativa. Nunca reativa uma unidade revogada (terminal)."""
     codigo_publico = normalizar_codigo_publico(codigo_publico)

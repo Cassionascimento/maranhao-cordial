@@ -3721,6 +3721,20 @@ def inicializar_banco():
                     )
                 """)
 
+                # Aditiva e idempotente (P1A): vínculo opcional e auditável
+                # entre pedido e produto (mi_skus.sku). NULL para todo
+                # pedido histórico e para todo pedido novo que não informar
+                # sku -- nenhum valor é inventado. Sem FK para mi_skus
+                # propositalmente: a aplicação do estado real das migrations
+                # 007-012 (mi_skus) em produção não é verificável a partir
+                # daqui, e uma FK exigiria essa tabela existir antes deste
+                # ALTER rodar -- validação de existência fica em código
+                # (ver produto_do_pedido), nunca bloqueando o checkout.
+                cur.execute("""
+                    ALTER TABLE pedidos
+                    ADD COLUMN IF NOT EXISTS sku TEXT
+                """)
+
     finally:
         conn.close()
 
@@ -3929,12 +3943,14 @@ def salvar_pedido_postgres(pedido):
                         transportadora,
                         status_entrega,
                         tracking_code,
-                        tracking_url
+                        tracking_url,
+                        sku
                     )
                     VALUES (
                         %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s,
+                        %s
                     )
                     ON CONFLICT (codigo)
                     DO UPDATE SET
@@ -3954,6 +3970,7 @@ def salvar_pedido_postgres(pedido):
                         status_entrega = EXCLUDED.status_entrega,
                         tracking_code = EXCLUDED.tracking_code,
                         tracking_url = EXCLUDED.tracking_url,
+                        sku = COALESCE(EXCLUDED.sku, pedidos.sku),
                         atualizado_em = NOW()
                     RETURNING (xmax = 0) AS foi_criado
                 """, (
@@ -3974,7 +3991,8 @@ def salvar_pedido_postgres(pedido):
                     pedido.get("delivery", {}).get("provider"),
                     pedido.get("delivery", {}).get("status"),
                     pedido.get("delivery", {}).get("tracking_code"),
-                    pedido.get("delivery", {}).get("tracking_url")
+                    pedido.get("delivery", {}).get("tracking_url"),
+                    pedido.get("sku"),
                 ))
 
                 linha = cur.fetchone()
@@ -33023,7 +33041,8 @@ def buscar_pedido_postgres(codigo):
                         tracking_code,
                         tracking_url,
                         criado_em,
-                        atualizado_em
+                        atualizado_em,
+                        sku
                     FROM pedidos
                     WHERE codigo = %s
                     LIMIT 1
@@ -33053,10 +33072,79 @@ def buscar_pedido_postgres(codigo):
                     "tracking_code": linha[15],
                     "tracking_url": linha[16],
                     "criado_em": linha[17].isoformat() if linha[17] else None,
-                    "atualizado_em": linha[18].isoformat() if linha[18] else None
+                    "atualizado_em": linha[18].isoformat() if linha[18] else None,
+                    "sku": linha[19]
                 }
     finally:
         conn.close()
+
+
+def produto_do_pedido(sku):
+    """Só leitura: identifica o produto de um pedido a partir do sku já
+    gravado nele (P1A). `sku` ausente ou sem correspondência em mi_skus
+    nunca vira um produto inventado -- volta UNKNOWN/None explícito, nunca
+    um valor adivinhado."""
+    if not sku:
+        return {"sku": None, "produto_nome": None, "categoria": None, "encontrado": False}
+    from mi_skus import buscar_sku, normalizar_sku
+    try:
+        sku_normalizado = normalizar_sku(sku)
+    except ValueError:
+        return {"sku": sku, "produto_nome": None, "categoria": None, "encontrado": False}
+    produto = buscar_sku(get_db_connection, sku_normalizado)
+    if not produto:
+        return {"sku": sku_normalizado, "produto_nome": None, "categoria": None, "encontrado": False}
+    return {"sku": produto["sku"], "produto_nome": produto["produto_nome"],
+            "categoria": produto["categoria"], "encontrado": True}
+
+
+def identificar_pessoa_e_estabelecimento_do_pedido(pedido):
+    """Liga pedido -> pessoa/organização -> estabelecimento reaproveitando
+    o Contact Central já existente (localizar_contato_central_existente) --
+    nunca cria uma segunda camada de identidade, nunca funde nada, nunca
+    escreve. mi_estabelecimentos.lead_id (já existente) é a única ponte
+    usada para o estabelecimento; sem correspondência, os dois campos
+    voltam None (nunca inventados)."""
+    resultado_pessoa = localizar_contato_central_existente(
+        email=pedido.get("cliente_email"),
+        telefone=pedido.get("cliente_whatsapp"),
+    )
+    if not resultado_pessoa.get("encontrado"):
+        return {"pessoa": None, "estabelecimento": None}
+    pessoa = resultado_pessoa["contato"]
+    estabelecimento = None
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id,nome,tipo,cidade,uf,bairro FROM mi_estabelecimentos WHERE lead_id=%s LIMIT 1",
+                (pessoa["id"],),
+            )
+            row = cur.fetchone()
+            estabelecimento = dict(row) if row else None
+    finally:
+        conn.close()
+    return {"pessoa": pessoa, "estabelecimento": estabelecimento}
+
+
+@app.route("/api/admin/pedidos/<codigo>/contexto", methods=["GET"])
+def contexto_pedido(codigo):
+    """Só leitura: junta pedido + produto (mi_skus) + pessoa/estabelecimento
+    (Contact Central) num único retorno auditável -- nenhuma escrita,
+    nenhuma fusão, nenhum dado inventado (P1A)."""
+    if not validar_admin_request():
+        return jsonify(success=False, error="Não autorizado."), 401
+    try:
+        pedido = buscar_pedido_postgres(codigo)
+        if not pedido:
+            return jsonify(success=False, error="Pedido não encontrado."), 404
+        produto = produto_do_pedido(pedido.get("sku"))
+        identidade = identificar_pessoa_e_estabelecimento_do_pedido(pedido)
+    except Exception:
+        app.logger.exception("Falha ao montar contexto do pedido")
+        return jsonify(success=False, error="Contexto indisponível."), 503
+    return jsonify(success=True, pedido=pedido, produto=produto,
+                   pessoa=identidade["pessoa"], estabelecimento=identidade["estabelecimento"])
 
 
 @app.route("/api/pedidos/teste-postgres", methods=["POST"])
@@ -39585,6 +39673,21 @@ registrar_rotas_mi_diretor(app, get_db_connection, validar_admin_request)
 
 from mi_conselho import registrar_rotas_conselho
 registrar_rotas_conselho(app, get_db_connection, validar_admin_request)
+
+# Camada de fábrica (SKU/lote/unidade/estabelecimento) -- só leitura nesta
+# etapa (P1A). Escrita (criar_sku/criar_lote/criar_unidade/
+# criar_estabelecimento) continua só chamável por código, nunca por HTTP.
+from mi_skus import registrar_rotas_leitura as registrar_rotas_mi_skus
+registrar_rotas_mi_skus(app, get_db_connection, validar_admin_request)
+
+from mi_lotes import registrar_rotas_leitura as registrar_rotas_mi_lotes
+registrar_rotas_mi_lotes(app, get_db_connection, validar_admin_request)
+
+from mi_unidades import registrar_rotas_leitura as registrar_rotas_mi_unidades
+registrar_rotas_mi_unidades(app, get_db_connection, validar_admin_request)
+
+from mi_estabelecimentos import registrar_rotas_leitura as registrar_rotas_mi_estabelecimentos
+registrar_rotas_mi_estabelecimentos(app, get_db_connection, validar_admin_request)
 
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
