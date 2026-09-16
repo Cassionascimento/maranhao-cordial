@@ -1,0 +1,1 @@
+Gate: deploy only after PR review; then run controlled Council validation with no external actions.
