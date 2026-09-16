@@ -1,7 +1,0 @@
-/* Camada visual complementar, sem lógica e sem novas dependências. */
-:root{--mc-forest:#0d1b13;--mc-forest-2:#14271b;--mc-gold:#b99a5d;--mc-ivory:#f3ecdf;--mc-sage:#91a296}
-.app-shell-cabecalho{max-width:820px!important;padding:22px 24px;border:1px solid rgba(185,154,93,.14);border-radius:18px;background:linear-gradient(120deg,rgba(20,39,27,.82),rgba(10,17,13,.42));box-shadow:0 18px 44px rgba(0,0,0,.14)}
-.app-shell-cabecalho h2{color:var(--mc-ivory);font-size:clamp(28px,3vw,38px)!important;letter-spacing:-.6px}.app-shell-descricao{color:#9caaa0!important;max-width:700px}.app-shell-eyebrow{color:var(--mc-gold)!important}
-.conselho-card,.mi-card,.diretor-card,.painel-card{border-radius:16px!important;border-color:rgba(185,154,93,.14)!important;box-shadow:0 12px 32px rgba(0,0,0,.14)}
-.conselho-chip,.mi-chip,.diretor-chip{border-radius:999px!important;letter-spacing:.5px}
-@media(max-width:760px){.app-shell-cabecalho{padding:18px}.app-shell-cabecalho h2{font-size:28px!important}}
