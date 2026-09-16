@@ -1,0 +1,1 @@
+Retry policy reviewed: at most one retry and only for APITimeoutError, APIConnectionError, RateLimitError, InternalServerError. Invalid/incomplete/model-content responses must fail visibly without retry.
