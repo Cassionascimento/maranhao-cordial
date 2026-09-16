@@ -1,0 +1,1 @@
+Post-deploy validation required: execute a controlled Council analysis with no external actions and verify valid opinion, telemetry, synthesis/provenance/divergence, and absence of max_output_tokens failure.
