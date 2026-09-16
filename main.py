@@ -39689,6 +39689,12 @@ registrar_rotas_mi_unidades(app, get_db_connection, validar_admin_request)
 from mi_estabelecimentos import registrar_rotas_leitura as registrar_rotas_mi_estabelecimentos
 registrar_rotas_mi_estabelecimentos(app, get_db_connection, validar_admin_request)
 
+# Customer/Partner 360 (P1B) -- só leitura, agrega estruturas já existentes
+# (leads_crm, mi_estabelecimentos, interacoes_omnichannel, pedidos,
+# compras_relacionamento, acoes_comerciais_propostas, formulários, mi_eventos).
+from mi_relacionamento_360 import registrar_rotas_leitura as registrar_rotas_mi_relacionamento_360
+registrar_rotas_mi_relacionamento_360(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
