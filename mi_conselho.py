@@ -403,3 +403,16 @@ def registrar_rotas_conselho(app, factory, autorizado):
     # A camada interativa reutiliza o mesmo Conselho e a mesma autenticação.
     from mi_conselho_interativo import registrar_rotas_conselho_interativo
     registrar_rotas_conselho_interativo(app, factory, autorizado)
+
+    # mi_conselho_fatos existe desde a migration 018 mas suas rotas nunca
+    # tinham sido conectadas ao app -- /api/admin/mi/conselho/fatos ficava
+    # inacessível em produção. Corrigido aqui junto com a saúde dos agentes
+    # (mesmo padrão de hook acima).
+    from mi_conselho_fatos import registrar_rotas_fatos
+    registrar_rotas_fatos(app, factory, autorizado)
+
+    from mi_conselho_saude import registrar_rotas_saude
+    registrar_rotas_saude(app, factory, autorizado)
+
+    from mi_conselho_testes import registrar_rotas_testes
+    registrar_rotas_testes(app, factory, autorizado)

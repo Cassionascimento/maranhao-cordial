@@ -25,10 +25,11 @@ condicionadas a ele -- nesta etapa é só informativo.
 import json
 import os
 import re
+import time
 from datetime import datetime, timezone
 from uuid import NAMESPACE_URL, uuid5
 
-from openai import OpenAI
+from openai import APIConnectionError, APITimeoutError, InternalServerError, OpenAI, RateLimitError
 
 from mi_conselho import AGENTES, registrar_registro
 from mi_conselho_estado import montar_pacote_estado
@@ -37,15 +38,26 @@ from mi_conselho_gatilho import processar_sinais_pendentes
 from mi_conselho_orquestrador import formatar_contexto_factual, montar_prompt, ordenar_execucao
 
 MODELO_PADRAO = os.getenv('OPENAI_MODEL_CONSELHO', 'gpt-5-mini')
-TIMEOUT_SEGUNDOS = 30
+TIMEOUT_SEGUNDOS = 60
 # gpt-5-mini é um modelo de raciocínio: os tokens de raciocínio (mesmo com
 # reasoning.effort='low') saem do MESMO orçamento de max_output_tokens,
 # antes do texto/JSON visível. Com 900, o raciocínio consumia o teto
-# inteiro e a chamada terminava incompleta, sem nenhum texto de saída --
-# a causa real do JSONDecodeError observado em homologação (json.loads('')
-# nunca é válido). 2000 dá margem para raciocínio + os ~10 campos do
-# parecer sem afrouxar reasoning/timeout/store/modelo.
-MAX_OUTPUT_TOKENS = 2000
+# inteiro e a chamada terminava incompleta -- a causa original do
+# JSONDecodeError observado em homologação. O schema cresceu desde então
+# (numeros[]/lacunas/acao_ja_em_andamento/natureza_divergencia); medição
+# offline (tiktoken, o200k_base) de um parecer completo e verboso no schema
+# atual fica em ~500 tokens de JSON visível -- 3000 preserva folga real para
+# variação de raciocínio mesmo no pior caso, sem soltar reasoning/timeout/
+# store/modelo. O custo real por chamada não muda (o teto é só um limite,
+# não um piso): só paga mais quem de fato precisar de mais tokens.
+MAX_OUTPUT_TOKENS = 3000
+# Falha transitória (rede/timeout/rate limit/5xx da OpenAI) ganha 1 nova
+# tentativa -- nunca mais que isso (trava de custo/latência) e nunca para
+# resposta incompleta/malformada (RespostaLLMInvalida): isso é um problema
+# de conteúdo, não de transporte, e repetir sem mudar nada tende a repetir o
+# mesmo resultado -- fica visível como falha em vez de mascarada por retry.
+MAX_TENTATIVAS_TRANSITORIA = 1
+_ERROS_TRANSITORIOS = (APITimeoutError, APIConnectionError, RateLimitError, InternalServerError)
 MAX_ESPECIALISTAS_POR_DEMANDA = 4  # trava de custo -- Conclave completo (8) nunca roda automaticamente aqui
 
 _NAMESPACE_EXECUCAO = uuid5(NAMESPACE_URL, 'maranhao-cordial:mi_conselho_executor')
@@ -170,6 +182,14 @@ def _extrair_parecer_validado(resposta):
     return parecer
 
 
+def _categorizar_erro(erro):
+    """Categoria (nome da classe) + detalhe seguro e truncado -- nunca
+    prompt, nunca resposta bruta, nunca stack trace. Mesma forma usada para
+    registrar erro em `erros[]` (Conselho) e em mi_conselho_saude (painel
+    de observabilidade) -- uma única fonte de categorização de falha."""
+    return type(erro).__name__, (str(erro)[:240] if str(erro) else None)
+
+
 def modo_observador_ativo():
     """Fail-safe: só sai do modo observador com o valor exato 'false' --
     ausente, vazio ou mal configurado mantém o modo observador ligado."""
@@ -188,16 +208,26 @@ def executar_especialista(agente, demanda, snapshot=None, posicao_conflitante=No
     prompt = montar_prompt(agente, demanda, contexto_texto, posicao_conflitante, ciclo)
 
     cliente = cliente or OpenAI(timeout=TIMEOUT_SEGUNDOS, max_retries=0)
-    resposta = cliente.responses.create(
-        model=MODELO_PADRAO,
-        input=prompt,
-        max_output_tokens=MAX_OUTPUT_TOKENS,
-        store=False,
-        reasoning={'effort': 'low'},
-        text={'format': {'type': 'json_schema', 'name': 'parecer_conselho', 'strict': True,
-                          'schema': _SCHEMA_PARECER}},
-    )
+    resposta = None
+    for tentativa in range(1, MAX_TENTATIVAS_TRANSITORIA + 2):  # tentativa inicial + retries limitados
+        tentativas = tentativa
+        try:
+            resposta = cliente.responses.create(
+                model=MODELO_PADRAO,
+                input=prompt,
+                max_output_tokens=MAX_OUTPUT_TOKENS,
+                store=False,
+                reasoning={'effort': 'low'},
+                text={'format': {'type': 'json_schema', 'name': 'parecer_conselho', 'strict': True,
+                                  'schema': _SCHEMA_PARECER}},
+            )
+            break
+        except _ERROS_TRANSITORIOS:
+            if tentativa > MAX_TENTATIVAS_TRANSITORIA:
+                raise
     parecer = _extrair_parecer_validado(resposta)
+    uso = getattr(resposta, 'usage', None)
+    detalhes_uso = getattr(uso, 'output_tokens_details', None) if uso else None
 
     # Só Dicio pode vetar -- reforçado aqui mesmo que o modelo tente, para
     # nunca depender só da instrução de persona (mesma disciplina do resto
@@ -236,7 +266,50 @@ def executar_especialista(agente, demanda, snapshot=None, posicao_conflitante=No
         # ausência do campo).
         'natureza_divergencia': parecer.get('natureza_divergencia') if parecer.get('natureza_divergencia') in NATUREZAS_DIVERGENCIA else None,
         'modelo': MODELO_PADRAO,
+        'tentativas': tentativas,
+        'tokens_entrada': getattr(uso, 'input_tokens', None) if uso else None,
+        'tokens_saida': getattr(uso, 'output_tokens', None) if uso else None,
+        'tokens_raciocinio': getattr(detalhes_uso, 'reasoning_tokens', None) if detalhes_uso else None,
     }
+
+
+def executar_especialista_monitorado(factory, agente, demanda, origem, snapshot=None,
+                                      posicao_conflitante=None, ciclo=1, cliente=None):
+    """Mesma chamada de `executar_especialista`, só com medição de duração e
+    registro em mi_conselho_saude (painel "Saúde dos Agentes") -- sucesso ou
+    falha, nunca prompt/resposta/stack trace. Usado pelos dois chamadores
+    (processar_e_registrar e mi_conselho_interativo.analisar) para não
+    duplicar a instrumentação. Falha ao REGISTRAR a telemetria nunca impede
+    a execução real (mesma disciplina de `_registrar_fatos_dos_pareceres`)."""
+    from mi_conselho_saude import registrar_execucao
+    inicio = time.monotonic()
+    try:
+        parecer = executar_especialista(agente, demanda, snapshot=snapshot,
+                                         posicao_conflitante=posicao_conflitante, ciclo=ciclo, cliente=cliente)
+    except Exception as erro:
+        duracao_ms = int((time.monotonic() - inicio) * 1000)
+        categoria, detalhe = _categorizar_erro(erro)
+        try:
+            registrar_execucao(factory, {
+                'agente': agente, 'origem': origem, 'status': 'falha',
+                'erro_categoria': categoria, 'erro_detalhe': detalhe,
+                'duracao_ms': duracao_ms, 'modelo': MODELO_PADRAO,
+            })
+        except Exception:
+            pass
+        raise
+    duracao_ms = int((time.monotonic() - inicio) * 1000)
+    try:
+        registrar_execucao(factory, {
+            'agente': agente, 'origem': origem, 'status': 'sucesso',
+            'duracao_ms': duracao_ms, 'modelo': parecer.get('modelo') or MODELO_PADRAO,
+            'tentativas': parecer.get('tentativas'),
+            'tokens_entrada': parecer.get('tokens_entrada'), 'tokens_saida': parecer.get('tokens_saida'),
+            'tokens_raciocinio': parecer.get('tokens_raciocinio'),
+        })
+    except Exception:
+        pass
+    return parecer
 
 
 def _classificar_natureza_divergencia(parecer):
@@ -510,14 +583,15 @@ def processar_e_registrar(factory, limite=50, max_especialistas=MAX_ESPECIALISTA
         pareceres, erros = [], []
         for agente in agentes_a_executar:
             try:
-                pareceres.append(executar_especialista(
-                    agente, avaliado['demanda'], snapshot=pacote_estado, cliente=cliente,
+                pareceres.append(executar_especialista_monitorado(
+                    factory, agente, avaliado['demanda'], 'automatico', snapshot=pacote_estado, cliente=cliente,
                 ))
             except Exception as erro:
                 # Falha de um agente nunca libera ação nem é tratada como
                 # "sem objeção" -- fica registrada como pendência explícita
                 # e força precisa_diretor=True em _consolidar.
-                erros.append({'agente': agente, 'erro': type(erro).__name__})
+                categoria, detalhe = _categorizar_erro(erro)
+                erros.append({'agente': agente, 'erro': categoria, 'detalhe': detalhe})
 
         consolidado = _consolidar(avaliado, pareceres, erros, excedeu_limite)
         registro = registrar_registro(factory, consolidado)

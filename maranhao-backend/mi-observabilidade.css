@@ -1,0 +1,27 @@
+/* Estilo compartilhado: Saúde dos Agentes, Testing Center, Relacionamento 360.
+   Mesma linguagem visual do Conselho de Agentes (conselho-agentes.css) --
+   tabelas/cards compactos e executivos, sem redesenhar nada do shell. */
+
+.saude-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+.saude-tabela th, .saude-tabela td { text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.saude-tabela th { opacity: .6; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .04em; }
+.saude-linha-falha { background: rgba(220,80,80,.08); }
+
+.saude-chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.saude-chip-sucesso { background: rgba(80,180,120,.18); color: #6fd39a; }
+.saude-chip-falha { background: rgba(220,80,80,.18); color: #f08a8a; }
+.saude-chip-sem_execucao { background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); }
+
+.conselho-testes-lista { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 6px; }
+.conselho-testes-lista li { padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.03); }
+.conselho-teste-ok strong { color: #6fd39a; }
+.conselho-teste-falhou strong { color: #f08a8a; }
+.conselho-teste-motivo { font-size: 12px; opacity: .7; margin-top: 4px; }
+.mi-resumo-testes { font-weight: 600; margin-bottom: 12px; }
+
+.relacionamento-360-lista { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 6px; }
+.relacionamento-360-sugestao { border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.relacionamento-360-sugestao ul { margin: 6px 0 0; padding-left: 18px; font-size: 12px; opacity: .8; }
+
+.conselho-erros-lista { list-style: none; margin: 6px 0 0; padding: 0; font-size: 13px; }
+.conselho-erros-lista li { padding: 2px 0; }

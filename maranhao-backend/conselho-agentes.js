@@ -174,7 +174,16 @@
     container.append(grid);
 
     if ((resultado.erros || []).length) {
-      container.append(el('p', 'Alguns especialistas não responderam: ' + resultado.erros.map(e => NOMES[e.agente]?.[0] || e.agente).join(', ') + '. A falha não é tratada como concordância.', 'conselho-alerta'));
+      const alerta = el('div', undefined, 'conselho-alerta');
+      alerta.append(el('p', 'Alguns especialistas não responderam. A falha não é tratada como concordância.'));
+      const lista = el('ul', undefined, 'conselho-erros-lista');
+      resultado.erros.forEach(e => {
+        const nome = NOMES[e.agente]?.[0] || e.agente;
+        const texto = nome + ' — ' + (e.erro || 'falha desconhecida') + (e.detalhe ? ' (' + e.detalhe + ')' : '');
+        lista.append(el('li', texto));
+      });
+      alerta.append(lista);
+      container.append(alerta);
     }
     const sintese = el('div', undefined, 'conselho-sintese');
     sintese.append(el('h4', 'Síntese'));

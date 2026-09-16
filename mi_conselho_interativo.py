@@ -14,7 +14,7 @@ from xml.etree import ElementTree
 from pypdf import PdfReader
 
 from mi_conselho import AGENTES, registrar_registro
-from mi_conselho_executor import executar_especialista, _consolidar
+from mi_conselho_executor import _categorizar_erro, _consolidar, executar_especialista_monitorado
 from mi_conselho_orquestrador import classificar_especialistas, ordenar_execucao
 
 MAX_DOCUMENTO_BYTES = 8 * 1024 * 1024
@@ -168,11 +168,13 @@ def analisar(factory, demanda, modo='automatico', agentes=None, documento=None, 
                 if iris:
                     contexto['base_factual_iris'] = {'dados_utilizados': iris.get('dados_utilizados'),
                                                      'conclusao': iris.get('conclusao'), 'riscos': iris.get('riscos')}
-            pareceres.append(executar_especialista(agente, demanda, snapshot=contexto, cliente=cliente))
+            pareceres.append(executar_especialista_monitorado(
+                factory, agente, demanda, 'interativo', snapshot=contexto, cliente=cliente,
+            ))
         except Exception as erro:
             # Categoria + detalhe seguro tornam a falha diagnosticável sem expor prompt/segredo.
-            detalhe = str(erro)[:240] if str(erro) else None
-            erros.append({'agente': agente, 'erro': type(erro).__name__, 'detalhe': detalhe})
+            categoria, detalhe = _categorizar_erro(erro)
+            erros.append({'agente': agente, 'erro': categoria, 'detalhe': detalhe})
     return {
         'demanda': demanda, 'modo': modo, 'selecionados': selecionados, 'classificacao': classificacao,
         'documento': None if not documento else {'nome': documento['nome'], 'tipo': documento['tipo'],

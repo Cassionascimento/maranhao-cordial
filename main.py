@@ -39575,6 +39575,12 @@ registrar_rotas_mi_diretor(app, get_db_connection, validar_admin_request)
 from mi_conselho import registrar_rotas_conselho
 registrar_rotas_conselho(app, get_db_connection, validar_admin_request)
 
+from mi_visao_unica import registrar_rotas_visao_unica
+registrar_rotas_visao_unica(app, get_db_connection, validar_admin_request)
+
+from mi_next_best_action import registrar_rotas_next_best_action
+registrar_rotas_next_best_action(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 

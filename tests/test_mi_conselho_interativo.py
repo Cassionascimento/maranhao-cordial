@@ -53,7 +53,8 @@ class AnaliseInterativa(unittest.TestCase):
 
     def test_analise_nao_registra_nem_executa_acao(self):
         with patch.object(ci, '_snapshot_base', return_value={'empresa': {}}), \
-             patch.object(ci, 'executar_especialista', side_effect=lambda agente, *a, **k: self._parecer(agente)), \
+             patch.object(ci, 'executar_especialista_monitorado',
+                           side_effect=lambda factory, agente, *a, **k: self._parecer(agente)), \
              patch.object(ci, 'registrar_registro') as registrar:
             resultado = ci.analisar(lambda: None, 'avaliar custo e margem', modo='automatico')
         self.assertTrue(resultado['pareceres'])
@@ -61,7 +62,7 @@ class AnaliseInterativa(unittest.TestCase):
 
     def test_falha_de_agente_aparece_e_nao_vira_concordancia(self):
         with patch.object(ci, '_snapshot_base', return_value={'empresa': {}}), \
-             patch.object(ci, 'executar_especialista', side_effect=RuntimeError('falha')):
+             patch.object(ci, 'executar_especialista_monitorado', side_effect=RuntimeError('falha')):
             resultado = ci.analisar(lambda: None, 'avaliar custo', modo='especialistas', agentes=['standard'])
         self.assertEqual(resultado['pareceres'], [])
         self.assertEqual(resultado['erros'][0]['agente'], 'standard')

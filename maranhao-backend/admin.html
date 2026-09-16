@@ -392,6 +392,7 @@ summary{
 <link rel="stylesheet" href="/visao-geral.css">
 <link rel="stylesheet" href="/modo-diretor.css">
 <link rel="stylesheet" href="/conselho-agentes.css">
+<link rel="stylesheet" href="/mi-observabilidade.css">
 <link rel="stylesheet" href="/canais-status.css">
 <link rel="stylesheet" href="/mi-graficos.css">
 </head>
@@ -418,11 +419,14 @@ summary{
                 <button class="admin-tab" data-tab="crm" data-grupo="comercial">Contatos</button>
                 <button class="admin-tab" data-tab="b2b" data-grupo="comercial">Oportunidades</button>
                 <button class="admin-tab" data-tab="presenca-digital" data-grupo="comercial">Social</button>
+                <button class="admin-tab" data-tab="relacionamento-360" data-grupo="comercial">Relacionamento 360</button>
             </div>
             <div class="app-shell-grupo" data-app-grupo="maranhao-intelligence">
                 <span class="app-shell-grupo-titulo">Maranhão Intelligence</span>
                 <button class="admin-tab" data-tab="maranhao-intelligence" data-grupo="maranhao-intelligence">Maranhão Intelligence</button>
                 <button class="admin-tab" data-tab="conselho-de-agentes" data-grupo="maranhao-intelligence">Conselho de Agentes</button>
+                <button class="admin-tab" data-tab="saude-agentes" data-grupo="maranhao-intelligence">Saúde dos Agentes</button>
+                <button class="admin-tab" data-tab="conselho-testes" data-grupo="maranhao-intelligence">Testing Center</button>
                 <button class="admin-tab" data-tab="canais" data-grupo="maranhao-intelligence">Canais</button>
             </div>
             <div class="app-shell-grupo" data-app-grupo="territorio">
@@ -1712,6 +1716,53 @@ summary{
       <div id="conselho-diretor"></div>
     </section>
   </div>
+</section>
+
+            <section class="tab-panel" data-panel="saude-agentes" id="saude-agentes-painel">
+  <div class="mi-topo">
+    <p class="mi-eyebrow">MARANHÃO INTELLIGENCE</p>
+    <h2>Saúde dos Agentes</h2>
+    <p class="mi-subtitle">Observabilidade das chamadas reais do Conselho -- status, duração, erro categorizado, modelo e tokens quando disponível. Nunca mostra prompt, resposta bruta ou stack trace. Falha de agente não é concordância.</p>
+  </div>
+  <div class="mi-toolbar">
+    <button type="button" id="saude-agentes-atualizar">Atualizar</button>
+    <label for="saude-agentes-janela" class="mi-subtitle" style="margin:0 8px;">Janela:</label>
+    <select id="saude-agentes-janela">
+      <option value="6">últimas 6h</option>
+      <option value="24" selected>últimas 24h</option>
+      <option value="168">últimos 7 dias</option>
+    </select>
+  </div>
+  <p id="saude-agentes-status" role="status" aria-live="polite">Abra esta seção para consultar a saúde dos agentes.</p>
+  <div id="saude-agentes-conteudo" hidden></div>
+</section>
+
+            <section class="tab-panel" data-panel="conselho-testes" id="conselho-testes-painel">
+  <div class="mi-topo">
+    <p class="mi-eyebrow">MARANHÃO INTELLIGENCE</p>
+    <h2>Testing Center</h2>
+    <p class="mi-subtitle">Bateria repetível de testes dos 8 agentes -- schema, proveniência numérica, fato x estimativa, ação já em andamento, divergência real, necessidade do Diretor e guardrails. Nenhum caso executa ação externa.</p>
+  </div>
+  <div class="mi-toolbar">
+    <button type="button" id="conselho-testes-rodar">Rodar testes unitários</button>
+    <button type="button" id="conselho-testes-rodar-ao-vivo" class="btn-secundario">Rodar também os casos ao vivo (Rua/Iris/Marie -- consome tokens reais)</button>
+  </div>
+  <p id="conselho-testes-status" role="status" aria-live="polite">Rode a bateria para ver o resultado.</p>
+  <div id="conselho-testes-conteudo" hidden></div>
+</section>
+
+            <section class="tab-panel" data-panel="relacionamento-360" id="relacionamento-360-painel">
+  <div class="mi-topo">
+    <p class="mi-eyebrow">MARANHÃO INTELLIGENCE</p>
+    <h2>Relacionamento 360</h2>
+    <p class="mi-subtitle">Visão única do contato (CRM + WhatsApp + Instagram + Gmail, quando já identificados) e até 3 próximas ações comerciais sugeridas com motivo, evidência e confiança. Nenhuma ação é executada aqui -- só recomendação.</p>
+  </div>
+  <div class="mi-toolbar">
+    <input type="search" id="relacionamento-360-busca" placeholder="Buscar por nome, e-mail, telefone ou @instagram">
+    <button type="button" id="relacionamento-360-buscar-botao">Buscar</button>
+  </div>
+  <div id="relacionamento-360-resultados"></div>
+  <div id="relacionamento-360-detalhe" hidden></div>
 </section>
 
             <section class="tab-panel" data-panel="canais" id="canais-painel">
@@ -9025,6 +9076,9 @@ async function criarCampanha57(){
 <script src="/visao-geral.js" defer></script>
 <script src="/modo-diretor.js" defer></script>
 <script src="/conselho-agentes.js" defer></script>
+<script src="/saude-agentes.js" defer></script>
+<script src="/conselho-testes.js" defer></script>
+<script src="/relacionamento-360.js" defer></script>
 <script src="/canais-status.js" defer></script>
 <script src="/mi-graficos.js" defer></script>
 <script src="/whatsapp-omnichannel.js" defer></script>
