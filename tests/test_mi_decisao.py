@@ -127,6 +127,27 @@ class AnalisadorLeads(unittest.TestCase):
         self.assertEqual(item['prioridade'], 'normal')
 
 
+class AnalisadorRecompras(unittest.TestCase):
+    def test_recompra_vencida_gera_decisao(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = [{'id': 'lead-3', 'proxima_recompra_em': '2026-01-01'}]
+        item = d.analisar_recompras_provaveis(cur)[0]
+        self.assertEqual(item['tipo_decisao'], 'recompra_provavel')
+        self.assertEqual(item['proxima_acao'], 'sugerir_recompra')
+        self.assertEqual(item['lead_id'], 'lead-3')
+        self.assertEqual(item['origem'], 'crm')
+        self.assertTrue(item['exige_aprovacao'])  # nunca dispara contato sozinho
+        sem_escrita(cur)
+
+    def test_nunca_dispara_contato_e_nunca_sugere_sem_janela_vencida(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        self.assertEqual(d.analisar_recompras_provaveis(cur), [])
+        sql = cur.execute.call_args.args[0]
+        self.assertIn('proxima_recompra_em <= NOW()', sql)
+        self.assertIn("cadastro_teste, FALSE) = FALSE", sql)
+
+
 class Planejar(unittest.TestCase):
     def test_agrega_todos_os_analisadores_em_snapshot_readonly(self):
         conn = MagicMock()
@@ -147,7 +168,7 @@ class Planejar(unittest.TestCase):
              'score': 90, 'proximo_followup_em': '2026-01-01', 'ultima_resposta_em': None,
              'ultimo_contato_em': '2026-01-01', 'origem_id': 'a', 'criado_em': '2026-01-01',
              'estagio': 'proposta', 'cidade': 'São Luís', 'estado': 'MA',
-             'valor_potencial_centavos': 500000},
+             'valor_potencial_centavos': 500000, 'proxima_recompra_em': '2026-01-01'},
         ]
         cur.fetchone.return_value = {'qtd': 0, 'id': 'sinal', 'total': 1}
         d.planejar(lambda: conn)

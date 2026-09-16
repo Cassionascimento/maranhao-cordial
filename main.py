@@ -2083,6 +2083,17 @@ def inicializar_banco():
                     NOT NULL DEFAULT 'novo'
                 """)
 
+                # Aditiva e reversível (DROP COLUMN motivo_perda): nenhuma
+                # leitura/escrita existente depende dela ainda -- só grava a
+                # base para capturar POR QUE um lead virou 'perdido', hoje
+                # descartado (estagio='perdido' é só um estado terminal, sem
+                # motivo). Nula por padrão; nenhum fluxo é obrigado a
+                # preenchê-la nesta etapa.
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS motivo_perda TEXT
+                """)
+
                 # ==========================================
                 # AI-NATIVE — HISTÓRICO ECONÔMICO
                 # ==========================================
