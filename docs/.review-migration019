@@ -1,0 +1,1 @@
+Migration 019 reviewed as additive/reversible/idempotent at SQL DDL level. Apply before relying on agent-health telemetry endpoints.
