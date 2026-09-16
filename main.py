@@ -39701,6 +39701,19 @@ registrar_rotas_mi_relacionamento_360(app, get_db_connection, validar_admin_requ
 from mi_inteligencia_relacionamento import registrar_rotas_leitura as registrar_rotas_mi_inteligencia
 registrar_rotas_mi_inteligencia(app, get_db_connection, validar_admin_request)
 
+# P3 -- Learning & Territory Intelligence Foundation. mi_outcome_
+# relacionamento é o único ponto de ESCRITA de todo o P0-P3 (só sobre
+# mi_fila_operacional, já existente -- nunca checkout/WhatsApp/Gmail/
+# Meta/C6-Pix, que continuam intocados).
+from mi_outcome_relacionamento import registrar_rotas as registrar_rotas_mi_outcome
+registrar_rotas_mi_outcome(app, get_db_connection, validar_admin_request)
+
+from mi_territorio_inteligencia import registrar_rotas_leitura as registrar_rotas_mi_territorio_inteligencia
+registrar_rotas_mi_territorio_inteligencia(app, get_db_connection, validar_admin_request)
+
+from mi_forecast_readiness import registrar_rotas_leitura as registrar_rotas_mi_forecast_readiness
+registrar_rotas_mi_forecast_readiness(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
