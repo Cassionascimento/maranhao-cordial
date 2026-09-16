@@ -1,0 +1,1 @@
+const fs=require('fs'),assert=require('assert');const js=fs.readFileSync('maranhao-backend/app-shell.js','utf8');for(const x of ['Conselho','CRM','Canais','Diretor'])assert(js.includes(x));assert(js.includes("tab.click()"));assert(!js.includes('fetch('));console.log('app shell agentico: ok');
