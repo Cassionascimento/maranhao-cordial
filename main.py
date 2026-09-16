@@ -39695,6 +39695,12 @@ registrar_rotas_mi_estabelecimentos(app, get_db_connection, validar_admin_reques
 from mi_relacionamento_360 import registrar_rotas_leitura as registrar_rotas_mi_relacionamento_360
 registrar_rotas_mi_relacionamento_360(app, get_db_connection, validar_admin_request)
 
+# Maranhão Intelligence Core (P2) -- score explicável, segmentação,
+# oportunidade e Next Best Action sobre o 360 -- só leitura/recomendação,
+# nenhuma execução (aprovação humana continua em acoes_comerciais.py).
+from mi_inteligencia_relacionamento import registrar_rotas_leitura as registrar_rotas_mi_inteligencia
+registrar_rotas_mi_inteligencia(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
