@@ -95,6 +95,39 @@ class MontarDeckExecutivo(unittest.TestCase):
             self.assertNotIn(proibido, codigo)
 
 
+class DeckComGraficos(unittest.TestCase):
+    """P5.X M5 -- wiring do Chart Engine no deck: um slide por gráfico,
+    nunca mais de uma ideia dominante por slide, e NOT_ENOUGH_DATA vira
+    um slide explícito, nunca um gráfico fabricado."""
+
+    def _spec(self):
+        return {
+            'chart_type': 'bar', 'title': 'Oportunidades por tipo', 'x': ['recompra', 'upsell'],
+            'series': [{'name': 'contagem', 'values': [3, 2]}], 'units': 'unidades',
+            'source': 'mi_intelligence_api.overview', 'freshness': '2026-09-17', 'confidence': 'REAL',
+        }
+
+    def test_grafico_real_vira_slide_com_grafico_nativo_do_pptx(self):
+        apresentacao = Presentation(io.BytesIO(engine.montar_deck_executivo(_ata(), graficos=[self._spec()])))
+        self.assertEqual(len(apresentacao.slides), 5)  # capa+narrativa+grafico+decisoes+proximos
+        graficos = [f for slide in apresentacao.slides for f in slide.shapes if f.has_chart]
+        self.assertEqual(len(graficos), 1)
+
+    def test_not_enough_data_vira_slide_explicito_nunca_grafico_fabricado(self):
+        import mi_chart_engine
+        apresentacao = Presentation(io.BytesIO(
+            engine.montar_deck_executivo(_ata(), graficos=[mi_chart_engine.NOT_ENOUGH_DATA])
+        ))
+        textos = ' '.join(_texto_de_todos_os_slides(apresentacao))
+        self.assertIn('Aguardando dados suficientes', textos)
+        graficos = [f for slide in apresentacao.slides for f in slide.shapes if f.has_chart]
+        self.assertEqual(len(graficos), 0)
+
+    def test_sem_graficos_deck_permanece_com_4_slides(self):
+        apresentacao = Presentation(io.BytesIO(engine.montar_deck_executivo(_ata())))
+        self.assertEqual(len(apresentacao.slides), 4)
+
+
 class GerarERegistrarApresentacao(unittest.TestCase):
     def test_persiste_como_artefato_presentation_via_mi_artefatos(self):
         db = _db_vazio()

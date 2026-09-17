@@ -39738,6 +39738,11 @@ registrar_rotas_mi_secretario(app, get_db_connection, validar_admin_request)
 from mi_presentation_engine import registrar_rotas as registrar_rotas_mi_presentation
 registrar_rotas_mi_presentation(app, get_db_connection, validar_admin_request)
 
+# P5.X M5 -- Chart Engine: gráfico factual programático (SVG standalone +
+# nativo do PPTX) a partir de um chart_spec canônico já com dados reais.
+from mi_chart_engine import registrar_rotas as registrar_rotas_mi_chart_engine
+registrar_rotas_mi_chart_engine(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 

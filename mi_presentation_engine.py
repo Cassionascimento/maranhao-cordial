@@ -122,18 +122,40 @@ def _slide_lista(apresentacao, rotulo, itens, *, cor_numero=COR_DOURADO, texto_v
     return slide
 
 
-def montar_deck_executivo(ata):
+def _slide_grafico(apresentacao, spec_ou_aguardando):
+    """Um gráfico por slide -- nunca mais de uma ideia dominante por
+    slide. Quando o Chart Engine (M5) devolveu NOT_ENOUGH_DATA, o slide
+    mostra isso explicitamente, nunca inventa um gráfico nem omite o
+    pedido silenciosamente."""
+    from mi_chart_engine import NOT_ENOUGH_DATA, adicionar_grafico_ao_slide
+
+    slide = _slide_vazio(apresentacao)
+    if spec_ou_aguardando == NOT_ENOUGH_DATA or not isinstance(spec_ou_aguardando, dict):
+        _caixa_texto(slide, Inches(0.9), Inches(0.6), Inches(6), Inches(0.4),
+                     'DADOS', tamanho=12, cor=COR_DOURADO, negrito=True)
+        _caixa_texto(slide, Inches(0.9), Inches(3.2), Inches(11), Inches(1),
+                     'Aguardando dados suficientes para este gráfico.', tamanho=22, cor=COR_MUTED)
+        return slide
+    _caixa_texto(slide, Inches(0.9), Inches(0.6), Inches(11), Inches(0.4),
+                 (spec_ou_aguardando.get('source') or 'DADOS').upper(), tamanho=12, cor=COR_DOURADO, negrito=True)
+    adicionar_grafico_ao_slide(slide, spec_ou_aguardando)
+    return slide
+
+
+def montar_deck_executivo(ata, graficos=None):
     """Monta o .pptx a partir da ata já pronta (M3) -- capa, narrativa,
-    decisões e próximos passos (3 a 5 slides por padrão). Nunca inventa
-    texto: cada slide só reformata o que a ata já trouxe. M5 estende esta
-    função para anexar slides de gráfico real quando houver dados
-    suficientes."""
+    decisões e próximos passos (3 a 5 slides por padrão), mais um slide
+    por gráfico em `graficos` (specs canônicos do Chart Engine, M5, ou o
+    marcador NOT_ENOUGH_DATA -- nunca inventa texto: cada slide só
+    reformata o que a ata/gráficos já trouxeram."""
     apresentacao = Presentation()
     apresentacao.slide_width = LARGURA_SLIDE
     apresentacao.slide_height = ALTURA_SLIDE
 
     _slide_capa(apresentacao, ata)
     _slide_narrativa(apresentacao, ata)
+    for grafico in (graficos or []):
+        _slide_grafico(apresentacao, grafico)
     _slide_lista(apresentacao, 'DECISÕES', ata.get('decisoes'), texto_vazio='Nenhuma decisão registrada nesta reunião.')
     _slide_lista(apresentacao, 'PRÓXIMOS PASSOS', ata.get('proximos_passos'), cor_numero=COR_CREME,
                  texto_vazio='Nenhum próximo passo registrado nesta reunião.')
@@ -143,11 +165,14 @@ def montar_deck_executivo(ata):
     return buffer.getvalue()
 
 
-def gerar_e_registrar_apresentacao(factory, ata, *, agent_id=None, decision_id=None, parent_artifact_id=None):
+def gerar_e_registrar_apresentacao(factory, ata, *, graficos=None, agent_id=None, decision_id=None,
+                                    parent_artifact_id=None):
     """Gera o .pptx e persiste como artefato (M1) -- nasce em 'gerado',
     só vira 'aprovado' por ação humana explícita (mi_artefatos.
-    aprovar_artefato), nunca publicado sozinho."""
-    conteudo = montar_deck_executivo(ata)
+    aprovar_artefato), nunca publicado sozinho. `graficos` (opcional) são
+    chart_specs canônicos do M5, já validados contra dados reais por quem
+    chama -- este módulo nunca decide sozinho qual dado usar."""
+    conteudo = montar_deck_executivo(ata, graficos=graficos)
     meeting_id = ata.get('meeting_id')
     return registrar_artefato(
         factory, artifact_type='PRESENTATION', conteudo=conteudo, mime_type=MIME_PPTX,
@@ -158,7 +183,7 @@ def gerar_e_registrar_apresentacao(factory, ata, *, agent_id=None, decision_id=N
 
 
 def registrar_rotas(app, factory, autorizado):
-    from flask import jsonify
+    from flask import jsonify, request
     from psycopg2.extras import RealDictCursor
 
     from mi_conselho import buscar_registro
@@ -181,9 +206,13 @@ def registrar_rotas(app, factory, autorizado):
             conn.close()
         if not registro:
             return jsonify(success=False, error='Reunião/registro não encontrado.'), 404
+        # `graficos` é opcional -- chart_specs canônicos (M5) já montados
+        # por quem chama a partir de dados reais. Esta rota nunca escolhe
+        # sozinha qual número usar; sem o campo, o deck sai só com texto.
+        corpo = request.get_json(silent=True) or {}
         try:
             ata = montar_ata_executiva(registro)
-            resultado = gerar_e_registrar_apresentacao(factory, ata)
+            resultado = gerar_e_registrar_apresentacao(factory, ata, graficos=corpo.get('graficos'))
         except Exception:
             app.logger.exception('Falha ao gerar apresentação executiva')
             return jsonify(success=False, error='Não foi possível gerar a apresentação.'), 503
