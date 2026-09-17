@@ -172,6 +172,19 @@ class RotaHTTP(unittest.TestCase):
         resp = app.test_client().get('/investidor/token-inexistente')
         self.assertEqual(resp.status_code, 404)
         self.assertNotEqual(resp.status_code, 401)
+        self.assertIn(b'<!doctype html>', resp.data.lower())
+
+    def test_rota_publica_de_investidor_aceita_format_json_para_consumo_por_codigo(self):
+        def factory_sem_token():
+            conn = MagicMock()
+            cur = conn.cursor.return_value
+            cur.__enter__.return_value = cur
+            cur.fetchone.return_value = None
+            return conn
+        app = self._app(autorizado=lambda: False, factory=factory_sem_token)
+        resp = app.test_client().get('/investidor/token-inexistente?format=json')
+        self.assertEqual(resp.status_code, 404)
+        self.assertFalse(resp.get_json()['success'])
 
     def test_todas_as_rotas_exigem_autenticacao(self):
         app = self._app(autorizado=lambda: False)

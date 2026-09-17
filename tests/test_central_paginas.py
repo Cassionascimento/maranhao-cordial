@@ -3,7 +3,7 @@ Gmail não pode mais terminar numa tela JSON crua. Testa só a função pura
 de montagem de HTML (nunca importa main.py)."""
 import unittest
 
-from central_paginas import pagina_gmail_callback
+from central_paginas import pagina_gmail_callback, pagina_visao_investidor, pagina_visao_investidor_invalida
 
 
 class PaginaGmailCallback(unittest.TestCase):
@@ -39,6 +39,60 @@ class PaginaGmailCallback(unittest.TestCase):
         # ação explícita -- nunca uma tela morta sem nenhum controle.
         html = pagina_gmail_callback(True, 'ok')
         self.assertIn('onclick="window.close()"', html)
+
+
+VISAO_EXEMPLO = {
+    'operacao': {'titulo': 'Softdrinks Tech', 'data_inicio': '2026-10-15', 'data_fim': '2026-10-16',
+                 'local': None, 'estado': 'planejamento', 'prioridade': 'normal'},
+    'equipe_resumo': [{'funcao': 'Bartender', 'estado': 'confirmado'}],
+    'plano': [{'titulo': 'Montar bar', 'tipo': 'tarefa', 'status': 'pendente', 'data_prevista': '2026-10-15'}],
+    'indicadores': [{'nome': 'CAC', 'valor': None, 'unidade': None, 'periodo': None,
+                      'estado_dado': 'aguardando_dados', 'explicacao': None}],
+    'financeiro_resumo': [{'categoria': 'staff', 'tipo': 'orcamento', 'valor_centavos': 500000,
+                            'estado_dado': 'confirmado', 'periodo': None}],
+}
+
+
+class PaginaVisaoInvestidor(unittest.TestCase):
+    def test_mostra_titulo_e_periodo_reais_nunca_json_cru(self):
+        html = pagina_visao_investidor(VISAO_EXEMPLO)
+        self.assertTrue(html.strip().startswith('<!doctype html>'))
+        self.assertIn('Softdrinks Tech', html)
+        self.assertIn('2026-10-15', html)
+
+    def test_campos_ausentes_aparecem_como_aguardando_dados_nunca_zero_ou_vazio_silencioso(self):
+        html = pagina_visao_investidor(VISAO_EXEMPLO)
+        self.assertIn('AGUARDANDO DADOS', html)
+
+    def test_nunca_expoe_telefone_email_ou_chave_administrativa(self):
+        html = pagina_visao_investidor(VISAO_EXEMPLO)
+        baixo = html.lower()
+        for termo in ('telefone', 'email', 'admin_api_key', 'x-admin-key', 'senha', 'token'):
+            self.assertNotIn(termo, baixo)
+
+    def test_valor_financeiro_formatado_em_reais_nunca_centavos_crus(self):
+        html = pagina_visao_investidor(VISAO_EXEMPLO)
+        self.assertIn('R$ 5.000,00', html)
+
+    def test_secoes_vazias_mostram_mensagem_explicita_nunca_lista_em_branco(self):
+        vazio = {**VISAO_EXEMPLO, 'equipe_resumo': [], 'plano': [], 'indicadores': [], 'financeiro_resumo': []}
+        html = pagina_visao_investidor(vazio)
+        self.assertIn('Nenhuma pessoa confirmada ainda.', html)
+        self.assertIn('Nenhum item de plano ainda.', html)
+
+    def test_titulo_com_html_e_escapado(self):
+        malicioso = {**VISAO_EXEMPLO, 'operacao': {**VISAO_EXEMPLO['operacao'], 'titulo': '<img src=x onerror=alert(1)>'}}
+        html = pagina_visao_investidor(malicioso)
+        self.assertNotIn('<img src=x', html)
+        self.assertIn('&lt;img', html)
+
+
+class PaginaVisaoInvestidorInvalida(unittest.TestCase):
+    def test_nunca_revela_se_o_token_um_dia_existiu(self):
+        html = pagina_visao_investidor_invalida()
+        self.assertTrue(html.strip().startswith('<!doctype html>'))
+        self.assertIn('Link indisponível', html)
+        self.assertNotIn('token', html.lower())
 
 
 if __name__ == '__main__':

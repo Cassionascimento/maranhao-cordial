@@ -1180,12 +1180,22 @@ def registrar_rotas(app, factory, autorizado):
     def mi_operacao_investidor_publico(token):
         # Rota deliberadamente FORA de /api/admin: não exige (nem aceita)
         # ADMIN_API_KEY -- só o token opaco do link compartilhado. Nunca
-        # lista operações nem aceita nenhum outro parâmetro.
+        # lista operações nem aceita nenhum outro parâmetro. Página HTML
+        # por padrão (link é aberto por uma pessoa, não consumido por
+        # código); ?format=json devolve o mesmo dado já sanitizado.
+        from flask import request as _req
+        from central_paginas import pagina_visao_investidor, pagina_visao_investidor_invalida
         try:
             visao = visao_investidor_por_token(factory, token)
+            if _req.args.get('format') == 'json':
+                if not visao:
+                    return _erro('Link inválido, expirado ou revogado.', 404)
+                return jsonify(success=True, **visao)
             if not visao:
-                return _erro('Link inválido, expirado ou revogado.', 404)
-            return jsonify(success=True, **visao)
+                return pagina_visao_investidor_invalida(), 404
+            return pagina_visao_investidor(visao)
         except Exception:
             app.logger.exception('Falha ao montar visão investidor por token')
-            return _erro('Visão do investidor indisponível no momento.', 503)
+            if _req.args.get('format') == 'json':
+                return _erro('Visão do investidor indisponível no momento.', 503)
+            return pagina_visao_investidor_invalida(), 503
