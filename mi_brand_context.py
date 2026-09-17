@@ -47,6 +47,8 @@ def registrar_versao_brand_context(factory, campos, ator):
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # Serialize version allocation; UNIQUE alone rejects concurrent writers.
+                cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(current_schema() || ':mi_brand_context:versao', 0))")
                 cur.execute("SELECT COALESCE(MAX(versao), 0) AS ultima FROM mi_brand_context")
                 proxima_versao = cur.fetchone()['ultima'] + 1
                 novo_id = uuid.uuid4()

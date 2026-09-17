@@ -55,12 +55,12 @@
   async function loadCreative() {
     const reads=[['/api/admin/mi/artefatos','mic-creative-artifacts',b=>{
       $('mic-creative-artifacts').innerHTML=arr(b.artefatos).map(a=>`<article class="mic-sub"><span>${esc(a.artifact_type)}</span><h4>Versão ${esc(a.version)} · ${esc(a.status)}</h4><small>${esc(a.metadata?.production_status||a.metadata?.confidence||'Proveniência não informada')}</small>
-      <div>${['open','download','detail','approve','reject',...(String(a.mime_type).startsWith('image/')?['refine','social']:[])].map(action=>`<button data-creative-action="${action}" data-artifact="${esc(a.id)}">${({open:'Abrir',download:'Baixar',detail:'Versões / metadata',approve:'Aprovar',reject:'Rejeitar',refine:'Nova versão',social:'Feed / story / mockup'})[action]}</button>`).join('')}</div></article>`).join('')||empty('Nenhum artefato registrado.');
+      <div>${['open','download','detail','approve','reject',...(['image/png','image/jpeg','image/webp'].includes(a.mime_type)?['refine','social']:[])].map(action=>`<button data-creative-action="${action}" data-artifact="${esc(a.id)}">${({open:'Abrir',download:'Baixar',detail:'Versões / metadata',approve:'Aprovar',reject:'Rejeitar',refine:'Nova versão',social:'Feed / story / mockup'})[action]}</button>`).join('')}</div></article>`).join('')||empty('Nenhum artefato registrado.');
     }],['/api/admin/mi/conselho','mic-creative-meetings',b=>{
       $('mic-creative-meetings').innerHTML=[...arr(b.conselho?.reunioes_recentes),...arr(b.conselho?.relatorios_recentes)].map(r=>`<div class="mic-row"><b>${esc(r.titulo||r.tipo)}</b><button data-creative-action="ata" data-record="${esc(r.id)}">Secretário</button><button data-creative-action="deck" data-record="${esc(r.id)}">Gerar PPTX</button></div>`).join('')||empty('Nenhuma reunião registrada.');
     }],['/api/admin/mi/brand-context','mic-creative-brand',b=>{$('mic-creative-brand').textContent=b.configurado?JSON.stringify(b.campos):'Brand Context não configurado.';}],
     ['/api/admin/mi/visual-memory','mic-creative-brand',b=>{const p=document.createElement('p');p.textContent=`Referências aprovadas: ${arr(b.referencias).length}`;$('mic-creative-brand').appendChild(p);}],
-    ['/api/admin/mi/pirret/provider-status','mic-creative-provider',b=>{$('mic-creative-provider').textContent=b.disponivel?'Provider configurado · disponibilidade externa não homologada':'IMAGE PROVIDER — NOT CONFIGURED';}]];
+    ['/api/admin/mi/pirret/provider-status','mic-creative-provider',b=>{$('mic-creative-provider').textContent=b.provider==='MockImageProvider'?'MOCK/TEST ONLY — sem geração real':b.disponivel?'Provider configurado · disponibilidade externa não homologada':'IMAGE PROVIDER — NOT CONFIGURED';}]];
     for(const [path,target,render] of reads){try{render(await get(path));}catch(e){$(target).textContent=e.message;}}
   }
   async function creativeClick(e) {

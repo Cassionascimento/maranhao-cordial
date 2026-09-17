@@ -36,6 +36,7 @@ def registrar_versao_regulatoria(factory, sku, campos, ator):
     try:
         with conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(current_schema() || ':mi_regulatorio:' || %s, 0))", (sku,))
                 cur.execute("SELECT COALESCE(MAX(versao), 0) AS ultima FROM mi_regulatorio_produto WHERE sku=%s", (sku,))
                 proxima_versao = cur.fetchone()['ultima'] + 1
                 novo_id = uuid.uuid4()

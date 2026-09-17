@@ -29,7 +29,7 @@ class FakeBrandCursor:
 
     def execute(self, sql, params=()):
         sql_norma = ' '.join(sql.split())
-        if sql_norma.startswith('SET LOCAL'):
+        if sql_norma.startswith(('SET LOCAL', 'SELECT pg_advisory_xact_lock')):
             self._resultado = None
         elif sql_norma.startswith('SELECT COALESCE(MAX(versao), 0)'):
             self._resultado = {'ultima': max((v['versao'] for v in self.db['brand'].values()), default=0)}
