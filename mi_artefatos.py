@@ -123,6 +123,42 @@ def rejeitar_artefato(factory, artefato_id, ator, motivo=None):
     return avancar_estado_artefato(factory, artefato_id, 'rejeitado', ator, motivo=motivo)
 
 
+def atualizar_metadata_artefato(factory, artefato_id, patch, *, ator="sistema"):
+    """Mescla `patch` na metadata existente -- nunca remove uma chave já
+    gravada, nunca toca em storage_uri/conteudo/status. Usado por M8
+    (Label Studio) para anotar `regulatory_status` sem reabrir o
+    contrato de versionamento/aprovação criativa (que continua sendo
+    o único dono de `status`)."""
+    if not isinstance(patch, dict):
+        raise ValueError('patch_invalido')
+    conn = factory()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT metadata FROM mi_artefatos WHERE id=%s FOR UPDATE", (str(artefato_id),))
+                row = cur.fetchone()
+                if not row:
+                    return {'success': False, 'motivo': 'artefato_nao_encontrado'}
+                nova_metadata = {**(row['metadata'] or {}), **patch}
+                cur.execute(
+                    "UPDATE mi_artefatos SET metadata=%s WHERE id=%s",
+                    (Json(nova_metadata), str(artefato_id)),
+                )
+                if nova_metadata != (row['metadata'] or {}):
+                    cur.execute("SELECT id, status FROM mi_artefatos WHERE id=%s FOR UPDATE", (str(artefato_id),))
+                    estado = cur.fetchone()['status']
+                    import json
+                    cur.execute(
+                        "INSERT INTO mi_artefatos_auditoria (artefato_id, estado_anterior, estado_novo, ator, motivo) "
+                        "VALUES (%s,%s,%s,%s,%s)",
+                        (str(artefato_id), estado, estado, str(ator), json.dumps(
+                            {'evento':'metadata_atualizada','anterior':row['metadata'] or {},'nova':nova_metadata}, ensure_ascii=False)),
+                    )
+                return {'success': True, 'metadata': nova_metadata}
+    finally:
+        conn.close()
+
+
 _CAMPOS = (
     'id', 'artifact_type', 'source_type', 'source_id', 'meeting_id', 'agent_id',
     'decision_id', 'parent_artifact_id', 'version', 'status', 'storage_uri',

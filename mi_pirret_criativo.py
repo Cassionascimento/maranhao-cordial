@@ -75,7 +75,7 @@ def montar_brief_criativo(pedido, brand_context=None, cliente=None):
 
 
 def gerar_conceitos_visuais(factory, pedido, *, artifact_type, quantidade=3, brand_context=None,
-                             meeting_id=None, decision_id=None, provider=None, cliente=None):
+                             meeting_id=None, decision_id=None, provider=None, cliente=None, metadata_extra=None):
     """Fluxo completo: brief -> N gerações -> N artefatos persistidos
     (A/B/C, cada um raiz de sua própria lineage), todos com
     agent_id='pirret'. Sem provider configurado, devolve motivo
@@ -84,6 +84,8 @@ def gerar_conceitos_visuais(factory, pedido, *, artifact_type, quantidade=3, bra
     if not provider.disponivel():
         return {'success': False, 'motivo': 'image_provider_nao_configurado', 'mensagem': provider.MENSAGEM
                 if hasattr(provider, 'MENSAGEM') else 'IMAGE PROVIDER — NOT CONFIGURED'}
+    if not isinstance(quantidade, int) or isinstance(quantidade, bool) or not 1 <= quantidade <= 3:
+        raise ValueError('quantidade_deve_ser_entre_1_e_3')
     brief = montar_brief_criativo(pedido, brand_context=brand_context, cliente=cliente)
     artefatos_gerados = []
     for _ in range(max(1, int(quantidade))):
@@ -91,10 +93,11 @@ def gerar_conceitos_visuais(factory, pedido, *, artifact_type, quantidade=3, bra
             resultado = registrar_artefato(
                 factory, artifact_type=artifact_type, conteudo=imagem, mime_type='image/png',
                 source_type='pirret_brief', agent_id='pirret', meeting_id=meeting_id, decision_id=decision_id,
-                metadata={'brief': brief, 'pedido': pedido},
+                metadata={**(metadata_extra or {}), 'brief': brief, 'pedido': pedido, 'brand_context': brand_context},
             )
             artefatos_gerados.append(resultado)
-    return {'success': True, 'brief': brief, 'artefatos': artefatos_gerados}
+    return {'success': bool(artefatos_gerados) and all(a.get('success') for a in artefatos_gerados),
+            'motivo': None if artefatos_gerados else 'provider_sem_imagem', 'brief': brief, 'artefatos': artefatos_gerados}
 
 
 def refinar_conceito_visual(factory, artefato_pai_id, instrucao, *, provider=None):
@@ -113,11 +116,17 @@ def refinar_conceito_visual(factory, artefato_pai_id, instrucao, *, provider=Non
             imagem_base = PostgresBlobStorage(cur).ler(artefato_pai['storage_uri'])
     finally:
         conn.close()
+    if not artefato_pai['mime_type'].startswith('image/'):
+        return {'success': False, 'motivo': 'artefato_nao_visual'}
     imagens = provider.editar(imagem_base, instrucao)
+    if not imagens:
+        return {'success': False, 'motivo': 'provider_sem_imagem'}
     return registrar_artefato(
         factory, artifact_type=artefato_pai['artifact_type'], conteudo=imagens[0], mime_type='image/png',
         source_type='pirret_refinamento', agent_id='pirret', parent_artifact_id=artefato_pai_id,
-        metadata={'instrucao_refinamento': instrucao},
+        metadata={**artefato_pai['metadata'], 'instrucao_refinamento': instrucao,
+                  **({'regulatory_status':'NAO_VALIDADO', 'production_status':'CONCEITO VISUAL — NÃO APROVADO PARA PRODUÇÃO'}
+                     if artefato_pai['artifact_type']=='LABEL_CONCEPT' else {})},
     )
 
 

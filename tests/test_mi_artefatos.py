@@ -68,6 +68,13 @@ class FakeArtefatoCursor:
             linha['status'] = novo_estado
             linha['approved_at'] = AGORA if novo_estado == 'aprovado' else None
             self._resultado = None
+        elif sql_norma.startswith('SELECT metadata FROM mi_artefatos WHERE id=%s FOR UPDATE'):
+            linha = self.db['artefatos'].get(params[0])
+            self._resultado = {'metadata': linha['metadata']} if linha else None
+        elif sql_norma.startswith('UPDATE mi_artefatos SET metadata='):
+            nova_metadata, artefato_id = params
+            self.db['artefatos'][artefato_id]['metadata'] = _valor(nova_metadata)
+            self._resultado = None
         elif sql_norma.startswith('INSERT INTO mi_artefatos_auditoria'):
             artefato_id, estado_anterior, estado_novo, ator, motivo = params
             self.db['auditoria'].append({
@@ -254,6 +261,33 @@ class TransicaoDeEstadoHumana(unittest.TestCase):
         resultado = artefatos.aprovar_artefato(_factory(db), str(uuid4()), ator='diretor')
         self.assertFalse(resultado['success'])
         self.assertEqual(resultado['motivo'], 'artefato_nao_encontrado')
+
+
+class AtualizarMetadataArtefato(unittest.TestCase):
+    """P5.X M8 -- usado pelo Label Studio para anotar regulatory_status
+    sem tocar em status/storage_uri/conteudo."""
+
+    def test_mescla_sem_remover_chaves_existentes(self):
+        db = _db_vazio()
+        a = artefatos.registrar_artefato(_factory(db), artifact_type='LABEL_CONCEPT', conteudo=b'x',
+                                          mime_type='image/png', metadata={'sku': 'MC-BACURI-100ML'})
+        resultado = artefatos.atualizar_metadata_artefato(_factory(db), a['id'], {'regulatory_status': 'NAO_VALIDADO'})
+        self.assertTrue(resultado['success'])
+        self.assertEqual(db['artefatos'][a['id']]['metadata'], {'sku': 'MC-BACURI-100ML', 'regulatory_status': 'NAO_VALIDADO'})
+
+    def test_artefato_inexistente_e_motivo_explicito(self):
+        db = _db_vazio()
+        resultado = artefatos.atualizar_metadata_artefato(_factory(db), str(uuid4()), {'x': 1})
+        self.assertFalse(resultado['success'])
+        self.assertEqual(resultado['motivo'], 'artefato_nao_encontrado')
+
+    def test_nunca_toca_em_status_ou_storage_uri(self):
+        db = _db_vazio()
+        a = artefatos.registrar_artefato(_factory(db), artifact_type='IMAGE', conteudo=b'x', mime_type='image/png')
+        storage_uri_antes = db['artefatos'][a['id']]['storage_uri']
+        artefatos.atualizar_metadata_artefato(_factory(db), a['id'], {'qualquer': 'coisa'})
+        self.assertEqual(db['artefatos'][a['id']]['status'], 'gerado')
+        self.assertEqual(db['artefatos'][a['id']]['storage_uri'], storage_uri_antes)
 
 
 class Listagem(unittest.TestCase):

@@ -39755,6 +39755,20 @@ registrar_rotas_mi_pirret(app, get_db_connection, validar_admin_request)
 from mi_brand_context import registrar_rotas as registrar_rotas_mi_brand_context
 registrar_rotas_mi_brand_context(app, get_db_connection, validar_admin_request)
 
+# P5.X M8 -- Label Studio: fonte regulatória canônica (separada da
+# camada criativa de Pirret) + geração de conceito de rótulo sempre
+# marcado "não aprovado para produção" até validação regulatória real.
+from mi_regulatorio_produto import registrar_rotas as registrar_rotas_mi_regulatorio
+registrar_rotas_mi_regulatorio(app, get_db_connection, validar_admin_request)
+from mi_label_studio import registrar_rotas as registrar_rotas_mi_label_studio
+registrar_rotas_mi_label_studio(app, get_db_connection, validar_admin_request)
+
+# P5.X M8 -- Social Creative Studio: transforma um artefato APROVADO em
+# peças por formato (key visual/feed/story/vertical/banner/produto
+# isolado), sempre com lineage explícita ao conceito aprovado.
+from mi_social_studio import registrar_rotas as registrar_rotas_mi_social_studio
+registrar_rotas_mi_social_studio(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
