@@ -1,4 +1,6 @@
 """P3A/P3B -- SIGNAL->SCORE->RECOMMENDATION->HUMAN DECISION->ACTION->OUTCOME.
+P4 -- orquestração calcular_e_apresentar_recomendacoes() e filtros de
+histórico por lead_id/estabelecimento_id.
 
 Usa um fake in-memory de mi_fila_operacional/mi_fila_operacional_auditoria
 (nunca um banco real) para testar a cadeia de ponta a ponta -- integração,
@@ -7,7 +9,7 @@ unitários de cada função."""
 import json
 import unittest
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 from uuid import UUID, uuid4
 
 from flask import Flask
@@ -83,8 +85,20 @@ class FakeFilaCursor:
                                           'estado_novo': estado_novo, 'ator': ator})
             self._resultado = None
         elif sql_norma.startswith('SELECT chave, tipo_decisao, fatos'):
-            origem, limite = params
+            # origem sempre primeiro; lead_id/estabelecimento_id opcionais
+            # (P4) -- consumidos na MESMA ordem em que aparecem no SQL,
+            # nunca por posição fixa (a cláusula real é montada condicional).
+            *filtros, limite = list(params)
+            origem = filtros.pop(0)
             linhas = [l for l in self.db['fila'].values() if l['origem'] == origem]
+            where_clause = sql_norma.split('WHERE ', 1)[1].split(' ORDER BY')[0]
+            for condicao in where_clause.split(' AND '):
+                if condicao == 'lead_id=%s':
+                    alvo = filtros.pop(0)
+                    linhas = [l for l in linhas if l.get('lead_id') == alvo]
+                elif condicao == 'estabelecimento_id=%s':
+                    alvo = filtros.pop(0)
+                    linhas = [l for l in linhas if l.get('estabelecimento_id') == alvo]
             linhas.sort(key=lambda l: l['criado_em'], reverse=True)
             self._resultado = linhas[:limite]
         else:
@@ -318,6 +332,107 @@ class RotasEscrita(unittest.TestCase):
         self.assertEqual(r3.status_code, 200)
         r4 = cliente.get('/api/admin/mi/relacionamento/dataset-aprendizado')
         self.assertEqual(r4.get_json()['total_linhas'], 1)
+
+
+class HistoricoComFiltros(unittest.TestCase):
+    def test_filtra_por_lead_id(self):
+        factory, db = _fabrica_fila()
+        lead_1, lead_2 = str(uuid4()), str(uuid4())
+        outcome.registrar_recomendacao_apresentada(factory, _recomendacao(action='CONTACT_REORDER'), _score(),
+                                                    lead_id=lead_1, agora=AGORA)
+        outcome.registrar_recomendacao_apresentada(factory, _recomendacao(action='REVIEW_PARTNER'), _score(),
+                                                    lead_id=lead_2, agora=AGORA)
+        cur = FakeFilaCursor(db)
+        resultado = outcome.historico_decisoes(cur, lead_id=lead_1)
+        self.assertEqual(len(resultado), 1)
+        self.assertEqual(resultado[0]['lead_id'], lead_1)
+
+    def test_sem_filtro_mantem_comportamento_anterior(self):
+        factory, db = _fabrica_fila()
+        outcome.registrar_recomendacao_apresentada(factory, _recomendacao(), _score(),
+                                                    lead_id=str(uuid4()), agora=AGORA)
+        cur = FakeFilaCursor(db)
+        resultado = outcome.historico_decisoes(cur)
+        self.assertEqual(len(resultado), 1)
+
+    def test_rota_aceita_lead_id_como_query_param(self):
+        factory, db = _fabrica_fila()
+        lead_id = str(uuid4())
+        outcome.registrar_recomendacao_apresentada(factory, _recomendacao(), _score(), lead_id=lead_id, agora=AGORA)
+        app = Flask(__name__)
+        outcome.registrar_rotas(app, factory, lambda: True)
+        resp = app.test_client().get(f'/api/admin/mi/relacionamento/decisoes?lead_id={lead_id}')
+        self.assertEqual(len(resp.get_json()['decisoes']), 1)
+
+    def test_lead_id_invalido_na_rota_devolve_400(self):
+        factory, _ = _fabrica_fila()
+        app = Flask(__name__)
+        outcome.registrar_rotas(app, factory, lambda: True)
+        resp = app.test_client().get('/api/admin/mi/relacionamento/decisoes?lead_id=nao-e-um-uuid')
+        self.assertEqual(resp.status_code, 400)
+
+
+class CalcularEApresentarRecomendacoes(unittest.TestCase):
+    """P4: orquestra 360 (P1B) + inteligência (P2) + apresentação (P3A) --
+    mockando as duas primeiras (já testadas em seus próprios módulos) para
+    testar só a ORQUESTRAÇÃO: quantas recomendações são registradas, se
+    NO_ACTION é descartado, se lead_id/estabelecimento_id são propagados."""
+
+    def _visao(self, lead_id, estabelecimento_id=None):
+        return {
+            'identity': {'pessoa': {'id': lead_id}},
+            'organization': {'id': estabelecimento_id} if estabelecimento_id else None,
+        }
+
+    def test_relacionamento_inexistente_devolve_none(self):
+        factory, db = _fabrica_fila()
+        with patch.object(outcome, 'relacionamento_360', return_value=None):
+            resultado = outcome.calcular_e_apresentar_recomendacoes(factory, str(uuid4()), agora=AGORA)
+        self.assertIsNone(resultado)
+
+    def test_apresenta_ate_o_limite_e_descarta_no_action(self):
+        factory, db = _fabrica_fila()
+        lead_id = str(uuid4())
+        inteligencia = {
+            'score': _score(),
+            'next_best_actions': [
+                _recomendacao(action='CONTACT_REORDER', relationship_id=lead_id),
+                _recomendacao(action='REVIEW_PARTNER', relationship_id=lead_id),
+                {'action': 'NO_ACTION', 'reason': 'x', 'evidence': [], 'confidence': 1.0,
+                 'generated_at': AGORA.isoformat(), 'relationship_id': None, 'priority': 'baixa', 'sku': None},
+            ],
+        }
+        with patch.object(outcome, 'relacionamento_360', return_value=self._visao(lead_id)), \
+             patch.object(outcome, 'inteligencia_do_relacionamento', return_value=inteligencia):
+            resultado = outcome.calcular_e_apresentar_recomendacoes(factory, lead_id, agora=AGORA)
+        self.assertEqual(len(resultado['recomendacoes_apresentadas']), 2)
+        self.assertEqual(len(db['fila']), 2)
+        for linha in db['fila'].values():
+            self.assertEqual(linha['lead_id'], lead_id)
+
+    def test_nunca_decide_nem_executa_sozinho(self):
+        factory, db = _fabrica_fila()
+        lead_id = str(uuid4())
+        inteligencia = {'score': _score(), 'next_best_actions': [_recomendacao(relationship_id=lead_id)]}
+        with patch.object(outcome, 'relacionamento_360', return_value=self._visao(lead_id)), \
+             patch.object(outcome, 'inteligencia_do_relacionamento', return_value=inteligencia):
+            outcome.calcular_e_apresentar_recomendacoes(factory, lead_id, agora=AGORA)
+        linha = next(iter(db['fila'].values()))
+        self.assertEqual(linha['estado'], 'aguardando')  # nunca 'concluida' sozinho
+
+    def test_rota_de_orquestracao_exige_autorizacao(self):
+        app = Flask(__name__)
+        outcome.registrar_rotas(app, MagicMock(), lambda: False)
+        resp = app.test_client().post(f'/api/admin/mi/relacionamento/{uuid4()}/inteligencia/apresentar')
+        self.assertEqual(resp.status_code, 401)
+
+    def test_rota_de_orquestracao_relacionamento_inexistente_devolve_404(self):
+        factory, db = _fabrica_fila()
+        app = Flask(__name__)
+        outcome.registrar_rotas(app, factory, lambda: True)
+        with patch.object(outcome, 'relacionamento_360', return_value=None):
+            resp = app.test_client().post(f'/api/admin/mi/relacionamento/{uuid4()}/inteligencia/apresentar')
+        self.assertEqual(resp.status_code, 404)
 
 
 if __name__ == '__main__':

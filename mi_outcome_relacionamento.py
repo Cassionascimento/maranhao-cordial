@@ -32,7 +32,11 @@ from uuid import UUID
 from psycopg2.extras import RealDictCursor
 
 from mi_decisao import avancar_estado_fila, chave_atividade, registrar_item_fila
-from mi_inteligencia_relacionamento import VERSAO_SCORE, recomendacao_para_item_fila
+from mi_inteligencia_relacionamento import (VERSAO_SCORE, inteligencia_do_relacionamento,
+                                             recomendacao_para_item_fila)
+from mi_relacionamento_360 import relacionamento_360
+
+MAX_RECOMENDACOES_APRESENTADAS = 3
 
 REGRA_VERSAO = 'mi_inteligencia_relacionamento_v1'
 LEARNING_DATASET_VERSAO = 'relacionamento_learning_v1'
@@ -59,6 +63,40 @@ def registrar_recomendacao_apresentada(factory, recomendacao, score, lead_id=Non
     item['chave'] = chave_atividade(item, agora)
     resultado, status = registrar_item_fila(factory, item)
     return {**resultado, 'chave': item['chave']}, status
+
+
+def calcular_e_apresentar_recomendacoes(factory, entidade_id, limite=MAX_RECOMENDACOES_APRESENTADAS, agora=None):
+    """P4 -- orquestração pura: liga P1B (360) + P2 (inteligência) + P3A
+    (apresentação/outcome) sem adicionar nenhuma peça de inteligência nova.
+    Fecha o atrito de hoje, em que um chamador precisa fazer 3 chamadas
+    manuais (360 -> inteligência -> apresentar) copiando score/recomendação
+    à mão entre elas. Cada leitura usa sua própria conexão curta (mesmo
+    padrão já usado em todo o P0-P3 -- nunca compartilha uma conexão entre
+    chamadas de módulos diferentes)."""
+    agora = agora or datetime.now(timezone.utc)
+    conn = factory()
+    try:
+        conn.set_session(readonly=True, isolation_level='REPEATABLE READ')
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SET LOCAL statement_timeout='15s'")
+            visao = relacionamento_360(cur, entidade_id, agora=agora)
+    finally:
+        conn.close()
+    if not visao:
+        return None
+    inteligencia = inteligencia_do_relacionamento(visao, entidade_id, agora=agora)
+    lead = visao.get('identity', {}).get('pessoa')
+    estabelecimento = visao.get('organization')
+    apresentadas = []
+    for recomendacao in inteligencia['next_best_actions'][:limite]:
+        if recomendacao['action'] == 'NO_ACTION':
+            continue
+        resultado, status = registrar_recomendacao_apresentada(
+            factory, recomendacao, inteligencia['score'],
+            lead_id=(lead or {}).get('id'), estabelecimento_id=(estabelecimento or {}).get('id'), agora=agora,
+        )
+        apresentadas.append({'recomendacao': recomendacao, 'registro': resultado, 'status': status})
+    return {'relationship_id': entidade_id, 'inteligencia': inteligencia, 'recomendacoes_apresentadas': apresentadas}
 
 
 # =====================================================================
@@ -107,12 +145,23 @@ def registrar_outcome(factory, chave, resultado_observado, ator, executada):
 # Leitura -- histórico e dataset de aprendizado (P3B)
 # =====================================================================
 
-def historico_decisoes(cur, limite=100):
+def historico_decisoes(cur, limite=100, lead_id=None, estabelecimento_id=None):
+    """`lead_id`/`estabelecimento_id` são filtros OPCIONAIS (P4) -- sem eles,
+    comportamento idêntico ao de antes (compatibilidade preservada)."""
+    condicoes = ['origem=%s']
+    parametros = [ORIGEM_RELACIONAMENTO]
+    if lead_id is not None:
+        condicoes.append('lead_id=%s')
+        parametros.append(str(UUID(str(lead_id))))
+    if estabelecimento_id is not None:
+        condicoes.append('estabelecimento_id=%s')
+        parametros.append(str(UUID(str(estabelecimento_id))))
+    parametros.append(limite)
     cur.execute(
         "SELECT chave, tipo_decisao, fatos, inferencia, prioridade, confianca, proxima_acao, estado, "
         "resultado, lead_id, estabelecimento_id, criado_em, atualizado_em, concluido_em "
-        "FROM mi_fila_operacional WHERE origem=%s ORDER BY criado_em DESC LIMIT %s",
-        (ORIGEM_RELACIONAMENTO, limite),
+        "FROM mi_fila_operacional WHERE " + ' AND '.join(condicoes) + " ORDER BY criado_em DESC LIMIT %s",
+        parametros,
     )
     return [dict(r) for r in cur.fetchall()]
 
@@ -176,6 +225,23 @@ def registrar_rotas(app, factory, autorizado):
         resultado.pop('success', None)
         return jsonify(success=True, **resultado), status
 
+    @app.route('/api/admin/mi/relacionamento/<entidade_id>/inteligencia/apresentar', methods=['POST'])
+    def mi_outcome_calcular_e_apresentar(entidade_id):
+        """P4: calcula a inteligência (P1B+P2) e já apresenta/registra as
+        recomendações (P3A) numa única chamada -- nunca decide nem executa
+        nada sozinho; aprovação humana continua exigindo a chamada
+        separada a /recomendacao/decisao."""
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            resultado = calcular_e_apresentar_recomendacoes(factory, entidade_id)
+        except Exception:
+            app.logger.exception('Falha ao calcular e apresentar recomendações')
+            return jsonify(success=False, error='Não foi possível calcular e apresentar recomendações.'), 503
+        if not resultado:
+            return jsonify(success=False, error='Relacionamento não encontrado.'), 404
+        return jsonify(success=True, **resultado)
+
     @app.route('/api/admin/mi/relacionamento/recomendacao/decisao', methods=['POST'])
     def mi_outcome_decisao():
         if not autorizado():
@@ -227,7 +293,10 @@ def registrar_rotas(app, factory, autorizado):
             conn.set_session(readonly=True, isolation_level='REPEATABLE READ')
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("SET LOCAL statement_timeout='15s'")
-                historico = historico_decisoes(cur)
+                historico = historico_decisoes(cur, lead_id=request.args.get('lead_id'),
+                                                estabelecimento_id=request.args.get('estabelecimento_id'))
+        except ValueError:
+            return jsonify(success=False, error='lead_id/estabelecimento_id inválido.'), 400
         except Exception:
             app.logger.exception('Falha ao ler histórico de decisões')
             return jsonify(success=False, error='Histórico indisponível.'), 503
