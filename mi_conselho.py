@@ -18,7 +18,6 @@ arquivo.
 """
 import hashlib
 import json
-import re
 from uuid import UUID, uuid4
 from psycopg2.extras import RealDictCursor, Json
 from mi_decisao import _decisao

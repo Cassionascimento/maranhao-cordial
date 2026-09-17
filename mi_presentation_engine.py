@@ -156,7 +156,9 @@ def montar_deck_executivo(ata, graficos=None):
     _slide_narrativa(apresentacao, ata)
     for grafico in (graficos or []):
         _slide_grafico(apresentacao, grafico)
-    _slide_lista(apresentacao, 'DECISÕES', ata.get('decisoes'), texto_vazio='Nenhuma decisão registrada nesta reunião.')
+    recomendacoes = ata.get('natureza_decisoes') == 'recomendacoes_aguardando_decisao_humana'
+    _slide_lista(apresentacao, 'RECOMENDAÇÕES PARA DECISÃO' if recomendacoes else 'DECISÕES', ata.get('decisoes'),
+                 texto_vazio='Nenhuma recomendação registrada.' if recomendacoes else 'Nenhuma decisão registrada nesta reunião.')
     _slide_lista(apresentacao, 'PRÓXIMOS PASSOS', ata.get('proximos_passos'), cor_numero=COR_CREME,
                  texto_vazio='Nenhum próximo passo registrado nesta reunião.')
 

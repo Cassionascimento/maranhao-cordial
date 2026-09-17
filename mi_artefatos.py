@@ -312,7 +312,9 @@ def registrar_rotas(app, factory, autorizado):
             conn.close()
         if conteudo is None:
             return jsonify(success=False, error='Conteúdo do artefato não encontrado no storage.'), 404
-        return Response(conteudo, mimetype=artefato['mime_type'])
+        return Response(conteudo, mimetype=artefato['mime_type'],headers={
+            'Content-Disposition':'attachment', 'X-Content-Type-Options':'nosniff',
+            'Content-Security-Policy':"sandbox; default-src 'none'", 'Cache-Control':'no-store'})
 
     @app.route('/api/admin/mi/artefatos/<artefato_id>/aprovar', methods=['POST'])
     def mi_artefatos_aprovar(artefato_id):
@@ -337,3 +339,21 @@ def registrar_rotas(app, factory, autorizado):
         resultado = rejeitar_artefato(factory, artefato_id, ator=ator, motivo=corpo.get('motivo'))
         sucesso = resultado.pop('success', False)
         return jsonify(success=sucesso, **resultado), (200 if sucesso else 409)
+
+    @app.route('/api/admin/mi/artefatos/<artefato_id>/auditoria', methods=['GET'])
+    def mi_artefatos_auditoria(artefato_id):
+        if not autorizado():
+            return jsonify(success=False,error='Não autorizado.'),401
+        conn = None
+        try:
+            conn=factory()
+            conn.set_session(readonly=True)
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM mi_artefatos_auditoria WHERE artefato_id=%s ORDER BY criado_em DESC LIMIT 100",(artefato_id,))
+                rows=[dict(r) for r in cur.fetchall()]
+            return jsonify(success=True,auditoria=rows)
+        except Exception:
+            app.logger.exception('Auditoria indisponível')
+            return jsonify(success=False,error='Auditoria indisponível.'),503
+        finally:
+            if conn is not None: conn.close()

@@ -67,7 +67,8 @@ def gerar_campanha_a_partir_de_artefato(factory, artefato_base_id, formatos, *, 
                 factory, artifact_type='SOCIAL_CREATIVE', conteudo=imagem, mime_type='image/png',
                 source_type='social_studio', agent_id='pirret', parent_artifact_id=artefato_base_id,
                 metadata={'formato': formato, 'canal': canal, 'briefing': briefing,
-                          'artefato_base_id': artefato_base_id, 'brand_context':contexto},
+                          'artefato_base_id': artefato_base_id, 'brand_context':contexto,
+                          'confidence':'SYNTHETIC_TEST' if getattr(provider,'sintetico',False) else 'INFERRED'},
             )
             pecas.append(resultado)
     return {'success':bool(pecas) and all(p.get('success') for p in pecas),

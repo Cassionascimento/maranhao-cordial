@@ -12,7 +12,7 @@ Nenhuma dependência nova: SVG é texto (stdlib), gráfico nativo de PPTX
 usa python-pptx (já adicionado no M4)."""
 from pptx.chart.data import CategoryChartData
 from pptx.enum.chart import XL_CHART_TYPE
-from pptx.util import Emu, Inches
+from pptx.util import Inches
 
 from mi_artefatos import registrar_artefato
 
@@ -50,9 +50,16 @@ def validar_chart_spec(spec):
     series = spec.get('series')
     if not isinstance(series, list) or not series:
         raise ValueError('series_obrigatoria')
+    if spec['chart_type'] in ('bar','pie') and len(series)!=1:
+        raise ValueError('tipo_exige_serie_unica')
+    if len(x)>50 or len(series)>8:
+        raise ValueError('grafico_excede_limite')
+    import math
     for serie in series:
         if not isinstance(serie, dict) or 'name' not in serie or 'values' not in serie:
             raise ValueError('serie_invalida')
+        if not isinstance(serie['values'],list) or any(isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or v<0 for v in serie['values']):
+            raise ValueError('valores_nao_suportados')
         if len(serie['values']) != len(x):
             raise ValueError('serie_com_tamanho_diferente_do_eixo_x')
     if spec.get('confidence') not in PROVENIENCIA_VALIDA:
@@ -165,6 +172,11 @@ def renderizar_svg(spec, largura=640, altura=400):
     """Gráfico factual como SVG standalone (artefato IMAGE/CHART) -- texto
     puro (stdlib), sem nenhuma dependência de rasterização."""
     validar_chart_spec(spec)
+    from html import escape
+    spec = {**spec, 'x':[escape(str(x),quote=True) for x in spec['x']],
+            'title':escape(str(spec['title']),quote=True),
+            'source':escape(str(spec.get('source') or '—'),quote=True),
+            'freshness':escape(str(spec.get('freshness') or ''),quote=True)}
     corpo = _RENDERIZADORES_SVG[spec['chart_type']](spec, largura, altura)
     titulo = spec['title']
     rodape = f"Fonte: {spec.get('source') or '—'} · {spec.get('freshness') or ''} · {spec.get('confidence')}"

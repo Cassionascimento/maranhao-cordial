@@ -141,6 +141,7 @@ def montar_ata_executiva(registro, cliente=None):
         'narrativa': resultado_narrativa['narrativa'],
         'participantes': registro.get('participantes') or [],
         'decisoes': decisoes,
+        'natureza_decisoes': 'recomendacoes_aguardando_decisao_humana',
         'proximos_passos': proximos_passos,
         'visuais_sugeridos': _visuais_sugeridos(dados.get('pareceres_compactos')),
         'precisa_diretor': bool(registro.get('precisa_diretor')),

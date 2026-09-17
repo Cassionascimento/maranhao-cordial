@@ -93,7 +93,8 @@ def gerar_conceitos_visuais(factory, pedido, *, artifact_type, quantidade=3, bra
             resultado = registrar_artefato(
                 factory, artifact_type=artifact_type, conteudo=imagem, mime_type='image/png',
                 source_type='pirret_brief', agent_id='pirret', meeting_id=meeting_id, decision_id=decision_id,
-                metadata={**(metadata_extra or {}), 'brief': brief, 'pedido': pedido, 'brand_context': brand_context},
+                metadata={**(metadata_extra or {}), 'brief': brief, 'pedido': pedido, 'brand_context': brand_context,
+                          'confidence':'SYNTHETIC_TEST' if getattr(provider,'sintetico',False) else 'INFERRED'},
             )
             artefatos_gerados.append(resultado)
     return {'success': bool(artefatos_gerados) and all(a.get('success') for a in artefatos_gerados),
@@ -125,6 +126,7 @@ def refinar_conceito_visual(factory, artefato_pai_id, instrucao, *, provider=Non
         factory, artifact_type=artefato_pai['artifact_type'], conteudo=imagens[0], mime_type='image/png',
         source_type='pirret_refinamento', agent_id='pirret', parent_artifact_id=artefato_pai_id,
         metadata={**artefato_pai['metadata'], 'instrucao_refinamento': instrucao,
+                  'confidence':'SYNTHETIC_TEST' if getattr(provider,'sintetico',False) else 'INFERRED',
                   **({'regulatory_status':'NAO_VALIDADO', 'production_status':'CONCEITO VISUAL — NÃO APROVADO PARA PRODUÇÃO'}
                      if artefato_pai['artifact_type']=='LABEL_CONCEPT' else {})},
     )

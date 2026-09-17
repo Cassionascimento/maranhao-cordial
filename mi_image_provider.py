@@ -101,6 +101,7 @@ _PNG_1X1_BRANCO = base64.b64decode(
 
 
 class MockImageProvider(ImageGenerationProvider):
+    sintetico = True
     """Nunca faz chamada de rede nem gera custo -- só para testes/demo
     (M15/M16 exigem isso explicitamente). Registra as chamadas recebidas
     para asserção em teste, sempre devolve o mesmo PNG mínimo válido."""
