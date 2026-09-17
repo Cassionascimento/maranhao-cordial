@@ -147,14 +147,21 @@ class MontarBrandContextCompleto(unittest.TestCase):
         a = artefatos.registrar_artefato(_factory(db_art), artifact_type='LABEL_CONCEPT', conteudo=b'x', mime_type='image/png')
         artefatos.aprovar_artefato(_factory(db_art), a['id'], ator='diretor')
 
-        # montar_brand_context_completo() usa UM cursor só, mas o fake de
-        # brand context e o de mi_artefatos são bancos separados nesta
-        # suíte -- então aqui reaproveitamos as duas funções já testadas
-        # isoladamente acima em vez de simular um terceiro cursor híbrido.
-        atual = brand.brand_context_atual(FakeBrandCursor(db_brand))
-        referencias = brand.referencias_visuais_aprovadas(FakeArtefatoCursor(db_art))
-        resultado = {'versao': atual['versao'], **atual['campos'],
-                     'referencias_aprovadas': [{'id': r['id'], 'artifact_type': r['artifact_type'], 'metadata': r['metadata']} for r in referencias]}
+        # Exercita a função real com um cursor que delega aos dois fakes
+        # existentes; não reconstrói a implementação no teste.
+        class CursorComposto:
+            def execute(self, sql, params=()):
+                self.cursor = (FakeBrandCursor(db_brand) if 'mi_brand_context' in sql
+                               else FakeArtefatoCursor(db_art))
+                self.cursor.execute(sql, params)
+
+            def fetchone(self):
+                return self.cursor.fetchone()
+
+            def fetchall(self):
+                return self.cursor.fetchall()
+
+        resultado = brand.montar_brand_context_completo(CursorComposto())
         self.assertEqual(resultado['paleta'], ['dourado'])
         self.assertEqual(len(resultado['referencias_aprovadas']), 1)
 
