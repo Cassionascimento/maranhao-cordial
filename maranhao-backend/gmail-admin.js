@@ -1,31 +1,23 @@
-/* Extraído de admin.html sem alteração de lógica. Conexão Gmail institucional
-   (P0): abre a janela de autorização e repassa a chave administrativa por
-   postMessage. Ponte em window mantém o onclick inline existente funcionando. */
+/* Gmail institucional: acesso operacional direto. OAuth permanece disponível no backend para reconexão controlada, mas o botão da Central abre a caixa institucional. */
 function conectarGmailP0() {
     const status = document.getElementById("gmailP0Status");
-    const chave = window.adminKeyAtual;
-    if (!chave) {
-        status.textContent = "Entre na Central com a chave administrativa.";
+    if (!window.adminKeyAtual) {
+        if (status) status.textContent = "Entre na Central com a chave administrativa.";
         return;
     }
-    const origemApi = "https://maranhao-cordial-api.onrender.com";
-    const janela = window.open(origemApi + "/api/gmail/painel", "_blank", "width=640,height=760");
-    if (!janela) {
-        status.textContent = "Permita a abertura da janela para conectar o Gmail.";
+    const gmail = "https://mail.google.com/mail/u/0/";
+    const janela = window.open(gmail, "_blank", "noopener,noreferrer");
+    if (!janela && status) {
+        status.textContent = "O navegador bloqueou a nova aba. Permita pop-ups para abrir o Gmail.";
         return;
     }
-    status.textContent = "Conclua a autorização na janela do Gmail.";
-    const receber = (evento) => {
-        if (evento.origin !== origemApi || evento.source !== janela || evento.data?.tipo !== "gmail-p0-pronto") return;
-        window.removeEventListener("message", receber);
-        clearTimeout(prazo);
-        janela.postMessage({tipo: "gmail-p0-autorizar", chave}, origemApi);
-    };
-    window.addEventListener("message", receber);
-    const prazo = setTimeout(() => {
-        window.removeEventListener("message", receber);
-        status.textContent = "Conexão não iniciada. Feche a janela e tente novamente.";
-    }, 60000);
+    if (status) status.textContent = "Gmail institucional aberto em nova aba.";
 }
 
+function prepararAcessoGmail() {
+    const botao = document.querySelector('[onclick="conectarGmailP0()"]');
+    if (botao) botao.textContent = "Abrir Gmail institucional";
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', prepararAcessoGmail);
+else prepararAcessoGmail();
 window.conectarGmailP0 = conectarGmailP0;

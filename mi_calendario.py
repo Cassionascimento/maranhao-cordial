@@ -9,11 +9,17 @@ mi_publico já calculam em baldes de calendário. As atividades de conteúdo
 sugerido (ETAPA 5.1B) e as recomendações do Conselho de Agentes já
 persistidas em mi_fila_operacional (via mi_conselho, sem fila paralela)
 chegam pelo mesmo formato de atividade que as demais.
+
+Central Empresarial (Operações Vivas, migration 022): cada operação
+ativa também entra nesse mesmo balde -- mi_operacoes.atividades_
+calendario segue exatamente o formato de mi_conselho.
+atividades_pendentes_fila. Nenhum segundo calendário é criado.
 """
 from psycopg2.extras import RealDictCursor
 from mi_decisao import planejar, calendario, leitura_calendario
 from mi_publico import planejar_publico
 from mi_conselho import atividades_pendentes_fila
+from mi_operacoes import atividades_calendario as atividades_operacoes_vivas
 
 
 def gerar_calendario_mi(factory):
@@ -27,6 +33,7 @@ def gerar_calendario_mi(factory):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SET LOCAL statement_timeout='15s'")
             decisoes = decisoes + atividades_pendentes_fila(cur)
+            decisoes = decisoes + atividades_operacoes_vivas(cur)
     finally:
         conn.close()
 
