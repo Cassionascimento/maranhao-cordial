@@ -159,6 +159,21 @@ class RotaHTTP(unittest.TestCase):
         resp = self._app(db).test_client().post('/api/admin/mi/pirret/conceitos', json={})
         self.assertEqual(resp.status_code, 400)
 
+    def test_falha_ao_carregar_brand_context_nunca_bloqueia_a_geracao(self):
+        # M7: sem brand_context explícito, a rota tenta carregar o Brand
+        # Context automaticamente -- o fake de mi_artefatos não conhece a
+        # tabela mi_brand_context, então essa carga falha; a rota deve
+        # seguir sem brand_context (None) em vez de quebrar a geração.
+        import os
+        from unittest.mock import patch
+        db = _db_vazio()
+        with patch.object(pirret, 'criar_provider_padrao', return_value=MockImageProvider()), \
+             patch('mi_pirret_criativo.OpenAI', return_value=_cliente_mock()), \
+             patch.dict(os.environ, {'OPENAI_API_KEY': 'sk-teste'}):
+            resp = self._app(db).test_client().post(
+                '/api/admin/mi/pirret/conceitos', json={'pedido': 'crie um rótulo para o Bacuri', 'quantidade': 1})
+        self.assertEqual(resp.status_code, 201)
+
     def test_refinar_sem_instrucao_e_400(self):
         db = _db_vazio()
         resp = self._app(db).test_client().post('/api/admin/mi/pirret/refinar/x', json={})

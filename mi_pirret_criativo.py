@@ -141,10 +141,27 @@ def registrar_rotas(app, factory, autorizado):
         if not pedido:
             return jsonify(success=False, error='Campo "pedido" é obrigatório.'), 400
         artifact_type = corpo.get('artifact_type') or 'LABEL_CONCEPT'
+        # M7: sem brand_context explícito no pedido, carrega o Brand
+        # Visual Context + Visual Memory vigentes -- Pirret nunca confia
+        # só em prompt genérico quando há identidade de marca registrada.
+        brand_context = corpo.get('brand_context')
+        if brand_context is None:
+            try:
+                from mi_brand_context import montar_brand_context_completo
+                conn = factory()
+                try:
+                    conn.set_session(readonly=True, isolation_level='REPEATABLE READ')
+                    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                        brand_context = montar_brand_context_completo(cur, artifact_type=artifact_type)
+                finally:
+                    conn.close()
+            except Exception:
+                app.logger.exception('Falha ao carregar Brand Context -- seguindo sem ele')
+                brand_context = None
         try:
             resultado = gerar_conceitos_visuais(
                 factory, pedido, artifact_type=artifact_type, quantidade=corpo.get('quantidade', 3),
-                brand_context=corpo.get('brand_context'), meeting_id=corpo.get('meeting_id'),
+                brand_context=brand_context, meeting_id=corpo.get('meeting_id'),
                 decision_id=corpo.get('decision_id'),
             )
         except ValueError as erro:

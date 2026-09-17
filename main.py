@@ -39749,6 +39749,12 @@ registrar_rotas_mi_chart_engine(app, get_db_connection, validar_admin_request)
 from mi_pirret_criativo import registrar_rotas as registrar_rotas_mi_pirret
 registrar_rotas_mi_pirret(app, get_db_connection, validar_admin_request)
 
+# P5.X M7 -- Brand Visual Context (versionado, nunca sobrescrito) +
+# Visual Memory (reaproveita mi_artefatos.status='aprovado', nenhuma
+# tabela nova para isso).
+from mi_brand_context import registrar_rotas as registrar_rotas_mi_brand_context
+registrar_rotas_mi_brand_context(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
