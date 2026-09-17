@@ -92,3 +92,50 @@ def buscar_sku(factory, sku):
             return dict(row) if row else None
     finally:
         conn.close()
+
+
+def listar_skus(factory, limite=100):
+    """Só leitura -- catálogo completo, mais recente primeiro. Usado pelo
+    painel/rota de leitura; nunca por um caminho de escrita."""
+    conn = factory()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id,sku,produto_nome,categoria,ativo,criado_em FROM mi_skus "
+                "ORDER BY criado_em DESC LIMIT %s",
+                (limite,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def registrar_rotas_leitura(app, factory, autorizado):
+    """Só GET -- nenhuma rota de escrita nesta etapa (criar_sku continua só
+    chamável por código/teste, nunca por HTTP)."""
+    from flask import jsonify
+
+    @app.route('/api/admin/mi/skus', methods=['GET'])
+    def mi_skus_listar():
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            return jsonify(success=True, skus=listar_skus(factory))
+        except Exception:
+            app.logger.exception('Falha ao listar SKUs')
+            return jsonify(success=False, error='Catálogo indisponível.'), 503
+
+    @app.route('/api/admin/mi/skus/<sku>', methods=['GET'])
+    def mi_skus_buscar(sku):
+        if not autorizado():
+            return jsonify(success=False, error='Não autorizado.'), 401
+        try:
+            resultado = buscar_sku(factory, sku)
+        except ValueError:
+            return jsonify(success=False, error='SKU inválido.'), 400
+        except Exception:
+            app.logger.exception('Falha ao buscar SKU')
+            return jsonify(success=False, error='Catálogo indisponível.'), 503
+        if not resultado:
+            return jsonify(success=False, error='SKU não encontrado.'), 404
+        return jsonify(success=True, sku=resultado)
