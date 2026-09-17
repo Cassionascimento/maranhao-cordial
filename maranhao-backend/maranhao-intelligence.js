@@ -60,17 +60,20 @@
     const rel = o.relacionamentos_conhecidos || {};
     const fila = o.fila_decisao || {};
     const learning = o.learning_status || {};
-    const ops = o.oportunidades_detectadas || o.opportunities || [];
+    // oportunidades_detectadas (contrato P5) é um mapa {tipo: contagem} --
+    // mesma forma de segmentos_distribuicao, nunca uma lista de objetos.
+    const ops = o.oportunidades_detectadas || o.opportunities || {};
     const seg = o.segmentos_distribuicao || o.segments_distribution || {};
-    const known = value(rel,['total','conhecidos'], value(o,['relacionamentos_total'],0));
+    const known = value(rel,['total_pessoas','total','conhecidos'], value(o,['relacionamentos_total'],0));
     const sufficient = value(rel,['dados_suficientes','suficientes'],0);
     const pending = value(fila,['pendentes','aguardando'], q.length);
     const outcomes = value(o,['outcomes_registrados'], value(learning,['outcomes_registrados','outcomes'],0));
-    $('mic-kpis').innerHTML = kpi('Relacionamentos',known,'pessoas e organizações conhecidas') + kpi('Dados suficientes',sufficient,'aptos a uma leitura mais completa') + kpi('Oportunidades',Array.isArray(ops)?ops.length:value(o,['oportunidades_total'],0),'sinais convertidos em oportunidade','accent') + kpi('Aguardando decisão',pending,'nenhuma ação automática','attention') + kpi('Outcomes',outcomes,'resultados registrados');
+    const opEntries = Array.isArray(ops) ? ops.map((x,i)=>[x.tipo||x.type||`#${i+1}`, 1]) : Object.entries(ops || {});
+    const opTotal = opEntries.reduce((acc,[,v])=>acc+(Number(v)||0),0);
+    $('mic-kpis').innerHTML = kpi('Relacionamentos',known,'pessoas e organizações conhecidas') + kpi('Dados suficientes',sufficient,'aptos a uma leitura mais completa') + kpi('Oportunidades',opTotal,'sinais convertidos em oportunidade','accent') + kpi('Aguardando decisão',pending,'nenhuma ação automática','attention') + kpi('Outcomes',outcomes,'resultados registrados');
 
-    const oplist = arr(ops).slice(0,6);
-    $('mic-op-count').textContent = num(Array.isArray(ops)?ops.length:value(o,['oportunidades_total'],0));
-    $('mic-opportunities').innerHTML = oplist.length ? oplist.map(x => `<div class="mic-row"><div><b>${esc(x.tipo || x.type || x.codigo || 'Oportunidade')}</b><span>${esc(x.reason || x.motivo || x.explicacao || 'Evidência disponível no relacionamento.')}</span></div><em>${esc(label(x.confidence || x.confianca))}</em></div>`).join('') : empty('As oportunidades aparecerão conforme sinais reais forem registrados.');
+    $('mic-op-count').textContent = num(opTotal);
+    $('mic-opportunities').innerHTML = opEntries.length ? `<div class="mic-bars">${opEntries.slice(0,8).map(([tipo,total])=>`<div><span>${esc(label(tipo))}</span><b>${esc(num(total))}</b></div>`).join('')}</div>` : empty('As oportunidades aparecerão conforme sinais reais forem registrados.');
 
     $('mic-queue-count').textContent = num(q.length);
     $('mic-queue-preview').innerHTML = q.length ? q.slice(0,4).map(queueRow).join('') : empty('Nenhuma recomendação está aguardando decisão humana.');
@@ -86,17 +89,33 @@
   function queueRow(x) { return `<div class="mic-row mic-row--decision"><div><b>${esc(x.recommendation || x.recomendacao || 'Recomendação')}</b><span>${esc(x.reason || x.motivo || 'Sem justificativa adicional.')}</span><small>${esc(x.relationship_id || x.lead_id || x.estabelecimento_id || '')}</small></div><em>${esc(label(x.confidence || x.confianca || x.priority || x.prioridade))}</em></div>`; }
   function renderQueue(q) { $('mic-queue').innerHTML = q.length ? q.map(queueRow).join('') : empty('Quando a Intelligence gerar recomendações persistidas, elas aparecerão aqui.'); }
 
+  function renderTerritorio(territory) {
+    // `territory` (contrato P5, ?incluir_territorio=1) é 'not_requested'
+    // (não pedido), 'NOT_ENOUGH_DATA' (pedido, sem correspondência real) ou
+    // uma lista real de oportunidades territoriais -- nunca inventamos
+    // cobertura quando cidade/UF não bateram com nada calculado.
+    if (territory === 'not_requested') return empty('Território não foi solicitado nesta consulta.');
+    if (!Array.isArray(territory) || !territory.length) return empty('Dados insuficientes para território.');
+    return territory.map(t => `<div class="mic-row"><div><b>${esc(t.type || 'Território')}</b><span>${esc(t.territory || '')} · ${esc((arr(t.evidence)[0]) || '')}</span></div><em>${esc(label(t.priority))}</em></div>`).join('');
+  }
+
   async function loadRelationship() {
     const id = $('mic-rel-id').value.trim(); if (!id) { $('mic-rel-result').innerHTML = empty('Informe um ID para abrir o Relationship 360.'); return; }
     $('mic-rel-result').innerHTML = '<p class="mic-note">Montando visão 360…</p>';
     try {
       const d = await get(`/api/admin/mi/relacionamento/${encodeURIComponent(id)}/contrato?incluir_territorio=1&incluir_forecast=1`);
-      const identity = d.identity || {}; const org = d.organization || {}; const score = d.score || {}; const provenance = d.provenance || {}; const explain = d.explainability || {};
+      // Contrato canônico P5: identity.pessoa (não identity.nome direto);
+      // score/score_version/confidence são campos PLANOS no topo, nunca um
+      // sub-objeto `score.score_geral`.
+      const identity = d.identity || {}; const pessoa = identity.pessoa || {};
+      const org = d.organization || {}; const provenance = d.provenance || {}; const explain = d.explainability || {};
       const segments = arr(d.segments); const opps = arr(d.opportunities); const nbas = arr(d.next_best_actions);
-      $('mic-rel-result').innerHTML = `<div class="mic-rel-head"><div><span>IDENTIDADE</span><h4>${esc(identity.nome || identity.name || org.nome || org.name || id)}</h4><p>${esc(org.nome || org.name || identity.empresa || 'Organização não confirmada')}</p></div><div class="mic-score"><span>Relationship score</span><strong>${esc(score.score_geral ?? score.overall ?? label(score.status))}</strong><small>${esc(d.score_version || '')}</small></div></div>
-      <div class="mic-grid mic-grid--3"><div class="mic-mini"><span>Segmentos</span><p>${segments.length?segments.map(x=>esc(label(x.nome||x.segmento||x))).join(' · '):'Dados insuficientes'}</p></div><div class="mic-mini"><span>Oportunidades</span><strong>${opps.length}</strong></div><div class="mic-mini"><span>Next best actions</span><strong>${nbas.length}</strong></div></div>
-      <div class="mic-grid mic-grid--2"><section class="mic-sub"><h4>Por que o sistema pensa isso?</h4><p>${esc(explain.reason || explain.motivo || d.recommendations?.[0]?.reason || 'A explicação aparecerá quando houver recomendação sustentada por evidências.')}</p>${arr(explain.evidence || explain.evidencias).map(e=>`<span class="mic-evidence">${esc(typeof e==='string'?e:JSON.stringify(e))}</span>`).join('')}</section><section class="mic-sub"><h4>Proveniência</h4><div class="mic-provenance">${Object.entries(provenance).slice(0,10).map(([k,v])=>`<span><b>${esc(k)}</b>${esc(label(typeof v==='object'?(v.status||v.tipo||'DERIVED'):v))}</span>`).join('') || '<span>Sem metadados de proveniência.</span>'}</div></section></div>
-      <section class="mic-sub"><h4>Oportunidades e próximas ações</h4>${opps.length?opps.map(x=>`<div class="mic-row"><div><b>${esc(x.tipo||x.type||'Oportunidade')}</b><span>${esc(x.reason||x.motivo||'')}</span></div></div>`).join(''):empty('Nenhuma oportunidade detectada para este relacionamento.')}</section>`;
+      const scoreDisplay = typeof d.score === 'number' ? d.score : label(d.score);
+      $('mic-rel-result').innerHTML = `<div class="mic-rel-head"><div><span>IDENTIDADE</span><h4>${esc(pessoa.nome || pessoa.empresa || org.nome || org.name || id)}</h4><p>${esc(org.nome || org.name || pessoa.empresa || 'Organização não confirmada')}</p></div><div class="mic-score"><span>Relationship score</span><strong>${esc(scoreDisplay)}</strong><small>${esc(d.score_version || '')}</small></div></div>
+      <div class="mic-grid mic-grid--3"><div class="mic-mini"><span>Segmentos</span><p>${segments.length?segments.map(x=>esc(label(x.segmento||x.nome||x))).join(' · '):'Dados insuficientes'}</p></div><div class="mic-mini"><span>Oportunidades</span><strong>${opps.length}</strong></div><div class="mic-mini"><span>Next best actions</span><strong>${nbas.length}</strong></div></div>
+      <div class="mic-grid mic-grid--2"><section class="mic-sub"><h4>Por que o sistema pensa isso?</h4><p>${esc(explain.motivo_principal || d.recommendations?.[0]?.reason || 'A explicação aparecerá quando houver recomendação sustentada por evidências.')}</p>${arr(explain.evidencias || explain.evidence).map(e=>`<span class="mic-evidence">${esc(typeof e==='string'?e:JSON.stringify(e))}</span>`).join('')}</section><section class="mic-sub"><h4>Proveniência</h4><div class="mic-provenance">${Object.entries(provenance).slice(0,10).map(([k,v])=>`<span><b>${esc(k)}</b>${esc(label(typeof v==='object'?(v.status||v.tipo||'DERIVED'):v))}</span>`).join('') || '<span>Sem metadados de proveniência.</span>'}</div></section></div>
+      <section class="mic-sub"><h4>Oportunidades e próximas ações</h4>${opps.length?opps.map(x=>`<div class="mic-row"><div><b>${esc(x.type||x.tipo||'Oportunidade')}</b><span>${esc((arr(x.evidence||x.evidencias)[0])||x.recommended_action||'')}</span></div></div>`).join(''):empty('Nenhuma oportunidade detectada para este relacionamento.')}</section>
+      <section class="mic-sub"><h4>Território</h4>${renderTerritorio(d.territory)}</section>`;
     } catch(e) { $('mic-rel-result').innerHTML = `<div class="mic-error">${esc(e.message)}</div>`; }
   }
 
@@ -108,7 +127,7 @@
     const btn=$('mic-refresh'); btn.disabled=true; $('mic-status').textContent='Sincronizando visão executiva…';
     try {
       const [o,qb] = await Promise.all([get('/api/admin/mi/overview?amostra_limite=50'),get('/api/admin/mi/fila-decisao')]);
-      const q = arr(qb.items || qb.fila || qb.recomendacoes || qb.data || (Array.isArray(qb)?qb:[]));
+      const q = arr(qb.pendentes || qb.items || qb.fila || qb.recomendacoes || qb.data || (Array.isArray(qb)?qb:[]));
       renderOverview(o,q); renderQueue(q); loadLegacy(); loaded=true;
       $('mic-status').textContent=`Atualizado às ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}. Leitura baseada nos dados existentes.`;
     } catch(e) { $('mic-status').textContent=e.message; }
