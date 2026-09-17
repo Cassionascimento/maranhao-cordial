@@ -21,6 +21,84 @@
     return b;
   }
 
+  // P5X stays inside the existing Command Center. Every write is a user click.
+  let creativeAnalysis = null;
+  const artifactPath = id => '/api/admin/mi/artefatos/' + encodeURIComponent(id);
+  async function write(path, body, form=false) {
+    if (!window.adminKeyAtual) throw new Error('Entre no Admin.');
+    const headers={'X-Admin-Key':window.adminKeyAtual};
+    if(!form) headers['Content-Type']='application/json';
+    const r=await fetch(BASE+path,{method:'POST',headers,body:form?body:JSON.stringify(body)});
+    const b=await r.json();
+    if(!r.ok || b.success===false) throw new Error(b.error||b.motivo||`Falha (${r.status})`);
+    return b;
+  }
+  function creativeShell() {
+    return `<section class="mic-card mic-card--wide"><span class="mic-kicker">EXECUTIVE & CREATIVE</span>
+      <h3>Do Conselho à criação.</h3><p class="mic-note">Geração sob solicitação. Aprovação não publica. Providers podem ter custo; erros e ausência de dados permanecem explícitos.</p>
+      <p id="mic-creative-status" role="status">Nenhuma geração solicitada · not_requested</p>
+      <div class="mic-search"><input id="mic-creative-actor" placeholder="Responsável pela decisão" aria-label="Responsável pela decisão"><button data-creative-action="refresh">Atualizar acervo</button></div>
+      <div class="mic-grid mic-grid--2"><section class="mic-sub"><h4>Conselho Executivo</h4>
+        <textarea id="mic-creative-demand" aria-label="Demanda do Conselho" placeholder="Qual decisão precisa de evidência?"></textarea>
+        <button data-creative-action="analyze">Solicitar parecer</button><button data-creative-action="record">Registrar para decisão humana</button>
+        <div id="mic-creative-analysis"></div><div id="mic-creative-meetings"></div></section>
+      <section class="mic-sub"><h4>Pirret · direção criativa</h4><p id="mic-creative-provider">Provider ainda não consultado.</p>
+        <textarea id="mic-creative-brief" aria-label="Brief criativo" placeholder="Objetivo e direção criativa"></textarea>
+        <input id="mic-creative-sku" placeholder="SKU para conceito de rótulo" aria-label="SKU">
+        <button data-creative-action="label">Gerar rótulo</button><button data-creative-action="campaign">Gerar conceito de campanha</button>
+        <details><summary>Brand Context e memória visual</summary><div id="mic-creative-brand"></div></details>
+      </section></div>
+      <button data-creative-action="chart">Gráfico dos segmentos registrados</button>
+      <div id="mic-creative-artifacts" class="mic-grid mic-grid--3"></div><div id="mic-creative-detail"></div>
+    </section>`;
+  }
+  async function loadCreative() {
+    const reads=[['/api/admin/mi/artefatos','mic-creative-artifacts',b=>{
+      $('mic-creative-artifacts').innerHTML=arr(b.artefatos).map(a=>`<article class="mic-sub"><span>${esc(a.artifact_type)}</span><h4>Versão ${esc(a.version)} · ${esc(a.status)}</h4><small>${esc(a.metadata?.production_status||a.metadata?.confidence||'Proveniência não informada')}</small>
+      <div>${['open','download','detail','approve','reject',...(String(a.mime_type).startsWith('image/')?['refine','social']:[])].map(action=>`<button data-creative-action="${action}" data-artifact="${esc(a.id)}">${({open:'Abrir',download:'Baixar',detail:'Versões / metadata',approve:'Aprovar',reject:'Rejeitar',refine:'Nova versão',social:'Feed / story / mockup'})[action]}</button>`).join('')}</div></article>`).join('')||empty('Nenhum artefato registrado.');
+    }],['/api/admin/mi/conselho','mic-creative-meetings',b=>{
+      $('mic-creative-meetings').innerHTML=arr(b.conselho?.reunioes_recentes).map(r=>`<div class="mic-row"><b>${esc(r.titulo||r.tipo)}</b><button data-creative-action="ata" data-record="${esc(r.id)}">Secretário</button><button data-creative-action="deck" data-record="${esc(r.id)}">Gerar PPTX</button></div>`).join('')||empty('Nenhuma reunião registrada.');
+    }],['/api/admin/mi/brand-context','mic-creative-brand',b=>{$('mic-creative-brand').textContent=b.configurado?JSON.stringify(b.campos):'Brand Context não configurado.';}],
+    ['/api/admin/mi/visual-memory','mic-creative-brand',b=>{const p=document.createElement('p');p.textContent=`Referências aprovadas: ${arr(b.referencias).length}`;$('mic-creative-brand').appendChild(p);}],
+    ['/api/admin/mi/pirret/provider-status','mic-creative-provider',b=>{$('mic-creative-provider').textContent=b.disponivel?'Provider configurado · disponibilidade externa não homologada':'IMAGE PROVIDER — NOT CONFIGURED';}]];
+    for(const [path,target,render] of reads){try{render(await get(path));}catch(e){$(target).textContent=e.message;}}
+  }
+  async function creativeClick(e) {
+    const button=e.target.closest('[data-creative-action]'); if(!button)return;
+    const action=button.dataset.creativeAction, id=button.dataset.artifact, record=button.dataset.record;
+    const status=$('mic-creative-status'); button.disabled=true; status.textContent='Processando solicitação…';
+    try {
+      let result;
+      const actor=$('mic-creative-actor').value.trim();
+      if(['approve','reject','record'].includes(action)&&!actor)throw new Error('Informe o responsável pela decisão.');
+      if(action==='refresh') await loadCreative();
+      else if(action==='analyze') {const f=new FormData();f.append('demanda',$('mic-creative-demand').value);f.append('modo','automatico');result=await write('/api/admin/mi/conselho/analisar',f,true);creativeAnalysis=result.resultado;$('mic-creative-analysis').textContent=creativeAnalysis.sintese||JSON.stringify(creativeAnalysis);}
+      else if(action==='record'){if(!creativeAnalysis)throw new Error('Solicite um parecer primeiro.');result=await write('/api/admin/mi/conselho/enviar-diretor',{resultado:creativeAnalysis});await loadCreative();}
+      else if(action==='ata'){result=await get('/api/admin/mi/conselho/'+encodeURIComponent(record)+'/ata');$('mic-creative-detail').textContent=JSON.stringify(result,null,2);}
+      else if(action==='deck'){result=await write('/api/admin/mi/conselho/'+encodeURIComponent(record)+'/apresentacao',{});await loadCreative();}
+      else if(action==='label'||action==='campaign') {const pedido=$('mic-creative-brief').value.trim();if(!pedido)throw new Error('Informe o brief.');result=await write(action==='label'?'/api/admin/mi/label-studio/conceitos':'/api/admin/mi/pirret/conceitos',{pedido,sku:$('mic-creative-sku').value.trim(),quantidade:1,artifact_type:'SOCIAL_CREATIVE'});await loadCreative();}
+      else if(action==='approve'||action==='reject'){result=await write(artifactPath(id)+(action==='approve'?'/aprovar':'/rejeitar'),{ator:actor});await loadCreative();}
+      else if(action==='detail'){result=await get(artifactPath(id)+'/linhagem');$('mic-creative-detail').textContent=JSON.stringify(result,null,2);}
+      else if(action==='refine'){const instrucao=$('mic-creative-brief').value.trim();if(!instrucao)throw new Error('Informe no brief a alteração desejada.');result=await write('/api/admin/mi/pirret/refinar/'+encodeURIComponent(id),{instrucao});await loadCreative();}
+      else if(action==='social'){result=await write('/api/admin/mi/social-studio/campanha/'+encodeURIComponent(id),{formatos:['feed','story','mockup'],briefing:$('mic-creative-brief').value});await loadCreative();}
+      else if(action==='chart'){
+        const overview=await get('/api/admin/mi/overview?amostra_limite=50'), segments=overview.segmentos_distribuicao;
+        const entries=segments&&!Array.isArray(segments)?Object.entries(segments):[];
+        if(!entries.length||entries.some(([,v])=>typeof v!=='number'||!Number.isFinite(v))){status.textContent='AGUARDANDO DADOS / NOT_ENOUGH_DATA';return;}
+        result=await write('/api/admin/mi/graficos',{spec:{chart_type:'bar',title:'Segmentos registrados',x:entries.map(([k])=>k),series:[{name:'Relações',values:entries.map(([,v])=>v)}],units:'relações',source:'MI overview · segmentos_distribuicao',freshness:new Date().toISOString(),confidence:'DERIVED'}});await loadCreative();
+      } else if(action==='download'||action==='open'){
+        if(!window.adminKeyAtual)throw new Error('Entre no Admin.');
+        const r=await fetch(BASE+artifactPath(id)+'/download',{headers:{'X-Admin-Key':window.adminKeyAtual}});if(!r.ok)throw new Error('Download indisponível.');
+        const blob=await r.blob(), url=URL.createObjectURL(blob);
+        // Only passive image types are previewed; arbitrary HTML/SVG is downloaded.
+        if(action==='open'&&['image/png','image/jpeg','image/webp'].includes(blob.type)){const img=document.createElement('img');img.src=url;img.alt='Artefato registrado';img.style.maxWidth='100%';$('mic-creative-detail').replaceChildren(img);}
+        else {const link=document.createElement('a');link.href=url;link.download='artefato-'+id+(blob.type.includes('presentationml')?'.pptx':blob.type.includes('svg')?'.svg':'');link.click();}
+        setTimeout(()=>URL.revokeObjectURL(url),60000);
+      }
+      status.textContent='Solicitação concluída. Nenhuma publicação externa realizada.';
+    } catch(error){status.textContent=error.message;}finally{button.disabled=false;}
+  }
+
   function shell() {
     panel.innerHTML = `
       <header class="mic-hero">
@@ -29,7 +107,7 @@
       </header>
       <p id="mic-status" class="mic-status" role="status" aria-live="polite">Pronto para consultar.</p>
       <nav class="mic-nav" aria-label="Áreas da Intelligence">
-        <button class="active" data-mic-view="overview">Overview</button><button data-mic-view="decisions">Decisões</button><button data-mic-view="relationship">Relationship 360</button><button data-mic-view="legacy">Produto & território</button>
+        <button class="active" data-mic-view="overview">Overview</button><button data-mic-view="decisions">Decisões</button><button data-mic-view="relationship">Relationship 360</button><button data-mic-view="legacy">Produto & território</button><button data-mic-view="creative">Executivo & Criativo</button>
       </nav>
       <div id="mic-overview" class="mic-view active">
         <div id="mic-kpis" class="mic-kpis"></div>
@@ -39,16 +117,19 @@
       </div>
       <div id="mic-decisions" class="mic-view"><section class="mic-card mic-card--wide"><div class="mic-card-head"><div><span>HUMAN DECISION</span><h3>Recomendações aguardando decisão</h3></div></div><p class="mic-note">Esta tela explica e organiza recomendações. Aprovações e execução continuam nos controles existentes; nada é enviado automaticamente.</p><div id="mic-queue"></div></section></div>
       <div id="mic-relationship" class="mic-view"><section class="mic-card mic-card--wide"><span class="mic-kicker">CUSTOMER / PARTNER 360</span><h3>Investigar relacionamento</h3><div class="mic-search"><input id="mic-rel-id" placeholder="ID do lead ou estabelecimento" autocomplete="off"><button id="mic-rel-load" type="button">Abrir 360</button></div><div id="mic-rel-result"></div></section></div>
+      <div id="mic-creative" class="mic-view">${creativeShell()}</div>
       <div id="mic-legacy" class="mic-view"><section class="mic-card mic-card--wide"><span class="mic-kicker">OPERAÇÃO FÍSICA</span><h3>Produto → Unidade → Mercado → Território</h3><div id="mic-legacy-body"><p class="mic-note">Carregando rastreabilidade operacional…</p></div></section></div>`;
 
     panel.querySelectorAll('[data-mic-view]').forEach(b => b.addEventListener('click', () => openView(b.dataset.micView)));
     panel.querySelectorAll('[data-open-view]').forEach(b => b.addEventListener('click', () => openView(b.dataset.openView)));
+    $('mic-creative').addEventListener('click',creativeClick);
     $('mic-refresh').addEventListener('click', loadAll);
     $('mic-rel-load').addEventListener('click', loadRelationship);
     $('mic-rel-id').addEventListener('keydown', e => { if (e.key === 'Enter') loadRelationship(); });
   }
 
   function openView(name) {
+    if(name==='creative')loadCreative();
     panel.querySelectorAll('[data-mic-view]').forEach(b => b.classList.toggle('active', b.dataset.micView === name));
     panel.querySelectorAll('.mic-view').forEach(v => v.classList.toggle('active', v.id === 'mic-' + name));
   }
