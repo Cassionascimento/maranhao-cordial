@@ -39714,6 +39714,12 @@ registrar_rotas_mi_territorio_inteligencia(app, get_db_connection, validar_admin
 from mi_forecast_readiness import registrar_rotas_leitura as registrar_rotas_mi_forecast_readiness
 registrar_rotas_mi_forecast_readiness(app, get_db_connection, validar_admin_request)
 
+# P5 -- Intelligence Core API: fecha o backend para o painel (contrato
+# canônico por relacionamento, overview agregado, fila de decisão). Só
+# leitura -- nenhuma escrita nova; integra P0-P4, não recria nada.
+from mi_intelligence_api import registrar_rotas_leitura as registrar_rotas_mi_intelligence_api
+registrar_rotas_mi_intelligence_api(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 

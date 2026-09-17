@@ -31,6 +31,7 @@ from uuid import UUID
 
 from psycopg2.extras import RealDictCursor
 
+from mi_decisao import ESTADOS_FILA as ESTADOS_FILA_VALIDOS
 from mi_decisao import avancar_estado_fila, chave_atividade, registrar_item_fila
 from mi_inteligencia_relacionamento import (VERSAO_SCORE, inteligencia_do_relacionamento,
                                              recomendacao_para_item_fila)
@@ -145,9 +146,10 @@ def registrar_outcome(factory, chave, resultado_observado, ator, executada):
 # Leitura -- histórico e dataset de aprendizado (P3B)
 # =====================================================================
 
-def historico_decisoes(cur, limite=100, lead_id=None, estabelecimento_id=None):
-    """`lead_id`/`estabelecimento_id` são filtros OPCIONAIS (P4) -- sem eles,
-    comportamento idêntico ao de antes (compatibilidade preservada)."""
+def historico_decisoes(cur, limite=100, lead_id=None, estabelecimento_id=None, estado=None):
+    """`lead_id`/`estabelecimento_id` (P4) e `estado` (P5) são filtros
+    OPCIONAIS -- sem eles, comportamento idêntico ao de antes
+    (compatibilidade preservada)."""
     condicoes = ['origem=%s']
     parametros = [ORIGEM_RELACIONAMENTO]
     if lead_id is not None:
@@ -156,6 +158,11 @@ def historico_decisoes(cur, limite=100, lead_id=None, estabelecimento_id=None):
     if estabelecimento_id is not None:
         condicoes.append('estabelecimento_id=%s')
         parametros.append(str(UUID(str(estabelecimento_id))))
+    if estado is not None:
+        if estado not in ESTADOS_FILA_VALIDOS:
+            raise ValueError('estado_invalido')
+        condicoes.append('estado=%s')
+        parametros.append(estado)
     parametros.append(limite)
     cur.execute(
         "SELECT chave, tipo_decisao, fatos, inferencia, prioridade, confianca, proxima_acao, estado, "
@@ -170,6 +177,17 @@ def _extrair_fato(fatos, prefixo):
     return next((f.split('=', 1)[1] for f in (fatos or []) if f.startswith(prefixo + '=')), None)
 
 
+def _decisao_humana_de_estado(estado):
+    """Única fonte de verdade para mapear estado de mi_fila_operacional em
+    decisão humana legível -- usada por exportar_dataset_aprendizado (P3B)
+    e pelo contrato canônico do painel (P5), nunca duplicada."""
+    if estado == 'bloqueada':
+        return 'rejeitada'
+    if estado == 'concluida':
+        return 'aceita'
+    return 'pendente'
+
+
 def exportar_dataset_aprendizado(cur, limite=500):
     """Learning dataset versionado (`LEARNING_DATASET_VERSAO`) -- projeção
     somente leitura sobre `mi_fila_operacional`, nenhuma tabela nova,
@@ -179,8 +197,6 @@ def exportar_dataset_aprendizado(cur, limite=500):
     linhas_brutas = historico_decisoes(cur, limite=limite)
     linhas = []
     for d in linhas_brutas:
-        estado = d['estado']
-        decisao_humana = 'rejeitada' if estado == 'bloqueada' else ('aceita' if estado == 'concluida' else 'pendente')
         linhas.append({
             'chave': d['chave'],
             'signal_evidence': d['fatos'],
@@ -189,7 +205,7 @@ def exportar_dataset_aprendizado(cur, limite=500):
             'score_geral_no_momento': _extrair_fato(d['fatos'], 'score_geral'),
             'recommendation': d['proxima_acao'],
             'recommendation_confidence': d['confianca'],
-            'human_decision': decisao_humana,
+            'human_decision': _decisao_humana_de_estado(d['estado']),
             'executada': (d['resultado'] or {}).get('executada') if d['resultado'] else None,
             'outcome': d['resultado'],
             'lead_id': str(d['lead_id']) if d['lead_id'] else None,
@@ -197,6 +213,20 @@ def exportar_dataset_aprendizado(cur, limite=500):
             'apresentada_em': d['criado_em'], 'concluido_em': d['concluido_em'],
         })
     return {'dataset_versao': LEARNING_DATASET_VERSAO, 'total_linhas': len(linhas), 'linhas': linhas}
+
+
+def contagem_por_estado(cur):
+    """Agregação barata (1 query, sem loop) do estado atual da fila de
+    decisões do relacionamento -- usada pela Overview (P5) para nunca
+    precisar escanear/recomputar por relacionamento."""
+    cur.execute(
+        "SELECT estado, COUNT(*)::INTEGER AS total FROM mi_fila_operacional WHERE origem=%s GROUP BY estado",
+        (ORIGEM_RELACIONAMENTO,),
+    )
+    contagens = {estado: 0 for estado in ESTADOS_FILA_VALIDOS}
+    for linha in cur.fetchall():
+        contagens[linha['estado']] = linha['total']
+    return contagens
 
 
 # =====================================================================
@@ -294,9 +324,10 @@ def registrar_rotas(app, factory, autorizado):
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("SET LOCAL statement_timeout='15s'")
                 historico = historico_decisoes(cur, lead_id=request.args.get('lead_id'),
-                                                estabelecimento_id=request.args.get('estabelecimento_id'))
+                                                estabelecimento_id=request.args.get('estabelecimento_id'),
+                                                estado=request.args.get('estado'))
         except ValueError:
-            return jsonify(success=False, error='lead_id/estabelecimento_id inválido.'), 400
+            return jsonify(success=False, error='lead_id/estabelecimento_id/estado inválido.'), 400
         except Exception:
             app.logger.exception('Falha ao ler histórico de decisões')
             return jsonify(success=False, error='Histórico indisponível.'), 503
