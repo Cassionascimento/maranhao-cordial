@@ -39778,6 +39778,12 @@ registrar_rotas_mi_governanca_geral(app, get_db_connection, validar_admin_reques
 from mi_operacoes import registrar_rotas as registrar_rotas_mi_operacoes
 registrar_rotas_mi_operacoes(app, get_db_connection, validar_admin_request)
 
+# Central Empresarial -- seção 1.D: ciclo de vida de contatos_estrategicos
+# (migration 023, aditiva). profissionais_rede/fabricas_parceiras já têm
+# arquivamento e workflow de status reais (rotas acima, não duplicadas).
+from mi_contatos_estrategicos import registrar_rotas as registrar_rotas_mi_contatos_estrategicos
+registrar_rotas_mi_contatos_estrategicos(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
