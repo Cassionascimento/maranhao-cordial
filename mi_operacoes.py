@@ -14,6 +14,7 @@ persistência e leitura apenas. Toda mudança relevante grava uma linha
 em mi_operacao_auditoria (append-only, nunca sobrescreve histórico).
 """
 import uuid
+from datetime import datetime, timezone
 
 from psycopg2.extras import Json, RealDictCursor
 
@@ -96,6 +97,43 @@ def criar_operacao(factory, *, titulo, data_inicio, data_fim, criado_por, descri
                 return {'success': True, 'operacao': operacao}
     finally:
         conn.close()
+
+
+def atividades_calendario(cur):
+    """Projeta operações vivas ativas (não canceladas) no mesmo formato de
+    atividade usado por mi_decisao.calendario/leitura_calendario -- não
+    cria um segundo calendário, só alimenta o já existente (ETAPA 5.1 /
+    mi_calendario.py) com mais uma origem, igual a mi_conselho.
+    atividades_pendentes_fila já faz para o Conselho."""
+    cur.execute(
+        "SELECT id, titulo, descricao, data_inicio, data_fim, local, estado, prioridade, responsavel "
+        "FROM mi_operacoes WHERE estado <> 'cancelada' ORDER BY data_inicio ASC LIMIT 100"
+    )
+    hoje = datetime.now(timezone.utc).date()
+    atividades = []
+    for row in cur.fetchall():
+        estado_atividade = 'concluida' if row['estado'] == 'concluida' else 'planejada'
+        # executar_em precisa ser datetime (não date) para comparar sem
+        # erro com atividades de outras origens (ex.: proximo_followup_em,
+        # TIMESTAMPTZ) dentro de mi_decisao.calendario/min(). None cai em
+        # HOJE, igual às demais atividades sem horário definido.
+        futura = row['data_inicio'] > hoje
+        executar_em = datetime.combine(row['data_inicio'], datetime.min.time(), tzinfo=timezone.utc) if futura else None
+        atividades.append({
+            'origem': 'operacao_viva', 'origem_id': str(row['id']), 'tipo_decisao': 'operacao_viva',
+            'fatos': [f"operacao:{row['id']}:{row['estado']}"],
+            'inferencia': row['descricao'] or 'Operação viva sem descrição.',
+            'motivo': row['titulo'],
+            'prioridade': row['prioridade'], 'confianca': None,
+            'proxima_acao': 'abrir_operacao_viva', 'exige_aprovacao': False,
+            'executar_em': executar_em,
+            'lead_id': None, 'estabelecimento_id': None,
+            'estado': estado_atividade,
+            'operacao_id': str(row['id']), 'titulo': row['titulo'], 'local': row['local'],
+            'responsavel': row['responsavel'], 'data_inicio': str(row['data_inicio']),
+            'data_fim': str(row['data_fim']), 'estado_operacao': row['estado'],
+        })
+    return atividades
 
 
 def listar_operacoes(factory, *, estado=None, desde=None, ate=None):
