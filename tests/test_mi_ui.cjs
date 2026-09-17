@@ -171,9 +171,11 @@ test('com chave válida: loadAll consulta overview, fila-decisao e painel legado
   }
 });
 
-test('nenhuma chamada de escrita existe no código do painel (POST/PUT/DELETE)', () => {
-  assert.ok(!/method\s*:\s*['"](POST|PUT|DELETE|PATCH)['"]/i.test(code),
-    'o Command Center recomenda e explica -- decisão e execução continuam nos controles humanos existentes');
+test('escritas ficam na ação humana P5X; carregamento automático permanece somente leitura', () => {
+  const loading=code.slice(code.indexOf('  async function loadAll()'),code.indexOf('  shell();'));
+  assert.ok(!/write\(|method\s*:\s*['"](POST|PUT|DELETE|PATCH)['"]/i.test(loading));
+  assert.match(code,/addEventListener\('click',creativeClick\)/);
+  assert.ok(!/method\s*:\s*['"](PUT|DELETE|PATCH)['"]/i.test(code));
 });
 
 test('oportunidades_detectadas (mapa {tipo: contagem} do contrato real) é somado corretamente, nunca tratado como lista', async () => {

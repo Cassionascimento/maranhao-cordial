@@ -39720,6 +39720,55 @@ registrar_rotas_mi_forecast_readiness(app, get_db_connection, validar_admin_requ
 from mi_intelligence_api import registrar_rotas_leitura as registrar_rotas_mi_intelligence_api
 registrar_rotas_mi_intelligence_api(app, get_db_connection, validar_admin_request)
 
+# P5.X M1 -- contrato canônico de artefatos executivos/criativos (deck,
+# gráfico, imagem, rótulo). Só persistência/versionamento -- nenhuma
+# geração de conteúdo aqui (Presentation Engine/Chart Engine/Pirret
+# multimodal chamam este módulo, nunca o contrário).
+from mi_artefatos import registrar_rotas as registrar_rotas_mi_artefatos
+registrar_rotas_mi_artefatos(app, get_db_connection, validar_admin_request)
+
+# P5.X M3 -- Secretário Executivo: transforma uma deliberação já
+# persistida do Conselho em ata compacta (nunca decide, nunca substitui
+# especialista, uma única chamada de LLM por reunião).
+from mi_secretario_executivo import registrar_rotas_leitura as registrar_rotas_mi_secretario
+registrar_rotas_mi_secretario(app, get_db_connection, validar_admin_request)
+
+# P5.X M4 -- Presentation Engine: gera .pptx real (python-pptx) a partir
+# da ata do Secretário e persiste como artefato via mi_artefatos.
+from mi_presentation_engine import registrar_rotas as registrar_rotas_mi_presentation
+registrar_rotas_mi_presentation(app, get_db_connection, validar_admin_request)
+
+# P5.X M5 -- Chart Engine: gráfico factual programático (SVG standalone +
+# nativo do PPTX) a partir de um chart_spec canônico já com dados reais.
+from mi_chart_engine import registrar_rotas as registrar_rotas_mi_chart_engine
+registrar_rotas_mi_chart_engine(app, get_db_connection, validar_admin_request)
+
+# P5.X M6 -- Pirret multimodal: brief estruturado + ImageGenerationProvider
+# (reaproveita a credencial OpenAI já configurada) + persistência via
+# mi_artefatos. Pirret continua sendo o agente de Marketing existente.
+from mi_pirret_criativo import registrar_rotas as registrar_rotas_mi_pirret
+registrar_rotas_mi_pirret(app, get_db_connection, validar_admin_request)
+
+# P5.X M7 -- Brand Visual Context (versionado, nunca sobrescrito) +
+# Visual Memory (reaproveita mi_artefatos.status='aprovado', nenhuma
+# tabela nova para isso).
+from mi_brand_context import registrar_rotas as registrar_rotas_mi_brand_context
+registrar_rotas_mi_brand_context(app, get_db_connection, validar_admin_request)
+
+# P5.X M8 -- Label Studio: fonte regulatória canônica (separada da
+# camada criativa de Pirret) + geração de conceito de rótulo sempre
+# marcado "não aprovado para produção" até validação regulatória real.
+from mi_regulatorio_produto import registrar_rotas as registrar_rotas_mi_regulatorio
+registrar_rotas_mi_regulatorio(app, get_db_connection, validar_admin_request)
+from mi_label_studio import registrar_rotas as registrar_rotas_mi_label_studio
+registrar_rotas_mi_label_studio(app, get_db_connection, validar_admin_request)
+
+# P5.X M8 -- Social Creative Studio: transforma um artefato APROVADO em
+# peças por formato (key visual/feed/story/vertical/banner/produto
+# isolado), sempre com lineage explícita ao conceito aprovado.
+from mi_social_studio import registrar_rotas as registrar_rotas_mi_social_studio
+registrar_rotas_mi_social_studio(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 

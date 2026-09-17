@@ -704,5 +704,112 @@ class RegistrarFatosDosPareceres(unittest.TestCase):
         registrar.assert_not_called()
 
 
+class RequestedVisual(unittest.TestCase):
+    """P5.X M2 -- um agente pode pedir um visual, mas nunca gera o pixel:
+    só um pedido validado contra o vocabulário canônico de mi_artefatos."""
+
+    def test_visual_valido_flui_para_o_parecer(self):
+        cliente = cliente_mock(requested_visual={'artifact_type': 'CHART', 'descricao': 'funil de conversão real'})
+        parecer = e.executar_especialista('iris', 'demanda', cliente=cliente)
+        self.assertEqual(parecer['requested_visual'], {'artifact_type': 'CHART', 'descricao': 'funil de conversão real'})
+
+    def test_ausencia_do_campo_e_none_nunca_erro(self):
+        cliente = cliente_mock()
+        parecer = e.executar_especialista('iris', 'demanda', cliente=cliente)
+        self.assertIsNone(parecer['requested_visual'])
+
+    def test_tipo_de_artefato_fora_do_vocabulario_e_descartado_falha_fechada(self):
+        cliente = cliente_mock(requested_visual={'artifact_type': 'VIDEO_4K', 'descricao': 'algo'})
+        parecer = e.executar_especialista('iris', 'demanda', cliente=cliente)
+        self.assertIsNone(parecer['requested_visual'])
+
+    def test_descricao_vazia_e_descartada(self):
+        cliente = cliente_mock(requested_visual={'artifact_type': 'CHART', 'descricao': '   '})
+        parecer = e.executar_especialista('iris', 'demanda', cliente=cliente)
+        self.assertIsNone(parecer['requested_visual'])
+
+    def test_valor_que_nao_e_objeto_e_descartado(self):
+        cliente = cliente_mock(requested_visual='um gráfico qualquer')
+        parecer = e.executar_especialista('iris', 'demanda', cliente=cliente)
+        self.assertIsNone(parecer['requested_visual'])
+
+
+class PareceresCompactos(unittest.TestCase):
+    """P5.X M2 -- estrutura compacta que a Secretaria Executiva/
+    Presentation Engine consomem, nunca reprocessando o parecer verbose."""
+
+    def _parecer(self, **kw):
+        base = dict(
+            agente='standard', dados_utilizados='margem caiu 3pp no trimestre', conclusao='ajustar pricing do SKU X',
+            confianca='alta', riscos='', divergencias='', acao_sugerida='revisar tabela de preço',
+            numeros=[{'valor': '3', 'unidade': 'pp', 'origem': 'CALCULO', 'fonte_detalhe': 'BI interno', 'confianca': 'alta'}],
+            requested_visual={'artifact_type': 'CHART', 'descricao': 'evolução de margem'},
+        )
+        base.update(kw)
+        return base
+
+    def test_projeta_facts_evidence_interpretation_recommendation(self):
+        compacto = e.parecer_compacto(self._parecer())
+        self.assertEqual(compacto['facts'], ['margem caiu 3pp no trimestre'])
+        self.assertEqual(compacto['interpretation'], ['ajustar pricing do SKU X'])
+        self.assertEqual(compacto['recommendation'], ['revisar tabela de preço'])
+        self.assertEqual(compacto['confidence'], 'alta')
+        self.assertIn('3 pp (origem: CALCULO)', compacto['evidence'])
+        self.assertEqual(compacto['requested_visual'], {'artifact_type': 'CHART', 'descricao': 'evolução de margem'})
+
+    def test_divergencia_trivial_nunca_vira_disagreement(self):
+        compacto = e.parecer_compacto(self._parecer(divergencias='nenhuma'))
+        self.assertEqual(compacto['disagreement'], [])
+
+    def test_divergencia_real_aparece_em_disagreement(self):
+        compacto = e.parecer_compacto(self._parecer(divergencias='Leonard discorda do prazo proposto por Rua'))
+        self.assertEqual(compacto['disagreement'], ['Leonard discorda do prazo proposto por Rua'])
+
+    def test_campos_vazios_viram_listas_vazias_nunca_none_quebrando_consumo(self):
+        compacto = e.parecer_compacto({'agente': 'iris'})
+        self.assertEqual(compacto['facts'], [])
+        self.assertEqual(compacto['evidence'], [])
+        self.assertEqual(compacto['interpretation'], [])
+        self.assertEqual(compacto['recommendation'], [])
+        self.assertEqual(compacto['disagreement'], [])
+        self.assertIsNone(compacto['requested_visual'])
+
+
+class ConsolidarClassificacaoEPareceresCompactos(unittest.TestCase):
+    """P5.X M2 -- roteamento (já existente) e pareceres compactos ficam
+    auditáveis dentro do próprio registro persistido."""
+
+    def test_classificacao_e_incluida_quando_informada(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        classificacao = {'selecionados': ['iris', 'standard'], 'motivos': {'standard': ['menciona preço']},
+                          'excluidos': {'dicio': 'sem relação'}, 'conclave_completo': False}
+        corpo = e._consolidar(
+            avaliado, [{'agente': 'standard', 'conclusao': 'ok', 'confianca': 'media', 'divergencias': '',
+                        'acao_sugerida': '', 'necessidade_diretor': False, 'veto': False, 'veto_motivo': None}],
+            [], classificacao=classificacao,
+        )
+        self.assertEqual(corpo['dados_apresentados']['classificacao_especialistas']['selecionados'], ['iris', 'standard'])
+        self.assertEqual(corpo['dados_apresentados']['classificacao_especialistas']['excluidos'], {'dicio': 'sem relação'})
+
+    def test_classificacao_ausente_e_none_nunca_erro(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [], [])
+        self.assertIsNone(corpo['dados_apresentados']['classificacao_especialistas'])
+
+    def test_pareceres_compactos_acompanham_os_pareceres_verbosos(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        parecer = {'agente': 'rua', 'conclusao': 'capacidade ok', 'confianca': 'alta', 'divergencias': '',
+                   'acao_sugerida': '', 'necessidade_diretor': False, 'veto': False, 'veto_motivo': None}
+        corpo = e._consolidar(avaliado, [parecer], [])
+        compactos = corpo['dados_apresentados']['pareceres_compactos']
+        self.assertEqual(len(compactos), 1)
+        self.assertEqual(compactos[0]['interpretation'], ['capacidade ok'])
+
+    def test_sem_pareceres_pareceres_compactos_e_none(self):
+        avaliado = {'sinal_id': 's1', 'demanda': 'd', 'motivo': 'm', 'tipo_evento': 'x'}
+        corpo = e._consolidar(avaliado, [], [])
+        self.assertIsNone(corpo['dados_apresentados']['pareceres_compactos'])
+
+
 if __name__ == '__main__':
     unittest.main()

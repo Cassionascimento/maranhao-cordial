@@ -14,7 +14,7 @@ from xml.etree import ElementTree
 from pypdf import PdfReader
 
 from mi_conselho import AGENTES, registrar_registro
-from mi_conselho_executor import executar_especialista, _consolidar
+from mi_conselho_executor import executar_especialista, _consolidar, parecer_compacto
 from mi_conselho_orquestrador import classificar_especialistas, ordenar_execucao
 
 MAX_DOCUMENTO_BYTES = 8 * 1024 * 1024
@@ -148,6 +148,10 @@ def _sintese(demanda, pareceres, erros):
         'precisa_diretor': bool(estruturada.get('precisa_diretor')),
         'recomendacao': estruturada.get('proxima_acao') or 'Revisar evidências e lacunas; nenhuma ação foi executada.',
         'sintese_estruturada': estruturada,
+        # P5.X M2 -- mesma estrutura compacta do fluxo automático, para a
+        # Secretaria Executiva/Presentation Engine consumirem qualquer um
+        # dos dois caminhos (interativo/automático) da mesma forma.
+        'pareceres_compactos': [parecer_compacto(p) for p in pareceres] or None,
     }
 
 

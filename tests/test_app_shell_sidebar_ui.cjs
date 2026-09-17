@@ -133,12 +133,12 @@ test('login/gating não é referenciado pelo novo código da sidebar',()=>{
 test('sem duplicação funcional: a fileira legada é ocultada via CSS quando a sidebar está ativa, nunca removida',()=>{
   const {body} = setup();
   assert.ok(body.classList.contains('app-shell-sidebar-ativa'));
-  assert.match(css, /body\.app-shell-sidebar-ativa \.app-shell-nav\s*\{\s*display:\s*none;/);
+  assert.match(css, /body\.app-shell-sidebar-ativa \.app-shell-nav\s*\{\s*display:\s*none\s*(?:;|\})/);
 });
 
 test('sidebar some fora do breakpoint desktop largo (mobile fica para a 4.8)',()=>{
-  assert.match(css, /\.app-sidebar\s*\{\s*display:\s*none;\s*\}/);
-  assert.match(css, /@media \(min-width: 1024px\)/);
+  assert.match(css, /\.app-sidebar\s*\{\s*display:\s*none\s*;?\s*\}/);
+  assert.match(css, /@media\s*\(min-width:\s*1024px\)/);
 });
 
 test('z-index da sidebar é moderado e documentado, não um valor arbitrário alto',()=>{
