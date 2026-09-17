@@ -82,3 +82,49 @@ test('clique num card de operação chama window.abrirOperacaoViva com o id corr
   document.fire('click', {target: {closest: sel => sel === '.ce-evento--operacao' ? fakeCard : null, id: undefined}});
   assert.equal(recebido, 'op-7');
 });
+
+test('três modos de visualização existem: Lista, Semana e Mês (seção 2 da ordem)', async () => {
+  const {sandbox, corpo} = setup({success: true, resumo: RESUMO_VAZIO, colunas: {hoje: [], proximas: [], aguardando: [], concluidas: [], bloqueadas: [], precisa_diretor: []}, inteligencia_de_publico: {}});
+  await sandbox.window.carregarCalendarioEmpresarial();
+  assert.match(corpo.innerHTML, /data-modo="lista"/);
+  assert.match(corpo.innerHTML, /data-modo="semana"/);
+  assert.match(corpo.innerHTML, /data-modo="mes"/);
+});
+
+test('clicar em "Mês" troca para a grade mensal com a operação no dia certo', async () => {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const operacao = {
+    tipo_decisao: 'operacao_viva', operacao_id: 'op-42', titulo: 'Softdrinks Tech', prioridade: 'alta',
+    local: null, responsavel: null, data_inicio: hoje, data_fim: hoje, estado_operacao: 'confirmada',
+  };
+  const {sandbox, document, corpo} = setup({success: true, resumo: RESUMO_VAZIO, colunas: {hoje: [], proximas: [operacao], aguardando: [], concluidas: [], bloqueadas: [], precisa_diretor: []}, inteligencia_de_publico: {}});
+  await sandbox.window.carregarCalendarioEmpresarial();
+  const fakeBtn = {dataset: {modo: 'mes'}};
+  document.fire('click', {target: {id: undefined, closest: sel => sel === '[data-modo]' ? fakeBtn : null}});
+  assert.match(corpo.innerHTML, /ce-mes-grade/);
+  assert.match(corpo.innerHTML, /ce-chip--operacao/);
+  assert.match(corpo.innerHTML, /data-operacao-id="op-42"/);
+});
+
+test('grade mensal mostra estado vazio implícito (sem chip) em dias sem nenhuma atividade', async () => {
+  const {sandbox, document, corpo} = setup({success: true, resumo: RESUMO_VAZIO, colunas: {hoje: [], proximas: [], aguardando: [], concluidas: [], bloqueadas: [], precisa_diretor: []}, inteligencia_de_publico: {}});
+  await sandbox.window.carregarCalendarioEmpresarial();
+  const fakeBtn = {dataset: {modo: 'mes'}};
+  document.fire('click', {target: {id: undefined, closest: sel => sel === '[data-modo]' ? fakeBtn : null}});
+  assert.match(corpo.innerHTML, /ce-mes-grade/);
+  assert.doesNotMatch(corpo.innerHTML, /class="ce-chip/);
+});
+
+test('clique em um chip de operação na grade mensal abre o workspace', async () => {
+  const operacao = {
+    tipo_decisao: 'operacao_viva', operacao_id: 'op-9', titulo: 'X', prioridade: 'normal',
+    local: null, responsavel: null, data_inicio: '2026-10-15', data_fim: '2026-10-15', estado_operacao: 'planejamento',
+  };
+  const {document, window} = setup({success: true, resumo: RESUMO_VAZIO, colunas: {hoje: [], proximas: [operacao], aguardando: [], concluidas: [], bloqueadas: [], precisa_diretor: []}, inteligencia_de_publico: {}});
+  document.fire('click', {target: {id: undefined, closest: sel => sel === '[data-modo]' ? {dataset: {modo: 'mes'}} : null}});
+  let recebido = null;
+  window.abrirOperacaoViva = id => { recebido = id; };
+  const fakeChip = {className: 'ce-chip ce-chip--operacao', dataset: {operacaoId: 'op-9'}, closest(sel) { return sel === '.ce-chip--operacao' ? this : null; }};
+  document.fire('click', {target: {id: undefined, closest: sel => sel === '.ce-evento--operacao' ? null : (sel === '.ce-chip--operacao' ? fakeChip : null)}});
+  assert.equal(recebido, 'op-9');
+});
