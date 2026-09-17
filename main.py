@@ -39743,6 +39743,12 @@ registrar_rotas_mi_presentation(app, get_db_connection, validar_admin_request)
 from mi_chart_engine import registrar_rotas as registrar_rotas_mi_chart_engine
 registrar_rotas_mi_chart_engine(app, get_db_connection, validar_admin_request)
 
+# P5.X M6 -- Pirret multimodal: brief estruturado + ImageGenerationProvider
+# (reaproveita a credencial OpenAI já configurada) + persistência via
+# mi_artefatos. Pirret continua sendo o agente de Marketing existente.
+from mi_pirret_criativo import registrar_rotas as registrar_rotas_mi_pirret
+registrar_rotas_mi_pirret(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
