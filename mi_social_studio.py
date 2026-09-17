@@ -15,7 +15,12 @@ from psycopg2.extras import RealDictCursor
 
 from mi_artefato_storage import PostgresBlobStorage
 from mi_artefatos import buscar_artefato, registrar_artefato
-from mi_image_provider import criar_provider_padrao
+from mi_image_provider import (
+    MIME_SUPORTADOS_EDICAO,
+    ErroImagemNaoSuportada,
+    criar_provider_padrao,
+    detectar_mime_imagem,
+)
 
 FORMATOS_SOCIAL = ('key_visual', 'feed', 'story', 'vertical', 'banner', 'produto_isolado', 'mockup')
 
@@ -52,6 +57,16 @@ def gerar_campanha_a_partir_de_artefato(factory, artefato_base_id, formatos, *, 
     finally:
         conn.close()
 
+    # O `mime_type` armazenado (ex.: um gráfico CHART é 'image/svg+xml',
+    # passa no filtro genérico 'image/*' acima mas nunca é editável pelo
+    # provider) não é confiável para decidir se dá para editar -- deriva
+    # do BYTE real, nunca do metadata, e falha local antes de gastar uma
+    # chamada ao provider (essa é exatamente a causa raiz confirmada em
+    # produção: um SVG chegando em /images/edits como application/octet-stream).
+    if detectar_mime_imagem(imagem_base) is None:
+        return {'success': False, 'motivo': 'artefato_formato_nao_suportado_para_edicao',
+                'formatos_aceitos': list(MIME_SUPORTADOS_EDICAO)}
+
     pecas = []
     for formato in formatos:
         instrucao = f'Recomponha esta peça para o formato "{formato}"'
@@ -61,7 +76,14 @@ def gerar_campanha_a_partir_de_artefato(factory, artefato_base_id, formatos, *, 
             instrucao += f'. Briefing: {briefing}'
         import json
         instrucao += '. Direção premium, composição legível; preserve identidade e não invente informações de produto. Contexto: ' + json.dumps(contexto,ensure_ascii=False)
-        imagens = provider.editar(imagem_base, instrucao)
+        try:
+            imagens = provider.editar(imagem_base, instrucao)
+        except ErroImagemNaoSuportada:
+            # Rede de segurança: não deveria disparar (já validado acima
+            # com os mesmos bytes), mas nunca deixa esse caso específico
+            # cair no except genérico da rota.
+            return {'success': False, 'motivo': 'artefato_formato_nao_suportado_para_edicao',
+                    'formatos_aceitos': list(MIME_SUPORTADOS_EDICAO)}
         for imagem in imagens:
             resultado = registrar_artefato(
                 factory, artifact_type='SOCIAL_CREATIVE', conteudo=imagem, mime_type='image/png',
@@ -77,6 +99,7 @@ def gerar_campanha_a_partir_de_artefato(factory, artefato_base_id, formatos, *, 
 
 def registrar_rotas(app, factory, autorizado):
     from flask import jsonify, request
+    import openai
 
     @app.route('/api/admin/mi/social-studio/campanha/<artefato_base_id>', methods=['POST'])
     def mi_social_studio_gerar_campanha(artefato_base_id):
@@ -88,13 +111,24 @@ def registrar_rotas(app, factory, autorizado):
             resultado = gerar_campanha_a_partir_de_artefato(
                 factory, artefato_base_id, formatos, canal=corpo.get('canal'), briefing=corpo.get('briefing'),
             )
+        except openai.APIStatusError as erro:
+            # Causa conhecida e segura de expor: só o status/código que o
+            # próprio provider devolveu (nunca o corpo bruto da resposta,
+            # o prompt enviado ou qualquer traceback) -- nunca mais um
+            # "não foi possível gerar a campanha" genérico quando dá para
+            # dizer exatamente o que a OpenAI recusou.
+            app.logger.exception('Provider recusou a solicitação de edição de imagem')
+            return jsonify(success=False, motivo='provider_recusou_a_solicitacao',
+                            provider_status=erro.status_code, provider_code=erro.code), 502
         except Exception:
             app.logger.exception('Falha ao gerar campanha social')
             return jsonify(success=False, error='Não foi possível gerar a campanha.'), 503
         sucesso = resultado.pop('success', False)
         if not sucesso:
-            status = (404 if resultado.get('motivo') == 'artefato_base_nao_encontrado'
-                      else 409 if resultado.get('motivo') == 'artefato_base_nao_aprovado'
-                      else 400 if resultado.get('motivo') == 'nenhum_formato_valido' else 503)
+            motivo = resultado.get('motivo')
+            status = (404 if motivo == 'artefato_base_nao_encontrado'
+                      else 409 if motivo == 'artefato_base_nao_aprovado'
+                      else 400 if motivo == 'nenhum_formato_valido'
+                      else 422 if motivo == 'artefato_formato_nao_suportado_para_edicao' else 503)
             return jsonify(success=False, **resultado), status
         return jsonify(success=True, **resultado), 201

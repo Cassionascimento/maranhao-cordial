@@ -35,6 +35,35 @@ class ErroImageProviderNaoConfigurado(RuntimeError):
     pass
 
 
+class ErroImagemNaoSuportada(ValueError):
+    """Levantado quando os bytes recebidos para edição não são um PNG/
+    JPEG/WEBP reconhecível -- falha local e explícita, antes de qualquer
+    chamada ao provider real. Nunca converte silenciosamente o conteúdo
+    para um formato aceito."""
+
+
+MIME_SUPORTADOS_EDICAO = ('image/png', 'image/jpeg', 'image/webp')
+_EXTENSAO_POR_MIME = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp'}
+
+
+def detectar_mime_imagem(conteudo):
+    """Deriva o mime type real a partir da assinatura dos bytes -- nunca
+    confia em `mime_type`/extensão informados pelo cliente ou já
+    armazenados em metadata (podem estar errados ou ser de um artefato
+    que nunca foi pensado para edição, como um gráfico SVG). Só
+    reconhece os três formatos que a edição de imagem realmente aceita;
+    qualquer outra coisa (incluindo SVG, PDF, texto) devolve None."""
+    if not isinstance(conteudo, (bytes, bytearray)) or len(conteudo) < 12:
+        return None
+    if conteudo[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'image/png'
+    if conteudo[:3] == b'\xff\xd8\xff':
+        return 'image/jpeg'
+    if conteudo[:4] == b'RIFF' and conteudo[8:12] == b'WEBP':
+        return 'image/webp'
+    return None
+
+
 class ImageProviderNaoConfigurado(ImageGenerationProvider):
     """Nunca finge geração de imagem sem configuração real (mesma
     disciplina de mi_artefato_storage.StorageNaoConfigurado)."""
@@ -78,9 +107,20 @@ class OpenAIImageProvider(ImageGenerationProvider):
         return [_decodificar_b64(item) for item in resposta.data]
 
     def editar(self, imagem_base, instrucao, *, tamanho='1024x1024'):
-        import io
+        # A OpenAI recusa a edição (400 unsupported_file_mimetype) quando o
+        # arquivo enviado não carrega um mime type reconhecível -- um
+        # io.BytesIO puro, sem nome, vira application/octet-stream. Aqui
+        # detectamos o formato real pelos BYTES (nunca por extensão/
+        # mime_type informado) e só então enviamos um arquivo nomeado com
+        # o mime correto; sem isso, falha local antes de gastar a chamada.
+        mime = detectar_mime_imagem(imagem_base)
+        if mime is None:
+            raise ErroImagemNaoSuportada(
+                'Conteúdo não reconhecido como PNG/JPEG/WEBP -- edição recusada antes de chamar o provider.'
+            )
+        nome_arquivo = f'imagem.{_EXTENSAO_POR_MIME[mime]}'
         resposta = self._cliente().images.edit(
-            model=MODELO_IMAGEM_PADRAO, image=io.BytesIO(imagem_base), prompt=instrucao, size=tamanho,
+            model=MODELO_IMAGEM_PADRAO, image=(nome_arquivo, imagem_base, mime), prompt=instrucao, size=tamanho,
         )
         return [_decodificar_b64(item) for item in resposta.data]
 

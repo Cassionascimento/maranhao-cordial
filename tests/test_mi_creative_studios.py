@@ -62,6 +62,56 @@ class Studios(unittest.TestCase):
         self.provider.gerar=lambda *a:[]
         self.assertFalse(label.gerar_conceito_rotulo(self.factory,'teste','SKU',provider=self.provider,cliente=_cliente_mock())['success'])
 
+    def test_social_recusa_artefato_svg_antes_de_chamar_o_provider(self):
+        # Causa raiz real de produção: um gráfico (mi_chart_engine, CHART)
+        # tem mime_type='image/svg+xml' -- passa no filtro genérico
+        # 'image/*' mas nunca é editável pelo provider de imagem. A
+        # rejeição precisa acontecer ANTES de qualquer chamada externa.
+        import mi_chart_engine as chart
+        resultado_grafico = chart.gerar_e_registrar_grafico(self.factory, {
+            'chart_type': 'bar', 'title': 'grafico de teste', 'x': ['a', 'b'],
+            'series': [{'name': 's', 'values': [1, 2]}], 'units': 'u',
+            'source': 'teste', 'freshness': 'teste', 'confidence': 'SYNTHETIC_TEST',
+        })
+        self.assertTrue(resultado_grafico['success'])
+        grafico_id = resultado_grafico['id']
+        artifacts.aprovar_artefato(self.factory, grafico_id, 'humano')
+
+        resultado = social.gerar_campanha_a_partir_de_artefato(self.factory, grafico_id, ['feed'], provider=self.provider)
+        self.assertFalse(resultado['success'])
+        self.assertEqual(resultado['motivo'], 'artefato_formato_nao_suportado_para_edicao')
+        self.assertEqual(self.provider.chamadas, [])  # nunca chegou a chamar o provider
+
+    def test_social_traduz_erro_conhecido_do_provider_sem_generico(self):
+        import openai
+        from unittest.mock import MagicMock
+        from flask import Flask
+
+        ident = self.conceito()
+        artifacts.aprovar_artefato(self.factory, ident, 'humano')
+
+        class ProviderQueRecusa:
+            def disponivel(self):
+                return True
+
+            def editar(self, imagem_base, instrucao, **kwargs):
+                resposta_falsa = MagicMock(status_code=400, headers={})
+                raise openai.BadRequestError('unsupported_file_mimetype', response=resposta_falsa,
+                                              body={'code': 'unsupported_file_mimetype'})
+
+        app = Flask(__name__)
+        social.registrar_rotas(app, self.factory, lambda: True)
+        with patch('mi_social_studio.criar_provider_padrao', return_value=ProviderQueRecusa()):
+            resp = app.test_client().post(f'/api/admin/mi/social-studio/campanha/{ident}', json={'formatos': ['feed']})
+        self.assertEqual(resp.status_code, 502)
+        corpo = resp.get_json()
+        self.assertFalse(corpo['success'])
+        self.assertEqual(corpo['motivo'], 'provider_recusou_a_solicitacao')
+        self.assertEqual(corpo['provider_status'], 400)
+        self.assertEqual(corpo['provider_code'], 'unsupported_file_mimetype')
+        # nunca vaza corpo bruto/payload/traceback -- só status e código
+        self.assertNotIn('Traceback', str(corpo))
+
     def test_rotas_sem_autorizacao_nao_abrem_banco(self):
         app=Flask(__name__)
         def proibido(): raise AssertionError('banco não deveria abrir')
