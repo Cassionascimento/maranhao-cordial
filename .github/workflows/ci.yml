@@ -1,0 +1,36 @@
+name: CI
+
+# CI apenas valida -- nenhum job aqui faz deploy. O deploy continua manual
+# via Render, fora deste workflow (ver P6_READINESS_REPORT.md).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  python:
+    name: Suíte Python (unittest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: pip install -r requirements.txt
+      - name: Suíte completa
+        run: python3 -m unittest discover -s tests -p "test_*.py" -v
+      - name: Auditoria de rotas (registrar_rotas* de main.py x URLs do frontend)
+        run: python3 -m unittest tests.test_main_routes_audit -v
+      - name: Integração Maranhão Intelligence (Flask real, contrato P5)
+        run: python3 -m unittest tests.test_mi_intelligence_api_integration -v
+
+  javascript:
+    name: Suíte JS (node --test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Testes de UI/admin (node:test)
+        run: node --test tests/*.cjs
