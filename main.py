@@ -39720,6 +39720,13 @@ registrar_rotas_mi_forecast_readiness(app, get_db_connection, validar_admin_requ
 from mi_intelligence_api import registrar_rotas_leitura as registrar_rotas_mi_intelligence_api
 registrar_rotas_mi_intelligence_api(app, get_db_connection, validar_admin_request)
 
+# P5.X M1 -- contrato canônico de artefatos executivos/criativos (deck,
+# gráfico, imagem, rótulo). Só persistência/versionamento -- nenhuma
+# geração de conteúdo aqui (Presentation Engine/Chart Engine/Pirret
+# multimodal chamam este módulo, nunca o contrário).
+from mi_artefatos import registrar_rotas as registrar_rotas_mi_artefatos
+registrar_rotas_mi_artefatos(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
