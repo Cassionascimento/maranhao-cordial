@@ -39733,6 +39733,11 @@ registrar_rotas_mi_artefatos(app, get_db_connection, validar_admin_request)
 from mi_secretario_executivo import registrar_rotas_leitura as registrar_rotas_mi_secretario
 registrar_rotas_mi_secretario(app, get_db_connection, validar_admin_request)
 
+# P5.X M4 -- Presentation Engine: gera .pptx real (python-pptx) a partir
+# da ata do Secretário e persiste como artefato via mi_artefatos.
+from mi_presentation_engine import registrar_rotas as registrar_rotas_mi_presentation
+registrar_rotas_mi_presentation(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
