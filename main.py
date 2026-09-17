@@ -39727,6 +39727,12 @@ registrar_rotas_mi_intelligence_api(app, get_db_connection, validar_admin_reques
 from mi_artefatos import registrar_rotas as registrar_rotas_mi_artefatos
 registrar_rotas_mi_artefatos(app, get_db_connection, validar_admin_request)
 
+# P5.X M3 -- Secretário Executivo: transforma uma deliberação já
+# persistida do Conselho em ata compacta (nunca decide, nunca substitui
+# especialista, uma única chamada de LLM por reunião).
+from mi_secretario_executivo import registrar_rotas_leitura as registrar_rotas_mi_secretario
+registrar_rotas_mi_secretario(app, get_db_connection, validar_admin_request)
+
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 

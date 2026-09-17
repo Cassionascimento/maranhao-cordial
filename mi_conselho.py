@@ -176,6 +176,24 @@ def nova_versao_registro(factory, registro_anterior_id, campos_atualizados, ator
         conn.close()
 
 
+def buscar_registro(cur, registro_id):
+    """Leitura de UM registro (reunião/conclave/relatório) por id -- mesma
+    tabela/colunas de registrar_registro/nova_versao_registro, nunca uma
+    segunda representação. Usado por P5.X M3 (Secretário Executivo) para
+    montar a ata a partir de uma deliberação já persistida, sem reprocessar
+    nenhum parecer."""
+    cur.execute("SELECT * FROM mi_conselho_registros WHERE id=%s", (str(registro_id),))
+    row = cur.fetchone()
+    if not row:
+        return None
+    registro = {c: row[c] for c in CAMPOS_REGISTRO}
+    registro['id'] = str(row['id'])
+    registro['chave'] = row['chave']
+    registro['versao'] = row['versao']
+    registro['criado_em'] = row['criado_em'].isoformat() if row.get('criado_em') else None
+    return registro
+
+
 def recomendacao_para_atividade(recomendacao, precisa_diretor=False, executar_em=None):
     responsavel = recomendacao.get('responsavel')
     descricao = recomendacao.get('descricao') or recomendacao.get('acao') or 'recomendação do Conselho'
