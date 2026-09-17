@@ -1,9 +1,16 @@
 # P5.X Audit — Executive & Creative Layer (Milestone 0)
 
 Auditoria somente-leitura, exigida antes de qualquer implementação da
-ordem P5.X (Conselho Multimodal + Presentation Engine + Pires Creative
+ordem P5.X (Conselho Multimodal + Presentation Engine + Pirret Creative
 Studio). Nenhum código foi escrito nesta etapa. SHA de referência: `main`
 em `e62c172` + estabilização pós-live (`chore/estabilizacao-pos-p0-p5`).
+
+> **Correção de nomenclatura (não arquitetural):** a versão original
+> deste documento usava "Pires" para o papel de direção criativa
+> multimodal. Foi confirmado que "Pires" foi um erro de nomenclatura da
+> especificação -- o agente correto e já existente é **Pirret**
+> (Marketing). Nenhum agente novo foi ou será criado; a seção 8 abaixo
+> foi reescrita para refletir isso.
 
 Convenção de classificação:
 - **EXISTE** — já implementado e funcional hoje.
@@ -111,24 +118,25 @@ reestruturar os campos textuais atuais em arrays curtos — sem reescrever
 o mecanismo de chamada (Responses API, json_schema strict, validação de
 proveniência de números), que já funciona e é testado.
 
-## 8. Especificamente o agente Pires
+## 8. Especificamente o agente Pirret (correção: "Pires" foi erro de nomenclatura)
 
-**NÃO EXISTE — achado que precisa de decisão do usuário antes de M6.**
-Busquei "Pires" em todo o código-fonte: as únicas ocorrências são falsos
-positivos (substring de `EXPIRES_AT` em `x_conector.py`/
-`linkedin_conector.py`). Não há nenhum agente, prompt ou papel chamado
-"Pires" hoje. O agente mais próximo em função é **Pirret** (`.claude/
+**EXISTE — RESOLVIDO.** A ordem original mencionava um agente "Pires";
+confirmado pelo usuário que isso foi um erro de nomenclatura da
+especificação, não uma intenção de criar um agente novo. Busquei "Pires"
+em todo o código-fonte na auditoria original: as únicas ocorrências eram
+falsos positivos (substring de `EXPIRES_AT` em `x_conector.py`/
+`linkedin_conector.py`) — ou seja, não havia nem há necessidade de criar
+esse nome. O agente correto e canônico é **Pirret** (`.claude/
 agents/pirret.md`, área Marketing, persona "Virgil Abloh x minimalismo
 Kanye West", já com a regra "nunca publica nada sozinho").
 
-→ **DECISÃO PENDENTE, não uma classificação técnica**: "Pires" em M6 é
-(a) um nome novo para um papel de Diretor Criativo Multimodal que ainda
-não existe (CRIAR do zero, possivelmente reaproveitando a persona/prompt
-de Pirret como ponto de partida), ou (b) uma evolução do próprio Pirret
-sob um nome diferente? Vou tratar como **CRIAR um novo papel "Pires"**,
-que pode herdar contexto de marca do Pirret mas tem responsabilidade
-distinta (geração visual, não terceirizar isso ao Pirret) — a menos que o
-usuário indique o contrário antes de M6.
+→ **REUTILIZAR/ESTENDER, nunca CRIAR**: a capacidade de direção criativa
+multimodal (M6) é incorporada ao **Pirret existente**, sem renomeá-lo,
+sem alterar sua persona/identidade de Marketing já definida, e sem criar
+um segundo agente. Pirret ganha a responsabilidade de orquestrar briefing
+→ geração visual (via `ImageGenerationProvider`) → artefato versionado,
+mas continua sendo, por definição, o agente de Marketing do Conselho —
+nunca um "designer" isolado.
 
 ## 9. Endpoints do Admin
 
@@ -270,11 +278,12 @@ sistema — nunca automatizado por esta camada (M13).
 | M3 Executive Secretary | CRIAR (papel novo; `mi_diretor.py` existente é um agregador de alerta para humano, não um sintetizador de deliberação — função diferente) | — |
 | M4 Presentation Engine | CRIAR (`python-pptx` novo) | — |
 | M5 Chart Engine | CRIAR (lib de gráfico nova), mas **REUTILIZAR** a taxonomia `NOT_ENOUGH_DATA` do P5 | — |
-| M6 Pires Creative Director | CRIAR — pendente confirmação sobre relação com Pirret | Ver item 8 |
+| M6 Pirret multimodal (correção: "Pires" era erro de nomenclatura) | ESTENDER o Pirret existente, nunca criar agente novo | Ver item 8 |
 | M7 Image Generation Provider | ESTENDER o cliente OpenAI já configurado (novo método, mesma credencial) + CRIAR abstração de provider | — |
 | M14 Storage | REUTILIZAR Postgres BYTEA como provider `LIVE`; CRIAR só a interface abstrata | — |
 | M16/M18 (auth, aprovação) | REUTILIZAR integralmente, sem alteração | — |
 
 Nenhuma tabela, rota ou serviço P0–P5 precisa ser duplicado para
-implementar P5.X. O único ponto que depende de uma decisão do usuário
-antes de prosseguir é o item 8 (identidade de "Pires").
+implementar P5.X. O item 8 (identidade de "Pires") foi resolvido pelo
+usuário como correção de nomenclatura: não há mais nenhum ponto em aberto
+antes de iniciar M1.
