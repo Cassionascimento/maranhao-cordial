@@ -142,11 +142,36 @@ class ValidacaoArquivos(unittest.TestCase):
             op.vincular_artefato(factory_proibida, 'op-id', 'art-id', ator='diretor', categoria='video')
 
 
+class ValidacaoCompartilhamentoInvestidor(unittest.TestCase):
+    def test_criar_exige_ator(self):
+        with self.assertRaises(ValueError):
+            op.criar_compartilhamento_investidor(factory_proibida, 'op-id', ator='')
+
+    def test_revogar_exige_ator(self):
+        with self.assertRaises(ValueError):
+            op.revogar_compartilhamento_investidor(factory_proibida, 'token-x', ator='')
+
+
 class RotaHTTP(unittest.TestCase):
     def _app(self, autorizado=lambda: True, factory=factory_proibida):
         app = Flask(__name__)
         op.registrar_rotas(app, factory, autorizado)
         return app
+
+    def test_rota_publica_de_investidor_nao_exige_chave_administrativa_so_token(self):
+        # /investidor/<token> é a única rota deliberadamente fora de
+        # /api/admin: mesmo com autorizado()=False (sem chave admin), o
+        # link só depende do token existir e não estar revogado.
+        def factory_sem_token():
+            conn = MagicMock()
+            cur = conn.cursor.return_value
+            cur.__enter__.return_value = cur
+            cur.fetchone.return_value = None
+            return conn
+        app = self._app(autorizado=lambda: False, factory=factory_sem_token)
+        resp = app.test_client().get('/investidor/token-inexistente')
+        self.assertEqual(resp.status_code, 404)
+        self.assertNotEqual(resp.status_code, 401)
 
     def test_todas_as_rotas_exigem_autenticacao(self):
         app = self._app(autorizado=lambda: False)
@@ -167,6 +192,9 @@ class RotaHTTP(unittest.TestCase):
             ('GET', '/api/admin/mi/operacoes/x/arquivos'),
             ('GET', '/api/admin/mi/operacoes/x/historico'),
             ('GET', '/api/admin/mi/operacoes/x/investidor'),
+            ('GET', '/api/admin/mi/operacoes/x/investidor/compartilhamentos'),
+            ('POST', '/api/admin/mi/operacoes/x/investidor/compartilhamentos'),
+            ('DELETE', '/api/admin/mi/operacoes/investidor/compartilhamentos/x'),
         ]
         for metodo, rota in rotas:
             resp = cliente.open(rota, method=metodo)

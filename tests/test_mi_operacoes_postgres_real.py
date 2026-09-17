@@ -19,7 +19,7 @@ import mi_operacoes as op
 
 SOCKET = '/tmp/p5x-postgres-data'
 MIGRATIONS = ('016_mi_conselho.sql', '017_mi_conselho_registros_payload_hash.sql',
-              '019_mi_artefatos.sql', '022_mi_operacoes.sql')
+              '019_mi_artefatos.sql', '022_mi_operacoes.sql', '024_mi_operacao_compartilhamentos.sql')
 
 
 def local_connection(schema='public'):
@@ -199,6 +199,48 @@ class OperacoesVivasPostgresReal(unittest.TestCase):
         conn.close()
         self.assertEqual(self.rows('SELECT * FROM mi_operacao_pessoas'), [])
         self.assertEqual(self.rows('SELECT * FROM mi_operacao_itens'), [])
+
+    def test_compartilhamento_investidor_ciclo_completo_criar_acessar_revogar(self):
+        operacao_id = self.criar_operacao_softdrinks()
+        op.adicionar_pessoa(self.factory, operacao_id, funcao='Bartender', ator='diretor',
+                             nome='Fulano', telefone='11999999999')
+        criado = op.criar_compartilhamento_investidor(self.factory, operacao_id, ator='diretor')
+        self.assertTrue(criado['success'])
+        token = criado['compartilhamento']['token']
+
+        visao = op.visao_investidor_por_token(self.factory, token)
+        self.assertIsNotNone(visao)
+        self.assertEqual(visao['operacao']['titulo'], 'Softdrinks Tech')
+        self.assertNotIn('telefone', visao['equipe_resumo'][0])
+
+        compartilhamentos = op.listar_compartilhamentos(self.factory, operacao_id)
+        self.assertEqual(compartilhamentos[0]['total_acessos'], 1)
+        self.assertIsNotNone(compartilhamentos[0]['ultimo_acesso_em'])
+
+        revogado = op.revogar_compartilhamento_investidor(self.factory, token, ator='diretor')
+        self.assertTrue(revogado['success'])
+        self.assertIsNone(op.visao_investidor_por_token(self.factory, token))
+
+        auditoria = {a['acao'] for a in op.listar_auditoria(self.factory, operacao_id) if a['entidade'] == 'compartilhamento'}
+        self.assertEqual(auditoria, {'criado', 'revogado'})
+
+    def test_token_de_uma_operacao_nao_acessa_outra(self):
+        op1 = self.criar_operacao_softdrinks()
+        op2 = op.criar_operacao(self.factory, titulo='Outra Operação', data_inicio='2027-01-01',
+                                 data_fim='2027-01-02', criado_por='diretor')['operacao']['id']
+        criado = op.criar_compartilhamento_investidor(self.factory, op1, ator='diretor')
+        visao = op.visao_investidor_por_token(self.factory, criado['compartilhamento']['token'])
+        self.assertEqual(visao['operacao']['id'], op1)
+        self.assertNotEqual(visao['operacao']['id'], op2)
+
+    def test_token_revogado_nunca_incrementa_acesso(self):
+        operacao_id = self.criar_operacao_softdrinks()
+        criado = op.criar_compartilhamento_investidor(self.factory, operacao_id, ator='diretor')
+        token = criado['compartilhamento']['token']
+        op.revogar_compartilhamento_investidor(self.factory, token, ator='diretor')
+        self.assertIsNone(op.visao_investidor_por_token(self.factory, token))
+        compartilhamentos = op.listar_compartilhamentos(self.factory, operacao_id)
+        self.assertEqual(compartilhamentos[0]['total_acessos'], 0)
 
 
 if __name__ == '__main__':

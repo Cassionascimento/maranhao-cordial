@@ -13,6 +13,7 @@ fornecedor/convidado externo, publica nada ou executa pagamento --
 persistência e leitura apenas. Toda mudança relevante grava uma linha
 em mi_operacao_auditoria (append-only, nunca sobrescreve histórico).
 """
+import secrets
 import uuid
 from datetime import datetime, timezone
 
@@ -808,6 +809,91 @@ def visao_investidor(factory, operacao_id):
 
 
 # ---------------------------------------------------------------------
+# Compartilhamento da Visão Investidor -- sempre humano, revogável,
+# auditável; nunca reaproveita ADMIN_API_KEY (token opaco à parte).
+# ---------------------------------------------------------------------
+
+def criar_compartilhamento_investidor(factory, operacao_id, ator):
+    _exigir(ator, 'ator')
+    conn = factory()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT id FROM mi_operacoes WHERE id=%s", (_uuid(operacao_id),))
+                if not cur.fetchone():
+                    return {'success': False, 'motivo': 'operacao_nao_encontrada'}
+                token = secrets.token_urlsafe(32)
+                compartilhamento_id = uuid.uuid4()
+                cur.execute(
+                    "INSERT INTO mi_operacao_compartilhamentos (id, operacao_id, token, criado_por) "
+                    "VALUES (%s,%s,%s,%s) RETURNING id, token, criado_em",
+                    (str(compartilhamento_id), _uuid(operacao_id), token, ator),
+                )
+                compartilhamento = cur.fetchone()
+                _registrar_auditoria(cur, operacao_id, 'compartilhamento', compartilhamento_id, 'criado', ator)
+                return {'success': True, 'compartilhamento': compartilhamento}
+    finally:
+        conn.close()
+
+
+def revogar_compartilhamento_investidor(factory, token, ator):
+    _exigir(ator, 'ator')
+    conn = factory()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "UPDATE mi_operacao_compartilhamentos SET revogado_em=NOW(), revogado_por=%s "
+                    "WHERE token=%s AND revogado_em IS NULL RETURNING id, operacao_id", (ator, token),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {'success': False, 'motivo': 'compartilhamento_nao_encontrado_ou_ja_revogado'}
+                _registrar_auditoria(cur, row['operacao_id'], 'compartilhamento', row['id'], 'revogado', ator)
+                return {'success': True}
+    finally:
+        conn.close()
+
+
+def listar_compartilhamentos(factory, operacao_id):
+    conn = factory()
+    try:
+        conn.set_session(readonly=True, isolation_level='REPEATABLE READ')
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SET LOCAL statement_timeout='10s'")
+            cur.execute(
+                "SELECT id, criado_por, criado_em, revogado_em, revogado_por, ultimo_acesso_em, total_acessos "
+                "FROM mi_operacao_compartilhamentos WHERE operacao_id=%s ORDER BY criado_em DESC",
+                (_uuid(operacao_id),),
+            )
+            return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def visao_investidor_por_token(factory, token):
+    """Único caminho de leitura para quem não tem chave administrativa:
+    exige um token ativo (não revogado); nunca expõe o token de outra
+    operação nem qualquer dado fora do já sanitizado por
+    visao_investidor(). Cada acesso incrementa total_acessos e atualiza
+    ultimo_acesso_em -- é a trilha auditável exigida pela ordem."""
+    conn = factory()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "UPDATE mi_operacao_compartilhamentos SET ultimo_acesso_em=NOW(), total_acessos=total_acessos+1 "
+                    "WHERE token=%s AND revogado_em IS NULL RETURNING operacao_id", (token,),
+                )
+                row = cur.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    return visao_investidor(factory, row['operacao_id'])
+
+
+# ---------------------------------------------------------------------
 # Rotas HTTP
 # ---------------------------------------------------------------------
 
@@ -1058,4 +1144,48 @@ def registrar_rotas(app, factory, autorizado):
             return jsonify(success=True, **visao)
         except Exception:
             app.logger.exception('Falha ao montar visão investidor da operação %s', operacao_id)
+            return _erro('Visão do investidor indisponível no momento.', 503)
+
+    @app.route('/api/admin/mi/operacoes/<operacao_id>/investidor/compartilhamentos', methods=['GET', 'POST'])
+    def mi_operacao_investidor_compartilhamentos(operacao_id):
+        if not autorizado():
+            return _erro('Não autorizado.', 401)
+        try:
+            if request.method == 'GET':
+                return jsonify(success=True, compartilhamentos=listar_compartilhamentos(factory, operacao_id))
+            corpo = request.get_json(silent=True) or {}
+            resultado = criar_compartilhamento_investidor(factory, operacao_id, corpo.get('ator') or _ator())
+            return jsonify(resultado), 201 if resultado.get('success') else 400
+        except ValueError as erro:
+            return _erro(str(erro))
+        except Exception:
+            app.logger.exception('Falha ao processar compartilhamentos da operação %s', operacao_id)
+            return _erro('Compartilhamento indisponível no momento.', 503)
+
+    @app.route('/api/admin/mi/operacoes/investidor/compartilhamentos/<token>', methods=['DELETE'])
+    def mi_operacao_investidor_revogar(token):
+        if not autorizado():
+            return _erro('Não autorizado.', 401)
+        try:
+            corpo = request.get_json(silent=True) or {}
+            resultado = revogar_compartilhamento_investidor(factory, token, corpo.get('ator') or _ator())
+            return jsonify(resultado), 200 if resultado.get('success') else 404
+        except ValueError as erro:
+            return _erro(str(erro))
+        except Exception:
+            app.logger.exception('Falha ao revogar compartilhamento')
+            return _erro('Compartilhamento indisponível no momento.', 503)
+
+    @app.route('/investidor/<token>', methods=['GET'])
+    def mi_operacao_investidor_publico(token):
+        # Rota deliberadamente FORA de /api/admin: não exige (nem aceita)
+        # ADMIN_API_KEY -- só o token opaco do link compartilhado. Nunca
+        # lista operações nem aceita nenhum outro parâmetro.
+        try:
+            visao = visao_investidor_por_token(factory, token)
+            if not visao:
+                return _erro('Link inválido, expirado ou revogado.', 404)
+            return jsonify(success=True, **visao)
+        except Exception:
+            app.logger.exception('Falha ao montar visão investidor por token')
             return _erro('Visão do investidor indisponível no momento.', 503)
