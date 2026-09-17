@@ -17248,23 +17248,21 @@ def gmail_conectar():
 
 @app.route("/api/gmail/callback")
 def gmail_callback():
+    from central_paginas import pagina_gmail_callback
     try:
         validar_config_oauth_p0(GMAIL_REDIRECT_URI)
     except ValueError as erro:
-        return jsonify({"success": False, "erro": str(erro)}), 503
+        return pagina_gmail_callback(False, str(erro)), 503
     state = session.pop("gmail_oauth_state", None)
     navegador = session.pop("gmail_oauth_navegador", None)
 
     if not state or request.args.get("state") != state or not navegador:
-        return jsonify({
-            "success": False,
-            "erro": "Estado OAuth do Gmail não encontrado."
-        }), 400
+        return pagina_gmail_callback(False, "Estado OAuth do Gmail não encontrado. Feche esta aba e tente novamente."), 400
 
     try:
         verifier = consumir_oauth(get_db_connection, state, navegador)
     except ValueError:
-        return jsonify({"success": False, "erro": "Estado OAuth inválido ou expirado."}), 400
+        return pagina_gmail_callback(False, "Estado OAuth inválido ou expirado. Feche esta aba e tente novamente."), 400
 
     flow = Flow.from_client_config(
         GMAIL_CLIENT_CONFIG,
@@ -17286,9 +17284,9 @@ def gmail_callback():
     # O callback só conclui uma autorização administrativa de uso único.
     perfil = build("gmail", "v1", credentials=credentials, cache_discovery=False).users().getProfile(userId="me").execute()
     if (perfil.get("emailAddress") or "").lower() != "contato@maranhaocordial.com.br":
-        return jsonify({"success": False, "erro": "Conta institucional incorreta."}), 403
+        return pagina_gmail_callback(False, "Conta institucional incorreta. Entre com contato@maranhaocordial.com.br."), 403
     if not credentials.refresh_token:
-        return jsonify({"success": False, "erro": "Autorização sem refresh token; conexão anterior preservada."}), 400
+        return pagina_gmail_callback(False, "Autorização sem refresh token; a conexão anterior foi preservada."), 400
 
     conn = get_db_connection()
 
@@ -17329,10 +17327,7 @@ def gmail_callback():
     finally:
         conn.close()
 
-    return jsonify({
-        "success": True,
-        "mensagem": "Gmail conectado com sucesso."
-    })
+    return pagina_gmail_callback(True, "A caixa institucional já pode ser aberta direto pela Central.")
 
 
 
@@ -39768,6 +39763,20 @@ registrar_rotas_mi_label_studio(app, get_db_connection, validar_admin_request)
 # isolado), sempre com lineage explícita ao conceito aprovado.
 from mi_social_studio import registrar_rotas as registrar_rotas_mi_social_studio
 registrar_rotas_mi_social_studio(app, get_db_connection, validar_admin_request)
+
+# Central Empresarial -- Governança geral: corrige o card "Autonomia
+# empresarial" (admin.html), que chamava uma rota que nunca existiu
+# neste backend. Reaproveita mi_fila_operacional (mi_decisao.py, já
+# existente); nenhuma tabela nova, nenhum índice fabricado.
+from mi_governanca_geral import registrar_rotas as registrar_rotas_mi_governanca_geral
+registrar_rotas_mi_governanca_geral(app, get_db_connection, validar_admin_request)
+
+# Central Empresarial -- Operações Vivas (migration 022, aditiva). CRUD de
+# operação/equipe/plano/brainstorm-com-Conselho/indicadores/financeiro/
+# arquivos/histórico/visão investidor. Reaproveita mi_artefatos (visual/
+# documentos) e mi_conselho_executor (brainstorm), nenhum storage/LLM novo.
+from mi_operacoes import registrar_rotas as registrar_rotas_mi_operacoes
+registrar_rotas_mi_operacoes(app, get_db_connection, validar_admin_request)
 
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)

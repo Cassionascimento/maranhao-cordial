@@ -1,6 +1,10 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const vm=require('node:vm');const fs=require('node:fs');
 const code=fs.readFileSync('maranhao-backend/app-shell.js','utf8');
 
+function elementoFalso(){
+  return {rel:'',href:'',src:'',defer:false,append(){}};
+}
+
 function setup(textoInicial=''){
   const classes=new Set();
   const abaGovernanca={classList:{
@@ -10,9 +14,12 @@ function setup(textoInicial=''){
   const statusEl={textContent:textoInicial};
   let callback=null;
   class MutationObserverMock{ constructor(cb){ callback=cb; } observe(){} }
+  const head={append(){}};
   const document={
+    head,
     querySelector:sel=>sel.includes('governanca') ? abaGovernanca : null,
     getElementById:id=>id==='status-acoes-comerciais' ? statusEl : null,
+    createElement:()=>elementoFalso(),
   };
   vm.runInNewContext(code,{document,MutationObserver:MutationObserverMock});
   return {
@@ -39,6 +46,11 @@ test('destaque some quando as pendências chegam a zero',()=>{
 });
 
 test('sem os elementos esperados na página, o script não faz nada (nunca lança erro)',()=>{
-  const document={querySelector:()=>null,getElementById:()=>null};
+  const document={
+    head:{append(){}},
+    querySelector:()=>null,
+    getElementById:()=>null,
+    createElement:()=>elementoFalso(),
+  };
   assert.doesNotThrow(()=>vm.runInNewContext(code,{document,MutationObserver:class{observe(){}}}));
 });
