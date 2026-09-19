@@ -52,13 +52,44 @@ class GerarCalendario(unittest.TestCase):
                     'executar_em': None, 'estado': 'aguardando', 'chave': 'y'}
         conn = MagicMock()
         cur = conn.cursor.return_value.__enter__.return_value
-        cur.fetchall.return_value = [pendente]
+        # atividades_pendentes_fila (conselho) é chamado antes de
+        # atividades_operacoes_vivas -- cada um faz seu próprio
+        # execute()+fetchall(), por isso a lista de retornos é ordenada
+        # por chamada, não um valor único compartilhado.
+        cur.fetchall.side_effect = [[pendente], []]
         with patch('mi_calendario.planejar', return_value=[]), \
              patch('mi_calendario.planejar_publico', return_value={'atividades_calendario': [], 'top10': [],
                                                                      'mudou_desde_ultima_analise': False}):
             calendario = gerar_calendario_mi(lambda: conn)
         self.assertEqual(len(calendario['colunas']['aguardando']), 1)
         self.assertEqual(calendario['colunas']['aguardando'][0]['tipo_decisao'], 'recomendacao_conselho')
+
+    def test_operacoes_vivas_ativas_entram_no_calendario(self):
+        from datetime import date, timedelta
+        futura = {'id': 'op-1', 'titulo': 'Softdrinks Tech', 'descricao': None,
+                  'data_inicio': date.today() + timedelta(days=5), 'data_fim': date.today() + timedelta(days=6),
+                  'local': 'AGUARDANDO DADOS', 'estado': 'confirmada', 'prioridade': 'alta', 'responsavel': 'diretor'}
+        conn = MagicMock()
+        cur = conn.cursor.return_value.__enter__.return_value
+        cur.fetchall.side_effect = [[], [futura]]
+        with patch('mi_calendario.planejar', return_value=[]), \
+             patch('mi_calendario.planejar_publico', return_value={'atividades_calendario': [], 'top10': [],
+                                                                     'mudou_desde_ultima_analise': False}):
+            calendario = gerar_calendario_mi(lambda: conn)
+        self.assertEqual(len(calendario['colunas']['proximas']), 1)
+        atividade = calendario['colunas']['proximas'][0]
+        self.assertEqual(atividade['tipo_decisao'], 'operacao_viva')
+        self.assertEqual(atividade['operacao_id'], 'op-1')
+        self.assertEqual(atividade['titulo'], 'Softdrinks Tech')
+
+    def test_operacao_cancelada_e_filtrada_pela_propria_consulta_sql(self):
+        # A consulta em mi_operacoes.atividades_calendario já filtra
+        # estado<>'cancelada' -- este teste documenta essa garantia via
+        # inspeção da SQL, não infere pelo resultado (o fake não filtra).
+        import inspect
+        import mi_operacoes as opmod
+        origem = inspect.getsource(opmod.atividades_calendario)
+        self.assertIn("estado <> 'cancelada'", origem)
 
 
 class RotaMiCalendario(unittest.TestCase):

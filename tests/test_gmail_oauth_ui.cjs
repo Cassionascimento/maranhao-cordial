@@ -23,7 +23,7 @@ function painel(chave = 'chave-sintetica', popupBloqueado = false) {
         addEventListener: (tipo, fn) => {listeners[tipo] = fn;},
         removeEventListener: tipo => {delete listeners[tipo];}
     };
-    const ctx = vm.createContext({window, document: {getElementById: () => status}, setTimeout: () => 1, clearTimeout: () => {}});
+    const ctx = vm.createContext({window, document: {getElementById: () => status, querySelector: () => null}, setTimeout: () => 1, clearTimeout: () => {}});
     vm.runInContext(admin, ctx);
     ctx.conectarGmailP0();
     return {window, popup, listeners, mensagens, status};
@@ -63,19 +63,16 @@ test('painel não inicia OAuth sem autenticação ou com popup bloqueado', () =>
     assert.equal(b.listeners.message, undefined);
 });
 
-test('painel só transmite chave à janela e origem exatas, fora da URL', () => {
+test('painel abre o Gmail institucional direto, sem handshake de postMessage nem chave exposta na URL', () => {
+    // O botão da Central deixou de abrir um popup de autorização com troca
+    // de postMessage (conectarGmailP0 hoje só abre a caixa institucional);
+    // a reconexão OAuth propriamente dita continua isolada na bridge
+    // gmail-oauth.html, coberta pelos testes de janela() abaixo.
     const p = painel();
-    const data = {tipo: 'gmail-p0-pronto'};
-    p.listeners.message({origin: 'https://malicioso.example', source: p.popup, data});
-    p.listeners.message({origin: api, source: {}, data});
-    assert.equal(p.mensagens.length, 0);
-    p.listeners.message({origin: api, source: p.popup, data});
-    assert.equal(p.mensagens.length, 1);
-    assert.equal(p.mensagens[0][1], api);
-    assert.equal(p.mensagens[0][0].chave, 'chave-sintetica');
     assert.equal(p.listeners.message, undefined);
-    assert.equal(p.window.abertura[0], api + '/api/gmail/painel');
-    assert.ok(!p.window.abertura[0].includes('chave'));
+    assert.equal(p.mensagens.length, 0);
+    assert.equal(p.window.abertura[0], 'https://mail.google.com/mail/u/0/');
+    assert.ok(!p.window.abertura[0].includes('chave-sintetica'));
 });
 
 test('janela ignora mensagens de origem ou remetente não autorizado', async () => {

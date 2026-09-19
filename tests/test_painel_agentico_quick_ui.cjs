@@ -1,0 +1,1 @@
+const fs=require('fs'),assert=require('assert');const css=fs.readFileSync('maranhao-backend/app-shell.css','utf8');assert(css.includes('.mc-agentic-quick'));assert(css.includes('.mc-agentic-quick-item'));console.log('quick access UI: ok');

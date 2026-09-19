@@ -2083,6 +2083,17 @@ def inicializar_banco():
                     NOT NULL DEFAULT 'novo'
                 """)
 
+                # Aditiva e reversível (DROP COLUMN motivo_perda): nenhuma
+                # leitura/escrita existente depende dela ainda -- só grava a
+                # base para capturar POR QUE um lead virou 'perdido', hoje
+                # descartado (estagio='perdido' é só um estado terminal, sem
+                # motivo). Nula por padrão; nenhum fluxo é obrigado a
+                # preenchê-la nesta etapa.
+                cur.execute("""
+                    ALTER TABLE leads_crm
+                    ADD COLUMN IF NOT EXISTS motivo_perda TEXT
+                """)
+
                 # ==========================================
                 # AI-NATIVE — HISTÓRICO ECONÔMICO
                 # ==========================================
@@ -3710,6 +3721,20 @@ def inicializar_banco():
                     )
                 """)
 
+                # Aditiva e idempotente (P1A): vínculo opcional e auditável
+                # entre pedido e produto (mi_skus.sku). NULL para todo
+                # pedido histórico e para todo pedido novo que não informar
+                # sku -- nenhum valor é inventado. Sem FK para mi_skus
+                # propositalmente: a aplicação do estado real das migrations
+                # 007-012 (mi_skus) em produção não é verificável a partir
+                # daqui, e uma FK exigiria essa tabela existir antes deste
+                # ALTER rodar -- validação de existência fica em código
+                # (ver produto_do_pedido), nunca bloqueando o checkout.
+                cur.execute("""
+                    ALTER TABLE pedidos
+                    ADD COLUMN IF NOT EXISTS sku TEXT
+                """)
+
     finally:
         conn.close()
 
@@ -3918,12 +3943,14 @@ def salvar_pedido_postgres(pedido):
                         transportadora,
                         status_entrega,
                         tracking_code,
-                        tracking_url
+                        tracking_url,
+                        sku
                     )
                     VALUES (
                         %s, %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s,
+                        %s
                     )
                     ON CONFLICT (codigo)
                     DO UPDATE SET
@@ -3943,6 +3970,7 @@ def salvar_pedido_postgres(pedido):
                         status_entrega = EXCLUDED.status_entrega,
                         tracking_code = EXCLUDED.tracking_code,
                         tracking_url = EXCLUDED.tracking_url,
+                        sku = COALESCE(EXCLUDED.sku, pedidos.sku),
                         atualizado_em = NOW()
                     RETURNING (xmax = 0) AS foi_criado
                 """, (
@@ -3963,7 +3991,8 @@ def salvar_pedido_postgres(pedido):
                     pedido.get("delivery", {}).get("provider"),
                     pedido.get("delivery", {}).get("status"),
                     pedido.get("delivery", {}).get("tracking_code"),
-                    pedido.get("delivery", {}).get("tracking_url")
+                    pedido.get("delivery", {}).get("tracking_url"),
+                    pedido.get("sku"),
                 ))
 
                 linha = cur.fetchone()
@@ -17219,23 +17248,21 @@ def gmail_conectar():
 
 @app.route("/api/gmail/callback")
 def gmail_callback():
+    from central_paginas import pagina_gmail_callback
     try:
         validar_config_oauth_p0(GMAIL_REDIRECT_URI)
     except ValueError as erro:
-        return jsonify({"success": False, "erro": str(erro)}), 503
+        return pagina_gmail_callback(False, str(erro)), 503
     state = session.pop("gmail_oauth_state", None)
     navegador = session.pop("gmail_oauth_navegador", None)
 
     if not state or request.args.get("state") != state or not navegador:
-        return jsonify({
-            "success": False,
-            "erro": "Estado OAuth do Gmail não encontrado."
-        }), 400
+        return pagina_gmail_callback(False, "Estado OAuth do Gmail não encontrado. Feche esta aba e tente novamente."), 400
 
     try:
         verifier = consumir_oauth(get_db_connection, state, navegador)
     except ValueError:
-        return jsonify({"success": False, "erro": "Estado OAuth inválido ou expirado."}), 400
+        return pagina_gmail_callback(False, "Estado OAuth inválido ou expirado. Feche esta aba e tente novamente."), 400
 
     flow = Flow.from_client_config(
         GMAIL_CLIENT_CONFIG,
@@ -17257,9 +17284,9 @@ def gmail_callback():
     # O callback só conclui uma autorização administrativa de uso único.
     perfil = build("gmail", "v1", credentials=credentials, cache_discovery=False).users().getProfile(userId="me").execute()
     if (perfil.get("emailAddress") or "").lower() != "contato@maranhaocordial.com.br":
-        return jsonify({"success": False, "erro": "Conta institucional incorreta."}), 403
+        return pagina_gmail_callback(False, "Conta institucional incorreta. Entre com contato@maranhaocordial.com.br."), 403
     if not credentials.refresh_token:
-        return jsonify({"success": False, "erro": "Autorização sem refresh token; conexão anterior preservada."}), 400
+        return pagina_gmail_callback(False, "Autorização sem refresh token; a conexão anterior foi preservada."), 400
 
     conn = get_db_connection()
 
@@ -17300,10 +17327,7 @@ def gmail_callback():
     finally:
         conn.close()
 
-    return jsonify({
-        "success": True,
-        "mensagem": "Gmail conectado com sucesso."
-    })
+    return pagina_gmail_callback(True, "A caixa institucional já pode ser aberta direto pela Central.")
 
 
 
@@ -33012,7 +33036,8 @@ def buscar_pedido_postgres(codigo):
                         tracking_code,
                         tracking_url,
                         criado_em,
-                        atualizado_em
+                        atualizado_em,
+                        sku
                     FROM pedidos
                     WHERE codigo = %s
                     LIMIT 1
@@ -33042,10 +33067,79 @@ def buscar_pedido_postgres(codigo):
                     "tracking_code": linha[15],
                     "tracking_url": linha[16],
                     "criado_em": linha[17].isoformat() if linha[17] else None,
-                    "atualizado_em": linha[18].isoformat() if linha[18] else None
+                    "atualizado_em": linha[18].isoformat() if linha[18] else None,
+                    "sku": linha[19]
                 }
     finally:
         conn.close()
+
+
+def produto_do_pedido(sku):
+    """Só leitura: identifica o produto de um pedido a partir do sku já
+    gravado nele (P1A). `sku` ausente ou sem correspondência em mi_skus
+    nunca vira um produto inventado -- volta UNKNOWN/None explícito, nunca
+    um valor adivinhado."""
+    if not sku:
+        return {"sku": None, "produto_nome": None, "categoria": None, "encontrado": False}
+    from mi_skus import buscar_sku, normalizar_sku
+    try:
+        sku_normalizado = normalizar_sku(sku)
+    except ValueError:
+        return {"sku": sku, "produto_nome": None, "categoria": None, "encontrado": False}
+    produto = buscar_sku(get_db_connection, sku_normalizado)
+    if not produto:
+        return {"sku": sku_normalizado, "produto_nome": None, "categoria": None, "encontrado": False}
+    return {"sku": produto["sku"], "produto_nome": produto["produto_nome"],
+            "categoria": produto["categoria"], "encontrado": True}
+
+
+def identificar_pessoa_e_estabelecimento_do_pedido(pedido):
+    """Liga pedido -> pessoa/organização -> estabelecimento reaproveitando
+    o Contact Central já existente (localizar_contato_central_existente) --
+    nunca cria uma segunda camada de identidade, nunca funde nada, nunca
+    escreve. mi_estabelecimentos.lead_id (já existente) é a única ponte
+    usada para o estabelecimento; sem correspondência, os dois campos
+    voltam None (nunca inventados)."""
+    resultado_pessoa = localizar_contato_central_existente(
+        email=pedido.get("cliente_email"),
+        telefone=pedido.get("cliente_whatsapp"),
+    )
+    if not resultado_pessoa.get("encontrado"):
+        return {"pessoa": None, "estabelecimento": None}
+    pessoa = resultado_pessoa["contato"]
+    estabelecimento = None
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id,nome,tipo,cidade,uf,bairro FROM mi_estabelecimentos WHERE lead_id=%s LIMIT 1",
+                (pessoa["id"],),
+            )
+            row = cur.fetchone()
+            estabelecimento = dict(row) if row else None
+    finally:
+        conn.close()
+    return {"pessoa": pessoa, "estabelecimento": estabelecimento}
+
+
+@app.route("/api/admin/pedidos/<codigo>/contexto", methods=["GET"])
+def contexto_pedido(codigo):
+    """Só leitura: junta pedido + produto (mi_skus) + pessoa/estabelecimento
+    (Contact Central) num único retorno auditável -- nenhuma escrita,
+    nenhuma fusão, nenhum dado inventado (P1A)."""
+    if not validar_admin_request():
+        return jsonify(success=False, error="Não autorizado."), 401
+    try:
+        pedido = buscar_pedido_postgres(codigo)
+        if not pedido:
+            return jsonify(success=False, error="Pedido não encontrado."), 404
+        produto = produto_do_pedido(pedido.get("sku"))
+        identidade = identificar_pessoa_e_estabelecimento_do_pedido(pedido)
+    except Exception:
+        app.logger.exception("Falha ao montar contexto do pedido")
+        return jsonify(success=False, error="Contexto indisponível."), 503
+    return jsonify(success=True, pedido=pedido, produto=produto,
+                   pessoa=identidade["pessoa"], estabelecimento=identidade["estabelecimento"])
 
 
 @app.route("/api/pedidos/teste-postgres", methods=["POST"])
@@ -39574,6 +39668,121 @@ registrar_rotas_mi_diretor(app, get_db_connection, validar_admin_request)
 
 from mi_conselho import registrar_rotas_conselho
 registrar_rotas_conselho(app, get_db_connection, validar_admin_request)
+
+# Camada de fábrica (SKU/lote/unidade/estabelecimento) -- só leitura nesta
+# etapa (P1A). Escrita (criar_sku/criar_lote/criar_unidade/
+# criar_estabelecimento) continua só chamável por código, nunca por HTTP.
+from mi_skus import registrar_rotas_leitura as registrar_rotas_mi_skus
+registrar_rotas_mi_skus(app, get_db_connection, validar_admin_request)
+
+from mi_lotes import registrar_rotas_leitura as registrar_rotas_mi_lotes
+registrar_rotas_mi_lotes(app, get_db_connection, validar_admin_request)
+
+from mi_unidades import registrar_rotas_leitura as registrar_rotas_mi_unidades
+registrar_rotas_mi_unidades(app, get_db_connection, validar_admin_request)
+
+from mi_estabelecimentos import registrar_rotas_leitura as registrar_rotas_mi_estabelecimentos
+registrar_rotas_mi_estabelecimentos(app, get_db_connection, validar_admin_request)
+
+# Customer/Partner 360 (P1B) -- só leitura, agrega estruturas já existentes
+# (leads_crm, mi_estabelecimentos, interacoes_omnichannel, pedidos,
+# compras_relacionamento, acoes_comerciais_propostas, formulários, mi_eventos).
+from mi_relacionamento_360 import registrar_rotas_leitura as registrar_rotas_mi_relacionamento_360
+registrar_rotas_mi_relacionamento_360(app, get_db_connection, validar_admin_request)
+
+# Maranhão Intelligence Core (P2) -- score explicável, segmentação,
+# oportunidade e Next Best Action sobre o 360 -- só leitura/recomendação,
+# nenhuma execução (aprovação humana continua em acoes_comerciais.py).
+from mi_inteligencia_relacionamento import registrar_rotas_leitura as registrar_rotas_mi_inteligencia
+registrar_rotas_mi_inteligencia(app, get_db_connection, validar_admin_request)
+
+# P3 -- Learning & Territory Intelligence Foundation. mi_outcome_
+# relacionamento é o único ponto de ESCRITA de todo o P0-P3 (só sobre
+# mi_fila_operacional, já existente -- nunca checkout/WhatsApp/Gmail/
+# Meta/C6-Pix, que continuam intocados).
+from mi_outcome_relacionamento import registrar_rotas as registrar_rotas_mi_outcome
+registrar_rotas_mi_outcome(app, get_db_connection, validar_admin_request)
+
+from mi_territorio_inteligencia import registrar_rotas_leitura as registrar_rotas_mi_territorio_inteligencia
+registrar_rotas_mi_territorio_inteligencia(app, get_db_connection, validar_admin_request)
+
+from mi_forecast_readiness import registrar_rotas_leitura as registrar_rotas_mi_forecast_readiness
+registrar_rotas_mi_forecast_readiness(app, get_db_connection, validar_admin_request)
+
+# P5 -- Intelligence Core API: fecha o backend para o painel (contrato
+# canônico por relacionamento, overview agregado, fila de decisão). Só
+# leitura -- nenhuma escrita nova; integra P0-P4, não recria nada.
+from mi_intelligence_api import registrar_rotas_leitura as registrar_rotas_mi_intelligence_api
+registrar_rotas_mi_intelligence_api(app, get_db_connection, validar_admin_request)
+
+# P5.X M1 -- contrato canônico de artefatos executivos/criativos (deck,
+# gráfico, imagem, rótulo). Só persistência/versionamento -- nenhuma
+# geração de conteúdo aqui (Presentation Engine/Chart Engine/Pirret
+# multimodal chamam este módulo, nunca o contrário).
+from mi_artefatos import registrar_rotas as registrar_rotas_mi_artefatos
+registrar_rotas_mi_artefatos(app, get_db_connection, validar_admin_request)
+
+# P5.X M3 -- Secretário Executivo: transforma uma deliberação já
+# persistida do Conselho em ata compacta (nunca decide, nunca substitui
+# especialista, uma única chamada de LLM por reunião).
+from mi_secretario_executivo import registrar_rotas_leitura as registrar_rotas_mi_secretario
+registrar_rotas_mi_secretario(app, get_db_connection, validar_admin_request)
+
+# P5.X M4 -- Presentation Engine: gera .pptx real (python-pptx) a partir
+# da ata do Secretário e persiste como artefato via mi_artefatos.
+from mi_presentation_engine import registrar_rotas as registrar_rotas_mi_presentation
+registrar_rotas_mi_presentation(app, get_db_connection, validar_admin_request)
+
+# P5.X M5 -- Chart Engine: gráfico factual programático (SVG standalone +
+# nativo do PPTX) a partir de um chart_spec canônico já com dados reais.
+from mi_chart_engine import registrar_rotas as registrar_rotas_mi_chart_engine
+registrar_rotas_mi_chart_engine(app, get_db_connection, validar_admin_request)
+
+# P5.X M6 -- Pirret multimodal: brief estruturado + ImageGenerationProvider
+# (reaproveita a credencial OpenAI já configurada) + persistência via
+# mi_artefatos. Pirret continua sendo o agente de Marketing existente.
+from mi_pirret_criativo import registrar_rotas as registrar_rotas_mi_pirret
+registrar_rotas_mi_pirret(app, get_db_connection, validar_admin_request)
+
+# P5.X M7 -- Brand Visual Context (versionado, nunca sobrescrito) +
+# Visual Memory (reaproveita mi_artefatos.status='aprovado', nenhuma
+# tabela nova para isso).
+from mi_brand_context import registrar_rotas as registrar_rotas_mi_brand_context
+registrar_rotas_mi_brand_context(app, get_db_connection, validar_admin_request)
+
+# P5.X M8 -- Label Studio: fonte regulatória canônica (separada da
+# camada criativa de Pirret) + geração de conceito de rótulo sempre
+# marcado "não aprovado para produção" até validação regulatória real.
+from mi_regulatorio_produto import registrar_rotas as registrar_rotas_mi_regulatorio
+registrar_rotas_mi_regulatorio(app, get_db_connection, validar_admin_request)
+from mi_label_studio import registrar_rotas as registrar_rotas_mi_label_studio
+registrar_rotas_mi_label_studio(app, get_db_connection, validar_admin_request)
+
+# P5.X M8 -- Social Creative Studio: transforma um artefato APROVADO em
+# peças por formato (key visual/feed/story/vertical/banner/produto
+# isolado), sempre com lineage explícita ao conceito aprovado.
+from mi_social_studio import registrar_rotas as registrar_rotas_mi_social_studio
+registrar_rotas_mi_social_studio(app, get_db_connection, validar_admin_request)
+
+# Central Empresarial -- Governança geral: corrige o card "Autonomia
+# empresarial" (admin.html), que chamava uma rota que nunca existiu
+# neste backend. Reaproveita mi_fila_operacional (mi_decisao.py, já
+# existente); nenhuma tabela nova, nenhum índice fabricado.
+from mi_governanca_geral import registrar_rotas as registrar_rotas_mi_governanca_geral
+registrar_rotas_mi_governanca_geral(app, get_db_connection, validar_admin_request)
+
+# Central Empresarial -- Operações Vivas (migration 022, aditiva). CRUD de
+# operação/equipe/plano/brainstorm-com-Conselho/indicadores/financeiro/
+# arquivos/histórico/visão investidor. Reaproveita mi_artefatos (visual/
+# documentos) e mi_conselho_executor (brainstorm), nenhum storage/LLM novo.
+from mi_operacoes import registrar_rotas as registrar_rotas_mi_operacoes
+registrar_rotas_mi_operacoes(app, get_db_connection, validar_admin_request)
+
+# Central Empresarial -- seção 1.D: ciclo de vida de contatos_estrategicos
+# (migration 023, aditiva). profissionais_rede/fabricas_parceiras já têm
+# arquivamento e workflow de status reais (rotas acima, não duplicadas).
+from mi_contatos_estrategicos import registrar_rotas as registrar_rotas_mi_contatos_estrategicos
+registrar_rotas_mi_contatos_estrategicos(app, get_db_connection, validar_admin_request)
 
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)

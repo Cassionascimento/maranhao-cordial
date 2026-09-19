@@ -232,6 +232,32 @@ def analisar_leads_prioritarios(cur, limite=50):
     return decisoes
 
 
+def analisar_recompras_provaveis(cur, limite=50):
+    """'Quem provavelmente vai recomprar?' -- leads_crm.proxima_recompra_em
+    já é calculada e gravada a cada compra (main.py, registrar_compra_
+    relacionamento), mas até agora nenhuma consulta no sistema a lia; aqui
+    só REPORTAMOS quem já venceu a janela prevista, mesmo padrão de
+    analisar_followups_devidos (campo de data já existente, só leitura,
+    nunca dispara contato nenhum)."""
+    cur.execute(
+        "SELECT id, proxima_recompra_em FROM leads_crm "
+        "WHERE proxima_recompra_em IS NOT NULL AND proxima_recompra_em <= NOW() "
+        "AND COALESCE(cadastro_teste, FALSE) = FALSE "
+        "ORDER BY proxima_recompra_em ASC LIMIT %s",
+        (limite,),
+    )
+    decisoes = []
+    for row in cur.fetchall():
+        decisoes.append(_decisao(
+            'crm', row['id'], 'recompra_provavel',
+            [f"lead:{row['id']}:proxima_recompra_em:{row['proxima_recompra_em']}"],
+            'janela de recompra prevista (leads_crm.proxima_recompra_em) já venceu sem novo pedido registrado',
+            'normal', 0.6, 'sugerir_recompra',
+            lead_id=row['id'],
+        ))
+    return decisoes
+
+
 def chave_atividade(decisao, agora=None):
     """Chave determinística e idempotente: origem+tipo_decisao+origem_id
     identificam o MESMO fato de negócio; o dia (UTC) permite que a mesma
@@ -262,6 +288,7 @@ def planejar(factory, agora=None):
             decisoes += analisar_bloqueios(cur)
             decisoes += analisar_pendencias_diretor(cur)
             decisoes += analisar_leads_prioritarios(cur)
+            decisoes += analisar_recompras_provaveis(cur)
         for atividade in decisoes:
             atividade['chave'] = chave_atividade(atividade, agora)
         return decisoes

@@ -153,6 +153,30 @@ class NovaVersaoRegistro(unittest.TestCase):
         self.assertFalse(resultado['success'])
 
 
+class BuscarRegistro(unittest.TestCase):
+    """P5.X M3 -- usado pelo Secretário Executivo para montar a ata a
+    partir de um registro já persistido, sem reprocessar parecer nenhum."""
+
+    def test_registro_existente_devolve_todos_os_campos(self):
+        cur = MagicMock()
+        registro_id = str(uuid4())
+        cur.fetchone.return_value = {
+            'id': registro_id, 'chave': 'k1', 'versao': 1, 'criado_em': None,
+            'tipo': 'reuniao', 'demanda': 'x', 'participantes': ['iris'], 'contexto': None,
+            'dados_apresentados': {'sintese_estruturada': {}}, 'posicoes': None, 'conflitos': None,
+            'conclusao': 'v1', 'recomendacoes': [], 'vetos': None, 'pendencias': None, 'precisa_diretor': False,
+        }
+        registro = c.buscar_registro(cur, registro_id)
+        self.assertEqual(registro['id'], registro_id)
+        self.assertEqual(registro['demanda'], 'x')
+        self.assertEqual(registro['dados_apresentados'], {'sintese_estruturada': {}})
+
+    def test_registro_inexistente_devolve_none_nunca_erro(self):
+        cur = MagicMock()
+        cur.fetchone.return_value = None
+        self.assertIsNone(c.buscar_registro(cur, str(uuid4())))
+
+
 class RecomendacaoParaAtividade(unittest.TestCase):
     def test_shape_compativel_com_mi_decisao(self):
         recomendacao = {'responsavel': 'leonard', 'descricao': 'terceirizar excedente', 'prioridade': 'alta',

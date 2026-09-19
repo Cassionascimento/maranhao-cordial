@@ -35,6 +35,7 @@ from mi_conselho_estado import montar_pacote_estado
 from mi_conselho_fatos import registrar_fato
 from mi_conselho_gatilho import processar_sinais_pendentes
 from mi_conselho_orquestrador import formatar_contexto_factual, montar_prompt, ordenar_execucao
+from mi_artefatos import TIPOS_ARTEFATO
 
 MODELO_PADRAO = os.getenv('OPENAI_MODEL_CONSELHO', 'gpt-5-mini')
 TIMEOUT_SEGUNDOS = 30
@@ -72,6 +73,23 @@ _SCHEMA_NUMERO = {
     'additionalProperties': False,
 }
 
+# P5.X M2 -- um agente pode sinalizar que a deliberação se beneficiaria de
+# um visual (gráfico factual, conceito de rótulo, etc.), mas NUNCA gera o
+# pixel/slide aqui -- só pede; quem atende é o Presentation/Chart Engine
+# ou Pirret multimodal (M4-M6), sempre depois de aprovação humana. Campo
+# aditivo, mesmo tratamento de 'numeros'/'lacunas': OPCIONAL na validação
+# interna (não entra em _CAMPOS_OBRIGATORIOS_PARECER), obrigatório-mas-
+# nulável no schema estrito da OpenAI (exigência do `strict: True`).
+_SCHEMA_VISUAL_SOLICITADO = {
+    'type': ['object', 'null'],
+    'properties': {
+        'artifact_type': {'type': 'string', 'enum': list(TIPOS_ARTEFATO)},
+        'descricao': {'type': 'string'},
+    },
+    'required': ['artifact_type', 'descricao'],
+    'additionalProperties': False,
+}
+
 _SCHEMA_PARECER = {
     'type': 'object',
     'properties': {
@@ -90,10 +108,11 @@ _SCHEMA_PARECER = {
         'acao_ja_em_andamento': {'type': 'boolean'},
         'natureza_divergencia': {'type': 'string',
                                   'enum': ['divergencia_real', 'dado_ausente', 'risco', 'hipotese', 'nenhuma']},
+        'requested_visual': _SCHEMA_VISUAL_SOLICITADO,
     },
     'required': ['dados_utilizados', 'conclusao', 'confianca', 'riscos', 'divergencias',
                  'acao_sugerida', 'necessidade_diretor', 'motivo_diretor', 'veto', 'veto_motivo',
-                 'numeros', 'lacunas', 'acao_ja_em_andamento', 'natureza_divergencia'],
+                 'numeros', 'lacunas', 'acao_ja_em_andamento', 'natureza_divergencia', 'requested_visual'],
     'additionalProperties': False,
 }
 NATUREZAS_DIVERGENCIA = ('divergencia_real', 'dado_ausente', 'risco', 'hipotese', 'nenhuma')
@@ -235,7 +254,46 @@ def executar_especialista(agente, demanda, snapshot=None, posicao_conflitante=No
         # tratado como 'nenhuma' (que apagaria uma divergência real por
         # ausência do campo).
         'natureza_divergencia': parecer.get('natureza_divergencia') if parecer.get('natureza_divergencia') in NATUREZAS_DIVERGENCIA else None,
+        'requested_visual': _visual_solicitado_valido(parecer.get('requested_visual')),
         'modelo': MODELO_PADRAO,
+    }
+
+
+def _visual_solicitado_valido(visual):
+    """Nunca repassa um requested_visual malformado adiante -- um pedido
+    de visual com artifact_type fora do vocabulário canônico de
+    mi_artefatos.TIPOS_ARTEFATO é tratado como se o agente não tivesse
+    pedido nada (falha fechada, nunca um artefato de tipo inventado)."""
+    if not isinstance(visual, dict):
+        return None
+    if visual.get('artifact_type') not in TIPOS_ARTEFATO:
+        return None
+    descricao = str(visual.get('descricao') or '').strip()
+    if not descricao:
+        return None
+    return {'artifact_type': visual['artifact_type'], 'descricao': descricao}
+
+
+def parecer_compacto(parecer):
+    """Projeta um parecer já validado (formato interno de sempre, testado
+    e usado por _consolidar/validar_proveniencia_numeros/etc, nunca
+    alterado por esta função) na estrutura compacta que a Secretaria
+    Executiva e o Presentation Engine consomem (P5.X M2) -- reduz volume
+    de contexto sem reprocessar o parecer nem duplicar sua validação.
+    Nunca substitui o parecer interno; é só uma leitura derivada dele."""
+    divergencia_texto = (parecer.get('divergencias') or '').strip()
+    return {
+        'agente': parecer.get('agente'),
+        'facts': [parecer['dados_utilizados']] if (parecer.get('dados_utilizados') or '').strip() else [],
+        'evidence': [
+            f"{n.get('valor', '')} {n.get('unidade', '')} (origem: {n.get('origem', '')})".strip()
+            for n in (parecer.get('numeros') or [])
+        ],
+        'interpretation': [parecer['conclusao']] if (parecer.get('conclusao') or '').strip() else [],
+        'recommendation': [parecer['acao_sugerida']] if (parecer.get('acao_sugerida') or '').strip() else [],
+        'confidence': parecer.get('confianca'),
+        'disagreement': [divergencia_texto] if divergencia_texto and divergencia_texto.lower() not in _SEM_DIVERGENCIA else [],
+        'requested_visual': parecer.get('requested_visual'),
     }
 
 
@@ -254,7 +312,7 @@ def _classificar_natureza_divergencia(parecer):
     return 'nenhuma' if texto in _SEM_DIVERGENCIA else 'divergencia_real'
 
 
-def _consolidar(avaliado, pareceres, erros, excedeu_limite=False):
+def _consolidar(avaliado, pareceres, erros, excedeu_limite=False, classificacao=None):
     """Monta o corpo para `mi_conselho.registrar_registro` a partir dos
     pareceres coletados -- reaproveita a estrutura já existente (tipo/
     participantes/posicoes/conflitos/vetos/recomendacoes/precisa_diretor),
@@ -385,6 +443,22 @@ def _consolidar(avaliado, pareceres, erros, excedeu_limite=False):
             'sintese_estruturada': sintese_estruturada,
             'recomendacoes_ja_em_andamento': recomendacoes_ja_em_andamento or None,
             'classificacao_divergencia': classificacao_divergencia or None,
+            # P5.X M2 -- roteamento já existente (mi_conselho_orquestrador.
+            # classificar_especialistas) fica auditável no próprio registro:
+            # quem foi convocado, por quê, e quem ficou de fora e por quê.
+            'classificacao_especialistas': (
+                {
+                    'selecionados': classificacao.get('selecionados'),
+                    'motivos': classificacao.get('motivos'),
+                    'excluidos': classificacao.get('excluidos'),
+                    'conclave_completo': classificacao.get('conclave_completo'),
+                } if classificacao else None
+            ),
+            # Estrutura compacta (facts/evidence/interpretation/recommendation/
+            # confidence/disagreement/requested_visual) por agente -- o que a
+            # Secretaria Executiva (M3) e o Presentation Engine (M4) consomem
+            # em vez de reprocessar os pareceres verbosos inteiros.
+            'pareceres_compactos': [parecer_compacto(p) for p in pareceres] or None,
         },
         'posicoes': posicoes or None,
         'conflitos': conflitos or None,
@@ -519,7 +593,7 @@ def processar_e_registrar(factory, limite=50, max_especialistas=MAX_ESPECIALISTA
                 # e força precisa_diretor=True em _consolidar.
                 erros.append({'agente': agente, 'erro': type(erro).__name__})
 
-        consolidado = _consolidar(avaliado, pareceres, erros, excedeu_limite)
+        consolidado = _consolidar(avaliado, pareceres, erros, excedeu_limite, classificacao=classificacao)
         registro = registrar_registro(factory, consolidado)
         _registrar_fatos_dos_pareceres(factory, pareceres, _extrair_registro_id(registro))
         resultados.append({**avaliado, 'pareceres': pareceres, 'erros': erros, 'registro': registro})
