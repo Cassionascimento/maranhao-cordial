@@ -397,6 +397,16 @@
 
     let carregando = false;
     let jaCarregou = false;
+    let ultimaAcao = null;
+
+    function aplicarAcaoNoCabecalho() {
+        const botao = document.querySelector('.adm-acao-principal');
+        const noInicio = document.querySelector('.tab-panel[data-panel="adm-inicio"].active');
+        if (!botao || !noInicio || !ultimaAcao) return;
+        botao.hidden = false;
+        botao.textContent = ultimaAcao.rotulo;
+        botao.onclick = () => window.admIrPara && window.admIrPara(ultimaAcao.painel);
+    }
 
     async function buscar(caminho) {
         try {
@@ -547,14 +557,11 @@
         );
 
         /* A ação principal da tela vive no cabeçalho do shell: uma
-           por contexto, sempre a mais provável agora. */
-        const acao = montarAcaoPrincipal(estado);
-        const botaoShell = document.querySelector('.adm-acao-principal');
-        if (botaoShell && document.querySelector('.tab-panel[data-panel="adm-inicio"].active')) {
-            botaoShell.hidden = false;
-            botaoShell.textContent = acao.rotulo;
-            botaoShell.onclick = () => window.admIrPara && window.admIrPara(acao.painel);
-        }
+           por contexto, sempre a mais provável agora. Guardada para ser
+           reposta quando a pessoa voltar ao Início sem recarregar — o
+           cabeçalho é reconstruído a cada troca de vista. */
+        ultimaAcao = montarAcaoPrincipal(estado);
+        aplicarAcaoNoCabecalho();
     }
 
     async function carregar(forcar) {
@@ -578,7 +585,11 @@
     }
 
     window.addEventListener('adm-vista', evento => {
-        if (evento.detail && evento.detail.painel === 'adm-inicio') carregar(false);
+        if (!evento.detail || evento.detail.painel !== 'adm-inicio') return;
+        carregar(false);
+        // Voltar ao Início sem recarregar não pode deixar o cabeçalho sem
+        // ação: repõe a última calculada.
+        aplicarAcaoNoCabecalho();
     });
     window.addEventListener('admin-autorizado', () => carregar(true));
     window.admRecarregarInicio = () => carregar(true);

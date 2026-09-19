@@ -55,6 +55,19 @@
    BASE
    ------------------------------------------------------------ */
 
+/* O CSS do shell anterior usa !important em várias regras de layout; estas
+   três anulam só o que competiria com a nova estrutura. */
+body.adm-2026.app-shell-sidebar-ativa {
+    padding-left: 0 !important;
+    background: var(--adm-fundo) !important;
+}
+
+body.adm-2026.adm-dentro.app-shell-sidebar-ativa .admin-shell {
+    padding-left: calc(var(--adm-sidebar) + 40px) !important;
+    padding-right: 40px !important;
+    max-width: none !important;
+}
+
 body.adm-2026 {
     background: var(--adm-fundo);
     color: var(--adm-texto);
@@ -63,6 +76,13 @@ body.adm-2026 {
     font-size: 15px;
     line-height: 1.55;
     padding-left: 0;
+}
+
+/* Alguns módulos dão display:flex/block às próprias seções, o que vence o
+   display:none implícito de [hidden]. Sem isto, esconder um cabeçalho
+   duplicado não surte efeito. */
+body.adm-2026 [hidden] {
+    display: none !important;
 }
 
 body.adm-2026 ::selection {
@@ -93,7 +113,8 @@ body.adm-2026 :focus-visible {
    handlers), apenas deixa de ser exibida enquanto o shell novo
    está ativo. Reversível: basta remover a classe do body. */
 body.adm-2026 .app-shell-nav,
-body.adm-2026 .app-sidebar {
+body.adm-2026 .app-sidebar,
+body.adm-2026 .mc-agentic-quick {
     display: none !important;
 }
 

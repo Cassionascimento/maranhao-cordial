@@ -31,7 +31,7 @@
             semDado: 'sem dados',
             negocio: {
                 eyebrow: 'Maranhão Cordial',
-                titulo: 'Cordiais brasileiros, operação medida ponta a ponta.',
+                titulo: 'Cordiais brasileiros, com a operação registrada em um só lugar.',
                 linha: 'A plataforma registra relacionamento, pedidos, canais e decisões no mesmo lugar. Os números abaixo são leitura direta dos registros — não há dados de demonstração.',
                 contatos: 'Contatos em relacionamento',
                 contatosNota: 'Estágios abertos, sem clientes fechados nem cadastros de teste.',

@@ -5,14 +5,32 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const { MAPA, ATALHOS, construirIndice, filtrar, paineisDoMapa, semAcento } =
+const { MAPA, ATALHOS, construirIndice, filtrar, paineisDoMapa, vistasDoMapa, semAcento } =
     require('../maranhao-backend/adm-experiencia.js');
 
 const html = fs.readFileSync('maranhao-backend/admin.html', 'utf8');
 const fonte = fs.readFileSync('maranhao-backend/adm-experiencia.js', 'utf8');
 
+/* Os módulos que constroem DOM em tempo de execução. Olhar só o admin.html
+   deixa de fora painéis e controles que só existem depois que o navegador
+   roda — foi assim que o Calendário (criado por app-shell.js) ficou fora do
+   primeiro inventário. */
+const MODULOS = [
+    'app-shell.js', 'maranhao-intelligence.js', 'conselho-agentes.js',
+    'calendario-empresarial.js', 'operacao-viva.js', 'mi-graficos.js',
+    'canais-status.js', 'modo-diretor.js', 'visao-geral.js',
+].map(n => fs.readFileSync('maranhao-backend/' + n, 'utf8'));
+const TUDO = [html, ...MODULOS].join('\n');
+
+/* Painéis estáticos (admin.html) + painéis injetados em tempo de execução
+   (ex.: painel.dataset.panel='calendario' em app-shell.js). */
 function painéisDoHtml() {
-    return [...html.matchAll(/data-panel="([a-z0-9-]+)"/g)].map(m => m[1]);
+    const estaticos = [...html.matchAll(/data-panel="([a-z0-9-]+)"/g)].map(m => m[1]);
+    const injetados = MODULOS.flatMap(src => [
+        ...src.matchAll(/dataset\.panel\s*=\s*'([a-z0-9-]+)'/g),
+        ...src.matchAll(/data-panel="([a-z0-9-]+)"/g),
+    ].map(m => m[1]));
+    return [...estaticos, ...injetados];
 }
 
 /* ---------------- INVENTÁRIO: nada pode sumir ---------------- */
@@ -79,13 +97,34 @@ test('há no máximo uma ação principal por vista', () => {
     }
 });
 
-test('toda ação principal aponta para um controle que existe no HTML', () => {
+test('toda ação principal aponta para um controle que existe de fato', () => {
     for (const vista of MAPA.flatMap(a => a.vistas)) {
         if (!vista.acao) continue;
         const seletor = vista.acao.clicar || vista.acao.focar;
-        const id = seletor.match(/^#([A-Za-z0-9_-]+)/);
-        assert.ok(id, 'seletor inesperado: ' + seletor);
-        assert.ok(html.includes(`id="${id[1]}"`), 'controle inexistente: ' + seletor);
+        const porId = seletor.match(/^#([A-Za-z0-9_-]+)/);
+        const porAtributo = seletor.match(/\[([a-z-]+)="([^"]+)"\]/);
+        if (porId) {
+            const nome = porId[1];
+            assert.ok(
+                TUDO.includes(`id="${nome}"`) || TUDO.includes(`id = '${nome}'`)
+                || TUDO.includes(`.id='${nome}'`) || TUDO.includes(`.id = '${nome}'`),
+                'controle inexistente: ' + seletor,
+            );
+        } else if (porAtributo) {
+            assert.ok(TUDO.includes(`${porAtributo[1]}="${porAtributo[2]}"`),
+                'controle inexistente: ' + seletor);
+        } else {
+            assert.fail('seletor inesperado: ' + seletor);
+        }
+    }
+});
+
+test('toda sub-vista interna aponta para um controle que existe', () => {
+    for (const vista of MAPA.flatMap(a => a.vistas)) {
+        if (!vista.aoAbrir) continue;
+        const m = vista.aoAbrir.match(/\[([a-z-]+)="([^"]+)"\]/);
+        assert.ok(m, 'seletor inesperado: ' + vista.aoAbrir);
+        assert.ok(TUDO.includes(`${m[1]}="${m[2]}"`), 'sub-vista inexistente: ' + vista.aoAbrir);
     }
 });
 
@@ -94,13 +133,36 @@ test('o Início é a primeira área e a primeira vista', () => {
     assert.equal(MAPA[0].vistas[0].painel, 'adm-inicio');
 });
 
+test('cada vista tem id único — duas podem dividir o mesmo painel', () => {
+    const ids = vistasDoMapa(MAPA);
+    assert.equal(new Set(ids).size, ids.length, 'id de vista repetido');
+    const mi = MAPA.flatMap(a => a.vistas).filter(v => v.painel === 'maranhao-intelligence');
+    assert.equal(mi.length, 2, 'Intelligence e Materiais dividem o painel');
+    assert.ok(mi.every(v => v.aoAbrir), 'vistas que dividem painel precisam abrir sub-vista própria');
+});
+
+test('as quatro capacidades auditadas têm entrada visível na navegação', () => {
+    const porId = Object.fromEntries(MAPA.flatMap(a => a.vistas).map(v => [v.id, v]));
+    // Agentes e calendário: vista própria.
+    assert.ok(porId.conselho, 'sem entrada para os agentes');
+    assert.ok(porId.agenda, 'sem entrada para o calendário');
+    assert.equal(porId.agenda.painel, 'calendario');
+    // PowerPoint e imagens: a vista Materiais abre o estúdio que os gera.
+    assert.ok(porId.materiais, 'sem entrada para a criação de materiais');
+    assert.equal(porId.materiais.aoAbrir, '[data-mic-view="creative"]');
+    // Os oito nomes reais aparecem na descrição da vista dos agentes.
+    for (const nome of ['Pirret', 'Standard', 'Zilda', 'Leonard', 'Marie', 'Rua', 'Dicio', 'Iris']) {
+        assert.ok(porId.conselho.descricao.includes(nome), 'agente ausente: ' + nome);
+    }
+});
+
 /* ---------------- BUSCA GLOBAL ---------------- */
 
 const indice = construirIndice(MAPA, ATALHOS);
 
 test('a busca cobre todas as vistas e os atalhos', () => {
     const vistas = indice.filter(i => i.tipo === 'vista');
-    assert.equal(vistas.length, paineisDoMapa(MAPA).length);
+    assert.equal(vistas.length, vistasDoMapa(MAPA).length);
     assert.equal(indice.filter(i => i.tipo === 'acao').length, ATALHOS.length);
 });
 
@@ -179,7 +241,7 @@ test('nenhuma função fica escondida só em gesto, hover ou ícone sem rótulo'
 });
 
 test('o contexto de leitura é preservado ao voltar de um detalhe', () => {
-    assert.ok(fonte.includes('estado.rolagem[estado.painel] = window.scrollY'));
+    assert.ok(fonte.includes('estado.rolagem[estado.vista] = window.scrollY'));
     assert.ok(fonte.includes('window.scrollTo('));
 });
 
@@ -223,4 +285,36 @@ test('a ação principal não aparece duas vezes: o botão original só é ocult
     assert.ok(!trecho.includes('.remove()'), 'o botão original precisa continuar no DOM');
     assert.ok(trecho.includes('painel.contains(alvo)'),
         'só o botão de dentro do próprio painel pode ser ocultado');
+});
+
+test('a busca encontra os recursos pelos termos que a pessoa usa', () => {
+    const esperado = {
+        agentes: 'Conselho de Agentes',
+        conselho: 'Conselho de Agentes',
+        especialistas: 'Conselho de Agentes',
+        pirret: 'Conselho de Agentes',
+        iris: 'Conselho de Agentes',
+        agenda: 'Agenda',
+        calendário: 'Agenda',
+        calendario: 'Agenda',
+        powerpoint: 'Materiais do Conselho',
+        pptx: 'Materiais do Conselho',
+        slides: 'Materiais do Conselho',
+        imagens: 'Materiais do Conselho',
+        rótulo: 'Materiais do Conselho',
+    };
+    for (const [termo, alvo] of Object.entries(esperado)) {
+        const achados = filtrar(indice, termo).map(i => i.rotulo);
+        assert.ok(achados.includes(alvo),
+            `buscar "${termo}" não encontrou "${alvo}" (achou: ${achados.join(', ') || 'nada'})`);
+    }
+});
+
+test('o calendário só existe em tempo de execução — o inventário precisa vê-lo', () => {
+    // Guarda contra a regressão real: o primeiro inventário leu apenas o
+    // admin.html e por isso não enxergou o painel criado por app-shell.js.
+    assert.ok(!html.includes('data-panel="calendario"'),
+        'se o calendário passar a ser estático, simplifique este teste');
+    assert.ok(painéisDoHtml().includes('calendario'),
+        'o inventário precisa ler os painéis injetados em tempo de execução');
 });

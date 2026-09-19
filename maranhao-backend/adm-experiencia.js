@@ -37,46 +37,83 @@
             icone: '◈',
             vistas: [
                 {
+                    id: 'inicio',
                     painel: 'adm-inicio',
                     rotulo: 'Início',
                     titulo: 'Início',
                     descricao: 'O que está acontecendo, o que precisa de você e qual foi o resultado.',
+                    termos: 'hoje resumo panorama do dia',
+                },
+                {
+                    /* O painel `calendario` não está no admin.html: é criado em
+                       tempo de execução por app-shell.js. Por isso o inventário
+                       precisa ler também os painéis injetados — ver
+                       paineisInjetados() e o teste correspondente. */
+                    id: 'agenda',
+                    painel: 'calendario',
+                    rotulo: 'Agenda',
+                    titulo: 'Agenda',
+                    descricao: 'Suas ações e as da tecnologia numa agenda só, em lista, semana ou mês.',
+                    acao: { rotulo: 'Atualizar agenda', clicar: '#ce-atualizar' },
+                    termos: 'calendario calendário agenda semana mes mês dia data compromisso evento operacao viva prazo',
                 },
             ],
         },
         {
-            id: 'decisoes',
-            rotulo: 'Decisões',
+            id: 'conselho',
+            rotulo: 'Conselho',
             icone: '✓',
             contador: 'aprovacoes',
             vistas: [
                 {
+                    id: 'conselho',
+                    painel: 'conselho-de-agentes',
+                    rotulo: 'Agentes',
+                    titulo: 'Conselho de Agentes',
+                    descricao: 'Oito especialistas — Pirret, Standard, Zilda, Leonard, Marie, Rua, Dicio e Iris. Pergunte, leia o parecer de cada um e veja o que ficou aguardando você.',
+                    acao: { rotulo: 'Perguntar ao Conselho', focar: '#conselho-demanda' },
+                    termos: 'agentes especialistas conselho pirret marketing standard financeiro zilda pessoas leonard vendas marie produto rua operacoes dicio juridico iris dados conclave parecer ata reuniao relatorio veto divergencia',
+                },
+                {
+                    /* Mesma <section> do Maranhão Intelligence, aberta na
+                       sub-vista "Executivo & Criativo" (data-mic-view). Esse
+                       estúdio é quem fala com o motor de apresentação (PPTX),
+                       com os estúdios de imagem e com o acervo de artefatos. */
+                    id: 'materiais',
+                    painel: 'maranhao-intelligence',
+                    aoAbrir: '[data-mic-view="creative"]',
+                    rotulo: 'Materiais',
+                    titulo: 'Materiais do Conselho',
+                    descricao: 'Gere a apresentação em PowerPoint de uma ata, conceitos de rótulo e de campanha e gráficos. Cada arquivo fica no acervo, com versão e histórico.',
+                    acao: { rotulo: 'Atualizar acervo', clicar: '[data-creative-action="refresh"]' },
+                    termos: 'powerpoint pptx slide slides apresentacao apresentação deck ata imagem imagens rotulo rótulo label campanha social studio pirret criativo grafico gráfico artefato acervo versao download arquivo material materiais',
+                },
+                {
+                    id: 'governanca',
                     painel: 'governanca',
                     rotulo: 'Aprovações',
                     titulo: 'Aprovações',
                     descricao: 'Ações propostas pela tecnologia esperando sua decisão. Aprovar registra a decisão — nenhuma mensagem é enviada por aqui.',
                     acao: { rotulo: 'Atualizar lista', clicar: '#atualizar-acoes-comerciais' },
+                    termos: 'aprovar aprovacao fila decisao pendente',
                 },
                 {
-                    painel: 'conselho-de-agentes',
-                    rotulo: 'Conselho',
-                    titulo: 'Conselho de Agentes',
-                    descricao: 'As análises dos especialistas, as divergências entre eles e o que ficou aguardando você.',
-                    acao: { rotulo: 'Atualizar Conselho', clicar: '#conselho-atualizar' },
-                },
-                {
+                    id: 'acoes',
                     painel: 'acoes',
                     rotulo: 'Ações da empresa',
                     titulo: 'Ações da empresa',
                     descricao: 'Tarefas registradas com responsável, prazo e resultado.',
                     acao: { rotulo: 'Registrar ação', focar: '#acaoTitulo' },
+                    termos: 'tarefa responsavel prazo',
                 },
                 {
+                    id: 'adm-autonomia',
                     painel: 'adm-autonomia',
                     rotulo: 'Autonomia',
                     titulo: 'Autonomia da operação',
                     descricao: 'Quanto a operação depende de você hoje e o que foi filtrado antes de chegar até aqui.',
                     acao: { rotulo: 'Atualizar', clicar: '#fase55Governanca button' },
+                    termos: 'governanca dependencia alerta filtro',
                 },
             ],
         },
@@ -86,41 +123,53 @@
             icone: '◎',
             vistas: [
                 {
+                    id: 'crm',
                     painel: 'crm',
                     rotulo: 'Contatos',
                     titulo: 'Contatos',
                     descricao: 'Pessoas e empresas em relacionamento, com estágio, origem e histórico.',
                     acao: { rotulo: 'Cadastrar contato', focar: '#crmNome' },
+                    termos: 'crm lead cliente relacionamento funil',
                 },
                 {
+                    id: 'b2b',
                     painel: 'b2b',
                     rotulo: 'Oportunidades',
                     titulo: 'Oportunidades',
                     descricao: 'Interesses de bares, restaurantes, hotéis e distribuidores registrados pelo site.',
+                    termos: 'b2b bar restaurante hotel distribuidor',
                 },
                 {
+                    id: 'pedidos',
                     painel: 'pedidos',
                     rotulo: 'Pedidos',
                     titulo: 'Pedidos',
                     descricao: 'Compras registradas, situação de pagamento e de entrega.',
+                    termos: 'venda compra pagamento entrega rastreio',
                 },
                 {
+                    id: 'degustacoes',
                     painel: 'degustacoes',
                     rotulo: 'Degustações',
                     titulo: 'Degustações',
                     descricao: 'Solicitações de degustação recebidas pelo site.',
+                    termos: 'amostra prova',
                 },
                 {
+                    id: 'sac',
                     painel: 'sac',
                     rotulo: 'Atendimento',
                     titulo: 'Atendimento',
                     descricao: 'Conversas recebidas e o que foi respondido.',
+                    termos: 'sac suporte duvida conversa',
                 },
                 {
+                    id: 'adm-parceiros',
                     painel: 'adm-parceiros',
                     rotulo: 'Parceiros',
                     titulo: 'Parceiros',
                     descricao: 'Fábricas e profissionais cadastrados, com o andamento de cada um.',
+                    termos: 'fabrica profissional rede cadastro',
                 },
             ],
         },
@@ -130,39 +179,50 @@
             icone: '◇',
             vistas: [
                 {
+                    id: 'ia-empresarial',
                     painel: 'ia-empresarial',
                     rotulo: 'Leitura do dia',
                     titulo: 'Leitura do dia',
                     descricao: 'O que a tecnologia observou, o que sugeriu e o que está esperando decisão.',
                     acao: { rotulo: 'Perguntar', focar: '#iaEmpresarialPergunta' },
+                    termos: 'ia inteligencia artificial pergunta analise',
                 },
                 {
+                    id: 'visao-geral',
                     painel: 'visao-geral',
                     rotulo: 'Panorama',
                     titulo: 'Panorama',
                     descricao: 'Uma leitura ampla do estado do negócio, reunindo todas as fontes disponíveis.',
                     acao: { rotulo: 'Atualizar dados', clicar: '#vg-atualizar' },
+                    termos: 'visao geral diretor modo resumo executivo',
                 },
                 {
+                    id: 'maranhao-intelligence',
                     painel: 'maranhao-intelligence',
+                    aoAbrir: '[data-mic-view="overview"]',
                     rotulo: 'Maranhão Intelligence',
                     titulo: 'Maranhão Intelligence',
-                    descricao: 'Produto, unidades, estabelecimentos e território — de onde vêm os sinais.',
-                    acao: { rotulo: 'Atualizar dados', clicar: '#mi-atualizar' },
+                    descricao: 'Relacionamentos, oportunidades, fila de decisão e rastreabilidade de produto e território.',
+                    acao: { rotulo: 'Atualizar dados', clicar: '#mic-refresh' },
+                    termos: 'command center overview relationship 360 segmento produto unidade qr',
                 },
                 {
+                    id: 'inteligencia-territorial',
                     painel: 'inteligencia-territorial',
                     rotulo: 'Território',
                     titulo: 'Inteligência Territorial',
                     descricao: 'Onde a marca está presente e o que foi registrado em cada lugar.',
                     acao: { rotulo: 'Atualizar dados', clicar: '#territorio-atualizar' },
+                    termos: 'cidade bairro uf regiao cobertura',
                 },
                 {
+                    id: 'adm-prospeccao',
                     painel: 'adm-prospeccao',
                     rotulo: 'Prospecção',
                     titulo: 'Prospecção',
                     descricao: 'Defina um objetivo e a busca de contatos entra no ciclo com aprovação humana antes de qualquer envio.',
                     acao: { rotulo: 'Definir objetivo', focar: '#f57objetivo' },
+                    termos: 'campanha objetivo buscar contatos',
                 },
             ],
         },
@@ -172,37 +232,47 @@
             icone: '⚙',
             vistas: [
                 {
+                    id: 'canais',
                     painel: 'canais',
                     rotulo: 'Canais',
                     titulo: 'Canais',
                     descricao: 'O que está conectado, o que está pendente e qual é o próximo passo de cada canal.',
                     acao: { rotulo: 'Atualizar canais', clicar: '#canais-atualizar' },
+                    termos: 'integracao instagram whatsapp linkedin pinterest gmail conectar',
                 },
                 {
+                    id: 'presenca-digital',
                     painel: 'presenca-digital',
                     rotulo: 'Presença digital',
                     titulo: 'Presença digital',
                     descricao: 'Audiência, alcance e origem do tráfego, conforme cada fonte permitir ler.',
+                    termos: 'social analytics audiencia alcance trafego',
                 },
                 {
+                    id: 'adm-mensagens',
                     painel: 'adm-mensagens',
                     rotulo: 'Mensagens',
                     titulo: 'Mensagens',
                     descricao: 'E-mail institucional e WhatsApp: estado da conexão e entradas em revisão.',
                     acao: { rotulo: 'Atualizar WhatsApp', clicar: '#whatsapp-omni-atualizar' },
+                    termos: 'email gmail whatsapp caixa entrada',
                 },
                 {
+                    id: 'documentos',
                     painel: 'documentos',
                     rotulo: 'Documentos',
                     titulo: 'Documentos',
                     descricao: 'Documentos da empresa, versões e nível de acesso.',
                     acao: { rotulo: 'Enviar documento', focar: '#docNome' },
+                    termos: 'arquivo pdf contrato versao',
                 },
                 {
+                    id: 'empresa',
                     painel: 'empresa',
                     rotulo: 'Empresa',
                     titulo: 'Empresa',
                     descricao: 'Atalhos da operação, preservados como estavam.',
+                    termos: 'operacao atalhos',
                 },
             ],
         },
@@ -236,9 +306,13 @@
                     rotulo: vista.titulo,
                     contexto: area.rotulo,
                     area: area.id,
+                    vista: vista.id,
                     painel: vista.painel,
+                    // `termos` acrescenta as palavras que a pessoa usa e que
+                    // não aparecem no título: "agentes", "PowerPoint",
+                    // "slides", "imagens", "calendário"...
                     termos: semAcento(
-                        [vista.titulo, vista.rotulo, area.rotulo, vista.descricao].join(' ')
+                        [vista.titulo, vista.rotulo, area.rotulo, vista.descricao, vista.termos].join(' ')
                     ),
                 });
             }
@@ -248,6 +322,7 @@
                 tipo: 'acao',
                 rotulo: atalho.rotulo,
                 contexto: 'Ação',
+                vista: atalho.vista || null,
                 painel: atalho.painel || null,
                 clicar: atalho.clicar || null,
                 apresentacao: !!atalho.apresentacao,
@@ -279,11 +354,15 @@
        caminho de acesso no mapa. Usado pelos testes para garantir
        que nenhuma função sumiu. */
     function paineisDoMapa(mapa) {
-        return mapa.flatMap(area => area.vistas.map(v => v.painel));
+        return [...new Set(mapa.flatMap(area => area.vistas.map(v => v.painel)))];
+    }
+
+    function vistasDoMapa(mapa) {
+        return mapa.flatMap(area => area.vistas.map(v => v.id));
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { MAPA, ATALHOS, construirIndice, filtrar, paineisDoMapa, semAcento };
+        module.exports = { MAPA, ATALHOS, construirIndice, filtrar, paineisDoMapa, vistasDoMapa, semAcento };
     }
 
     if (typeof document === 'undefined' || !document.getElementById('adminTabs')) return;
@@ -306,18 +385,30 @@
 
     const estado = {
         area: 'inicio',
-        painel: 'adm-inicio',
+        vista: 'inicio',
         rolagem: Object.create(null),
     };
 
     const indice = construirIndice(MAPA, ATALHOS);
-    const vistaPorPainel = new Map();
-    const areaPorPainel = new Map();
+    /* Chave é o id da VISTA, não o painel: duas vistas podem morar na mesma
+       <section> (Maranhão Intelligence e Materiais do Conselho dividem o
+       painel `maranhao-intelligence`, abrindo sub-vistas diferentes). */
+    const vistaPorId = new Map();
+    const areaPorVista = new Map();
+    const primeiraVistaDoPainel = new Map();
     for (const area of MAPA) {
         for (const vista of area.vistas) {
-            vistaPorPainel.set(vista.painel, vista);
-            areaPorPainel.set(vista.painel, area);
+            vistaPorId.set(vista.id, vista);
+            areaPorVista.set(vista.id, area);
+            if (!primeiraVistaDoPainel.has(vista.painel)) primeiraVistaDoPainel.set(vista.painel, vista.id);
         }
+    }
+
+    /* Aceita tanto o id da vista quanto o nome do painel: chamadas antigas
+       (window.admIrPara('governanca')) continuam funcionando. */
+    function resolverVista(chave) {
+        if (vistaPorId.has(chave)) return chave;
+        return primeiraVistaDoPainel.get(chave) || null;
     }
 
     /* A sidebar da etapa anterior sai de cena, mas CONTINUA no DOM.
@@ -414,10 +505,10 @@
         for (const vista of area.vistas) {
             const item = criar('button', vista.rotulo, 'adm-vista');
             item.type = 'button';
-            item.dataset.painel = vista.painel;
-            item.addEventListener('click', () => irPara(vista.painel));
+            item.dataset.vista = vista.id;
+            item.addEventListener('click', () => irPara(vista.id));
             lista.append(item);
-            botoesVista.set(vista.painel, item);
+            botoesVista.set(vista.id, item);
         }
         nav.append(lista);
         listasVista.set(area.id, lista);
@@ -444,7 +535,7 @@
 
     /* Fileira de vistas para telas estreitas (a sidebar some). */
     const chipsMobile = criar('div', undefined, 'adm-vistas-mobile');
-    const chipsPorPainel = new Map();
+    const chipsPorVista = new Map();
 
     conteudo.prepend(chipsMobile);
     conteudo.prepend(cabecalho);
@@ -493,8 +584,14 @@
         if (!painel || painel.dataset.admTituloTratado) return;
         painel.dataset.admTituloTratado = '1';
 
-        const proprio = [...painel.children].find(no =>
-            no.classList && (no.classList.contains('app-shell-cabecalho') || no.classList.contains('mi-topo'))
+        /* O cabeçalho próprio do painel às vezes está um nível abaixo,
+           dentro do invólucro do módulo (ex.: o Calendário monta
+           painel > #calendario-empresarial > header.ce-topo). */
+        const CABECALHOS = ['app-shell-cabecalho', 'mi-topo', 'ce-topo', 'mic-hero'];
+        const candidatos = [...painel.children];
+        for (const filho of painel.children) candidatos.push(...filho.children);
+        const proprio = candidatos.find(no =>
+            no.classList && CABECALHOS.some(c => no.classList.contains(c))
         );
         if (proprio) {
             proprio.hidden = true;
@@ -515,10 +612,11 @@
        dentro do painel, o botão de dentro sai de cena: a mesma ação em dois
        lugares é ruído. O elemento continua no DOM e continua sendo ele que
        recebe o clique — o cabeçalho é só o novo lugar dele. */
+    const acoesEspelhadas = new Set();
     function esconderAcaoEspelhada(painel, vista) {
         if (!painel || !vista.acao || !vista.acao.clicar) return;
-        if (painel.dataset.admAcaoTratada) return;
-        painel.dataset.admAcaoTratada = '1';
+        if (acoesEspelhadas.has(vista.id)) return;
+        acoesEspelhadas.add(vista.id);
         const alvo = document.querySelector(vista.acao.clicar);
         if (alvo && painel.contains(alvo) && alvo.tagName === 'BUTTON') {
             alvo.classList.add('adm-acao-espelhada');
@@ -544,14 +642,14 @@
 
     function sincronizarChips(area) {
         chipsMobile.replaceChildren();
-        chipsPorPainel.clear();
+        chipsPorVista.clear();
         if (area.vistas.length < 2) return;
         for (const vista of area.vistas) {
             const chip = criar('button', vista.rotulo, 'adm-chip');
             chip.type = 'button';
-            chip.addEventListener('click', () => irPara(vista.painel));
+            chip.addEventListener('click', () => irPara(vista.id));
             chipsMobile.append(chip);
-            chipsPorPainel.set(vista.painel, chip);
+            chipsPorVista.set(vista.id, chip);
         }
     }
 
@@ -566,28 +664,38 @@
             // Uma área com vista única não repete o próprio nome abaixo dele.
             lista.hidden = id !== estado.area || lista.dataset.unica === 'true';
         }
-        for (const [painelId, botao] of botoesVista) {
-            botao.setAttribute('aria-current', String(painelId === estado.painel));
+        for (const [vistaId, botao] of botoesVista) {
+            botao.setAttribute('aria-current', String(vistaId === estado.vista));
         }
-        for (const [painelId, chip] of chipsPorPainel) {
-            chip.setAttribute('aria-current', String(painelId === estado.painel));
+        for (const [vistaId, chip] of chipsPorVista) {
+            chip.setAttribute('aria-current', String(vistaId === estado.vista));
         }
     }
 
-    function irPara(painelId, opcoes) {
-        const vista = vistaPorPainel.get(painelId);
-        if (!vista) return;
-        const area = areaPorPainel.get(painelId);
+    function irPara(chave, opcoes) {
+        const vistaId = resolverVista(chave);
+        if (!vistaId) return;
+        const vista = vistaPorId.get(vistaId);
+        const area = areaPorVista.get(vistaId);
+        const painelId = vista.painel;
 
         /* Contexto preservado: a posição de leitura da vista que está
            saindo é guardada para quando a pessoa voltar. */
-        if (estado.painel && estado.painel !== painelId) {
-            estado.rolagem[estado.painel] = window.scrollY || 0;
+        if (estado.vista && estado.vista !== vistaId) {
+            estado.rolagem[estado.vista] = window.scrollY || 0;
         }
 
         estado.area = area.id;
-        estado.painel = painelId;
+        estado.vista = vistaId;
         ativar(painelId);
+
+        /* Sub-vista interna do painel (ex.: "Executivo & Criativo" dentro do
+           Maranhão Intelligence). O clique é no controle que já existe —
+           nenhuma lógica de troca é reimplementada aqui. */
+        if (vista.aoAbrir) {
+            const interno = document.querySelector(vista.aoAbrir);
+            if (interno) interno.click();
+        }
 
         trilha.textContent = area.rotulo;
         titulo.textContent = vista.titulo;
@@ -606,15 +714,15 @@
         }
 
         try {
-            sessionStorage.setItem('adm.painel', painelId);
+            sessionStorage.setItem('adm.vista', vistaId);
         } catch (erro) {
             /* Navegação privada ou armazenamento bloqueado: a tela
                funciona igual, só não lembra a última vista. */
         }
 
-        const anterior = estado.rolagem[painelId];
+        const anterior = estado.rolagem[vistaId];
         window.scrollTo({ top: (opcoes && opcoes.manterRolagem) ? window.scrollY : (anterior || 0), behavior: 'auto' });
-        window.dispatchEvent(new CustomEvent('adm-vista', { detail: { painel: painelId, area: area.id } }));
+        window.dispatchEvent(new CustomEvent('adm-vista', { detail: { vista: vistaId, painel: painelId, area: area.id } }));
     }
 
     function abrirArea(areaId) {
@@ -623,13 +731,13 @@
         /* Abrir uma área leva à última vista usada nela, não sempre à
            primeira: quem já estava em "Pedidos" volta para "Pedidos". */
         const ultima = estado.rolagem['__area_' + areaId];
-        const destino = (ultima && vistaPorPainel.has(ultima)) ? ultima : area.vistas[0].painel;
+        const destino = (ultima && vistaPorId.has(ultima)) ? ultima : area.vistas[0].id;
         irPara(destino);
         estado.rolagem['__area_' + areaId] = destino;
     }
 
     window.addEventListener('adm-vista', evento => {
-        estado.rolagem['__area_' + evento.detail.area] = evento.detail.painel;
+        estado.rolagem['__area_' + evento.detail.area] = evento.detail.vista;
     });
 
     window.admIrPara = irPara;
@@ -666,7 +774,7 @@
             sair();
             return;
         }
-        if (item.painel) irPara(item.painel);
+        if (item.vista || item.painel) irPara(item.vista || item.painel);
         if (item.clicar) {
             const alvo = document.querySelector(item.clicar);
             if (alvo) alvo.click();
@@ -742,7 +850,7 @@
            dado do servidor nem em nenhuma fila. */
         window.adminKeyAtual = '';
         try {
-            sessionStorage.removeItem('adm.painel');
+            sessionStorage.removeItem('adm.vista');
         } catch (erro) { /* armazenamento indisponível */ }
         window.location.reload();
     }
@@ -772,10 +880,10 @@
     window.addEventListener('admin-autorizado', () => {
         corpo.classList.remove('adm-fora');
         corpo.classList.add('adm-dentro');
-        let inicial = 'adm-inicio';
+        let inicial = 'inicio';
         try {
-            const guardado = sessionStorage.getItem('adm.painel');
-            if (guardado && vistaPorPainel.has(guardado)) inicial = guardado;
+            const guardado = sessionStorage.getItem('adm.vista');
+            if (guardado && vistaPorId.has(guardado)) inicial = guardado;
         } catch (erro) { /* armazenamento indisponível */ }
         irPara(inicial);
     });

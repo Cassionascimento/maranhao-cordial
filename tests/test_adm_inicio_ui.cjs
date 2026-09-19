@@ -279,3 +279,10 @@ test('quando nada pôde ser lido, a ação principal anterior é retirada', () =
         'a ação principal obsoleta precisa sair da tela de falha');
     assert.ok(trecho.includes('Tentar de novo'), 'a tela de falha precisa oferecer uma saída');
 });
+
+test('voltar ao Início repõe a ação principal sem precisar recarregar', () => {
+    assert.ok(fonte.includes('function aplicarAcaoNoCabecalho'));
+    const listener = fonte.slice(fonte.indexOf("window.addEventListener('adm-vista'"));
+    assert.ok(listener.includes('aplicarAcaoNoCabecalho()'),
+        'a volta ao Início precisa repor a ação no cabeçalho');
+});
