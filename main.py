@@ -39578,6 +39578,12 @@ registrar_rotas_conselho(app, get_db_connection, validar_admin_request)
 from canais_status import registrar_rotas_canais
 registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 
+# Apresentação executiva: leitura agregada e sem dados pessoais. Vive sob
+# /api/admin/, portanto já passa pelo before_request que exige chave
+# administrativa -- a restrição é do servidor, não da interface.
+from adm_apresentacao import registrar_rotas_adm_apresentacao
+registrar_rotas_adm_apresentacao(app, get_db_connection, validar_admin_request)
+
 from linkedin_conector import registrar_rotas_linkedin
 registrar_rotas_linkedin(app, validar_admin_request)
 
