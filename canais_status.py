@@ -248,6 +248,30 @@ def historico_do_canal(factory, canal, limite=10):
             pass
 
 
+# Nomes que o diagnóstico procura e que o fluxo OAuth pode ter gravado.
+_CREDENCIAIS_POR_CANAL = {
+    "Instagram": ("INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_ACCOUNT_ID"),
+}
+
+
+def _env_com_credenciais(factory, env=None):
+    """Sobrepõe o ambiente com o que está guardado, sem nunca decifrar à
+    toa: `ambiente_com_banco` só busca o nome que o ambiente não responde."""
+    try:
+        import canais_credenciais as cc
+    except Exception:
+        return env
+    combinado = env
+    for canal, nomes in _CREDENCIAIS_POR_CANAL.items():
+        try:
+            combinado = cc.ambiente_com_banco(factory, canal, nomes, env=combinado)
+        except Exception:
+            # Banco fora do ar ou migration 028 ausente: o diagnóstico segue
+            # com o ambiente puro em vez de falhar.
+            continue
+    return combinado
+
+
 def diagnostico_todos_os_canais(factory, http=None, env=None):
     """Contrato rico da FASE 2: pergunta a cada plataforma o estado real.
 
@@ -259,6 +283,9 @@ def diagnostico_todos_os_canais(factory, http=None, env=None):
     import time
 
     import canais_diagnostico as cd
+    # Credencial reautorizada pelo ADM vive cifrada no banco; o diagnóstico
+    # continua lendo "env" sem saber de onde veio.
+    env = _env_com_credenciais(factory, env)
     canais = []
     limite = time.monotonic() + cd.ORCAMENTO_SEGUNDOS
     for nome in ("WhatsApp", "Instagram", "LinkedIn", "TikTok Shop",
@@ -306,7 +333,7 @@ def registrar_rotas_canais(app, factory, validar_admin_request):
                            historico=historico_do_canal(factory, "Gmail"))
         if canal not in cd.REGISTRO:
             return jsonify(success=False, error="canal_desconhecido"), 404
-        dado = cd.diagnosticar(canal)
+        dado = cd.diagnosticar(canal, env=_env_com_credenciais(factory))
         registrar_diagnostico(factory, dado)
         return jsonify(success=True, canal=dado,
                        historico=historico_do_canal(factory, canal))
