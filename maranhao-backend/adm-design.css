@@ -829,6 +829,122 @@ body.adm-2026 pre {
 }
 
 /* ------------------------------------------------------------
+   CANAIS: estado real, com motivo
+   ------------------------------------------------------------ */
+
+body.adm-2026 .canais-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 20px;
+}
+
+body.adm-2026 .canais-filtro {
+    width: auto;
+    margin: 0;
+    padding: 7px 14px;
+    border: 1px solid var(--adm-linha);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--adm-texto-3);
+    font-size: 12.5px;
+    cursor: pointer;
+}
+
+body.adm-2026 .canais-filtro[aria-pressed="true"] {
+    color: var(--adm-texto);
+    border-color: var(--adm-ouro);
+    background: var(--adm-ouro-fundo);
+}
+
+body.adm-2026 .canais-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 14px;
+}
+
+body.adm-2026 .canais-card-cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+body.adm-2026 .canais-card-cabecalho h4 {
+    margin: 0;
+    font-size: 19px;
+}
+
+/* A cor acompanha o estado, mas o rótulo em texto sempre vem junto —
+   ninguém precisa distinguir verde de âmbar para entender. */
+body.adm-2026 .canais-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 11.5px;
+    white-space: nowrap;
+}
+
+body.adm-2026 .canais-badge-ok { color: var(--adm-confirmado); }
+body.adm-2026 .canais-badge-atencao { color: var(--adm-aguardando); }
+body.adm-2026 .canais-badge-falha { color: var(--adm-falhou); }
+body.adm-2026 .canais-badge-neutro { color: var(--adm-texto-3); }
+
+body.adm-2026 .canais-card-avisos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+body.adm-2026 .canais-card-linha {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--adm-linha);
+    font-size: 13px;
+}
+
+body.adm-2026 .canais-card-rotulo {
+    color: var(--adm-texto-3);
+    flex: 0 0 auto;
+}
+
+body.adm-2026 .canais-card-valor {
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+body.adm-2026 .canais-card-proximo {
+    margin: 14px 0 12px;
+    font-size: 13px;
+    color: var(--adm-texto-2);
+    border-left: 2px solid var(--adm-ouro);
+    padding-left: 12px;
+}
+
+body.adm-2026 .canais-card-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+body.adm-2026 .canais-card-acoes button[disabled] {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+body.adm-2026 .canais-card-mensagem {
+    margin: 10px 0 0;
+    font-size: 12.5px;
+    color: var(--adm-texto-3);
+    min-height: 1em;
+}
+
+/* ------------------------------------------------------------
    APROVAÇÃO: revisar antes de decidir
    ------------------------------------------------------------ */
 
