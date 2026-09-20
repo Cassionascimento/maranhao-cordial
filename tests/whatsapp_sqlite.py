@@ -51,7 +51,15 @@ class Cursor:
         if self.special:return
         sql=sql.replace('%s','?').replace(' FOR UPDATE','').replace("contato ~ ","contato REGEXP ")
         args=[json.dumps(v.adapted) if hasattr(v,'adapted') else str(v) if type(v).__name__=='UUID' else v for v in args]
-        self.cur=self.db.execute(sql,args)
+        if "to_regclass('crm_identidades_canal')" in sql:
+            self.cur=self.db.execute("SELECT (SELECT name FROM sqlite_master WHERE type='table' AND name='crm_identidades_canal') AS tabela")
+            return
+        try:self.cur=self.db.execute(sql,args)
+        except sqlite3.OperationalError as error:
+            if str(error)=='no such table: crm_identidades_canal':
+                from psycopg2.errors import UndefinedTable
+                raise UndefinedTable(str(error)) from error
+            raise
     def convert(self,row):
         if row is None:return None
         if not self.as_dict:return tuple(json.loads(v) if isinstance(v,str) and v.startswith('{') else v for v in row)

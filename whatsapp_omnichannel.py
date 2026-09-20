@@ -4,6 +4,8 @@ import os
 from contextlib import contextmanager
 from uuid import uuid4
 from psycopg2.extras import Json, RealDictCursor
+from psycopg2.errors import UndefinedTable
+from crm_identidade import IdentidadePendente as ConflitoIdentidade
 from entrada_segura import interpretar_sem_saida
 from whatsapp_meta import normalizar_eventos
 
@@ -11,6 +13,7 @@ CLASSES = {'atendimento','interesse_comercial_b2b','degustacao','suporte','spam'
 # Ciclo de vida da mensagem enviada. 'failed' fica fora da escala: é
 # terminal e vence qualquer outro estado (ver Repositorio.registrar_status).
 ORDEM_STATUS = {'sent':1,'delivered':2,'read':3,'failed':4}
+MAX_TENTATIVAS_STATUS = 5
 
 
 def status_conector(environ=None):
@@ -89,7 +92,7 @@ class Repositorio:
     def auditar(self,cur,etapa,dados=None):
         cur.execute('INSERT INTO whatsapp_entrada_auditoria(chave,etapa,dados) VALUES(%s,%s,%s)',(self.chave,etapa,Json(dados or {})))
 
-    def receber(self,e):
+    def receber(self,e,retomar_status=False):
         with self.cursor() as cur:
             cur.execute('SELECT dados,concluido FROM whatsapp_eventos WHERE chave=%s',(self.chave,))
             existing=cur.fetchone()
@@ -98,12 +101,31 @@ class Repositorio:
                 # Dados da primeira entrega são imutáveis, inclusive em retries.
                 for k in ('tipo_evento','message_id','sender_id','recipient_id','texto','status'):
                     if original.get(k)!=e.get(k):raise ValueError('identidade_evento_conflitante')
-                if existing['concluido']:return {'estado':'concluido'}
+                if existing['concluido']:
+                    recuperar_legado=False
+                    if retomar_status and e['tipo_evento']=='status':
+                        cur.execute("SELECT etapa FROM whatsapp_entrada_auditoria WHERE chave=%s AND etapa IN ('status_nao_registrado','status_registrado','status_ignorado') ORDER BY id DESC LIMIT 1",(self.chave,))
+                        ultima=cur.fetchone()
+                        recuperar_legado=bool(ultima and ultima['etapa']=='status_nao_registrado')
+                    if not recuperar_legado:return {'estado':'concluido'}
+                    cur.execute('UPDATE whatsapp_eventos SET concluido=FALSE,concluido_em=NULL WHERE chave=%s',(self.chave,))
+                    cur.execute("UPDATE whatsapp_processamentos SET estado='status_pendente' WHERE chave=%s",(self.chave,))
+                    self.auditar(cur,'status_reaberto',{'motivo':'conclusao_legada_sem_status'})
             else:
                 cur.execute('INSERT INTO whatsapp_eventos(chave,message_id,tipo_evento,dados) VALUES(%s,%s,%s,%s)',
                             (self.chave,e['message_id'],e['tipo_evento'],Json(e)))
                 self.auditar(cur,'recebido',{'tipo':e['tipo_evento']})
             cur.execute('INSERT INTO whatsapp_processamentos(chave) VALUES(%s) ON CONFLICT DO NOTHING',(self.chave,))
+            if e['tipo_evento']=='status':
+                cur.execute('SELECT * FROM whatsapp_processamentos WHERE chave=%s',(self.chave,))
+                status_state=dict(cur.fetchone())
+                if status_state['tentativas']>=MAX_TENTATIVAS_STATUS:
+                    cur.execute("UPDATE whatsapp_processamentos SET estado='status_revisao' WHERE chave=%s",(self.chave,))
+                    status_state['estado']='status_revisao'
+                if status_state['estado']=='status_revisao' or (status_state['estado']=='status_pendente' and not retomar_status):
+                    status_state['_evento']=original if existing else e
+                    status_state['_adiado']=True
+                    return status_state
             cur.execute('UPDATE whatsapp_processamentos SET tentativas=tentativas+1,erro_tipo=NULL,atualizado_em=NOW() WHERE chave=%s RETURNING *',(self.chave,))
             state=dict(cur.fetchone())
             state['_evento']=existing['dados'] if existing else e
@@ -150,12 +172,19 @@ class Repositorio:
             # Best-effort de propósito -- se a migration ainda não rodou, a
             # entrada do WhatsApp não pode parar por causa disso.
             identidade=None
+            cur.execute('SAVEPOINT identidade_canal')
             try:
                 from crm_identidade import vincular as vincular_identidade
                 identidade=vincular_identidade(cur,lead_id=lead,canal='whatsapp',
                                                identificador=e['sender_id'],tipo='telefone',verificado=True)
-            except Exception as erro:
+            except UndefinedTable as erro:
+                cur.execute('ROLLBACK TO SAVEPOINT identidade_canal')
+                # Somente a ausência desta infraestrutura é tolerada. Conflitos
+                # de identidade, permissões e outros erros abortam o vínculo.
+                cur.execute("SELECT to_regclass('crm_identidades_canal') AS tabela")
+                if cur.fetchone()['tabela'] is not None:raise
                 self.auditar(cur,'identidade_nao_registrada',{'erro_tipo':type(erro).__name__})
+            cur.execute('RELEASE SAVEPOINT identidade_canal')
             self.auditar(cur,'contato_vinculado',{'interacao_id':ident,'lead_id':lead,
                                                   'criado':not bool(rows),'identidade':bool(identidade)})
             return lead
@@ -176,12 +205,13 @@ class Repositorio:
         não pode ser apagada por um 'delivered' atrasado do mesmo envio.
         """
         estado=e.get('status')
-        if estado not in ORDEM_STATUS:return None
+        if estado not in ORDEM_STATUS:raise ValueError('status_nao_suportado')
         metadados=e.get('metadados') or {}
         erros=[x for x in (metadados.get('erros') or []) if isinstance(x,dict)]
         codigo=erros[0].get('code') if erros else None
         codigo=codigo if isinstance(codigo,int) else None
         with self.cursor() as cur:
+            cur.execute('SELECT pg_advisory_xact_lock(hashtext(%s))',('whatsapp-status:'+e['message_id'],))
             cur.execute('SELECT id FROM fila_respostas_omnichannel WHERE whatsapp_message_id=%s LIMIT 1',(e['message_id'],))
             linha=cur.fetchone()
             resposta_id=str(linha['id']) if linha else None
@@ -205,15 +235,16 @@ class Repositorio:
             return estado
 
     def status_nao_registrado(self,erro):
-        """Ciclo de entrega indisponível (tipicamente migration 026 ainda
-        não aplicada). O evento segue como concluído: perder o carimbo de
-        'delivered' é aceitável; travar a entrada do WhatsApp num laço de
-        reentrega da Meta não é."""
-        try:
-            with self.cursor() as cur:
-                self.auditar(cur,'status_nao_registrado',{'erro_tipo':type(erro).__name__})
-        except Exception:
-            pass
+        """Confirma a pendência antes do ACK. Nunca marca o evento concluído.
+
+        Reentregas não repetem o erro. A recuperação administrativa faz uma
+        tentativa por chamada, com teto e estado visível de revisão humana.
+        Falha em gravar a pendência propaga erro: não reconhecemos sem durabilidade.
+        """
+        with self.cursor() as cur:
+            cur.execute("UPDATE whatsapp_processamentos SET estado=CASE WHEN tentativas >= %s THEN 'status_revisao' ELSE 'status_pendente' END,erro_tipo=%s,atualizado_em=NOW() WHERE chave=%s",
+                        (MAX_TENTATIVAS_STATUS,type(erro).__name__,self.chave))
+            self.auditar(cur,'status_nao_registrado',{'erro_tipo':type(erro).__name__,'recuperacao':'administrativa'})
 
     def concluir(self,e,ident=None,ia=None):
         with self.cursor() as cur:
@@ -233,7 +264,7 @@ class Repositorio:
 
     def falhar(self,error):
         with self.cursor() as cur:
-            estado='pendente_identidade' if isinstance(error,IdentidadePendente) else 'falhou'
+            estado='pendente_identidade' if isinstance(error,(IdentidadePendente,ConflitoIdentidade)) else 'falhou'
             cur.execute('UPDATE whatsapp_processamentos SET estado=%s,erro_tipo=%s,atualizado_em=NOW() WHERE chave=%s',(estado,type(error).__name__,self.chave))
             self.auditar(cur,estado,{'erro_tipo':type(error).__name__})
 
@@ -244,11 +275,15 @@ def receber(factory,payload,gerar=interpretar_mensagem,repositorio=Repositorio):
     if len(eventos)>100:raise ValueError('lote_whatsapp_excedido')
     phone=os.getenv('WHATSAPP_PHONE_NUMBER_ID')
     if phone and any(e['recipient_id']!=phone for e in eventos):raise ValueError('phone_number_id_nao_corresponde')
-    total=duplicados=0
+    return _receber_eventos(factory,eventos,gerar,repositorio)
+
+def _receber_eventos(factory,eventos,gerar=interpretar_mensagem,repositorio=Repositorio,retomar_status=False):
+    total=duplicados=pendentes=0
     for evento in eventos:
         with repositorio(factory).evento(evento['chave']) as repo:
-            state=repo.receber(evento)
+            state=repo.receber(evento,retomar_status=retomar_status)
             if state['estado']=='concluido':duplicados+=1;continue
+            if state.get('_adiado'):pendentes+=1;continue
             evento=state.get('_evento',evento)
             try:
                 if evento['tipo_evento']=='status':
@@ -256,6 +291,8 @@ def receber(factory,payload,gerar=interpretar_mensagem,repositorio=Repositorio):
                         repo.registrar_status(evento)
                     except Exception as erro:
                         repo.status_nao_registrado(erro)
+                        pendentes+=1
+                        continue
                     repo.concluir(evento)
                 else:
                     ident=repo.registrar(evento,state)
@@ -269,7 +306,34 @@ def receber(factory,payload,gerar=interpretar_mensagem,repositorio=Repositorio):
             except Exception as error:
                 repo.falhar(error)
                 raise RuntimeError('whatsapp_entrada_pendente') from None
-    return {'success':True,'processados':total,'duplicados':duplicados,'enviado':False}
+    return {'success':True,'processados':total,'duplicados':duplicados,'pendentes':pendentes,'enviado':False}
+
+
+def reprocessar_status(factory,limite=25):
+    """Lote finito de eventos duráveis; não usa IA nem transporte externo."""
+    if type(limite) is not int or not 1<=limite<=50:raise ValueError('limite_invalido')
+    conn=factory()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""SELECT e.dados FROM whatsapp_eventos e
+                JOIN whatsapp_processamentos p ON p.chave=e.chave
+                WHERE e.tipo_evento='status' AND p.tentativas < %s AND (
+                    (NOT e.concluido AND p.estado IN ('status_pendente','falhou','recebido')) OR
+                    (e.concluido AND (SELECT a.etapa FROM whatsapp_entrada_auditoria a WHERE a.chave=e.chave
+                     AND a.etapa IN ('status_nao_registrado','status_registrado','status_ignorado')
+                     ORDER BY a.id DESC LIMIT 1)='status_nao_registrado'))
+                ORDER BY p.atualizado_em,e.chave LIMIT %s""",(MAX_TENTATIVAS_STATUS,limite))
+            eventos=[r['dados'] for r in cur.fetchall()]
+    finally:conn.close()
+    resultado={'success':True,'processados':0,'duplicados':0,'pendentes':0,'enviado':False}
+    for evento in eventos:
+        try:
+            lote=_receber_eventos(factory,[evento],retomar_status=True)
+            for campo in ('processados','duplicados','pendentes'):resultado[campo]+=lote[campo]
+        except RuntimeError:
+            resultado['pendentes']+=1
+            resultado['success']=False
+    return resultado
 
 
 def painel(factory):
@@ -300,7 +364,13 @@ def painel(factory):
 
 
 def registrar_rotas(app,factory,validar_admin):
-    from flask import jsonify
+    from flask import jsonify,request
+    @app.post('/api/admin/omnichannel/whatsapp/reprocessar-status')
+    def whatsapp_reprocessar_status():
+        if not validar_admin():return jsonify(success=False,error='Não autorizado'),401
+        try:return jsonify(reprocessar_status(factory,(request.get_json(silent=True) or {}).get('limite',25)))
+        except ValueError:return jsonify(success=False,error='Limite deve ser inteiro entre 1 e 50.'),400
+        except Exception:return jsonify(success=False,error='Recuperação indisponível; pendências preservadas.'),503
     @app.get('/api/admin/omnichannel/whatsapp')
     def whatsapp_painel():
         if not validar_admin():return jsonify(success=False,error='Não autorizado'),401

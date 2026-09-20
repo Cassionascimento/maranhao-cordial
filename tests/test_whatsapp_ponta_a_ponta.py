@@ -283,19 +283,23 @@ class DegradacaoSemMigration(_Base):
         finally:
             conn.close()
 
-    def test_sem_a_tabela_de_status_o_evento_ainda_conclui(self):
+    def test_sem_a_tabela_de_status_o_evento_fica_pendente_duravel(self):
         self._derrubar('whatsapp_status_mensagem')
         resultado = self.receber(payload(mensagens=[], statuses=[{'id': 'wamid.saida1', 'status': 'delivered'}]))
         self.assertTrue(resultado['success'])
-        self.assertEqual(resultado['processados'], 1)
+        self.assertEqual(resultado['processados'], 0)
+        self.assertEqual(resultado['pendentes'], 1)
+        self.assertFalse(self.uma('whatsapp_eventos')['concluido'])
         etapas = [l['etapa'] for l in self.banco.rows('whatsapp_entrada_auditoria')]
         self.assertIn('status_nao_registrado', etapas)
-        self.assertIn('concluido', etapas)
+        self.assertNotIn('concluido', etapas)
 
     def test_evento_de_status_nao_fica_em_laco_de_reentrega(self):
         self._derrubar('whatsapp_status_mensagem')
         corpo = payload(mensagens=[], statuses=[{'id': 'wamid.saida1', 'status': 'delivered'}])
         self.receber(corpo)
         segundo = self.receber(corpo)
-        # Concluído na primeira: a Meta não é convidada a repetir para sempre.
-        self.assertEqual(segundo['duplicados'], 1)
+        # ACK durável sem concluir nem insistir no erro em cada reentrega.
+        self.assertEqual(segundo['pendentes'], 1)
+        self.assertEqual(self.uma('whatsapp_processamentos')['tentativas'], 1)
+        self.assertFalse(self.uma('whatsapp_eventos')['concluido'])
