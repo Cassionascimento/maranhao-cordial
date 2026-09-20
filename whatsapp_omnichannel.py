@@ -204,6 +204,17 @@ class Repositorio:
             self.auditar(cur,'status_registrado',{'message_id':e['message_id'],'estado':estado,'resposta_id':resposta_id})
             return estado
 
+    def status_nao_registrado(self,erro):
+        """Ciclo de entrega indisponível (tipicamente migration 026 ainda
+        não aplicada). O evento segue como concluído: perder o carimbo de
+        'delivered' é aceitável; travar a entrada do WhatsApp num laço de
+        reentrega da Meta não é."""
+        try:
+            with self.cursor() as cur:
+                self.auditar(cur,'status_nao_registrado',{'erro_tipo':type(erro).__name__})
+        except Exception:
+            pass
+
     def concluir(self,e,ident=None,ia=None):
         with self.cursor() as cur:
             fila=None
@@ -241,7 +252,10 @@ def receber(factory,payload,gerar=interpretar_mensagem,repositorio=Repositorio):
             evento=state.get('_evento',evento)
             try:
                 if evento['tipo_evento']=='status':
-                    repo.registrar_status(evento)
+                    try:
+                        repo.registrar_status(evento)
+                    except Exception as erro:
+                        repo.status_nao_registrado(erro)
                     repo.concluir(evento)
                 else:
                     ident=repo.registrar(evento,state)

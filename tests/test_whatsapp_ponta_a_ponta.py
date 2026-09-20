@@ -268,3 +268,34 @@ class IdentidadeEntreCanais(_Base):
         self.assertEqual(self.uma('fila_respostas_omnichannel')['status'], 'aguardando_aprovacao')
         etapas = [linha['etapa'] for linha in self.banco.rows('whatsapp_entrada_auditoria')]
         self.assertIn('identidade_nao_registrada', etapas)
+
+
+class DegradacaoSemMigration(_Base):
+    """O código chega em produção antes de a migration ser aplicada. Nesse
+    intervalo, nada pode travar a entrada do WhatsApp."""
+
+    def _derrubar(self, tabela):
+        conn = self.banco()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute('DROP TABLE ' + tabela)
+        finally:
+            conn.close()
+
+    def test_sem_a_tabela_de_status_o_evento_ainda_conclui(self):
+        self._derrubar('whatsapp_status_mensagem')
+        resultado = self.receber(payload(mensagens=[], statuses=[{'id': 'wamid.saida1', 'status': 'delivered'}]))
+        self.assertTrue(resultado['success'])
+        self.assertEqual(resultado['processados'], 1)
+        etapas = [l['etapa'] for l in self.banco.rows('whatsapp_entrada_auditoria')]
+        self.assertIn('status_nao_registrado', etapas)
+        self.assertIn('concluido', etapas)
+
+    def test_evento_de_status_nao_fica_em_laco_de_reentrega(self):
+        self._derrubar('whatsapp_status_mensagem')
+        corpo = payload(mensagens=[], statuses=[{'id': 'wamid.saida1', 'status': 'delivered'}])
+        self.receber(corpo)
+        segundo = self.receber(corpo)
+        # Concluído na primeira: a Meta não é convidada a repetir para sempre.
+        self.assertEqual(segundo['duplicados'], 1)
