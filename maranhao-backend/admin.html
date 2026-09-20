@@ -6057,7 +6057,7 @@ summary{
 
                 try {
                     const response = await fetch(
-                        "https://maranhaocordial-api.onrender.com/api/admin/omnichannel/interacoes/"
+                        "https://maranhao-cordial-api.onrender.com/api/admin/omnichannel/interacoes/"
                         + encodeURIComponent(interacaoId)
                         + "/arquivamento",
                         {
@@ -7895,7 +7895,7 @@ async function arquivarProfissionalWorkflow(profissionalId) {
 
     try {
         const response = await fetch(
-            "https://maranhaocordial-api.onrender.com/api/admin/profissionais/"
+            "https://maranhao-cordial-api.onrender.com/api/admin/profissionais/"
             + profissionalId
             + "/arquivamento",
             {
@@ -7938,7 +7938,7 @@ async function restaurarProfissionalWorkflow(profissionalId) {
 
     try {
         const response = await fetch(
-            "https://maranhaocordial-api.onrender.com/api/admin/profissionais/"
+            "https://maranhao-cordial-api.onrender.com/api/admin/profissionais/"
             + profissionalId
             + "/arquivamento",
             {
@@ -9018,7 +9018,7 @@ window.addEventListener("admin-autorizado",()=>setTimeout(carregarFase55,200));
 <div style="font-size:11px;opacity:.5;letter-spacing:.12em;text-transform:uppercase">Prospecção de contatos</div>
 <div style="font-size:18px;margin:4px 0 12px">Dê um objetivo. A máquina busca os contatos.</div>
 <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px">
-<input id="f57objetivo" placeholder="Ex.: encontrar bares premium para apresentar Maranhão Cordial">
+<input id="f57objetivo" placeholder="Ex.: encontrar bares para apresentar Maranhão Cordial">
 <select id="f57publico">
 <option value="bar">Bares</option><option value="restaurante">Restaurantes</option>
 <option value="bartender">Bartenders</option><option value="hotel">Hotéis</option>
