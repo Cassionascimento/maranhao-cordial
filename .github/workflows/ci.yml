@@ -5,7 +5,11 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # 'ci/**' entra aqui de propósito: uma mudança no próprio workflow
+    # precisa poder se validar antes de virar PR, senão o gatilho só
+    # confirma o que já estava valendo.
+    branches: [main, 'ci/**']
+  workflow_dispatch:
 
 jobs:
   python:
@@ -23,6 +27,87 @@ jobs:
         run: python3 -m unittest tests.test_main_routes_audit -v
       - name: Integração Maranhão Intelligence (Flask real, contrato P5)
         run: python3 -m unittest tests.test_mi_intelligence_api_integration -v
+
+  postgres:
+    name: Regressões PostgreSQL real (cluster efêmero)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: pip install -r requirements.txt
+
+      # Cluster próprio, não o serviço do runner: os testes exigem socket
+      # Unix em /tmp/p5x-postgres-data, data_directory igual a esse caminho e
+      # listen_addresses vazio. Um "services: postgres" escuta em TCP e seria
+      # recusado por local_connection() como cluster não isolado.
+      - name: Subir cluster PostgreSQL isolado (sem TCP)
+        run: |
+          set -euo pipefail
+          PGBIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
+          if [ -z "$PGBIN" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql
+            PGBIN="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
+          fi
+          echo "PGBIN=$PGBIN" >> "$GITHUB_ENV"
+          rm -rf /tmp/p5x-postgres-data
+          "$PGBIN/initdb" -D /tmp/p5x-postgres-data -U p5x_homolog --auth=trust -E UTF8 >/dev/null
+          "$PGBIN/pg_ctl" -D /tmp/p5x-postgres-data -l /tmp/p5x-postgres.log -w \
+            -o "-p 55439 -k /tmp/p5x-postgres-data -c listen_addresses=''" start
+          "$PGBIN/psql" -h /tmp/p5x-postgres-data -p 55439 -U p5x_homolog -d postgres \
+            -c 'SHOW data_directory' -c 'SHOW listen_addresses'
+
+      # P5X_POSTGRES_LOCAL=1 é o opt-in explícito dos testes. DATABASE_URL
+      # nunca entra aqui: o cluster é descartável e local ao runner.
+      # O passo falha se algum teste for PULADO. Sem esta guarda, um
+      # cluster que não subisse deixaria o unittest pular tudo e o job
+      # passaria verde dizendo nada.
+      - name: WhatsApp — transações e recuperação de status
+        env:
+          P5X_POSTGRES_LOCAL: '1'
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: 'tests:.'
+        run: |
+          set -uo pipefail
+          saida="$(python3 -m unittest tests.test_whatsapp_postgres_real -v 2>&1)"
+          codigo=$?
+          echo "$saida"
+          if [ "$codigo" -ne 0 ]; then
+            echo "::error::a suíte PostgreSQL falhou"
+            exit 1
+          fi
+          total="$(printf '%s\n' "$saida" | sed -n 's/^Ran \([0-9]*\) test.*/\1/p' | tail -1)"
+          if printf '%s\n' "$saida" | grep -q 'skipped'; then
+            echo "::error::testes PostgreSQL foram pulados — o cluster não foi aceito"
+            exit 1
+          fi
+          if [ "${total:-0}" -lt 10 ]; then
+            echo "::error::esperado no mínimo 10 testes PostgreSQL, rodaram ${total:-0}"
+            exit 1
+          fi
+          echo "### PostgreSQL real: ${total} testes executados, 0 pulados" >> "$GITHUB_STEP_SUMMARY"
+          echo "POSTGRES_TESTES=${total}" >> "$GITHUB_ENV"
+
+      # Nome do artefato carrega a contagem: é o único canal de evidência
+      # legível sem permissão de admin no repositório.
+      - name: Publicar contagem como evidência
+        if: always()
+        run: |
+          mkdir -p /tmp/evidencia
+          echo "testes=${POSTGRES_TESTES:-0}" > /tmp/evidencia/resultado.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: postgres-real-${{ env.POSTGRES_TESTES || 'desconhecido' }}-testes
+          path: /tmp/evidencia/resultado.txt
+
+      - name: Derrubar cluster
+        if: always()
+        run: |
+          "${PGBIN:-/usr/lib/postgresql/16/bin}/pg_ctl" -D /tmp/p5x-postgres-data -m immediate stop || true
+          rm -rf /tmp/p5x-postgres-data
 
   javascript:
     name: Suíte JS (node --test)
