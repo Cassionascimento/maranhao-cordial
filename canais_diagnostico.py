@@ -57,6 +57,32 @@ def _agora():
     return datetime.now(timezone.utc).isoformat()
 
 
+DIAS_ALERTA_EXPIRACAO = 14
+
+
+def alerta_de_expiracao(expira_em, agora=None):
+    """Aviso quando o token está perto de vencer.
+
+    Acompanhamento sem cron: roda junto com o diagnóstico que o painel já
+    faz. Nenhum agendamento novo, nenhum custo adicional.
+    """
+    if not expira_em:
+        return None
+    try:
+        prazo = datetime.fromisoformat(str(expira_em).replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if prazo.tzinfo is None:
+        prazo = prazo.replace(tzinfo=timezone.utc)
+    referencia = agora or datetime.now(timezone.utc)
+    dias = (prazo - referencia).days
+    if dias < 0:
+        return 'O token já venceu. Reautorizar pelo fluxo OAuth.'
+    if dias <= DIAS_ALERTA_EXPIRACAO:
+        return f'O token vence em {dias} dia(s). Renovar antes do vencimento.'
+    return None
+
+
 def _base(canal, *, grupo='social'):
     """Contrato único. Todo campo desconhecido nasce None — nunca 0, nunca
     string vazia, nunca um valor otimista."""
@@ -251,63 +277,179 @@ def diagnosticar_whatsapp(http, env=None):
     return dado
 
 
+# Subcódigos de OAuthException (error.code 190) da Meta. Cada um tem uma
+# causa distinta e um passo distinto: juntar tudo em "token inválido" é o
+# que faz alguém trocar uma credencial que estava boa.
+_SUBCODIGO_META = {
+    458: ('bloqueado', 'app_removido_da_conta',
+          'O aplicativo foi removido da conta. É preciso autorizar de novo pelo fluxo OAuth.'),
+    459: ('bloqueado', 'usuario_precisa_reautenticar',
+          'A Meta exige nova autenticação do usuário dono do ativo.'),
+    460: ('token_expirado', 'senha_alterada',
+          'A senha da conta mudou e invalidou o token. Reautorizar pelo fluxo OAuth.'),
+    463: ('token_expirado', 'token_expirado',
+          'O token expirou. Gerar um novo token de longa duração e atualizar a variável.'),
+    464: ('bloqueado', 'usuario_nao_confirmado',
+          'A conta não está confirmada na Meta.'),
+    467: ('bloqueado', 'token_revogado',
+          'O token foi revogado ou é inválido. Reautorizar pelo fluxo OAuth.'),
+}
+# Permissão faltando não é token ruim: o token autentica, mas o app não tem
+# o escopo. Trocar o token não resolve; só o App Review resolve.
+_CODIGOS_PERMISSAO = {10, 200, 201, 202, 203, 204, 205, 206, 207, 299}
+_CODIGOS_TRANSITORIOS = {1, 2, 4, 17, 32, 341, 613}
+
+PERMISSOES_INSTAGRAM_LEITURA = ('instagram_basic',)
+PERMISSOES_INSTAGRAM_MENSAGENS = ('instagram_manage_messages',)
+
+
+def _classificar_erro_meta(corpo, codigo_http):
+    """Traduz a recusa da Meta em (estado, codigo, passo).
+
+    Sem isto o painel dizia "bloqueado" para expiração, revogação e falta de
+    permissão -- três problemas com soluções diferentes.
+    """
+    erro = (corpo or {}).get('error') if isinstance(corpo, dict) else None
+    erro = erro if isinstance(erro, dict) else {}
+    codigo = erro.get('code')
+    subcodigo = erro.get('error_subcode')
+    if codigo == 190:
+        if subcodigo in _SUBCODIGO_META:
+            estado, chave, passo = _SUBCODIGO_META[subcodigo]
+            return estado, 'meta_190_' + str(subcodigo) + '/' + chave, passo
+        return ('token_expirado', 'meta_190',
+                'A Meta recusou o token. Gerar um novo pelo fluxo OAuth e atualizar a variável.')
+    if codigo in _CODIGOS_PERMISSAO:
+        return ('aguardando_aprovacao_externa', 'meta_' + str(codigo) + '/permissao_insuficiente',
+                'O token autentica, mas falta permissão aprovada. Trocar o token não resolve; '
+                'depende do App Review da Meta.')
+    if codigo in _CODIGOS_TRANSITORIOS:
+        return ('erro', 'meta_' + str(codigo) + '/transitorio',
+                'A Meta recusou por limite ou indisponibilidade momentânea. Repetir o diagnóstico.')
+    if codigo is not None:
+        return ('erro', 'meta_' + str(codigo), 'A Meta recusou a consulta.')
+    return ('erro', 'http_' + str(codigo_http), 'A Meta recusou a consulta sem código conhecido.')
+
+
+def _descobrir_conta_instagram(http, token):
+    """Descobre a conta profissional a partir do próprio token.
+
+    Evita depender de INSTAGRAM_ACCOUNT_ID: a Página autorizada já sabe qual
+    conta do Instagram está vinculada a ela. Devolve (conta, erro_ou_None).
+    """
+    corpo, codigo, erro = _get(
+        http, GRAPH + '/me/accounts',
+        params={'fields': 'name,instagram_business_account{id,username}'},
+        headers={'Authorization': 'Bearer ' + token})
+    if erro:
+        return None, ('erro', erro, 'Não foi possível falar com a Meta.')
+    if codigo != 200:
+        return None, _classificar_erro_meta(corpo, codigo)
+    for pagina in ((corpo or {}).get('data') or []):
+        vinculada = (pagina or {}).get('instagram_business_account') or {}
+        if vinculada.get('id'):
+            return {'id': vinculada['id'], 'username': vinculada.get('username'),
+                    'pagina': pagina.get('name')}, None
+    return None, ('conectado_parcial', 'sem_conta_instagram_vinculada',
+                  'O token é válido, mas nenhuma Página autorizada tem conta profissional do '
+                  'Instagram vinculada. Vincular no Meta Business e repetir o diagnóstico.')
+
+
 def diagnosticar_instagram(http, env=None):
-    """Instagram profissional via Graph. Confirma conta e permissões; nunca
-    publica nem lê conteúdo de terceiros."""
+    """Instagram profissional via Graph, somente leitura.
+
+    "Conectado" só depois de uma consulta autenticada bem-sucedida. Token
+    ausente, expirado, revogado e permissão insuficiente são estados
+    distintos, com passos distintos.
+    """
     env = os.environ if env is None else env
     dado = _base('Instagram')
     dado['ultima_tentativa'] = _agora()
 
-    token = env.get('INSTAGRAM_ACCESS_TOKEN') or env.get('META_INSTAGRAM_ACCESS_TOKEN') or env.get('META_ACCESS_TOKEN')
-    conta_id = (env.get('INSTAGRAM_ACCOUNT_ID') or env.get('META_INSTAGRAM_ACCOUNT_ID')
-                or env.get('INSTAGRAM_USER_ID') or env.get('INSTAGRAM_ID'))
-    if not token or not conta_id:
+    token = (env.get('INSTAGRAM_ACCESS_TOKEN') or env.get('META_INSTAGRAM_ACCESS_TOKEN')
+             or env.get('META_ACCESS_TOKEN'))
+    if not token:
         dado['estado'] = 'nao_configurado'
         dado['exige_acao_admin'] = True
-        dado['proximo_passo'] = ('Definir INSTAGRAM_ACCESS_TOKEN e INSTAGRAM_ACCOUNT_ID '
-                                 '(conta profissional vinculada a uma Página).')
+        dado['codigo_erro'] = 'token_ausente'
+        dado['proximo_passo'] = ('Nenhum token do Instagram configurado. Definir '
+                                 'INSTAGRAM_ACCESS_TOKEN (token de Página de longa duração).')
         return dado
 
     dado['verificacao_remota'] = True
+    cabecalho = {'Authorization': 'Bearer ' + token}
+    conta_id = (env.get('INSTAGRAM_ACCOUNT_ID') or env.get('META_INSTAGRAM_ACCOUNT_ID')
+                or env.get('INSTAGRAM_USER_ID') or env.get('INSTAGRAM_ID'))
+    descoberta = None
+
+    if not conta_id:
+        # Antes isto virava "não configurado" e parecia token perdido. O
+        # identificador da conta é derivável do próprio token.
+        descoberta, falha = _descobrir_conta_instagram(http, token)
+        if falha:
+            estado, codigo, passo = falha
+            dado['estado'] = estado
+            dado['codigo_erro'] = codigo
+            dado['ultimo_erro'] = 'meta_recusou_a_descoberta_da_conta' if estado != 'conectado_parcial' else None
+            dado['exige_acao_admin'] = True
+            dado['exige_reconexao'] = estado in ('token_expirado', 'bloqueado')
+            dado['aguardando_plataforma'] = estado == 'aguardando_aprovacao_externa'
+            dado['proximo_passo'] = passo
+            return dado
+        conta_id = descoberta['id']
+        dado['conta'] = ('@' + descoberta['username']) if descoberta.get('username') else None
+
     corpo, codigo, erro = _get(http, GRAPH + '/' + str(conta_id),
                                params={'fields': 'username,name,followers_count'},
-                               headers={'Authorization': 'Bearer ' + token})
+                               headers=cabecalho)
     if erro:
         dado['estado'] = 'erro'
         dado['ultimo_erro'] = 'nao_foi_possivel_falar_com_a_meta'
         dado['codigo_erro'] = erro
+        dado['proximo_passo'] = 'Repetir o diagnóstico. Se persistir, verificar a saída de rede do serviço.'
         return dado
     if codigo != 200:
-        codigo_meta = _erro_graph(corpo)
-        dado['estado'] = 'token_expirado' if codigo_meta in (190, 463) else 'bloqueado'
+        estado, codigo_erro, passo = _classificar_erro_meta(corpo, codigo)
+        dado['estado'] = estado
+        dado['codigo_erro'] = codigo_erro
         dado['ultimo_erro'] = 'meta_recusou_a_consulta_da_conta'
-        dado['codigo_erro'] = 'http_' + str(codigo) + (('/meta_' + str(codigo_meta)) if codigo_meta else '')
-        dado['exige_reconexao'] = dado['estado'] == 'token_expirado'
         dado['exige_acao_admin'] = True
-        dado['proximo_passo'] = 'Renovar o token da Página e atualizar INSTAGRAM_ACCESS_TOKEN.'
+        dado['exige_reconexao'] = estado in ('token_expirado', 'bloqueado')
+        dado['aguardando_plataforma'] = estado == 'aguardando_aprovacao_externa'
+        dado['proximo_passo'] = passo
         return dado
 
     corpo = corpo or {}
-    dado['conta'] = ('@' + corpo['username']) if corpo.get('username') else None
+    dado['conta'] = ('@' + corpo['username']) if corpo.get('username') else dado['conta']
     dado['tipo_conta'] = 'Conta profissional'
     dado['leitura_disponivel'] = True
 
     permissoes = _debug_token(http, token, env.get('META_APP_SECRET'))
+    concedidas = set()
     if permissoes and permissoes.get('permissoes') is not None:
         concedidas = set(permissoes['permissoes'])
-        necessarias = {'instagram_basic'}
         dado['permissoes_concedidas'] = sorted(concedidas)
-        dado['permissoes_ausentes'] = sorted(necessarias - concedidas) or []
+        dado['permissoes_ausentes'] = sorted(
+            set(PERMISSOES_INSTAGRAM_LEITURA + PERMISSOES_INSTAGRAM_MENSAGENS) - concedidas) or []
         dado['token_expira_em'] = permissoes.get('expira_em')
-        # Escrita só quando a permissão existe de fato. instagram_manage_messages
-        # depende de App Review; sem ela, o painel não oferece resposta.
-        dado['escrita_disponivel'] = 'instagram_manage_messages' in concedidas
+        dado['escrita_disponivel'] = bool(set(PERMISSOES_INSTAGRAM_MENSAGENS) & concedidas)
 
-    dado['estado'] = 'conectado' if dado['leitura_disponivel'] else 'conectado_parcial'
+    dado['estado'] = 'conectado'
+    avisos = []
     if not dado['escrita_disponivel']:
         dado['estado'] = 'conectado_parcial'
-        dado['proximo_passo'] = ('Leitura ativa. Resposta a mensagens exige a permissão '
-                                 'instagram_manage_messages aprovada no App Review da Meta.')
+        dado['aguardando_plataforma'] = True
+        avisos.append('Leitura ativa. Responder mensagens exige instagram_manage_messages '
+                      'aprovada no App Review da Meta.')
+    alerta = alerta_de_expiracao(dado['token_expira_em'])
+    if alerta:
+        avisos.append(alerta)
+        dado['exige_acao_admin'] = True
+    dado['proximo_passo'] = ' '.join(avisos) or None
+    if descoberta and not env.get('INSTAGRAM_ACCOUNT_ID'):
+        dado['proximo_passo'] = ((dado['proximo_passo'] or '')
+                                 + ' Conta descoberta pelo token; definir INSTAGRAM_ACCOUNT_ID '
+                                   'evita uma chamada por diagnóstico.').strip()
     return dado
 
 

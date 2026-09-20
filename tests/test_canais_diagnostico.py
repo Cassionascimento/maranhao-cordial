@@ -290,3 +290,145 @@ class OrcamentoDeTempo(unittest.TestCase):
         http = _http_whatsapp_ok()
         cd.diagnosticar_whatsapp(http, ENV_WPP)
         self.assertTrue(http.chamadas)
+
+
+def _http_instagram(perfil=None, accounts=None, permissoes=('instagram_basic',), expira=1790000000):
+    rotas = {'/debug_token': _Resposta({'data': {'is_valid': True, 'expires_at': expira,
+                                                 'scopes': list(permissoes)}})}
+    if accounts is not None:
+        rotas['/me/accounts'] = accounts
+    if perfil is not None:
+        rotas['/17841400000000000'] = perfil
+    return _Http(rotas)
+
+
+PAGINA_COM_IG = _Resposta({'data': [
+    {'name': 'Maranhão Cordial', 'instagram_business_account':
+        {'id': '17841400000000000', 'username': 'maranhaocordial'}}]})
+PERFIL_IG = _Resposta({'username': 'maranhaocordial', 'name': 'Maranhão Cordial',
+                       'followers_count': 1200})
+
+
+class InstagramCausaDoEstado(unittest.TestCase):
+    """Token ausente, expirado, revogado e permissão insuficiente são quatro
+    problemas com quatro soluções. O painel precisa separá-los."""
+
+    def test_sem_token_diz_token_ausente_e_nao_consulta_a_meta(self):
+        http = _Http({})
+        dado = cd.diagnosticar_instagram(http, {})
+        self.assertEqual(dado['estado'], 'nao_configurado')
+        self.assertEqual(dado['codigo_erro'], 'token_ausente')
+        self.assertFalse(dado['verificacao_remota'])
+        self.assertEqual(http.chamadas, [])
+
+    def test_regressao_corrigida_token_presente_sem_account_id_nao_e_nao_configurado(self):
+        """Era isto que fazia o Instagram parecer 'sem token' depois do deploy:
+        o token estava lá, faltava só INSTAGRAM_ACCOUNT_ID."""
+        http = _http_instagram(perfil=PERFIL_IG, accounts=PAGINA_COM_IG)
+        dado = cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'tok'})
+        self.assertNotEqual(dado['estado'], 'nao_configurado')
+        self.assertEqual(dado['conta'], '@maranhaocordial')
+        self.assertTrue(dado['leitura_disponivel'])
+        self.assertIn('INSTAGRAM_ACCOUNT_ID', dado['proximo_passo'])
+
+    def test_token_expirado_e_distinto_de_revogado(self):
+        casos = {463: ('token_expirado', 'token_expirado'),
+                 467: ('bloqueado', 'token_revogado'),
+                 458: ('bloqueado', 'app_removido_da_conta'),
+                 460: ('token_expirado', 'senha_alterada')}
+        for subcodigo, (estado, chave) in casos.items():
+            with self.subTest(subcodigo=subcodigo):
+                http = _Http({'/me/accounts': _Resposta(
+                    {'error': {'code': 190, 'error_subcode': subcodigo}}, 401)})
+                dado = cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'tok'})
+                self.assertEqual(dado['estado'], estado)
+                self.assertIn(chave, dado['codigo_erro'])
+                self.assertTrue(dado['exige_reconexao'])
+
+    def test_permissao_insuficiente_nao_vira_token_ruim(self):
+        http = _Http({'/me/accounts': _Resposta({'error': {'code': 200}}, 403)})
+        dado = cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'tok'})
+        self.assertEqual(dado['estado'], 'aguardando_aprovacao_externa')
+        self.assertTrue(dado['aguardando_plataforma'])
+        self.assertFalse(dado['exige_reconexao'])
+        self.assertIn('Trocar o token não resolve', dado['proximo_passo'])
+
+    def test_limite_da_meta_e_transitorio_nao_bloqueio(self):
+        http = _Http({'/me/accounts': _Resposta({'error': {'code': 4}}, 400)})
+        dado = cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'tok'})
+        self.assertEqual(dado['estado'], 'erro')
+        self.assertIn('transitorio', dado['codigo_erro'])
+        self.assertFalse(dado['exige_reconexao'])
+
+    def test_token_valido_sem_conta_vinculada_e_conectado_parcial(self):
+        http = _Http({'/me/accounts': _Resposta({'data': [{'name': 'Página sem IG'}]})})
+        dado = cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'tok'})
+        self.assertEqual(dado['estado'], 'conectado_parcial')
+        self.assertEqual(dado['codigo_erro'], 'sem_conta_instagram_vinculada')
+        self.assertIn('Meta Business', dado['proximo_passo'])
+
+    def test_conectado_so_apos_consulta_autenticada_bem_sucedida(self):
+        http = _http_instagram(perfil=PERFIL_IG, accounts=PAGINA_COM_IG,
+                               permissoes=('instagram_basic', 'instagram_manage_messages'))
+        dado = cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'tok',
+                                                'INSTAGRAM_ACCOUNT_ID': '17841400000000000',
+                                                'META_APP_SECRET': 'seg'})
+        self.assertEqual(dado['estado'], 'conectado')
+        self.assertTrue(dado['verificacao_remota'])
+        self.assertTrue(dado['escrita_disponivel'])
+        self.assertEqual(dado['permissoes_ausentes'], [])
+
+    def test_sem_permissao_de_mensagem_nao_promete_escrita(self):
+        http = _http_instagram(perfil=PERFIL_IG, accounts=PAGINA_COM_IG)
+        dado = cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'tok',
+                                                'INSTAGRAM_ACCOUNT_ID': '17841400000000000',
+                                                'META_APP_SECRET': 'seg'})
+        self.assertEqual(dado['estado'], 'conectado_parcial')
+        self.assertFalse(dado['escrita_disponivel'])
+        self.assertIn('instagram_manage_messages', dado['permissoes_ausentes'])
+
+    def test_nenhum_diagnostico_publica_ou_envia(self):
+        http = _http_instagram(perfil=PERFIL_IG, accounts=PAGINA_COM_IG)
+        cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'tok'})
+        self.assertFalse(hasattr(http, 'post'))
+
+    def test_token_nunca_aparece_no_resultado(self):
+        http = _http_instagram(perfil=PERFIL_IG, accounts=PAGINA_COM_IG)
+        dado = cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'segredo-do-instagram',
+                                                'META_APP_SECRET': 'segredo-do-app'})
+        corpo = json.dumps(dado, ensure_ascii=False)
+        self.assertNotIn('segredo-do-instagram', corpo)
+        self.assertNotIn('segredo-do-app', corpo)
+
+
+class AcompanhamentoDeValidade(unittest.TestCase):
+    """Renovação sem cron: o aviso sai junto do diagnóstico que o painel já faz."""
+
+    def test_sem_data_de_expiracao_nao_inventa_aviso(self):
+        self.assertIsNone(cd.alerta_de_expiracao(None))
+        self.assertIsNone(cd.alerta_de_expiracao('data-invalida'))
+
+    def test_token_de_longa_duracao_nao_alarma(self):
+        from datetime import datetime, timedelta, timezone
+        agora = datetime(2026, 9, 20, tzinfo=timezone.utc)
+        self.assertIsNone(cd.alerta_de_expiracao((agora + timedelta(days=60)).isoformat(), agora))
+
+    def test_avisa_dentro_da_janela_e_depois_do_vencimento(self):
+        from datetime import datetime, timedelta, timezone
+        agora = datetime(2026, 9, 20, tzinfo=timezone.utc)
+        perto = cd.alerta_de_expiracao((agora + timedelta(days=5)).isoformat(), agora)
+        self.assertIn('vence em 5 dia', perto)
+        vencido = cd.alerta_de_expiracao((agora - timedelta(days=1)).isoformat(), agora)
+        self.assertIn('já venceu', vencido)
+
+    def test_aviso_de_expiracao_chega_ao_painel(self):
+        from datetime import datetime, timedelta, timezone
+        proximo = int((datetime.now(timezone.utc) + timedelta(days=3)).timestamp())
+        http = _http_instagram(perfil=PERFIL_IG, accounts=PAGINA_COM_IG,
+                               permissoes=('instagram_basic', 'instagram_manage_messages'),
+                               expira=proximo)
+        dado = cd.diagnosticar_instagram(http, {'INSTAGRAM_ACCESS_TOKEN': 'tok',
+                                                'INSTAGRAM_ACCOUNT_ID': '17841400000000000',
+                                                'META_APP_SECRET': 'seg'})
+        self.assertIn('vence em', dado['proximo_passo'])
+        self.assertTrue(dado['exige_acao_admin'])
