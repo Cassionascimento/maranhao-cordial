@@ -145,7 +145,19 @@ class Repositorio:
                 cur.execute("""INSERT INTO leads_crm(id,nome,tipo_lead,origem,canal,telefone,contato,categoria_contato)
                     VALUES(%s,%s,'outro','whatsapp','whatsapp',%s,%s,'lead')""",(lead,nome,e['sender_id'],e['sender_id']))
             cur.execute('UPDATE interacoes_omnichannel SET lead_id=%s,atualizado_em=NOW() WHERE id=%s',(lead,ident))
-            self.auditar(cur,'contato_vinculado',{'interacao_id':ident,'lead_id':lead,'criado':not bool(rows)})
+            # Identidade por canal (migration 027): é o que permite reconhecer
+            # este mesmo contato depois, vindo por e-mail ou Instagram.
+            # Best-effort de propósito -- se a migration ainda não rodou, a
+            # entrada do WhatsApp não pode parar por causa disso.
+            identidade=None
+            try:
+                from crm_identidade import vincular as vincular_identidade
+                identidade=vincular_identidade(cur,lead_id=lead,canal='whatsapp',
+                                               identificador=e['sender_id'],tipo='telefone',verificado=True)
+            except Exception as erro:
+                self.auditar(cur,'identidade_nao_registrada',{'erro_tipo':type(erro).__name__})
+            self.auditar(cur,'contato_vinculado',{'interacao_id':ident,'lead_id':lead,
+                                                  'criado':not bool(rows),'identidade':bool(identidade)})
             return lead
 
     def classificar(self,ident,ia):

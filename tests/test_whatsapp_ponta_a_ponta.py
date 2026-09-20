@@ -231,3 +231,40 @@ class IdentidadeAmbigua(_Base):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class IdentidadeEntreCanais(_Base):
+    """A mensagem do WhatsApp passa a deixar rastro de identidade — é o que
+    permite reconhecer o mesmo contato depois, vindo por outro canal."""
+
+    def test_o_telefone_vira_identidade_de_canal_do_contato(self):
+        self.receber(payload(mensagens=mensagem()))
+        identidades = self.banco.rows('crm_identidades_canal')
+        self.assertEqual(len(identidades), 1)
+        registro = identidades[0]
+        self.assertEqual(registro['canal'], 'whatsapp')
+        self.assertEqual(registro['identificador_externo'], TELEFONE)
+        self.assertEqual(registro['tipo'], 'telefone')
+        self.assertTrue(registro['verificado'])
+        self.assertEqual(registro['lead_id'], self.uma('leads_crm')['id'])
+
+    def test_duas_mensagens_do_mesmo_numero_nao_duplicam_a_identidade(self):
+        self.receber(payload(mensagens=mensagem('wamid.a', 'primeira')))
+        self.receber(payload(mensagens=mensagem('wamid.b', 'segunda')))
+        self.assertEqual(len(self.banco.rows('crm_identidades_canal')), 1)
+
+    def test_falha_ao_registrar_identidade_nao_derruba_a_entrada(self):
+        """Se a migration 027 ainda não rodou em produção, a mensagem
+        precisa continuar entrando e virando proposta."""
+        conn = self.banco()
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute('DROP TABLE crm_identidades_canal')
+        finally:
+            conn.close()
+        resultado = self.receber(payload(mensagens=mensagem()))
+        self.assertEqual(resultado['processados'], 1)
+        self.assertEqual(self.uma('fila_respostas_omnichannel')['status'], 'aguardando_aprovacao')
+        etapas = [linha['etapa'] for linha in self.banco.rows('whatsapp_entrada_auditoria')]
+        self.assertIn('identidade_nao_registrada', etapas)
