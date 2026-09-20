@@ -207,6 +207,18 @@
                     termos: 'command center overview relationship 360 segmento produto unidade qr',
                 },
                 {
+                    /* Sub-vista "QR & Avaliações" do mesmo painel (qr-intelligence.js
+                       acrescenta o botão data-mic-view="qr" ao Command Center). */
+                    id: 'qr-avaliacoes',
+                    painel: 'maranhao-intelligence',
+                    aoAbrir: '[data-mic-view="qr"]',
+                    rotulo: 'QR & Avaliações',
+                    titulo: 'QR Codes e avaliações',
+                    descricao: 'Leituras dos QR Codes, avaliações da feira e do produto, intenção de compra e contatos que viraram lead. Crie códigos novos e baixe SVG, PNG ou PDF.',
+                    acao: { rotulo: 'Atualizar dados', clicar: '#qri-atualizar' },
+                    termos: 'qr code qrcode leitura scan avaliacao avaliacoes nota sensorial feira softdrinks embalagem produto material comercial divulgacao intencao compra preco 59 contato lead codigo imprimir svg png pdf',
+                },
+                {
                     id: 'inteligencia-territorial',
                     painel: 'inteligencia-territorial',
                     rotulo: 'Território',

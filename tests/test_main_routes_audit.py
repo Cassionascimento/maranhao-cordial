@@ -70,7 +70,7 @@ def _app_com_todos_os_registradores():
     app = Flask(__name__)
     factory = MagicMock()
     autorizado = lambda: True
-    args_possiveis = [app, factory, autorizado]
+    args_possiveis = [app, factory, autorizado, '.']  # 4º: pasta do frontend (registrar_rotas_qr)
     for modulo, nome, alias in _registradores_importados():
         mod = __import__(modulo, fromlist=[nome])
         registrador = getattr(mod, nome)

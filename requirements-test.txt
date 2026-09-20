@@ -1,0 +1,4 @@
+# Só para a suíte de testes (CI e local). Não é instalado em produção.
+# Decodificador independente: os QRs gerados precisam ser LIDOS por um
+# leitor que não é o gerador, inclusive com a imagem degradada.
+zxing-cpp
