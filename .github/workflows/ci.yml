@@ -24,6 +24,52 @@ jobs:
       - name: Integração Maranhão Intelligence (Flask real, contrato P5)
         run: python3 -m unittest tests.test_mi_intelligence_api_integration -v
 
+  postgres:
+    name: Regressões PostgreSQL real (cluster efêmero)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: pip install -r requirements.txt
+
+      # Cluster próprio, não o serviço do runner: os testes exigem socket
+      # Unix em /tmp/p5x-postgres-data, data_directory igual a esse caminho e
+      # listen_addresses vazio. Um "services: postgres" escuta em TCP e seria
+      # recusado por local_connection() como cluster não isolado.
+      - name: Subir cluster PostgreSQL isolado (sem TCP)
+        run: |
+          set -euo pipefail
+          PGBIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
+          if [ -z "$PGBIN" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql
+            PGBIN="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
+          fi
+          echo "PGBIN=$PGBIN" >> "$GITHUB_ENV"
+          rm -rf /tmp/p5x-postgres-data
+          "$PGBIN/initdb" -D /tmp/p5x-postgres-data -U p5x_homolog --auth=trust -E UTF8 >/dev/null
+          "$PGBIN/pg_ctl" -D /tmp/p5x-postgres-data -l /tmp/p5x-postgres.log -w \
+            -o "-p 55439 -k /tmp/p5x-postgres-data -c listen_addresses=''" start
+          "$PGBIN/psql" -h /tmp/p5x-postgres-data -p 55439 -U p5x_homolog -d postgres \
+            -c 'SHOW data_directory' -c 'SHOW listen_addresses'
+
+      # P5X_POSTGRES_LOCAL=1 é o opt-in explícito dos testes. DATABASE_URL
+      # nunca entra aqui: o cluster é descartável e local ao runner.
+      - name: WhatsApp — transações e recuperação de status
+        env:
+          P5X_POSTGRES_LOCAL: '1'
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: 'tests:.'
+        run: python3 -m unittest tests.test_whatsapp_postgres_real -v
+
+      - name: Derrubar cluster
+        if: always()
+        run: |
+          "${PGBIN:-/usr/lib/postgresql/16/bin}/pg_ctl" -D /tmp/p5x-postgres-data -m immediate stop || true
+          rm -rf /tmp/p5x-postgres-data
+
   javascript:
     name: Suíte JS (node --test)
     runs-on: ubuntu-latest
