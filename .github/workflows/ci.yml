@@ -5,7 +5,11 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # 'ci/**' entra aqui de propósito: uma mudança no próprio workflow
+    # precisa poder se validar antes de virar PR, senão o gatilho só
+    # confirma o que já estava valendo.
+    branches: [main, 'ci/**']
+  workflow_dispatch:
 
 jobs:
   python:
