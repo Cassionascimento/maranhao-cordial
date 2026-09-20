@@ -16,7 +16,7 @@ const fonte = fs.readFileSync('maranhao-backend/adm-experiencia.js', 'utf8');
    roda — foi assim que o Calendário (criado por app-shell.js) ficou fora do
    primeiro inventário. */
 const MODULOS = [
-    'app-shell.js', 'maranhao-intelligence.js', 'conselho-agentes.js',
+    'app-shell.js', 'maranhao-intelligence.js', 'qr-intelligence.js', 'conselho-agentes.js',
     'calendario-empresarial.js', 'operacao-viva.js', 'mi-graficos.js',
     'canais-status.js', 'modo-diretor.js', 'visao-geral.js',
 ].map(n => fs.readFileSync('maranhao-backend/' + n, 'utf8'));
@@ -137,7 +137,7 @@ test('cada vista tem id único — duas podem dividir o mesmo painel', () => {
     const ids = vistasDoMapa(MAPA);
     assert.equal(new Set(ids).size, ids.length, 'id de vista repetido');
     const mi = MAPA.flatMap(a => a.vistas).filter(v => v.painel === 'maranhao-intelligence');
-    assert.equal(mi.length, 2, 'Intelligence e Materiais dividem o painel');
+    assert.equal(mi.length, 3, 'Intelligence, Materiais e QR & Avaliações dividem o painel');
     assert.ok(mi.every(v => v.aoAbrir), 'vistas que dividem painel precisam abrir sub-vista própria');
 });
 

@@ -15146,6 +15146,19 @@ def cadastrar_empresa():
             "error": "É necessário autorizar o contato comercial."
         }), 400
 
+    # O perfil escolhido na página (profissional, distribuidor...) chega no
+    # campo "perfil". A tabela não tem coluna própria, então ele vai como
+    # prefixo da mensagem — que já segue para a rede e para o CRM. Só valores
+    # da lista conhecida entram; qualquer outra coisa é ignorada.
+    perfil_cadastro = str(dados.get("perfil") or "").strip().lower()
+    if perfil_cadastro in (
+        "profissional", "estabelecimento", "fabrica", "distribuidor"
+    ):
+        mensagem_original = str(dados.get("mensagem") or "").strip()
+        dados["mensagem"] = (
+            f"[Perfil: {perfil_cadastro}] {mensagem_original}".strip()
+        )
+
     cadastro_id = str(uuid.uuid4())
 
     try:
@@ -39680,6 +39693,10 @@ registrar_rotas_mi_lotes(app, get_db_connection, validar_admin_request)
 
 from mi_unidades import registrar_rotas_leitura as registrar_rotas_mi_unidades
 registrar_rotas_mi_unidades(app, get_db_connection, validar_admin_request)
+
+# QR Codes rastreáveis (/q/<codigo>, /api/qr/*, /api/admin/qr/*).
+from qr_rastreavel import registrar_rotas_qr
+registrar_rotas_qr(app, get_db_connection, validar_admin_request, FRONTEND_FOLDER)
 
 from mi_estabelecimentos import registrar_rotas_leitura as registrar_rotas_mi_estabelecimentos
 registrar_rotas_mi_estabelecimentos(app, get_db_connection, validar_admin_request)

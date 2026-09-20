@@ -1,0 +1,16 @@
+#mic-qr .qri-periodo{display:flex;gap:8px;align-items:center;font-size:.85rem;color:#b9ad9a}
+#mic-qr select,#mic-qr input{background:#0f0d0a;color:#f4ece1;border:1px solid rgba(212,175,55,.28);border-radius:8px;padding:8px 10px;font:inherit;min-height:40px}
+#mic-qr .qri-h{font:600 1.05rem "Cormorant Garamond",Georgia,serif;margin:26px 0 8px;color:#f4ece1}
+#mic-qr .qri-rolagem{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#mic-qr .qri-tabela{width:100%;border-collapse:collapse;font-size:.88rem}
+#mic-qr .qri-tabela th{text-align:left;font-weight:600;color:#b9ad9a;padding:8px 10px;border-bottom:1px solid rgba(212,175,55,.28);white-space:nowrap}
+#mic-qr .qri-tabela td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top}
+#mic-qr .qri-tabela td small{display:block;color:#b9ad9a}
+#mic-qr .qri-aviso{color:#e2b877}
+#mic-qr .qri-btn{background:transparent;color:#f4ece1;border:1px solid rgba(212,175,55,.4);border-radius:8px;padding:6px 10px;font:inherit;font-size:.82rem;cursor:pointer;min-height:34px}
+#mic-qr .qri-btn--primario{background:#d4af37;color:#15110a;border-color:#d4af37;font-weight:600;margin-top:10px}
+#mic-qr .qri-novo{margin-top:22px}
+#mic-qr .qri-novo summary{cursor:pointer;font-weight:600}
+#mic-qr .qri-novo label{display:grid;gap:4px;margin:10px 0;font-size:.88rem;color:#b9ad9a;max-width:520px}
+#mic-qr .qri-comentarios{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+#mic-qr .qri-comentarios li{border:1px solid rgba(212,175,55,.2);border-radius:10px;padding:10px 12px;overflow-wrap:anywhere}

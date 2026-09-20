@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt -r requirements-test.txt
       - name: Suíte completa
         run: python3 -m unittest discover -s tests -p "test_*.py" -v
       - name: Auditoria de rotas (registrar_rotas* de main.py x URLs do frontend)
@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt -r requirements-test.txt
 
       # Cluster próprio, não o serviço do runner: os testes exigem socket
       # Unix em /tmp/p5x-postgres-data, data_directory igual a esse caminho e
@@ -89,6 +89,31 @@ jobs:
           fi
           echo "### PostgreSQL real: ${total} testes executados, 0 pulados" >> "$GITHUB_STEP_SUMMARY"
           echo "POSTGRES_TESTES=${total}" >> "$GITHUB_ENV"
+
+      - name: QR Codes rastreáveis — funil, CRM e painel
+        env:
+          P5X_POSTGRES_LOCAL: '1'
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: 'tests:.'
+        run: |
+          set -uo pipefail
+          saida="$(python3 -m unittest tests.test_qr_postgres_real -v 2>&1)"
+          codigo=$?
+          echo "$saida"
+          if [ "$codigo" -ne 0 ]; then
+            echo "::error::a suíte PostgreSQL de QR falhou"
+            exit 1
+          fi
+          total="$(printf '%s\n' "$saida" | sed -n 's/^Ran \([0-9]*\) test.*/\1/p' | tail -1)"
+          if printf '%s\n' "$saida" | grep -q 'skipped'; then
+            echo "::error::testes PostgreSQL de QR foram pulados"
+            exit 1
+          fi
+          if [ "${total:-0}" -lt 60 ]; then
+            echo "::error::esperado no mínimo 60 testes PostgreSQL de QR, rodaram ${total:-0}"
+            exit 1
+          fi
+          echo "### PostgreSQL real (QR): ${total} testes executados, 0 pulados" >> "$GITHUB_STEP_SUMMARY"
 
       # Nome do artefato carrega a contagem: é o único canal de evidência
       # legível sem permissão de admin no repositório.
