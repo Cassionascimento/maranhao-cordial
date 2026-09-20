@@ -1,0 +1,1456 @@
+/* ============================================================
+   MARANHÃO CORDIAL — SISTEMA VISUAL DO ADM (2026)
+
+   Só apresentação. Nenhuma lógica, nenhuma regra de negócio.
+   Carregado por último de propósito: reveste o markup legado
+   (.card, .mi-bloco, tabelas, formulários) sem exigir que ele
+   seja reescrito, e por isso nenhum id/handler existente muda.
+
+   Identidade herdada do site público (index.html): preto,
+   creme #f4ece1, ouro #d4af37, Cormorant Garamond no display e
+   Inter no texto corrido.
+   ============================================================ */
+
+:root {
+    /* Superfícies */
+    --adm-fundo: #0a0908;
+    --adm-fundo-2: #0f0e0c;
+    --adm-superficie: #141210;
+    --adm-superficie-2: #1a1815;
+    --adm-linha: rgba(244, 236, 225, .10);
+    --adm-linha-forte: rgba(244, 236, 225, .18);
+
+    /* Texto */
+    --adm-texto: #f4ece1;
+    --adm-texto-2: #c9c0b3;
+    --adm-texto-3: #948c81;
+
+    /* Marca */
+    --adm-ouro: #d4af37;
+    --adm-ouro-claro: #e8ce78;
+    --adm-ouro-fundo: rgba(212, 175, 55, .10);
+
+    /* Estados de cadeia (informação → decisão → ação → resultado).
+       Cada um vem sempre acompanhado de rótulo em texto: a cor
+       nunca é o único portador da informação. */
+    --adm-sugerido: #9bb7cf;
+    --adm-aguardando: #e0a83c;
+    --adm-executado: #8fb8e0;
+    --adm-falhou: #e57a68;
+    --adm-confirmado: #86b97f;
+
+    /* Tipografia */
+    --adm-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    --adm-texto-fonte: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+    /* Ritmo */
+    --adm-raio: 14px;
+    --adm-raio-p: 10px;
+    --adm-sidebar: 264px;
+    --adm-topo: 64px;
+    --adm-leitura: 1080px;
+}
+
+/* ------------------------------------------------------------
+   BASE
+   ------------------------------------------------------------ */
+
+/* O CSS do shell anterior usa !important em várias regras de layout; estas
+   três anulam só o que competiria com a nova estrutura. */
+body.adm-2026.app-shell-sidebar-ativa {
+    padding-left: 0 !important;
+    background: var(--adm-fundo) !important;
+}
+
+body.adm-2026.adm-dentro.app-shell-sidebar-ativa .admin-shell {
+    padding-left: calc(var(--adm-sidebar) + 40px) !important;
+    padding-right: 40px !important;
+    max-width: none !important;
+}
+
+body.adm-2026 {
+    background: var(--adm-fundo);
+    color: var(--adm-texto);
+    font-family: var(--adm-texto-fonte);
+    -webkit-font-smoothing: antialiased;
+    font-size: 15px;
+    line-height: 1.55;
+    padding-left: 0;
+}
+
+/* Alguns módulos dão display:flex/block às próprias seções, o que vence o
+   display:none implícito de [hidden]. Sem isto, esconder um cabeçalho
+   duplicado não surte efeito. */
+body.adm-2026 [hidden] {
+    display: none !important;
+}
+
+body.adm-2026 ::selection {
+    background: rgba(212, 175, 55, .28);
+}
+
+body.adm-2026 h1,
+body.adm-2026 h2,
+body.adm-2026 h3,
+body.adm-2026 h4 {
+    font-family: var(--adm-display);
+    font-weight: 500;
+    letter-spacing: .005em;
+    color: var(--adm-texto);
+}
+
+body.adm-2026 a {
+    color: var(--adm-ouro-claro);
+}
+
+body.adm-2026 :focus-visible {
+    outline: 2px solid var(--adm-ouro);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* A navegação legada continua no DOM (fonte de verdade dos
+   handlers), apenas deixa de ser exibida enquanto o shell novo
+   está ativo. Reversível: basta remover a classe do body. */
+body.adm-2026 .app-shell-nav,
+body.adm-2026 .app-sidebar,
+body.adm-2026 .mc-agentic-quick {
+    display: none !important;
+}
+
+body.adm-2026 .admin-shell > .eyebrow,
+body.adm-2026 .admin-shell > h1,
+body.adm-2026 .admin-shell > .subtitle {
+    display: none;
+}
+
+/* ------------------------------------------------------------
+   ENTRADA (login)
+   ------------------------------------------------------------ */
+
+body.adm-2026.adm-fora .adm-topbar,
+body.adm-2026.adm-fora .adm-nav,
+body.adm-2026.adm-fora .adm-mobilebar {
+    display: none;
+}
+
+body.adm-2026.adm-fora .admin-shell {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 12vh 24px 60px;
+}
+
+.adm-entrada-marca {
+    display: block;
+    font-family: var(--adm-display);
+    font-size: 34px;
+    line-height: 1.1;
+    margin: 0 0 6px;
+}
+
+.adm-entrada-sub {
+    color: var(--adm-texto-3);
+    font-size: 14px;
+    margin: 0 0 32px;
+}
+
+body.adm-2026 .login-panel {
+    background: var(--adm-superficie);
+    border: 1px solid var(--adm-linha);
+    border-radius: var(--adm-raio);
+    padding: 26px;
+    max-width: none;
+}
+
+body.adm-2026 .login-panel input {
+    background: var(--adm-fundo-2);
+    border: 1px solid var(--adm-linha-forte);
+    border-radius: var(--adm-raio-p);
+    color: var(--adm-texto);
+    padding: 14px 15px;
+    font-family: inherit;
+    font-size: 15px;
+}
+
+body.adm-2026 .login-panel #entrarAdmin {
+    background: var(--adm-ouro);
+    color: #17130a;
+    border: 0;
+    border-radius: var(--adm-raio-p);
+    font-weight: 600;
+    letter-spacing: .01em;
+    padding: 14px;
+    font-family: inherit;
+    font-size: 15px;
+}
+
+body.adm-2026 .login-panel #entrarAdmin:hover {
+    background: var(--adm-ouro-claro);
+}
+
+/* Depois da entrada, a tela de login sai de cena. Ela continua no DOM:
+   se a chave for recusada o corpo volta a .adm-fora e ela reaparece. */
+body.adm-2026.adm-dentro .login-panel,
+body.adm-2026.adm-dentro .adm-entrada-marca,
+body.adm-2026.adm-dentro .adm-entrada-sub {
+    display: none;
+}
+
+/* ------------------------------------------------------------
+   SHELL: topo + navegação
+   ------------------------------------------------------------ */
+
+.adm-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--adm-topo);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 22px;
+    background: rgba(10, 9, 8, .88);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--adm-linha);
+    z-index: 40;
+}
+
+.adm-topbar-marca {
+    display: none;
+}
+
+.adm-busca-abrir {
+    flex: 1;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 38px;
+    padding: 0 14px;
+    margin: 0;
+    width: auto;
+    background: var(--adm-superficie);
+    border: 1px solid var(--adm-linha);
+    border-radius: 999px;
+    color: var(--adm-texto-3);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    letter-spacing: 0;
+}
+
+.adm-busca-abrir:hover {
+    border-color: var(--adm-linha-forte);
+    color: var(--adm-texto-2);
+}
+
+.adm-busca-icone {
+    font-size: 15px;
+    line-height: 1;
+}
+
+.adm-busca-curto {
+    display: none;
+}
+
+.adm-busca-atalho {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--adm-texto-3);
+    border: 1px solid var(--adm-linha);
+    border-radius: 5px;
+    padding: 1px 6px;
+}
+
+.adm-topbar-acoes {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.adm-topbar-botao {
+    width: auto;
+    margin: 0;
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--adm-linha-forte);
+    border-radius: 999px;
+    color: var(--adm-texto-2);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0;
+    cursor: pointer;
+}
+
+.adm-topbar-botao:hover {
+    color: var(--adm-texto);
+    border-color: var(--adm-ouro);
+}
+
+/* Navegação principal — no máximo 5 áreas. */
+.adm-nav {
+    position: fixed;
+    top: var(--adm-topo);
+    bottom: 0;
+    left: 0;
+    width: var(--adm-sidebar);
+    overflow-y: auto;
+    padding: 22px 0 28px;
+    background: var(--adm-fundo-2);
+    border-right: 1px solid var(--adm-linha);
+    z-index: 30;
+}
+
+.adm-nav-marca {
+    padding: 0 22px 20px;
+    font-family: var(--adm-display);
+    font-size: 21px;
+    line-height: 1.15;
+}
+
+.adm-nav-marca small {
+    display: block;
+    font-family: var(--adm-texto-fonte);
+    font-size: 10px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--adm-ouro);
+    margin-top: 4px;
+}
+
+.adm-area {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    padding: 10px 22px;
+    margin: 0;
+    border: 0;
+    border-left: 2px solid transparent;
+    background: transparent;
+    color: var(--adm-texto-2);
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 0;
+    text-align: left;
+    cursor: pointer;
+}
+
+.adm-area:hover {
+    color: var(--adm-texto);
+    background: rgba(244, 236, 225, .03);
+}
+
+.adm-area[aria-current="true"] {
+    color: var(--adm-texto);
+    border-left-color: var(--adm-ouro);
+    background: var(--adm-ouro-fundo);
+}
+
+.adm-area-icone {
+    width: 18px;
+    text-align: center;
+    flex: 0 0 18px;
+    opacity: .85;
+}
+
+.adm-area-sino {
+    margin-left: auto;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--adm-aguardando);
+    color: #22160a;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 20px;
+    text-align: center;
+}
+
+/* Sub-navegação: revelação progressiva dentro da área aberta. */
+.adm-vistas {
+    padding: 2px 0 12px;
+}
+
+.adm-vista {
+    display: block;
+    width: 100%;
+    padding: 7px 22px 7px 51px;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: var(--adm-texto-3);
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 0;
+    text-align: left;
+    cursor: pointer;
+}
+
+.adm-vista:hover {
+    color: var(--adm-texto-2);
+}
+
+.adm-vista[aria-current="true"] {
+    color: var(--adm-ouro-claro);
+}
+
+.adm-mobilebar {
+    display: none;
+}
+
+/* ------------------------------------------------------------
+   CONTEÚDO
+   ------------------------------------------------------------ */
+
+body.adm-2026.adm-dentro .admin-shell,
+body.adm-2026.adm-dentro > section:not(.adm-nav):not(.adm-topbar) {
+    max-width: none;
+}
+
+body.adm-2026.adm-dentro .admin-shell {
+    margin: 0;
+    padding: calc(var(--adm-topo) + 30px) 40px 90px calc(var(--adm-sidebar) + 40px);
+}
+
+body.adm-2026.adm-dentro .admin-content {
+    max-width: var(--adm-leitura);
+}
+
+/* Cabeçalho da vista atual: um título, uma frase, uma ação
+   principal. Ações secundárias entram no menu "Mais". */
+.adm-cabecalho {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    max-width: var(--adm-leitura);
+    margin: 0 0 26px;
+}
+
+.adm-cabecalho-texto {
+    max-width: 620px;
+}
+
+.adm-trilha {
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--adm-ouro);
+    margin: 0 0 8px;
+}
+
+.adm-cabecalho h1 {
+    font-size: 33px;
+    line-height: 1.12;
+    margin: 0 0 7px;
+}
+
+.adm-cabecalho p {
+    margin: 0;
+    color: var(--adm-texto-3);
+    font-size: 14px;
+}
+
+.adm-acao-principal {
+    width: auto;
+    margin: 0;
+    padding: 12px 20px;
+    background: var(--adm-ouro);
+    color: #17130a;
+    border: 0;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0;
+    cursor: pointer;
+}
+
+.adm-acao-principal:hover {
+    background: var(--adm-ouro-claro);
+}
+
+.adm-acao-principal[disabled] {
+    opacity: .5;
+    cursor: default;
+}
+
+/* O mesmo botão passou a viver no cabeçalho da vista. Continua no DOM e
+   continua recebendo o clique — só não aparece duas vezes. */
+body.adm-2026 .adm-acao-espelhada {
+    display: none;
+}
+
+/* ------------------------------------------------------------
+   COMPONENTES LEGADOS REVESTIDOS
+   ------------------------------------------------------------ */
+
+body.adm-2026 .card,
+body.adm-2026 .mi-bloco,
+body.adm-2026 .md-card,
+body.adm-2026 .exec-panel,
+body.adm-2026 .canais-card,
+body.adm-2026 .territorio-cards > * {
+    background: var(--adm-superficie);
+    border: 1px solid var(--adm-linha);
+    border-radius: var(--adm-raio);
+    padding: 20px 22px;
+}
+
+body.adm-2026 .card small,
+body.adm-2026 .mi-stat span {
+    display: block;
+    color: var(--adm-texto-3);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+body.adm-2026 .card strong,
+body.adm-2026 .mi-stat strong {
+    font-family: var(--adm-display);
+    font-size: 27px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+body.adm-2026 .mi-resumo,
+body.adm-2026 .exec-kpis,
+body.adm-2026 .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px;
+}
+
+body.adm-2026 .mi-stat,
+body.adm-2026 .exec-kpi {
+    background: var(--adm-superficie);
+    border: 1px solid var(--adm-linha);
+    border-radius: var(--adm-raio);
+    padding: 18px 20px;
+}
+
+body.adm-2026 h2 {
+    font-size: 24px;
+    margin: 30px 0 12px;
+}
+
+body.adm-2026 h3 {
+    font-size: 19px;
+    margin: 22px 0 10px;
+}
+
+body.adm-2026 p {
+    color: var(--adm-texto-2);
+}
+
+body.adm-2026 .subtitle,
+body.adm-2026 .exec-muted,
+body.adm-2026 .mi-subtitle,
+body.adm-2026 .vg-nota,
+body.adm-2026 .territorio-nota,
+body.adm-2026 .status {
+    color: var(--adm-texto-3);
+    font-size: 13px;
+}
+
+body.adm-2026 button {
+    font-family: inherit;
+    letter-spacing: 0;
+}
+
+/* Botão padrão do conteúdo: discreto, nunca compete com a ação
+   principal da vista. */
+body.adm-2026 .admin-content button:not(.adm-acao-principal):not(.adm-chip):not(.adm-prio-botao),
+body.adm-2026 .adm-hospedagem button:not(.adm-acao-principal):not(.adm-chip) {
+    width: auto;
+    margin: 0 8px 8px 0;
+    padding: 9px 16px;
+    background: transparent;
+    border: 1px solid var(--adm-linha-forte);
+    border-radius: 999px;
+    color: var(--adm-texto-2);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+body.adm-2026 .admin-content button:not(.adm-acao-principal):not(.adm-chip):hover,
+body.adm-2026 .adm-hospedagem button:not(.adm-acao-principal):not(.adm-chip):hover {
+    color: var(--adm-texto);
+    border-color: var(--adm-ouro);
+}
+
+body.adm-2026 input:not([type="checkbox"]):not([type="radio"]),
+body.adm-2026 select,
+body.adm-2026 textarea {
+    background: var(--adm-fundo-2);
+    border: 1px solid var(--adm-linha);
+    border-radius: var(--adm-raio-p);
+    color: var(--adm-texto);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 11px 13px;
+}
+
+body.adm-2026 label {
+    font-size: 12px;
+    color: var(--adm-texto-3);
+    letter-spacing: .04em;
+}
+
+body.adm-2026 table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13.5px;
+}
+
+body.adm-2026 th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--adm-texto-3);
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--adm-linha-forte);
+}
+
+body.adm-2026 td {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--adm-linha);
+    color: var(--adm-texto-2);
+}
+
+body.adm-2026 tbody tr:hover td {
+    background: rgba(244, 236, 225, .02);
+}
+
+body.adm-2026 details {
+    border: 1px solid var(--adm-linha);
+    border-radius: var(--adm-raio-p);
+    padding: 12px 16px;
+    margin: 14px 0;
+    background: var(--adm-fundo-2);
+}
+
+body.adm-2026 summary {
+    cursor: pointer;
+    color: var(--adm-texto-2);
+    font-size: 13px;
+}
+
+body.adm-2026 pre {
+    font-size: 12px;
+    color: var(--adm-texto-3);
+    background: var(--adm-fundo);
+    border-radius: 8px;
+    padding: 12px;
+    overflow: auto;
+}
+
+/* ------------------------------------------------------------
+   INÍCIO
+   ------------------------------------------------------------ */
+
+.adm-inicio {
+    max-width: var(--adm-leitura);
+}
+
+.adm-situacao {
+    font-family: var(--adm-display);
+    font-size: 25px;
+    line-height: 1.35;
+    color: var(--adm-texto);
+    margin: 0 0 6px;
+    max-width: 760px;
+}
+
+.adm-situacao-nota {
+    font-size: 13px;
+    color: var(--adm-texto-3);
+    margin: 0 0 26px;
+}
+
+.adm-indicadores {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+}
+
+.adm-indicador {
+    background: var(--adm-superficie);
+    border: 1px solid var(--adm-linha);
+    border-radius: var(--adm-raio);
+    padding: 18px 20px;
+}
+
+.adm-indicador-rotulo {
+    display: block;
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--adm-texto-3);
+    margin-bottom: 8px;
+}
+
+.adm-indicador-valor {
+    display: block;
+    font-family: var(--adm-display);
+    font-size: 32px;
+    line-height: 1.05;
+    margin-bottom: 6px;
+}
+
+.adm-indicador-valor.adm-sem-dado {
+    font-size: 20px;
+    color: var(--adm-texto-3);
+}
+
+.adm-indicador-contexto {
+    display: block;
+    font-size: 12px;
+    color: var(--adm-texto-3);
+    line-height: 1.45;
+}
+
+.adm-bloco {
+    margin-bottom: 30px;
+}
+
+.adm-bloco-titulo {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 0 12px;
+}
+
+.adm-bloco-titulo h2 {
+    font-size: 19px;
+    margin: 0;
+}
+
+.adm-bloco-titulo button {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--adm-texto-3);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.adm-bloco-titulo button:hover {
+    color: var(--adm-ouro-claro);
+}
+
+/* Prioridades: no máximo três, ordenadas por urgência. */
+.adm-prioridade {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--adm-superficie);
+    border: 1px solid var(--adm-linha);
+    border-radius: var(--adm-raio);
+    margin-bottom: 10px;
+}
+
+.adm-prioridade-marca {
+    flex: 0 0 auto;
+    margin-top: 3px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--adm-texto-3);
+}
+
+.adm-prioridade[data-urgencia="alta"] .adm-prioridade-marca {
+    background: var(--adm-aguardando);
+}
+
+.adm-prioridade[data-urgencia="media"] .adm-prioridade-marca {
+    background: var(--adm-sugerido);
+}
+
+.adm-prioridade-corpo {
+    flex: 1;
+    min-width: 0;
+}
+
+.adm-prioridade-titulo {
+    display: block;
+    font-size: 15px;
+    color: var(--adm-texto);
+    margin-bottom: 3px;
+}
+
+.adm-prioridade-desc {
+    margin: 0;
+    font-size: 13px;
+    color: var(--adm-texto-3);
+}
+
+.adm-prio-botao {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0;
+    padding: 8px 15px;
+    background: transparent;
+    border: 1px solid var(--adm-linha-forte);
+    border-radius: 999px;
+    color: var(--adm-texto-2);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.adm-prio-botao:hover {
+    border-color: var(--adm-ouro);
+    color: var(--adm-texto);
+}
+
+.adm-vazio {
+    padding: 18px 20px;
+    border: 1px dashed var(--adm-linha-forte);
+    border-radius: var(--adm-raio);
+    color: var(--adm-texto-3);
+    font-size: 13px;
+}
+
+/* ------------------------------------------------------------
+   APROVAÇÃO: revisar antes de decidir
+   ------------------------------------------------------------ */
+
+body.adm-2026 .acao-aprovacao {
+    margin-bottom: 14px;
+}
+
+body.adm-2026 .acao-aprovacao h3 {
+    margin: 0 0 12px;
+    font-size: 21px;
+}
+
+body.adm-2026 .acao-linha {
+    display: flex;
+    gap: 12px;
+    margin: 0 0 6px;
+    font-size: 13.5px;
+}
+
+body.adm-2026 .acao-rotulo,
+body.adm-2026 .acao-rotulo-bloco {
+    flex: 0 0 132px;
+    color: var(--adm-texto-3);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding-top: 3px;
+}
+
+body.adm-2026 .acao-rotulo-bloco {
+    margin: 16px 0 6px;
+}
+
+body.adm-2026 .acao-mensagem {
+    border-left: 2px solid var(--adm-linha-forte);
+    padding: 2px 0 2px 16px;
+    margin: 0 0 16px;
+    color: var(--adm-texto);
+    font-size: 14px;
+}
+
+/* ------------------------------------------------------------
+   CADEIA: informação → decisão → ação → resultado
+   ------------------------------------------------------------ */
+
+.adm-selo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px 3px 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    letter-spacing: .02em;
+    border: 1px solid currentColor;
+    background: transparent;
+}
+
+.adm-selo::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    background: currentColor;
+}
+
+.adm-selo[data-estado="sugerido"] { color: var(--adm-sugerido); border-radius: 999px; }
+.adm-selo[data-estado="sugerido"]::before { border-radius: 50%; }
+
+.adm-selo[data-estado="aguardando"] { color: var(--adm-aguardando); }
+.adm-selo[data-estado="aguardando"]::before { border-radius: 2px; transform: rotate(45deg); }
+
+.adm-selo[data-estado="executado"] { color: var(--adm-executado); }
+.adm-selo[data-estado="executado"]::before { border-radius: 1px; }
+
+.adm-selo[data-estado="falhou"] { color: var(--adm-falhou); }
+.adm-selo[data-estado="falhou"]::before {
+    border-radius: 0;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.adm-selo[data-estado="confirmado"] { color: var(--adm-confirmado); }
+.adm-selo[data-estado="confirmado"]::before { border-radius: 50%; box-shadow: inset 0 0 0 1px currentColor; }
+
+.adm-cadeia {
+    display: grid;
+    gap: 1px;
+    background: var(--adm-linha);
+    border: 1px solid var(--adm-linha);
+    border-radius: var(--adm-raio);
+    overflow: hidden;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.adm-cadeia-etapa {
+    background: var(--adm-superficie);
+    padding: 18px 20px;
+}
+
+.adm-cadeia-etapa > .adm-selo {
+    margin-bottom: 10px;
+}
+
+.adm-cadeia-texto {
+    margin: 0;
+    font-size: 13px;
+    color: var(--adm-texto-2);
+    line-height: 1.5;
+}
+
+.adm-cadeia-vazio {
+    color: var(--adm-texto-3);
+    font-style: normal;
+}
+
+/* ------------------------------------------------------------
+   TRABALHO RECENTE (resumo discreto)
+   ------------------------------------------------------------ */
+
+.adm-recente {
+    border-top: 1px solid var(--adm-linha);
+    padding-top: 18px;
+}
+
+.adm-recente ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.adm-recente li {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    padding: 7px 0;
+    font-size: 13px;
+    color: var(--adm-texto-3);
+}
+
+.adm-recente li strong {
+    color: var(--adm-texto-2);
+    font-weight: 400;
+}
+
+/* ------------------------------------------------------------
+   BUSCA GLOBAL
+   ------------------------------------------------------------ */
+
+.adm-paleta {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 12vh 20px 20px;
+    background: rgba(5, 5, 4, .7);
+    backdrop-filter: blur(4px);
+}
+
+.adm-paleta[hidden] {
+    display: none;
+}
+
+.adm-paleta-caixa {
+    width: 100%;
+    max-width: 560px;
+    background: var(--adm-superficie);
+    border: 1px solid var(--adm-linha-forte);
+    border-radius: var(--adm-raio);
+    overflow: hidden;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, .55);
+}
+
+.adm-paleta-caixa input {
+    width: 100%;
+    margin: 0;
+    border: 0;
+    border-bottom: 1px solid var(--adm-linha);
+    border-radius: 0;
+    background: transparent;
+    padding: 17px 20px;
+    font-size: 16px;
+    color: var(--adm-texto);
+}
+
+.adm-paleta-lista {
+    max-height: 46vh;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.adm-paleta-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    margin: 0;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: var(--adm-raio-p);
+    background: transparent;
+    color: var(--adm-texto-2);
+    font-family: inherit;
+    font-size: 14px;
+    text-align: left;
+    letter-spacing: 0;
+    cursor: pointer;
+}
+
+.adm-paleta-item small {
+    margin-left: auto;
+    color: var(--adm-texto-3);
+    font-size: 11.5px;
+}
+
+.adm-paleta-item[aria-selected="true"],
+.adm-paleta-item:hover {
+    background: var(--adm-ouro-fundo);
+    color: var(--adm-texto);
+}
+
+.adm-paleta-vazio {
+    padding: 18px;
+    color: var(--adm-texto-3);
+    font-size: 13px;
+}
+
+/* ------------------------------------------------------------
+   ESTADOS: carregando, vazio, erro
+   ------------------------------------------------------------ */
+
+.adm-esqueleto {
+    background: linear-gradient(90deg, rgba(244, 236, 225, .04), rgba(244, 236, 225, .09), rgba(244, 236, 225, .04));
+    background-size: 220% 100%;
+    animation: adm-brilho 1.4s ease-in-out infinite;
+    border-radius: var(--adm-raio);
+    height: 92px;
+}
+
+@keyframes adm-brilho {
+    0% { background-position: 120% 0; }
+    100% { background-position: -20% 0; }
+}
+
+.adm-falha {
+    border: 1px solid rgba(229, 122, 104, .4);
+    border-left: 3px solid var(--adm-falhou);
+    border-radius: var(--adm-raio-p);
+    background: rgba(229, 122, 104, .07);
+    padding: 14px 18px;
+    margin-bottom: 14px;
+}
+
+.adm-falha strong {
+    display: block;
+    font-weight: 500;
+    color: var(--adm-texto);
+    margin-bottom: 3px;
+    font-family: var(--adm-texto-fonte);
+    font-size: 14px;
+}
+
+.adm-falha p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--adm-texto-3);
+}
+
+.adm-entrando {
+    animation: adm-entrar .26s ease both;
+}
+
+@keyframes adm-entrar {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.adm-2026 *,
+    body.adm-2026 *::before,
+    body.adm-2026 *::after {
+        animation-duration: .001ms !important;
+        transition-duration: .001ms !important;
+    }
+}
+
+/* ------------------------------------------------------------
+   APRESENTAÇÃO EXECUTIVA (somente leitura)
+   ------------------------------------------------------------ */
+
+.adm-apresentacao {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: var(--adm-fundo);
+    overflow-y: auto;
+}
+
+.adm-apresentacao[hidden] {
+    display: none;
+}
+
+.adm-ap-topo {
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 32px;
+    background: rgba(10, 9, 8, .92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--adm-linha);
+}
+
+.adm-ap-selo {
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--adm-ouro);
+}
+
+.adm-ap-passos {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+@media (max-width: 860px) {
+    .adm-ap-topo {
+        flex-wrap: wrap;
+        padding: 14px 20px;
+    }
+
+    /* Em tela estreita os passos ganham uma linha própria e o botão de
+       fechar continua alcançável na primeira. */
+    .adm-ap-passos {
+        width: 100%;
+        margin: 4px 0 0;
+        justify-content: flex-start;
+        order: 3;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
+    }
+
+    .adm-ap-passos::-webkit-scrollbar { display: none; }
+
+    .adm-ap-topo > .adm-topbar-botao:last-of-type {
+        order: 2;
+        margin-left: auto;
+    }
+
+    .adm-ap-palco {
+        padding: 36px 20px 80px;
+    }
+}
+
+.adm-ap-passo {
+    width: auto;
+    margin: 0;
+    padding: 7px 14px;
+    border: 1px solid var(--adm-linha);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--adm-texto-3);
+    font-family: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+
+.adm-ap-passo[aria-current="true"] {
+    color: var(--adm-texto);
+    border-color: var(--adm-ouro);
+    background: var(--adm-ouro-fundo);
+}
+
+.adm-ap-palco {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 56px 32px 90px;
+}
+
+.adm-ap-eyebrow {
+    font-size: 11px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--adm-ouro);
+    margin: 0 0 12px;
+}
+
+.adm-ap-titulo {
+    font-family: var(--adm-display);
+    font-size: clamp(34px, 5vw, 52px);
+    line-height: 1.08;
+    margin: 0 0 14px;
+}
+
+.adm-ap-linha {
+    font-size: 17px;
+    color: var(--adm-texto-2);
+    max-width: 720px;
+    margin: 0 0 38px;
+    line-height: 1.55;
+}
+
+.adm-ap-grade {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.adm-ap-num {
+    background: var(--adm-superficie);
+    border: 1px solid var(--adm-linha);
+    border-radius: var(--adm-raio);
+    padding: 22px;
+}
+
+.adm-ap-num strong {
+    display: block;
+    font-family: var(--adm-display);
+    font-size: 38px;
+    line-height: 1.05;
+    margin-bottom: 8px;
+    /* Um rótulo mais longo que o número quebra em vez de vazar do cartão. */
+    overflow-wrap: anywhere;
+    hyphens: auto;
+}
+
+.adm-ap-num span {
+    display: block;
+    font-size: 12px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--adm-texto-3);
+    margin-bottom: 6px;
+}
+
+.adm-ap-num small {
+    display: block;
+    font-size: 12px;
+    color: var(--adm-texto-3);
+    line-height: 1.45;
+}
+
+.adm-ap-rodape {
+    border-top: 1px solid var(--adm-linha);
+    padding-top: 18px;
+    font-size: 12.5px;
+    color: var(--adm-texto-3);
+    max-width: 720px;
+}
+
+/* ------------------------------------------------------------
+   RESPONSIVO
+   ------------------------------------------------------------ */
+
+@media (max-width: 1023px) {
+    .adm-nav {
+        display: none;
+    }
+
+    body.adm-2026.adm-dentro .admin-shell {
+        padding: calc(var(--adm-topo) + 22px) 18px 110px;
+    }
+
+    .adm-topbar-marca {
+        display: block;
+        font-family: var(--adm-display);
+        font-size: 19px;
+        white-space: nowrap;
+    }
+
+    .adm-busca-atalho,
+    .adm-busca-longo {
+        display: none;
+    }
+
+    .adm-busca-curto {
+        display: inline;
+    }
+
+    .adm-topbar {
+        gap: 8px;
+        padding: 0 14px;
+    }
+
+    .adm-busca-abrir {
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+
+    .adm-topbar-botao {
+        padding: 8px 12px;
+        font-size: 12.5px;
+        white-space: nowrap;
+    }
+
+    .adm-cabecalho {
+        margin-bottom: 20px;
+    }
+
+    .adm-acao-principal {
+        width: 100%;
+    }
+
+    .adm-indicadores {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .adm-cadeia {
+        grid-template-columns: 1fr;
+    }
+
+    /* Barra inferior: as mesmas 5 áreas, com rótulo — nunca só
+       ícone. */
+    body.adm-2026.adm-dentro .adm-mobilebar {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        background: rgba(10, 9, 8, .96);
+        backdrop-filter: blur(14px);
+        border-top: 1px solid var(--adm-linha);
+        padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    }
+
+    .adm-mob-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        width: auto;
+        margin: 0;
+        padding: 7px 2px;
+        border: 0;
+        background: transparent;
+        color: var(--adm-texto-3);
+        font-family: inherit;
+        font-size: 10.5px;
+        letter-spacing: 0;
+        cursor: pointer;
+    }
+
+    .adm-mob-area[aria-current="true"] {
+        color: var(--adm-ouro);
+    }
+
+    .adm-mob-icone {
+        font-size: 15px;
+        line-height: 1;
+    }
+
+    .adm-vistas-mobile {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 0 0 14px;
+        margin: -6px 0 18px;
+        scrollbar-width: none;
+    }
+
+    .adm-vistas-mobile::-webkit-scrollbar { display: none; }
+
+    .adm-chip {
+        flex: 0 0 auto;
+        width: auto;
+        margin: 0;
+        padding: 8px 15px;
+        border: 1px solid var(--adm-linha);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--adm-texto-3);
+        font-family: inherit;
+        font-size: 13px;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .adm-chip[aria-current="true"] {
+        color: var(--adm-texto);
+        border-color: var(--adm-ouro);
+        background: var(--adm-ouro-fundo);
+    }
+}
+
+@media (min-width: 1024px) {
+    .adm-vistas-mobile {
+        display: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .adm-indicadores {
+        grid-template-columns: 1fr;
+    }
+
+    .adm-cabecalho h1 {
+        font-size: 27px;
+    }
+
+    .adm-situacao {
+        font-size: 21px;
+    }
+
+    body.adm-2026 .table-wrap {
+        overflow-x: auto;
+    }
+
+    /* No celular a marca sai do topo: quem está dentro já sabe onde está
+       (o cabeçalho da vista e a barra inferior dizem). O espaço vai para
+       os controles, que continuam com rótulo em texto. */
+    .adm-topbar-marca {
+        display: none;
+    }
+
+    .adm-ap-titulo {
+        font-size: 28px;
+    }
+}

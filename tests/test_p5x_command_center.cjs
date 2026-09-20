@@ -15,3 +15,20 @@ test('sem autenticação não dispara geração',async()=>{const h=harness();h.c
 
 test('SVG factual não oferece geração paga de nova imagem ou campanha',async()=>{const h=harness({success:true,artefatos:[{id:'chart',artifact_type:'CHART',version:1,status:'gerado',mime_type:'image/svg+xml',metadata:{confidence:'DERIVED'}}]});await h.ctx.testing.loadCreative();assert.ok(!h.el('mic-creative-artifacts').innerHTML.includes('data-creative-action="refine"'));assert.ok(!h.el('mic-creative-artifacts').innerHTML.includes('data-creative-action="social"'));});
 test('provider mock nunca aparece como provider real configurado',async()=>{const h=harness({success:true,provider:'MockImageProvider',disponivel:true});await h.ctx.testing.loadCreative();assert.match(h.el('mic-creative-provider').textContent,/MOCK\/TEST ONLY/);});
+
+test('detalhes mostram versões e histórico legíveis; JSON fica recolhido e escapado',async()=>{
+ const h=harness({success:true,linhagem:[{id:'v1',version:1,artifact_type:'EXECUTIVE_DECK',status:'approved',metadata:{titulo:'<img src=x onerror=alert(1)>'},created_at:'2026-09-19',source_type:'conselho'}],auditoria:[{ator:'Direção',estado_novo:'approved',criado_em:'2026-09-19'}]});
+ await h.click('detail');const html=h.el('mic-creative-detail').innerHTML;
+ assert.match(html,/Apresentação executiva · Versão 1/);assert.match(html,/Estado: Aprovado/);assert.match(html,/Histórico de decisões/);assert.match(html,/<details><summary>Dados técnicos/);assert.ok(!html.includes('<img'));assert.match(html,/data-artifact="v1"/);assert.equal(h.calls.length,2);assert.ok(h.calls.every(c=>!c.opts.method));
+});
+
+test('todo tipo e estado real de artefato tem rótulo legível',()=>{
+ // Fonte da verdade: TIPOS_ARTEFATO e ESTADOS_ARTEFATO em mi_artefatos.py.
+ const py=fs.readFileSync('mi_artefatos.py','utf8');
+ const lista=n=>[...py.slice(py.indexOf(n+' = (')).slice(0,py.slice(py.indexOf(n+' = (')).indexOf(')')).matchAll(/'([A-Za-z_]+)'/g)].map(m=>m[1]);
+ const js=fs.readFileSync('maranhao-backend/maranhao-intelligence.js','utf8');
+ const mapa=js.slice(js.indexOf('const materialLabel'),js.indexOf('const technicalDetails'));
+ for(const v of [...lista('TIPOS_ARTEFATO'),...lista('ESTADOS_ARTEFATO')]){
+  assert.ok(mapa.includes(v+":'"), 'sem rótulo legível para '+v);
+ }
+});

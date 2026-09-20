@@ -8,6 +8,11 @@
     <link rel="stylesheet" href="/painel-executivo.css">
     <script src="/painel-executivo.js" defer></script>
 
+    <!-- EXPERIÊNCIA 2026: mesma tipografia da marca usada no site público -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap">
+
     <style>
         :root {
             --bg: #0b0a08;
@@ -386,6 +391,9 @@ summary{
     .summary{gap:12px;}
 }
 </style>
+
+<!-- Sistema visual do ADM (2026). Carregado depois do estilo legado de propósito: reveste o markup existente sem reescrevê-lo. -->
+<link rel="stylesheet" href="/adm-design.css">
 <link rel="stylesheet" href="/inteligencia-territorial.css">
 <link rel="stylesheet" href="/maranhao-intelligence.css">
 <link rel="stylesheet" href="/app-shell.css">
@@ -396,7 +404,7 @@ summary{
 <link rel="stylesheet" href="/mi-graficos.css">
 </head>
 
-<body>
+<body class="adm-2026 adm-fora">
     <main class="admin-shell">
 
         <div class="eyebrow">Maranhão Cordial</div>
@@ -439,6 +447,10 @@ summary{
             </div>
         </nav>
 
+        <!-- EXPERIÊNCIA 2026: entrada enxuta -->
+        <p class="adm-entrada-marca">Central Maranhão Cordial</p>
+        <p class="adm-entrada-sub">Entre com a chave administrativa para continuar.</p>
+
         <section class="login-panel" id="loginPanel">
 
             <input
@@ -466,6 +478,18 @@ summary{
             id="adminContent"
             class="admin-content"
         >
+
+            <!-- ===== EXPERIÊNCIA 2026: PAINÉIS HOSPEDEIROS =====
+                 Nenhum conteúdo novo é inventado aqui. adm-experiencia.js
+                 realoca para dentro destes painéis as seções que já existiam
+                 soltas no fim da página e não tinham caminho de navegação. -->
+            <section class="tab-panel" data-panel="adm-inicio" id="adm-inicio-painel">
+                <div id="adm-inicio-raiz" class="adm-inicio"></div>
+            </section>
+            <section class="tab-panel adm-hospedagem" data-panel="adm-parceiros" id="adm-parceiros"></section>
+            <section class="tab-panel adm-hospedagem" data-panel="adm-prospeccao" id="adm-prospeccao"></section>
+            <section class="tab-panel adm-hospedagem" data-panel="adm-autonomia" id="adm-autonomia"></section>
+            <section class="tab-panel adm-hospedagem" data-panel="adm-mensagens" id="adm-mensagens"></section>
 
             <div data-app-futuro-grupo="operacao">
                 <button type="button" onclick="conectarGmailP0()">Conectar Gmail institucional</button>
@@ -6033,7 +6057,7 @@ summary{
 
                 try {
                     const response = await fetch(
-                        "https://maranhaocordial-api.onrender.com/api/admin/omnichannel/interacoes/"
+                        "https://maranhao-cordial-api.onrender.com/api/admin/omnichannel/interacoes/"
                         + encodeURIComponent(interacaoId)
                         + "/arquivamento",
                         {
@@ -7871,7 +7895,7 @@ async function arquivarProfissionalWorkflow(profissionalId) {
 
     try {
         const response = await fetch(
-            "https://maranhaocordial-api.onrender.com/api/admin/profissionais/"
+            "https://maranhao-cordial-api.onrender.com/api/admin/profissionais/"
             + profissionalId
             + "/arquivamento",
             {
@@ -7914,7 +7938,7 @@ async function restaurarProfissionalWorkflow(profissionalId) {
 
     try {
         const response = await fetch(
-            "https://maranhaocordial-api.onrender.com/api/admin/profissionais/"
+            "https://maranhao-cordial-api.onrender.com/api/admin/profissionais/"
             + profissionalId
             + "/arquivamento",
             {
@@ -8843,7 +8867,7 @@ async function carregarFabricasWorkflow() {
             <div class="fase5-topo">
                 <div>
                     <div class="eyebrow">
-                        IA Empresarial · Fase 5
+                        Leitura do dia
                     </div>
                     <h2>Hoje</h2>
                     <p>
@@ -8969,31 +8993,32 @@ async function carregarFabricasWorkflow() {
 </div>
 </section>
 <script>
+const F55_ROTULOS={aprovacao_comercial:"Aprovação comercial",envio_email:"Envio de e-mail",envio_whatsapp:"Envio de WhatsApp",publicacao:"Publicação em canal",cobranca:"Cobrança",contrato:"Contrato"};
 async function carregarFase55(){
 const resumo=document.getElementById("fase55Resumo"),decisoes=document.getElementById("fase55Decisoes");
 resumo.textContent="Carregando...";decisoes.innerHTML="";
 try{
-const headers={};const chave=(localStorage.getItem("adminKey")||localStorage.getItem("admin_key")||"");if(chave)headers["X-Admin-Key"]=chave;
+const headers={};const chave=(window.adminKeyAtual||localStorage.getItem("adminKey")||localStorage.getItem("admin_key")||"");if(chave)headers["X-Admin-Key"]=chave;
 const r=await fetch("/api/admin/ia-empresarial/fase55",{headers});
 let d;try{d=await r.json()}catch(_){throw new Error("Resposta inválida do servidor (HTTP "+r.status+").")}
 if(!r.ok||!d.success)throw new Error(d.error||("Falha ao consultar governança (HTTP "+r.status+")."));
 const a=d.autonomia||{},p=d.precisa_de_mim||{};
 resumo.innerHTML="<strong>"+(p.total_alertas_imediatos||0)+"</strong> alertas agora · <strong>"+(p.total_aprovacoes_sem_alerta||0)+"</strong> aprovações sem urgência · <strong>"+(p.operacionais_que_nao_precisam_da_direcao||0)+"</strong> operacionais filtradas · dependência da direção: <strong>"+(a.indice_dependencia_direcao_pct??"-")+"%</strong>";
 const itens=(p.alertas_imediatos||[]).slice(0,6);
-decisoes.innerHTML=itens.length?itens.map(x=>"<div style='padding:10px 0;border-top:1px solid rgba(255,255,255,.07)'><div style='font-size:13px'>"+(x.tipo||x.tipo_execucao||"Decisão")+"</div><div style='font-size:11px;opacity:.55;margin-top:3px'>"+((x.triagem_fase54||{}).motivo||"Requer direção")+"</div></div>").join(""):"<div style='font-size:12px;opacity:.55'>Sem decisões pendentes agora.</div>";
+decisoes.innerHTML=itens.length?itens.map(x=>"<div style='padding:10px 0;border-top:1px solid rgba(255,255,255,.07)'><div style='font-size:13px'>"+(F55_ROTULOS[x.tipo||x.tipo_execucao]||"Decisão")+"</div><div style='font-size:11px;opacity:.55;margin-top:3px'>"+((x.triagem_fase54||{}).motivo||"Requer direção")+"</div></div>").join(""):"<div style='font-size:12px;opacity:.55'>Sem decisões pendentes agora.</div>";
 }catch(e){resumo.textContent="Erro ao carregar governança: "+(e&&e.message?e.message:"falha desconhecida");decisoes.innerHTML=""}
 }
-setTimeout(carregarFase55,800);
+window.addEventListener("admin-autorizado",()=>setTimeout(carregarFase55,200));
 </script>
 
 
 <!-- FASE57_COMANDO -->
 <section id="fase57Comando" style="max-width:1200px;margin:18px auto;padding:0 16px">
 <div style="border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:16px;background:rgba(255,255,255,.02)">
-<div style="font-size:11px;opacity:.5;letter-spacing:.12em;text-transform:uppercase">Prospecção autônoma · Fase 5.7</div>
+<div style="font-size:11px;opacity:.5;letter-spacing:.12em;text-transform:uppercase">Prospecção de contatos</div>
 <div style="font-size:18px;margin:4px 0 12px">Dê um objetivo. A máquina busca os contatos.</div>
 <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px">
-<input id="f57objetivo" placeholder="Ex.: encontrar bares premium para apresentar Maranhão Cordial">
+<input id="f57objetivo" placeholder="Ex.: encontrar bares para apresentar Maranhão Cordial">
 <select id="f57publico">
 <option value="bar">Bares</option><option value="restaurante">Restaurantes</option>
 <option value="bartender">Bartenders</option><option value="hotel">Hotéis</option>
@@ -9008,7 +9033,7 @@ setTimeout(carregarFase55,800);
 </div>
 </section>
 <script>
-function f57headers(){const h={"Content-Type":"application/json"};const k=localStorage.getItem("adminKey")||localStorage.getItem("admin_key")||"";if(k)h["X-Admin-Key"]=k;return h}
+function f57headers(){const h={"Content-Type":"application/json"};const k=window.adminKeyAtual||localStorage.getItem("adminKey")||localStorage.getItem("admin_key")||"";if(k)h["X-Admin-Key"]=k;return h}
 async function criarCampanha57(){
  const el=document.getElementById("f57status");el.textContent="Criando campanha...";
  try{
@@ -9031,5 +9056,11 @@ async function criarCampanha57(){
 <script src="/canais-status.js" defer></script>
 <script src="/mi-graficos.js" defer></script>
 <script src="/whatsapp-omnichannel.js" defer></script>
+
+<!-- EXPERIÊNCIA 2026 — carregados por último: reorganizam e leem, nunca
+     reimplementam regra de negócio. -->
+<script src="/adm-experiencia.js" defer></script>
+<script src="/adm-inicio.js" defer></script>
+<script src="/adm-apresentacao.js" defer></script>
 </body>
 </html>

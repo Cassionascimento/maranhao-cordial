@@ -18,6 +18,15 @@
     return e;
   };
   const ESTADO_ROTULO = { conectado: 'Conectado', pendente: 'Pendente', bloqueado: 'Bloqueado' };
+  // Data legível em vez do carimbo técnico; valor inesperado volta cru, sem
+  // inventar uma data.
+  const quando = (iso) => {
+    if (!iso) return 'Nunca sincronizado';
+    const data = new Date(iso);
+    return Number.isNaN(data.getTime())
+      ? String(iso)
+      : data.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
   const LEITURA_ROTULO = (canal) => (canal.leitura_disponivel ? 'Ativa' : (canal.estado === 'bloqueado' ? 'Não disponível' : 'Pendente'));
   const ESCRITA_ROTULO = (canal) => (canal.escrita_disponivel ? (canal.aprovacao_exigida ? 'Ativa (exige aprovação)' : 'Ativa') : 'Não disponível');
   // Só canais com rotas reais de OAuth registradas (ver registrar_rotas_*
@@ -77,7 +86,7 @@
     box.append(
       linha('Leitura', LEITURA_ROTULO(canal)),
       linha('Escrita', ESCRITA_ROTULO(canal)),
-      linha('Última sincronização', canal.ultima_sincronizacao || 'Nunca sincronizado'),
+      linha('Última sincronização', quando(canal.ultima_sincronizacao)),
       linha('Último erro', canal.ultimo_erro || 'Nenhum'),
     );
     box.append(el('p', canal.proximo_passo || 'Nenhum próximo passo pendente.', 'canais-card-proximo'));

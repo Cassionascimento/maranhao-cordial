@@ -38,7 +38,7 @@ test('rejeição nunca chama executor',async()=>{
  assert.ok(!t.calls.some(c=>c.url.includes('/executar')));
 });
 test('detalhes preservam tipo e ID das duas origens sem link inventado',async()=>{
- for (const [tipo, rotulo] of [['prospecto_fase56','Parceiro técnico — Fase 5.6'],['prospecto_fase57','Prospecção — Fase 5.7']]) {
+ for (const [tipo, rotulo] of [['prospecto_fase56','Parceiro técnico'],['prospecto_fase57','Prospecção de contatos']]) {
   const t=setup('teste',tipo);await t.events['admin-autorizado']();
   const card=t.elements['lista-acoes-comerciais'].children[0];
   const detalhes=card.children.find(n=>n.tag==='details');

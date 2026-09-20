@@ -5,7 +5,23 @@
 (() => {
   'use strict';
   const painel = document.getElementById('mi-painel');
-  const raiz = document.getElementById('mig-raiz');
+  /* O Command Center (maranhao-intelligence.js) substitui o innerHTML deste
+     painel antes deste arquivo rodar, e leva junto o #mig-raiz que vinha no
+     admin.html -- por isso a visão gráfica ficava sem ponto de montagem e
+     este módulo saía calado. Quando isso acontece, cria-se o ponto dentro da
+     sub-vista "Produto & território", que é onde ela pertence. */
+  let raiz = document.getElementById('mig-raiz');
+  if (!raiz && painel) {
+    /* Monta no contêiner da sub-vista, não no #mic-legacy-body: aquele é
+       reescrito por loadLegacy() a cada atualização e levaria o ponto de
+       montagem junto. */
+    const legado = painel.querySelector('#mic-legacy');
+    if (legado) {
+      raiz = document.createElement('div');
+      raiz.id = 'mig-raiz';
+      legado.append(raiz);
+    }
+  }
   if (!painel || !raiz) return;
 
   const NS = 'http://www.w3.org/2000/svg';
