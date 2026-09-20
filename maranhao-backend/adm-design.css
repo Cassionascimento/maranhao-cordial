@@ -899,6 +899,46 @@ body.adm-2026 .canais-card-avisos {
     margin-bottom: 12px;
 }
 
+/* Quebra de texto: palavra inteira nunca parte no meio; só o que é código
+   ou URL pode quebrar em qualquer ponto. Sem isto, "instagram_manage_messages"
+   e os códigos da Meta rasgavam o cartão do Instagram. */
+body.adm-2026 .canais-card,
+body.adm-2026 .canais-card p,
+body.adm-2026 .canais-card h4 {
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
+}
+
+/* Valores técnicos: código de erro, escopo, id de conta, URL. Aqui a quebra
+   em qualquer ponto é desejável -- vazar do cartão é pior. */
+body.adm-2026 .canais-card-valor,
+body.adm-2026 .canais-card code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: none;
+}
+
+/* Cartões da mesma linha terminam juntos, com as ações rentes à base. */
+body.adm-2026 .canais-grid {
+    align-items: stretch;
+}
+
+body.adm-2026 .canais-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+body.adm-2026 .canais-card > .canais-card-acoes {
+    margin-top: auto;
+    padding-top: 14px;
+}
+
+body.adm-2026 .canais-card-mensagem--ok { color: var(--adm-confirmado); }
+body.adm-2026 .canais-card-mensagem--falha { color: var(--adm-falhou); }
+body.adm-2026 .canais-card-mensagem--neutro { color: var(--adm-texto-3); }
+
 body.adm-2026 .canais-card-linha {
     display: flex;
     justify-content: space-between;
@@ -911,6 +951,8 @@ body.adm-2026 .canais-card-linha {
 body.adm-2026 .canais-card-rotulo {
     color: var(--adm-texto-3);
     flex: 0 0 auto;
+    /* min-width:0 em item flex evita que o rótulo force o valor a vazar. */
+    min-width: 0;
 }
 
 body.adm-2026 .canais-card-valor {
@@ -935,6 +977,27 @@ body.adm-2026 .canais-card-acoes {
 body.adm-2026 .canais-card-acoes button[disabled] {
     opacity: .45;
     cursor: not-allowed;
+}
+
+/* No celular os botões ocupam a linha inteira: alvo de toque confortável e
+   rótulo que não some. */
+@media (max-width: 560px) {
+    body.adm-2026 .canais-grid {
+        grid-template-columns: 1fr;
+    }
+
+    body.adm-2026 .canais-card-acoes button {
+        flex: 1 1 100%;
+    }
+
+    body.adm-2026 .canais-card-linha {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    body.adm-2026 .canais-card-valor {
+        text-align: left;
+    }
 }
 
 body.adm-2026 .canais-card-mensagem {

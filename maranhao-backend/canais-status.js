@@ -22,6 +22,18 @@
   let busy = false;
   let ultimos = [];
   let filtro = 'todos';
+  let retorno = null;
+
+  /* Desfechos que o callback devolve em ?oauth=. Tradução fica aqui, não no
+     servidor: a rota só carrega o código curto, sem texto para o usuário. */
+  const RETORNO_TEXTO = {
+    ok: 'Autorização concluída. O diagnóstico abaixo foi refeito agora.',
+    cancelado: 'Autorização cancelada na plataforma. Nada mudou aqui.',
+    estado_invalido: 'O pedido de autorização expirou ou não confere com este navegador. Use Conectar de novo.',
+    repetido: 'Esta autorização já tinha sido concluída. Nada foi refeito.',
+    erro: 'A plataforma recusou a autorização.',
+    indisponivel: 'Não foi possível concluir a autorização agora. Tente novamente.',
+  };
 
   const el = (tag, text, cls) => {
     const e = document.createElement(tag);
@@ -62,9 +74,58 @@
     return exigeAprovacao ? 'Ativa (exige aprovação)' : 'Ativa';
   };
 
-  /* Só canais com rotas OAuth registradas no backend ganham botões de
-     conexão -- ver registrar_rotas_* nos conectores. */
-  const ROTA_PREFIXO = { LinkedIn: 'linkedin', Pinterest: 'pinterest', X: 'x' };
+  /* Mapa de capacidades REAIS por canal. A versão anterior listava só
+     LinkedIn/Pinterest/X e desabilitava todo o resto -- inclusive canais
+     que já tinham rota OAuth funcional (TikTok Social em /api/tiktok/login,
+     Gmail em /api/gmail/conectar). Era essa a causa dos botões cinzentos.
+
+     `modo` diz como abrir: 'url' = o backend devolve {url} em JSON;
+     'redirect' = a própria rota redireciona o navegador. */
+  const CANAIS_OAUTH = {
+    Instagram: {
+      conectar: { caminho: '/api/admin/instagram/connect', modo: 'url' },
+      desconectar: '/api/admin/instagram/desconectar',
+      reautoriza: true,
+    },
+    'TikTok Social': {
+      conectar: { caminho: '/api/tiktok/login', modo: 'redirect' },
+      reautoriza: true,
+    },
+    Gmail: {
+      conectar: { caminho: '/api/gmail/conectar', modo: 'redirect' },
+      reautoriza: true,
+    },
+    LinkedIn: {
+      conectar: { caminho: '/api/admin/linkedin/connect', modo: 'url' },
+      testar: '/api/admin/linkedin/testar',
+      reconectar: '/api/admin/linkedin/reconectar',
+      desconectar: '/api/admin/linkedin/desconectar',
+    },
+    Pinterest: {
+      conectar: { caminho: '/api/admin/pinterest/connect', modo: 'url' },
+      testar: '/api/admin/pinterest/testar',
+      reconectar: '/api/admin/pinterest/reconectar',
+      desconectar: '/api/admin/pinterest/desconectar',
+    },
+    X: {
+      conectar: { caminho: '/api/admin/x/connect', modo: 'url' },
+      testar: '/api/admin/x/testar',
+      reconectar: '/api/admin/x/reconectar',
+      desconectar: '/api/admin/x/desconectar',
+    },
+    /* Sem app aprovado no Partner Center não existe rota para abrir. O
+       botão continua acionável e explica o que falta, em vez de ficar
+       cinzento sem dizer nada. */
+    'TikTok Shop': {
+      instrucao: 'Criar o app em partner.tiktokshop.com (Partner Center) e autorizar a loja '
+        + 'no Seller Center. Exige conta de parceiro aprovada — é uma validação empresarial, '
+        + 'não uma configuração do sistema.',
+    },
+    WhatsApp: {
+      instrucao: 'O WhatsApp é autorizado no Meta Business (WABA, número e assinatura do '
+        + 'webhook). Leitura e webhook já estão ativos; não há reconexão a fazer por aqui.',
+    },
+  };
 
   async function chamar(caminho, opcoes) {
     const resposta = await fetch(base + caminho, {
@@ -157,6 +218,13 @@
 
     const mensagem = el('p', '', 'canais-card-mensagem');
     const acoes = el('div', undefined, 'canais-card-acoes');
+    if (retorno && retorno.canal === canal.canal) {
+      mensagem.textContent = (RETORNO_TEXTO[retorno.desfecho] || RETORNO_TEXTO.erro)
+        + (retorno.motivo ? ' (' + retorno.motivo + ')' : '');
+      mensagem.className = 'canais-card-mensagem canais-card-mensagem--'
+        + (retorno.desfecho === 'ok' ? 'ok' : retorno.desfecho === 'cancelado' ? 'neutro' : 'falha');
+      box.dataset.retorno = retorno.desfecho;
+    }
 
     acoes.append(botao('Diagnosticar', async () => {
       mensagem.textContent = 'Consultando a plataforma…';
@@ -173,31 +241,59 @@
       }
     }));
 
-    const prefixo = ROTA_PREFIXO[canal.canal];
-    const semRota = 'Este canal não tem fluxo OAuth próprio no sistema; a conexão é feita no portal da plataforma.';
+    const oauth = CANAIS_OAUTH[canal.canal] || {};
+    const semRota = 'Este canal não tem fluxo de autorização próprio no sistema. '
+      + 'Use Diagnosticar para ver o estado real.';
+
+    async function abrirAutorizacao(rotulo) {
+      mensagem.textContent = 'Abrindo a autorização…';
+      if (oauth.instrucao) {
+        mensagem.textContent = oauth.instrucao;
+        return;
+      }
+      const destino = oauth.conectar;
+      if (destino.modo === 'redirect') {
+        // A própria rota redireciona; abrir em nova aba preserva o ADM.
+        window.open(base + destino.caminho, '_blank', 'noopener');
+        mensagem.textContent = rotulo + ': autorização aberta em nova aba. '
+          + 'Ao concluir, volte aqui e use Diagnosticar.';
+        return;
+      }
+      const corpo = await chamar(destino.caminho);
+      if (!corpo.url) throw new Error('O servidor não devolveu a URL de autorização.');
+      window.open(corpo.url, '_blank', 'noopener');
+      mensagem.textContent = rotulo + ': autorização aberta em nova aba. '
+        + 'Ao concluir, você volta para este cartão automaticamente.';
+    }
+
+    const podeAutorizar = !!(oauth.conectar || oauth.instrucao);
     acoes.append(
-      botao('Conectar', async () => {
-        mensagem.textContent = 'Abrindo autorização…';
-        const r = await chamar(`/api/admin/${prefixo}/connect`);
-        if (r.url) window.open(r.url, '_blank', 'noopener');
-        mensagem.textContent = 'Autorização aberta em nova aba.';
-      }, prefixo ? null : semRota),
+      botao('Conectar', () => abrirAutorizacao('Conectar'), podeAutorizar ? null : semRota),
       botao('Testar', async () => {
         mensagem.textContent = 'Testando…';
-        const r = await chamar(`/api/admin/${prefixo}/testar`);
+        const r = await chamar(oauth.testar);
         mensagem.textContent = r.conexao === 'ok' ? 'Conexão OK.' : 'Teste concluído.';
-      }, prefixo ? null : semRota),
+      }, oauth.testar ? null : 'Este canal não expõe teste isolado. Use Diagnosticar.'),
       botao('Reconectar', async () => {
-        await chamar(`/api/admin/${prefixo}/reconectar`, { method: 'POST' });
-        mensagem.textContent = 'Reconectado localmente.';
-        carregar();
-      }, prefixo ? null : semRota),
+        if (oauth.reconectar) {
+          await chamar(oauth.reconectar, { method: 'POST' });
+          mensagem.textContent = 'Reconectado localmente.';
+          carregar();
+          return;
+        }
+        // Sem rota local de reconexão, reconectar É refazer o OAuth --
+        // é o que resolve token expirado, revogado ou permissão removida.
+        await abrirAutorizacao('Reconectar');
+      }, (oauth.reconectar || oauth.reautoriza) ? null
+         : (oauth.instrucao || 'Este canal não tem reconexão própria no sistema.')),
       botao('Desconectar', async () => {
-        await chamar(`/api/admin/${prefixo}/desconectar`, { method: 'POST' });
-        mensagem.textContent = 'Desconectado localmente.';
+        const r = await chamar(oauth.desconectar, { method: 'POST' });
+        mensagem.textContent = r.aviso || 'Desconectado.';
         carregar();
-      }, prefixo ? null : semRota),
+      }, oauth.desconectar ? null : 'Este canal não guarda credencial no sistema; '
+         + 'a desconexão é feita no portal da plataforma.'),
     );
+
     box.append(acoes, mensagem);
 
     if (Array.isArray(canal.historico) && canal.historico.length) {
@@ -268,11 +364,52 @@
     }
   }
 
+  /* Volta do callback: o servidor redireciona para /admin.html?canal=..&oauth=..
+     Aqui a tela abre Canais, mostra o desfecho no cartão certo e refaz o
+     diagnóstico daquele canal -- é o que prova se a autorização pegou. */
+  function lerRetornoDeAutorizacao() {
+    try {
+      const busca = (window.location && window.location.search) || '';
+      if (!busca) return null;
+      const params = new URLSearchParams(busca);
+      const canal = params.get('canal');
+      const desfecho = params.get('oauth');
+      if (!canal || !desfecho) return null;
+      // Limpa a URL para um recarregar não repetir o aviso.
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, '', (window.location.pathname || '/admin.html'));
+      }
+      return { canal, desfecho, motivo: params.get('motivo') };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function tratarRetorno() {
+    retorno = lerRetornoDeAutorizacao();
+    if (!retorno) return;
+    if (typeof window.admIrPara === 'function') window.admIrPara('canais');
+    await carregar();
+    if (retorno.desfecho !== 'ok') return;
+    // Só o diagnóstico autenticado decide se ficou conectado de verdade.
+    try {
+      const corpo = await chamar('/api/admin/canais/diagnostico?canal=' + encodeURIComponent(retorno.canal));
+      const atualizado = Object.assign({}, corpo.canal, { historico: corpo.historico || [] });
+      ultimos = ultimos.map(c => (c.canal === atualizado.canal ? atualizado : c));
+      render(ultimos);
+    } catch (e) {
+      $('status').textContent = e.message;
+    }
+  }
+
   const load = carregar;
   $('atualizar').addEventListener('click', carregar);
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('admin-autorizado', tratarRetorno);
+  }
   const tab = document.querySelector('[data-tab="canais"]');
   if (tab) tab.addEventListener('click', () => { if (window.adminKeyAtual) carregar(); });
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ESTADO_ROTULO, ESTADO_GRUPO, capacidade, simNao };
+    module.exports = { ESTADO_ROTULO, ESTADO_GRUPO, CANAIS_OAUTH, RETORNO_TEXTO, capacidade, simNao };
   }
 })();
