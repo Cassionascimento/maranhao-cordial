@@ -16,7 +16,10 @@ CREATE TABLE whatsapp_eventos(chave TEXT PRIMARY KEY,message_id TEXT,tipo_evento
 CREATE TABLE whatsapp_auditoria(id INTEGER PRIMARY KEY AUTOINCREMENT,resposta_id TEXT REFERENCES fila_respostas_omnichannel(id),evento TEXT,dados TEXT,criado_em TEXT DEFAULT CURRENT_TIMESTAMP);
 ''')
         migration=Path('migrations/006_whatsapp_omnichannel.sql').read_text().replace('BIGSERIAL PRIMARY KEY','INTEGER PRIMARY KEY AUTOINCREMENT').replace('DEFAULT NOW()','DEFAULT CURRENT_TIMESTAMP').replace("'{}'::jsonb","'{}'")
-        conn.executescript(migration);conn.executescript(migration);conn.close()
+        conn.executescript(migration);conn.executescript(migration)
+        # 026 carregada do arquivo real; executada duas vezes para provar a idempotência.
+        status=Path('migrations/026_whatsapp_status_mensagem.sql').read_text().replace('DEFAULT NOW()','DEFAULT CURRENT_TIMESTAMP')
+        conn.executescript(status);conn.executescript(status);conn.close()
     def __call__(self):return Conexao(self.path)
     def rows(self,table):
         conn=sqlite3.connect(self.path);conn.row_factory=sqlite3.Row

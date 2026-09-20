@@ -39793,6 +39793,11 @@ registrar_rotas_canais(app, get_db_connection, validar_admin_request)
 from adm_apresentacao import registrar_rotas_adm_apresentacao
 registrar_rotas_adm_apresentacao(app, get_db_connection, validar_admin_request)
 
+# Identidade única do contato entre canais: aponta duplicatas e expõe a linha
+# do tempo. Fundir é rota explícita, nunca inferência automática.
+from crm_identidade import registrar_rotas_crm_identidade
+registrar_rotas_crm_identidade(app, get_db_connection, validar_admin_request)
+
 from linkedin_conector import registrar_rotas_linkedin
 registrar_rotas_linkedin(app, validar_admin_request)
 

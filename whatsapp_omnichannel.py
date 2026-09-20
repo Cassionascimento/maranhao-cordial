@@ -8,6 +8,9 @@ from entrada_segura import interpretar_sem_saida
 from whatsapp_meta import normalizar_eventos
 
 CLASSES = {'atendimento','interesse_comercial_b2b','degustacao','suporte','spam','comunicacao_automatica'}
+# Ciclo de vida da mensagem enviada. 'failed' fica fora da escala: é
+# terminal e vence qualquer outro estado (ver Repositorio.registrar_status).
+ORDEM_STATUS = {'sent':1,'delivered':2,'read':3,'failed':4}
 
 
 def status_conector(environ=None):
@@ -152,6 +155,43 @@ class Repositorio:
             cur.execute("UPDATE whatsapp_processamentos SET interpretacao=%s,estado='classificado',atualizado_em=NOW() WHERE chave=%s",(Json(ia),self.chave))
             self.auditar(cur,'classificado',{'interacao_id':ident,'classificacao':ia['classificacao']})
 
+    def registrar_status(self,e):
+        """Estado de entrega da mensagem que NÓS enviamos.
+
+        A Meta reentrega eventos e não garante ordem: um 'delivered' pode
+        chegar depois de um 'read'. Por isso o estado só avança
+        (sent < delivered < read) e 'failed' vence sempre -- uma falha real
+        não pode ser apagada por um 'delivered' atrasado do mesmo envio.
+        """
+        estado=e.get('status')
+        if estado not in ORDEM_STATUS:return None
+        metadados=e.get('metadados') or {}
+        erros=[x for x in (metadados.get('erros') or []) if isinstance(x,dict)]
+        codigo=erros[0].get('code') if erros else None
+        codigo=codigo if isinstance(codigo,int) else None
+        with self.cursor() as cur:
+            cur.execute('SELECT id FROM fila_respostas_omnichannel WHERE whatsapp_message_id=%s LIMIT 1',(e['message_id'],))
+            linha=cur.fetchone()
+            resposta_id=str(linha['id']) if linha else None
+            cur.execute('SELECT estado FROM whatsapp_status_mensagem WHERE message_id=%s',(e['message_id'],))
+            atual=cur.fetchone()
+            anterior=atual['estado'] if atual else None
+            if anterior=='failed' or (anterior and ORDEM_STATUS[estado]<=ORDEM_STATUS[anterior] and estado!='failed'):
+                self.auditar(cur,'status_ignorado',{'message_id':e['message_id'],'recebido':estado,'mantido':anterior})
+                return anterior
+            if anterior is None:
+                cur.execute('''INSERT INTO whatsapp_status_mensagem(message_id,resposta_id,estado,codigo_erro,ocorrido_em)
+                    VALUES(%s,%s,%s,%s,NOW())''',(e['message_id'],resposta_id,estado,codigo))
+            else:
+                cur.execute('''UPDATE whatsapp_status_mensagem SET estado=%s,codigo_erro=%s,
+                    resposta_id=COALESCE(resposta_id,%s),atualizado_em=NOW() WHERE message_id=%s''',
+                    (estado,codigo,resposta_id,e['message_id']))
+            if resposta_id:
+                cur.execute("INSERT INTO whatsapp_auditoria(resposta_id,evento,dados) VALUES(%s,'status_recebido',%s)",
+                            (resposta_id,Json({'estado':estado,'codigo_erro':codigo})))
+            self.auditar(cur,'status_registrado',{'message_id':e['message_id'],'estado':estado,'resposta_id':resposta_id})
+            return estado
+
     def concluir(self,e,ident=None,ia=None):
         with self.cursor() as cur:
             fila=None
@@ -188,7 +228,9 @@ def receber(factory,payload,gerar=interpretar_mensagem,repositorio=Repositorio):
             if state['estado']=='concluido':duplicados+=1;continue
             evento=state.get('_evento',evento)
             try:
-                if evento['tipo_evento']=='status':repo.concluir(evento)
+                if evento['tipo_evento']=='status':
+                    repo.registrar_status(evento)
+                    repo.concluir(evento)
                 else:
                     ident=repo.registrar(evento,state)
                     repo.vincular(evento,ident)
@@ -216,6 +258,11 @@ def painel(factory):
                 FROM whatsapp_processamentos p LEFT JOIN interacoes_omnichannel i ON i.id=p.interacao_id
                 LEFT JOIN fila_respostas_omnichannel f ON f.id=p.resposta_id ORDER BY p.atualizado_em DESC LIMIT 50""")
             result['entradas']=[dict(r) for r in cur.fetchall()]
+            cur.execute('SELECT estado,count(*) AS total FROM whatsapp_status_mensagem GROUP BY estado')
+            result['status_mensagens']={r['estado']:r['total'] for r in cur.fetchall()}
+            cur.execute('''SELECT message_id,estado,codigo_erro,resposta_id,atualizado_em
+                FROM whatsapp_status_mensagem ORDER BY atualizado_em DESC LIMIT 50''')
+            result['entregas']=[dict(r) for r in cur.fetchall()]
             cur.execute('SELECT chave,etapa,dados,criado_em FROM whatsapp_entrada_auditoria ORDER BY id DESC LIMIT 100')
             result['auditoria']=[dict(r) for r in cur.fetchall()]
             cur.execute('''SELECT p.chave,a.evento AS etapa,a.dados,a.criado_em
