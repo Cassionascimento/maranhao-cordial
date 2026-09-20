@@ -24,7 +24,15 @@ import os
 from datetime import datetime, timezone
 
 GRAPH = 'https://graph.facebook.com/v23.0'
-TIMEOUT = 12
+# Timeout por chamada. Baixo de propósito: o painel consulta vários canais
+# em sequência e a soma dos piores casos não pode estourar o limite de
+# requisição do servidor. Um canal lento vira "erro" com código, não uma
+# tela pendurada.
+TIMEOUT = 6
+# Orçamento total de um diagnóstico completo. Esgotado, os canais restantes
+# voltam como não verificados -- dizer "não consultei" é honesto; deixar a
+# pessoa esperando não é.
+ORCAMENTO_SEGUNDOS = 25
 
 # Estados possíveis. "pendente" genérico foi aposentado de propósito: quando
 # dá para dizer o motivo, o motivo é o estado.
@@ -525,6 +533,17 @@ REGISTRO = {
     'Pinterest': diagnosticar_pinterest,
     'X': diagnosticar_x,
 }
+
+
+def nao_verificado(canal, motivo):
+    """Canal que ficou fora do orçamento de tempo desta consulta."""
+    dado = _base(canal)
+    dado['estado'] = 'erro'
+    dado['ultima_tentativa'] = _agora()
+    dado['ultimo_erro'] = 'nao_consultado_nesta_leitura'
+    dado['codigo_erro'] = motivo
+    dado['proximo_passo'] = 'Use Diagnosticar neste cartão para consultar só este canal.'
+    return dado
 
 
 def diagnosticar(canal, http=None, env=None):

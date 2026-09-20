@@ -256,10 +256,16 @@ def diagnostico_todos_os_canais(factory, http=None, env=None):
     pelo botão de diagnóstico e pelo carregamento da tela de Canais.
     Falha de um canal nunca contamina os outros.
     """
+    import time
+
     import canais_diagnostico as cd
     canais = []
+    limite = time.monotonic() + cd.ORCAMENTO_SEGUNDOS
     for nome in ("WhatsApp", "Instagram", "LinkedIn", "TikTok Shop",
                  "TikTok Social", "Pinterest", "X"):
+        if time.monotonic() >= limite:
+            canais.append(cd.nao_verificado(nome, 'orcamento_de_tempo_esgotado'))
+            continue
         canais.append(cd.diagnosticar(nome, http=http, env=env))
     canais.append(_gmail_diagnostico(factory))
     # Ordem de prioridade operacional declarada na ordem de execução.

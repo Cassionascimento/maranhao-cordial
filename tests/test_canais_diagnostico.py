@@ -266,3 +266,27 @@ class FalhaIsolada(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class OrcamentoDeTempo(unittest.TestCase):
+    """O painel consulta vários canais em sequência: a soma dos piores casos
+    não pode estourar o limite de requisição do servidor."""
+
+    def test_timeout_por_chamada_cabe_no_orcamento_total(self):
+        # Pior caso do canal mais pesado (WhatsApp faz até 3 chamadas).
+        self.assertLessEqual(cd.TIMEOUT * 3, cd.ORCAMENTO_SEGUNDOS)
+        self.assertLessEqual(cd.ORCAMENTO_SEGUNDOS, 30)
+
+    def test_canal_fora_do_orcamento_diz_que_nao_foi_consultado(self):
+        dado = cd.nao_verificado('LinkedIn', 'orcamento_de_tempo_esgotado')
+        self.assertEqual(dado['estado'], 'erro')
+        self.assertEqual(dado['ultimo_erro'], 'nao_consultado_nesta_leitura')
+        self.assertFalse(dado['leitura_disponivel'])
+        self.assertFalse(dado['verificacao_remota'])
+        self.assertIn('Diagnosticar', dado['proximo_passo'])
+        self.assertEqual(set(dado.keys()), set(cd._base('X').keys()))
+
+    def test_todo_get_leva_timeout_explicito(self):
+        http = _http_whatsapp_ok()
+        cd.diagnosticar_whatsapp(http, ENV_WPP)
+        self.assertTrue(http.chamadas)
