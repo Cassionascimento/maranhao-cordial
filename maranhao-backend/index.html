@@ -110,10 +110,22 @@ a { color: inherit; }
     max-width: 980px;
 }
 
-.mc-hero-image img {
+.mc-hero-image img,
+.mc-hero-video {
     display: block;
     width: 100%;
     height: auto;
+}
+
+/* Vídeo do hero: 16:9 reservado desde o primeiro paint (sem salto de
+   layout), fundo preto idêntico à página e contain para nunca cortar
+   as garrafas. */
+.mc-hero-video {
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+    background: var(--preto);
+    border: 0;
+    outline: none;
 }
 
 .mc-hero-copy h1 {
@@ -321,7 +333,21 @@ a { color: inherit; }
 
 <main class="mc-hero">
     <div class="mc-hero-image">
-        <img src="img/hero/tres-cordiais.webp" alt="As três garrafas Maranhão Cordial lado a lado — Guaraná &amp; Gengibre, Bacuri &amp; Gengibre e Cajá &amp; Gengibre — com tampas prateadas e luz discreta ao fundo." width="1991" height="790" loading="eager" fetchpriority="high">
+        <video class="mc-hero-video" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback preload="metadata" poster="img/hero/tres-cordiais.webp" width="1920" height="1080" aria-label="Maranhão Cordial">
+            <source src="/assets/video/maranhao-cordial-hero.mp4" type="video/mp4">
+            <img src="img/hero/tres-cordiais.webp" alt="As três garrafas Maranhão Cordial lado a lado — Guaraná &amp; Gengibre, Bacuri &amp; Gengibre e Cajá &amp; Gengibre — com tampas prateadas e luz discreta ao fundo." width="1991" height="790">
+        </video>
+        <script>
+        // prefers-reduced-motion: mantém só o poster estático (sem animação contínua).
+        (function () {
+            var v = document.currentScript.previousElementSibling;
+            if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                v.removeAttribute('autoplay');
+                v.preload = 'none';
+                v.pause();
+            }
+        })();
+        </script>
     </div>
     <div class="mc-hero-copy">
         <h1>Maranhão Cordial</h1>
