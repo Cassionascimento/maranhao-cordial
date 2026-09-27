@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Maranhão Cordial — Cordiais brasileiros, 0,0% álcool</title>
-<meta name="description" content="Maranhão Cordial: Guaraná &amp; Gengibre, Bacuri &amp; Gengibre e Cajá &amp; Gengibre. Concentrado premium sem álcool para drinks e mocktails.">
+<title>Maranhão Cordial — Produtos regionais, entregues a você</title>
+<meta name="description" content="A Maranhão reúne produtos com identidade regional. Conheça o Maranhão Cordial, nosso concentrado líquido botânico sem álcool, e acompanhe a chegada de novos produtos da coleção.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&display=swap">
 <link rel="stylesheet" href="consentimento.css">
+<link rel="stylesheet" href="mc-player.css">
 <style>
 :root {
     --preto: #000000;
@@ -92,17 +93,84 @@ a { color: inherit; }
     color: var(--preto);
 }
 
-/* ---------- Hero: tela única ---------- */
+/* ---------- Posicionamento: primeira mensagem da página ---------- */
+.mc-posicionamento {
+    padding: 150px clamp(20px, 6vw, 64px) 30px;
+    text-align: center;
+}
+
+.mc-posicionamento-copy {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.mc-posicionamento-copy h1 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(28px, 5.4vw, 48px);
+    letter-spacing: 1px;
+    line-height: 1.2;
+    margin: 0 0 18px;
+    color: var(--creme);
+}
+
+.mc-posicionamento-copy p {
+    font-size: clamp(14px, 1.6vw, 16px);
+    line-height: 1.7;
+    color: var(--creme-suave);
+    margin: 0 0 30px;
+}
+
+.mc-posicionamento-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px;
+}
+
+.mc-cta-primaria, .mc-cta-secundaria {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 14px 30px;
+    border: 1px solid transparent;
+    transition: background-color .3s ease, color .3s ease, border-color .3s ease;
+}
+
+.mc-cta-primaria {
+    background: var(--ouro);
+    color: var(--preto);
+    border-color: var(--ouro);
+}
+
+.mc-cta-primaria:hover, .mc-cta-primaria:focus-visible {
+    background: transparent;
+    color: var(--ouro);
+}
+
+.mc-cta-secundaria {
+    color: var(--creme);
+    border-color: var(--creme-suave);
+}
+
+.mc-cta-secundaria:hover, .mc-cta-secundaria:focus-visible {
+    border-color: var(--ouro);
+    color: var(--ouro);
+}
+
+/* ---------- Hero: a bebida que inaugura o portfólio ---------- */
 .mc-hero {
-    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
     gap: clamp(24px, 5vh, 48px);
-    padding: 140px clamp(20px, 6vw, 64px) 120px;
-    min-height: 100vh;
+    padding: 60px clamp(20px, 6vw, 64px) 100px;
+    min-height: 86vh;
+    scroll-margin-top: 90px;
 }
 
 .mc-hero-image {
@@ -128,7 +196,7 @@ a { color: inherit; }
     outline: none;
 }
 
-.mc-hero-copy h1 {
+.mc-hero-copy h2 {
     font-family: "Cormorant Garamond", Georgia, serif;
     font-weight: 400;
     font-size: clamp(28px, 5vw, 44px);
@@ -143,7 +211,15 @@ a { color: inherit; }
     font-style: italic;
     font-size: clamp(16px, 2.2vw, 20px);
     color: var(--creme-suave);
-    margin: 0 0 10px;
+    margin: 0 0 6px;
+}
+
+.mc-hero-subtitulo {
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ouro);
+    margin: 0 0 16px;
 }
 
 .mc-intro {
@@ -175,6 +251,119 @@ a { color: inherit; }
     text-transform: uppercase;
     color: var(--ouro);
     margin: 0;
+}
+
+/* ---------- Produtos da Maranhão: vitrine alimentada pelo catálogo ---------- */
+.mc-produtos {
+    padding: 30px clamp(20px, 6vw, 64px) 90px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.mc-produtos-head {
+    text-align: center;
+    margin: 0 0 40px;
+}
+
+.mc-produtos-eyebrow {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--ouro);
+    margin: 0 0 10px;
+}
+
+.mc-produtos-head h2 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(24px, 4vw, 34px);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--creme);
+    margin: 0;
+}
+
+.mc-produtos-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 28px;
+}
+
+.mc-produto-card {
+    width: min(320px, 100%);
+    border: 1px solid var(--ouro-suave);
+    background: rgba(255, 255, 255, .02);
+    padding: 0 0 22px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    transition: border-color .25s ease, transform .25s ease;
+}
+
+.mc-produto-card:hover, .mc-produto-card:focus-visible {
+    border-color: var(--ouro);
+    transform: translateY(-3px);
+}
+
+.mc-produto-card img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+    margin: 0 0 18px;
+    background: var(--preto);
+}
+
+.mc-produto-card h3 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-weight: 400;
+    font-size: 19px;
+    letter-spacing: .5px;
+    margin: 0 20px 8px;
+    color: var(--creme);
+}
+
+.mc-produto-card p {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--creme-suave);
+    margin: 0 20px 14px;
+}
+
+.mc-produto-preco {
+    font-size: 12px;
+    color: var(--ouro);
+    margin: 0 20px;
+    letter-spacing: .5px;
+}
+
+.mc-produto-badge {
+    align-self: flex-start;
+    margin: 16px 20px 0;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--preto);
+    background: var(--ouro-suave);
+    padding: 4px 10px;
+}
+
+.mc-produto-card.em-breve {
+    cursor: default;
+}
+
+.mc-produto-card.em-breve img {
+    filter: grayscale(.2);
+    opacity: .85;
+}
+
+.mc-produtos-vazio, .mc-produtos-erro, .mc-produtos-carregando {
+    text-align: center;
+    color: var(--creme-suave);
+    font-size: 13px;
+    width: 100%;
 }
 
 /* ---------- Rodapé: só o texto regulatório essencial ---------- */
@@ -217,57 +406,8 @@ a { color: inherit; }
     stroke-width: 1.6;
 }
 
-/* ---------- Player Five Moments: discreto, fixo no rodapé ---------- */
-.mc-player {
-    position: fixed;
-    left: 50%;
-    bottom: 18px;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 10px 18px;
-    background: rgba(10, 9, 8, .82);
-    border: 1px solid rgba(212, 175, 55, .22);
-    border-radius: 999px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    z-index: 30;
-    max-width: calc(100vw - 24px);
-}
-
-.mc-player-btn {
-    appearance: none;
-    background: transparent;
-    border: none;
-    color: var(--ouro);
-    font-size: 13px;
-    line-height: 1;
-    padding: 6px;
-    cursor: pointer;
-    transition: color .2s ease;
-}
-
-.mc-player-btn:hover {
-    color: var(--creme);
-}
-
-.mc-player-track {
-    font-family: "Cormorant Garamond", Georgia, serif;
-    font-size: 12px;
-    letter-spacing: .5px;
-    color: var(--creme-suave);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 34vw;
-}
-
-.mc-player :focus-visible {
-    outline: 2px solid var(--ouro);
-    outline-offset: 2px;
-    border-radius: 4px;
-}
+/* Player Five Moments: CSS compartilhado em mc-player.css (link no <head>),
+   para a página inicial e "Compre aqui" ficarem sempre com a mesma aparência. */
 
 @media (prefers-reduced-motion: reduce) {
     .mc-shop, .mc-player-btn { transition: none; }
@@ -276,29 +416,8 @@ a { color: inherit; }
 @media (max-width: 720px) {
     .mc-header { padding: 20px 18px; }
     .mc-logo-main { letter-spacing: 4px; }
-    .mc-hero { padding: 120px 20px 140px; gap: 22px; }
-    .mc-player {
-        gap: 8px;
-        padding: 8px 12px;
-        bottom: 12px;
-    }
-    .mc-player-track { max-width: 30vw; font-size: 11px; }
-}
-
-/* Abaixo de 600px o botão flutuante do SAC (.mc-sac-trigger, canto inferior
-   direito) fica largo o bastante para colidir com o player centralizado.
-   Empilha o player acima do SAC, em toda a largura -- nunca a mesma faixa
-   horizontal, então não sobrepõe em nenhuma combinação de conteúdo/tela. */
-@media (max-width: 600px) {
-    .mc-player {
-        left: 12px;
-        right: 12px;
-        bottom: 88px;
-        transform: none;
-        max-width: none;
-        justify-content: center;
-    }
-    .mc-player-track { max-width: 38vw; }
+    .mc-hero { padding: 40px 20px 70px; gap: 22px; }
+    .mc-posicionamento { padding: 130px 20px 20px; }
 }
 </style>
 </head>
@@ -331,7 +450,19 @@ a { color: inherit; }
     <a href="/compreaqui.html" class="mc-shop" data-mc-cta="shop_header">Shop</a>
 </header>
 
-<main class="mc-hero">
+<main>
+<section class="mc-posicionamento">
+    <div class="mc-posicionamento-copy">
+        <h1>Produtos regionais, entregues a você.</h1>
+        <p>Conheça o Maranhão Cordial, nosso concentrado líquido botânico, e acompanhe a chegada de novos produtos com identidade regional. Explore os produtos disponíveis e faça seu pedido pelo site.</p>
+        <div class="mc-posicionamento-ctas">
+            <a href="/compreaqui.html" class="mc-cta-primaria" data-mc-cta="produtos_home">Conheça os produtos</a>
+            <a href="#maranhao-cordial" class="mc-cta-secundaria" data-mc-cta="bebida_home">Conheça o Maranhão Cordial</a>
+        </div>
+    </div>
+</section>
+
+<section class="mc-hero" id="maranhao-cordial">
     <div class="mc-hero-image">
         <video class="mc-hero-video" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback preload="metadata" poster="img/hero/tres-cordiais.webp" width="1920" height="1080" aria-label="Maranhão Cordial">
             <source src="/assets/video/maranhao-cordial-hero.mp4" type="video/mp4">
@@ -350,9 +481,10 @@ a { color: inherit; }
         </script>
     </div>
     <div class="mc-hero-copy">
-        <h1>Maranhão Cordial</h1>
+        <h2>Maranhão Cordial</h2>
         <p class="mc-tagline">Cordiais brasileiros.</p>
-        <p class="mc-intro">Concentrado premium sem álcool para preparar drinks.</p>
+        <p class="mc-hero-subtitulo">Nossa bebida. O início de uma coleção regional.</p>
+        <p class="mc-intro">Concentrado líquido botânico sem álcool para preparar drinks.</p>
         <ul class="mc-flavors">
             <li>Guaraná &amp; Gengibre</li>
             <li>Bacuri &amp; Gengibre</li>
@@ -360,6 +492,17 @@ a { color: inherit; }
         </ul>
         <p class="mc-abv">0,0% álcool</p>
     </div>
+</section>
+
+<section class="mc-produtos" id="produtos">
+    <div class="mc-produtos-head">
+        <p class="mc-produtos-eyebrow">Produtos da Maranhão</p>
+        <h2>Nossa coleção regional</h2>
+    </div>
+    <div class="mc-produtos-grid" id="mc-produtos-grid" aria-live="polite">
+        <p class="mc-produtos-carregando">Carregando produtos…</p>
+    </div>
+</section>
 </main>
 
 <footer class="mc-footer">
@@ -378,6 +521,7 @@ a { color: inherit; }
     <button type="button" id="mc-playpause" class="mc-player-btn" aria-label="Tocar" aria-pressed="false">▶</button>
     <button type="button" id="mc-next" class="mc-player-btn" aria-label="Próxima faixa">⏭</button>
     <span class="mc-player-track" id="mc-track" aria-live="polite"></span>
+    <input type="range" id="mc-progress" class="mc-player-progress" min="0" max="1000" value="0" aria-label="Progresso da faixa">
     <button type="button" id="mc-vol-down" class="mc-player-btn" aria-label="Diminuir volume">–</button>
     <button type="button" id="mc-vol-up" class="mc-player-btn" aria-label="Aumentar volume">+</button>
     <audio id="mc-audio" preload="none"></audio>
@@ -1401,5 +1545,6 @@ a { color: inherit; }
 <script src="consentimento.js" defer></script>
 <script src="site-sinais.js" defer></script>
 <script src="mc-player.js" defer></script>
+<script src="catalogo-vitrine.js" defer></script>
 </body>
 </html>

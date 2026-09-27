@@ -16,7 +16,7 @@ const fonte = fs.readFileSync('maranhao-backend/adm-experiencia.js', 'utf8');
    roda — foi assim que o Calendário (criado por app-shell.js) ficou fora do
    primeiro inventário. */
 const MODULOS = [
-    'app-shell.js', 'maranhao-intelligence.js', 'qr-intelligence.js', 'conselho-agentes.js',
+    'app-shell.js', 'maranhao-intelligence.js', 'qr-intelligence.js', 'catalogo-admin.js', 'conselho-agentes.js',
     'calendario-empresarial.js', 'operacao-viva.js', 'mi-graficos.js',
     'canais-status.js', 'modo-diretor.js', 'visao-geral.js',
 ].map(n => fs.readFileSync('maranhao-backend/' + n, 'utf8'));

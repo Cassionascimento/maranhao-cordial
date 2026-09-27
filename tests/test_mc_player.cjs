@@ -16,7 +16,7 @@ function elFaixa() {
 
 function audioFake() {
   return {
-    src: '', volume: 1, paused: true, ended: false, currentTime: 0,
+    src: '', volume: 1, paused: true, ended: false, currentTime: 0, duration: NaN,
     _listeners: {},
     play() { this.paused = false; this._disparar('play'); return Promise.resolve(); },
     pause() { this.paused = true; this._disparar('pause'); },
@@ -25,7 +25,24 @@ function audioFake() {
   };
 }
 
-function setup() {
+function progressoFake() {
+  return { value: '0', _listeners: {},
+    setAttribute() {}, matches() { return false; },
+    addEventListener(evento, fn) { (this._listeners[evento] ||= []).push(fn); } };
+}
+
+/* Mock mínimo de localStorage: mesma API, guardada em memória -- é o que
+   permite ao teste rodar sem depender de um navegador de verdade. */
+function localStorageFake() {
+  const dados = {};
+  return {
+    getItem: chave => (chave in dados ? dados[chave] : null),
+    setItem: (chave, valor) => { dados[chave] = String(valor); },
+    removeItem: chave => { delete dados[chave]; },
+  };
+}
+
+function setup(estadoSalvoInicial) {
   const painel = { closest() { return null; } };
   const elementos = {
     'mc-player': painel,
@@ -36,14 +53,29 @@ function setup() {
     'mc-vol-down': botao(),
     'mc-vol-up': botao(),
     'mc-track': elFaixa(),
+    'mc-progress': progressoFake(),
   };
   const listenersDocumento = {};
   const document = {
     getElementById: id => elementos[id],
     addEventListener(evento, fn, opts) { listenersDocumento[evento] = {fn, opts}; },
   };
-  vm.runInNewContext(code, {document});
-  return {elementos, listenersDocumento};
+  const localStorage = localStorageFake();
+  if (estadoSalvoInicial) localStorage.setItem('mc-player-estado-v1', JSON.stringify(estadoSalvoInicial));
+  const listenersWindow = {};
+  // window === o mesmo objeto global do sandbox (como num navegador real:
+  // window.setInterval, window.addEventListener etc. são os mesmos que os
+  // globais soltos) -- setInterval/clearInterval reaproveitam os do Node,
+  // só para o código não quebrar; os testes não dependem de o timer disparar.
+  const window = {
+    localStorage,
+    // Sem timer real: o teste não roda 4s de relógio. O código só precisa
+    // de uma função que aceite a chamada -- id nunca é usado para limpar.
+    setInterval() { return 0; }, clearInterval() {},
+    addEventListener(evento, fn) { (listenersWindow[evento] ||= []).push(fn); },
+  };
+  vm.runInNewContext(code, {document, window});
+  return {elementos, listenersDocumento, listenersWindow, localStorage};
 }
 
 test('player carrega a primeira faixa (Black Ginga) pronta, pausada, sem autoplay',()=>{
@@ -158,4 +190,47 @@ test('gesto dentro do proprio player nao dispara o auto-inicio generico (evita d
 
 test('nenhuma chamada de rede / iframe / servico externo no player',()=>{
   assert.ok(!/fetch\(|XMLHttpRequest|iframe|youtube|spotify/i.test(code));
+});
+
+test('com estado salvo de outra pagina, retoma faixa e volume salvos', () => {
+  const { elementos } = setup({ indice: 2, tempo: 37, volume: 0.3, tocando: false });
+  assert.equal(elementos['mc-track'].textContent, 'Quimbara Cumba');
+  assert.equal(elementos['mc-audio'].volume, 0.3);
+});
+
+test('se a pessoa tinha pausado antes de navegar, a proxima pagina nao volta a tocar sozinha', () => {
+  const { elementos, listenersDocumento } = setup({ indice: 0, tempo: 5, volume: 0.7, tocando: false });
+  const { fn } = listenersDocumento.click;
+  fn({ target: { closest: () => null } });
+  assert.equal(elementos['mc-audio'].paused, true);
+});
+
+test('se estava tocando ao navegar, o primeiro gesto na pagina seguinte retoma', () => {
+  const { elementos, listenersDocumento } = setup({ indice: 0, tempo: 5, volume: 0.7, tocando: true });
+  const { fn } = listenersDocumento.click;
+  fn({ target: { closest: () => null } });
+  assert.equal(elementos['mc-audio'].paused, false);
+});
+
+test('sem estado salvo (primeira visita), o primeiro gesto continua comecando a musica -- comportamento de sempre', () => {
+  const { elementos, listenersDocumento } = setup();
+  const { fn } = listenersDocumento.click;
+  fn({ target: { closest: () => null } });
+  assert.equal(elementos['mc-audio'].paused, false);
+});
+
+test('estado salvo corrompido nao quebra o player -- cai no comportamento padrao', () => {
+  const painel = { closest() { return null; } };
+  const elementos = {
+    'mc-player': painel, 'mc-audio': audioFake(), 'mc-playpause': botao(), 'mc-prev': botao(),
+    'mc-next': botao(), 'mc-vol-down': botao(), 'mc-vol-up': botao(), 'mc-track': elFaixa(),
+    'mc-progress': progressoFake(),
+  };
+  const document = { getElementById: id => elementos[id], addEventListener() {} };
+  const window = {
+    localStorage: { getItem: () => 'isto nao e json{{{', setItem() {}, removeItem() {} },
+    setInterval() { return 0; }, clearInterval() {}, addEventListener() {},
+  };
+  assert.doesNotThrow(() => vm.runInNewContext(code, { document, window }));
+  assert.equal(elementos['mc-track'].textContent, 'Black Ginga');
 });

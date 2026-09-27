@@ -39698,6 +39698,10 @@ registrar_rotas_mi_unidades(app, get_db_connection, validar_admin_request)
 from qr_rastreavel import registrar_rotas_qr
 registrar_rotas_qr(app, get_db_connection, validar_admin_request, FRONTEND_FOLDER)
 
+# Catálogo de produtos (/produto/<slug>, /api/catalogo/*, /api/admin/catalogo/*).
+from catalogo_produtos import registrar_rotas_catalogo
+registrar_rotas_catalogo(app, get_db_connection, validar_admin_request, FRONTEND_FOLDER)
+
 from mi_estabelecimentos import registrar_rotas_leitura as registrar_rotas_mi_estabelecimentos
 registrar_rotas_mi_estabelecimentos(app, get_db_connection, validar_admin_request)
 
