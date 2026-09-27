@@ -14,6 +14,20 @@
     return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
+  /* O preço cadastrado é por unidade de venda, mas a compra pode ter um
+   * mínimo maior (ex.: a bebida só vende a partir de uma caixa de 12).
+   * Sem essa condição no texto, "R$ 59,90" passaria a impressão de compra
+   * unitária disponível, que não existe. */
+  function textoPreco(produto) {
+    var preco = formatarPreco(produto.preco_centavos);
+    if (!preco) return null;
+    var unidade = produto.unidade_venda || 'unidade';
+    if (produto.quantidade_minima > 1) {
+      return preco + ' / ' + unidade + ' · compra mínima de ' + produto.quantidade_minima + ' ' + unidade + 's';
+    }
+    return preco + ' / ' + unidade;
+  }
+
   /* Para onde o cartão leva: só a modalidade "comprar_site" pula direto
    * para uma compra já funcional (a da própria bebida, por exemplo).
    * Orçamento e "em breve" sempre passam pela página do produto, que
@@ -35,7 +49,7 @@
     return capa || null;
   }
 
-  var api = { formatarPreco: formatarPreco, linkDoProduto: linkDoProduto, rotuloDoProduto: rotuloDoProduto, capaDoProduto: capaDoProduto };
+  var api = { formatarPreco: formatarPreco, textoPreco: textoPreco, linkDoProduto: linkDoProduto, rotuloDoProduto: rotuloDoProduto, capaDoProduto: capaDoProduto };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   var doc = raiz.document;
@@ -65,8 +79,8 @@
     if (capa) filhos.push(el('img', { src: capa.url, alt: capa.alt_text || produto.nome, loading: 'lazy' }));
     filhos.push(el('h3', { texto: produto.nome }));
     filhos.push(el('p', { texto: produto.descricao_curta }));
-    var preco = formatarPreco(produto.preco_centavos);
-    if (preco) filhos.push(el('p', { classe: 'mc-produto-preco', texto: 'A partir de ' + preco }));
+    var preco = textoPreco(produto);
+    if (preco) filhos.push(el('p', { classe: 'mc-produto-preco', texto: preco }));
     filhos.push(el('span', { classe: 'mc-produto-badge', texto: rotuloDoProduto(produto) }));
     // "Em breve" continua levando à página do produto (informativa); é
     // produto.html/produto-pagina.js quem garante que ela nunca oferece
