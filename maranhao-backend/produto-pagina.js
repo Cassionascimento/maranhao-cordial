@@ -29,7 +29,7 @@
     return null;
   }
 
-  var api = { slugDaUrl: slugDaUrl, linkOrcamento: linkOrcamento, rotuloCTA: rotuloCTA, hrefCTA: hrefCTA };
+  var api = { slugDaUrl: slugDaUrl, linkOrcamento: linkOrcamento, rotuloCTA: rotuloCTA, hrefCTA: hrefCTA, textoPreco: textoPreco };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
 
   var doc = raiz.document;
@@ -49,6 +49,19 @@
   function formatarPreco(centavos) {
     if (centavos == null) return null;
     return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  /* Mesma regra da vitrine (catalogo-vitrine.js): o preço é por unidade de
+   * venda, e uma compra mínima maior que 1 precisa aparecer junto, senão
+   * o preço passa a ideia de compra unitária que não existe. */
+  function textoPreco(produto) {
+    var preco = formatarPreco(produto.preco_centavos);
+    if (!preco) return null;
+    var unidade = produto.unidade_venda || 'unidade';
+    if (produto.quantidade_minima > 1) {
+      return preco + ' / ' + unidade + ' · compra mínima de ' + produto.quantidade_minima + ' ' + unidade + 's';
+    }
+    return preco + ' / ' + unidade;
   }
 
   function mostrar(nos) { raizEl.textContent = ''; nos.forEach(function (n) { raizEl.appendChild(n); }); }
@@ -95,7 +108,7 @@
           el('p', { classe: 'pr-eyebrow', texto: produto.categoria }),
           el('h1', { texto: produto.nome }),
           produto.disponibilidade ? el('span', { classe: 'pr-disponibilidade', texto: produto.disponibilidade }) : null,
-          (function () { var p = formatarPreco(produto.preco_centavos); return p ? el('p', { classe: 'pr-preco', texto: 'A partir de ' + p }) : null; })(),
+          (function () { var p = textoPreco(produto); return p ? el('p', { classe: 'pr-preco', texto: p }) : null; })(),
           el('p', { classe: 'pr-curta', texto: produto.descricao_curta }),
           produto.descricao_completa ? el('p', { classe: 'pr-completa', texto: produto.descricao_completa }) : null,
           ficha.length ? el('ul', { classe: 'pr-ficha' }, ficha) : null,

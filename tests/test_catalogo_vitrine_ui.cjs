@@ -19,13 +19,29 @@ function produto(extra = {}) {
     return Object.assign({
         slug: 'maranhao-cordial', nome: 'Maranhão Cordial', status: 'publicado',
         modalidade_compra: 'comprar_site', url_compra: '/compreaqui.html#checkoutCard',
-        preco_centavos: 5990, midias: [],
+        preco_centavos: 5990, unidade_venda: 'unidade', quantidade_minima: 12, midias: [],
     }, extra);
 }
 
 test('preço formatado em reais, sem preço vira null (não "R$ NaN")', () => {
     assert.equal(v.formatarPreco(5990), 'R$ 59,90');
     assert.equal(v.formatarPreco(null), null);
+});
+
+test('preço por unidade deixa clara a compra mínima -- nunca sugere compra unitária', () => {
+    // É exatamente o caso real do Maranhão Cordial: R$ 59,90 é o valor por
+    // unidade, mas a compra começa numa caixa de 12 -- o texto precisa dizer
+    // isso, senão "R$ 59,90" por si só sugere que dá para comprar 1 unidade.
+    assert.equal(v.textoPreco(produto()), 'R$\u00A059,90 / unidade · compra mínima de 12 unidades');
+    assert.doesNotMatch(v.textoPreco(produto()), /^A partir de/);
+});
+
+test('sem compra mínima (1 unidade), o texto não inventa uma condição', () => {
+    assert.equal(v.textoPreco(produto({ quantidade_minima: 1 })), 'R$\u00A059,90 / unidade');
+});
+
+test('sem preço cadastrado, não mostra preço nenhum', () => {
+    assert.equal(v.textoPreco(produto({ preco_centavos: null })), null);
 });
 
 test('comprar_site com url_compra vai direto para a compra que já funciona', () => {
@@ -67,6 +83,11 @@ test('slug da URL de /produto/<slug>', () => {
 
 test('orçamento reaproveita a solicitação profissional existente, com o produto na origem', () => {
     assert.equal(pr.linkOrcamento('vela-de-cheiro'), '/cadastro-profissional?origem=orcamento_vela-de-cheiro');
+});
+
+test('produto-pagina.js aplica a mesma regra de preço por unidade + compra mínima', () => {
+    assert.equal(pr.textoPreco(produto()), 'R$ 59,90 / unidade · compra mínima de 12 unidades');
+    assert.equal(pr.textoPreco(produto({ quantidade_minima: 1 })), 'R$ 59,90 / unidade');
 });
 
 test('CTA da página do produto por modalidade — em_breve nunca tem botão', () => {
