@@ -148,6 +148,15 @@
                     termos: 'venda compra pagamento entrega rastreio',
                 },
                 {
+                    id: 'catalogo',
+                    painel: 'catalogo',
+                    rotulo: 'Catálogo',
+                    titulo: 'Catálogo de produtos',
+                    descricao: 'Cadastre, edite, publique e despublique os produtos da Maranhão — o que está publicado aparece automaticamente no site.',
+                    acao: { rotulo: 'Novo produto', clicar: '#cat-novo' },
+                    termos: 'catalogo produto produtos vitrine publicar despublicar rascunho midia foto imagem video preco categoria em breve orcamento',
+                },
+                {
                     id: 'degustacoes',
                     painel: 'degustacoes',
                     rotulo: 'Degustações',

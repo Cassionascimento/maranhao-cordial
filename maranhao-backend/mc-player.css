@@ -1,0 +1,118 @@
+/* Player discreto do álbum GINGA — Five Moments.
+   Arquivo compartilhado entre a página inicial e "Compre aqui" para as
+   duas ficarem com a mesma aparência e não haver duas versões para
+   manter. Cores fixas (não depende das variáveis de cada página):
+   dourado #d4af37, creme #f4ece1/#dfd5c6, sobre fundo quase preto. */
+.mc-player {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    background: rgba(10, 9, 8, .86);
+    border: 1px solid rgba(212, 175, 55, .22);
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 9998;
+    max-width: calc(100vw - 24px);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.mc-player-btn {
+    appearance: none;
+    background: transparent;
+    border: none;
+    color: #d4af37;
+    font-size: 13px;
+    line-height: 1;
+    padding: 6px;
+    cursor: pointer;
+    transition: color .2s ease;
+    flex: none;
+}
+
+.mc-player-btn:hover { color: #f4ece1; }
+
+.mc-player-track {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 12px;
+    letter-spacing: .5px;
+    color: #dfd5c6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 26vw;
+    flex: none;
+}
+
+/* Progresso: slider nativo (acessível, arrastável) recolorido para caber
+   na cápsula do player sem empurrar o layout. */
+.mc-player-progress {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 96px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .18);
+    outline: none;
+    flex: none;
+    cursor: pointer;
+}
+.mc-player-progress::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #d4af37;
+    cursor: pointer;
+    margin-top: -4px;
+}
+.mc-player-progress::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border: 0;
+    border-radius: 50%;
+    background: #d4af37;
+    cursor: pointer;
+}
+.mc-player-progress::-moz-range-track {
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .18);
+}
+
+.mc-player :focus-visible {
+    outline: 2px solid #d4af37;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mc-player-btn { transition: none; }
+}
+
+@media (max-width: 720px) {
+    .mc-player { gap: 7px; padding: 8px 12px; bottom: 12px; }
+    .mc-player-track { max-width: 22vw; font-size: 11px; }
+    .mc-player-progress { width: 56px; }
+}
+
+/* Abaixo de 600px, empilha acima do botão flutuante de atendimento (SAC)
+   e das áreas de compra fixas, em toda a largura -- nunca a mesma faixa
+   horizontal, então nunca cobre um botão de compra. */
+@media (max-width: 600px) {
+    .mc-player {
+        left: 12px;
+        right: 12px;
+        bottom: 88px;
+        transform: none;
+        max-width: none;
+        justify-content: center;
+    }
+    .mc-player-track { max-width: 28vw; }
+    .mc-player-progress { width: 22vw; min-width: 46px; }
+}
