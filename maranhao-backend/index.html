@@ -10,13 +10,6 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&display=swap">
 <link rel="stylesheet" href="consentimento.css">
 <link rel="stylesheet" href="mc-player.css">
-<noscript><style>
-/* Sem JavaScript, a máscara e o pin nunca são montados: mostra o hero de
-   sempre e garante que o resto do conteúdo não fique invisível. */
-.mc-cine-pin { display: none !important; }
-.mc-cine-fallback { display: flex !important; }
-.mc-cine-produto-img, .mc-cine-produto-copy { opacity: 1 !important; transform: none !important; }
-</style></noscript>
 <style>
 :root {
     --preto: #000000;
@@ -102,7 +95,7 @@ a { color: inherit; }
 
 /* ---------- Posicionamento: primeira mensagem da página ---------- */
 .mc-posicionamento {
-    padding: 90px clamp(20px, 6vw, 64px) 30px;
+    padding: 150px clamp(20px, 6vw, 64px) 30px;
     text-align: center;
 }
 
@@ -258,173 +251,6 @@ a { color: inherit; }
     text-transform: uppercase;
     color: var(--ouro);
     margin: 0;
-}
-
-/* ---------- Hero cinematográfico: "MARANHÃO" como porta de entrada para o vídeo ----------
-   Conceito: a palavra nasce grande e inteira, já com o vídeo visível dentro
-   dela (mesmo arquivo de sempre, um só <video>, nunca duplicado). Um scroll
-   pequeno faz a máscara crescer e desaparecer rapidamente -- o vídeo passa a
-   ocupar a tela inteira, com tempo de sobra antes da legenda. Só depois o
-   território dá lugar ao produto (imagem e sabores já existentes).
-   mc-cine-fallback é o hero de sempre (mesmo vídeo, mesmo texto, sem pin nem
-   máscara) -- é o que aparece com prefers-reduced-motion. */
-.mc-cine {
-    position: relative;
-    background: var(--preto);
-}
-
-.mc-cine-pin {
-    height: 100vh;
-    min-height: 560px;
-    position: relative;
-    overflow: hidden;
-}
-
-.mc-cine-stage {
-    position: absolute;
-    inset: 0;
-}
-
-/* O <video> em si fica invisível (opacity:0) -- ele só alimenta o <canvas>
-   com quadros (drawImage a cada frame novo). Testado nesta implementação:
-   aplicar mask-image direto num <video> não recorta o quadro decodificado
-   em todos os motores (a máscara "pega" na caixa do elemento, mas não no
-   vídeo em si) -- por isso o vídeo desenha num canvas, e é O CANVAS que
-   recebe a máscara. O arquivo continua sendo decodificado uma vez só. */
-.mc-cine-video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    pointer-events: none;
-}
-
-/* O canvas cobre a tela inteira desde o primeiro frame -- 3% maior de cada
-   lado só para a microinteração de mouse ter para onde deslocar sem revelar
-   borda. Ele NUNCA é redimensionado por CSS transform (por isso nunca perde
-   nitidez nem proporção): o "crescimento" da palavra é só o mask-size
-   mudando, calculado em JS a partir da largura real do texto -- nunca corta
-   M inicial nem Ã/O final, em nenhuma largura de tela (ver mc-cine.js). */
-.mc-cine-canvas {
-    position: absolute;
-    top: -3%;
-    left: -3%;
-    width: 106%;
-    height: 106%;
-    display: block;
-    background: var(--preto);
-    opacity: 0;
-    transition: opacity .5s ease;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    will-change: transform;
-}
-
-/* Some (opacity:0) até o JS montar a máscara e desenhar o primeiro quadro --
-   sem isso, um retângulo sem recorte apareceria por um instante antes da
-   forma das letras existir. */
-.mc-cine-canvas.is-ready {
-    opacity: 1;
-}
-
-.mc-cine-sr {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-
-/* No terço inferior, de propósito -- nunca cobrindo o centro do quadro
-   (onde o vídeo costuma ter o que importa) durante os segundos de tela
-   cheia que ele ganhou para ser apreciado. */
-.mc-cine-caption {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    text-align: center;
-    gap: 8px;
-    padding: 0 20px clamp(48px, 9vh, 110px);
-    opacity: 0;
-    pointer-events: none;
-}
-
-.mc-cine-caption-title {
-    font-family: "Cormorant Garamond", Georgia, serif;
-    font-weight: 400;
-    font-size: clamp(26px, 4.6vw, 48px);
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    margin: 0;
-    color: var(--creme);
-}
-
-.mc-cine-caption-tag {
-    font-family: "Cormorant Garamond", Georgia, serif;
-    font-style: italic;
-    font-size: clamp(15px, 2vw, 19px);
-    color: var(--creme-suave);
-    margin: 0;
-}
-
-.mc-cine-caption-abv {
-    font-size: 11px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--ouro);
-    margin: 0;
-}
-
-.mc-cine-fallback {
-    display: none;
-}
-
-/* ---------- Território dá lugar ao produto: garrafas e sabores existentes ---------- */
-.mc-cine-produto {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: clamp(20px, 4vh, 34px);
-    padding: 90px clamp(20px, 6vw, 64px) 70px;
-}
-
-/* height:auto explícito -- a imagem nunca deforma: a proporção real (os
-   atributos width/height do <img>) sempre manda, o CSS só limita a largura. */
-.mc-cine-produto-img {
-    width: 100%;
-    max-width: 980px;
-    height: auto;
-    display: block;
-    opacity: 0;
-    transform: translateY(28px) scale(.96);
-    will-change: transform, opacity;
-}
-
-.mc-cine-produto-copy {
-    opacity: 0;
-    transform: translateY(20px) scale(.98);
-    will-change: transform, opacity;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .mc-cine-pin { display: none; }
-    .mc-cine-fallback { display: flex; }
-    .mc-cine-produto-img, .mc-cine-produto-copy { opacity: 1; transform: none; }
-}
-
-@media (max-width: 720px) {
-    .mc-cine-produto { padding: 70px 20px 50px; }
 }
 
 /* ---------- Produtos da Maranhão: vitrine alimentada pelo catálogo ---------- */
@@ -591,7 +417,7 @@ a { color: inherit; }
     .mc-header { padding: 20px 18px; }
     .mc-logo-main { letter-spacing: 4px; }
     .mc-hero { padding: 40px 20px 70px; gap: 22px; }
-    .mc-posicionamento { padding: 60px 20px 20px; }
+    .mc-posicionamento { padding: 130px 20px 20px; }
 }
 </style>
 </head>
@@ -625,53 +451,6 @@ a { color: inherit; }
 </header>
 
 <main>
-<section class="mc-cine" id="maranhao-cordial" aria-label="Maranhão: território e origem do Maranhão Cordial">
-    <h2 class="mc-cine-sr">Maranhão</h2>
-
-    <div class="mc-cine-pin" id="cinePin">
-        <div class="mc-cine-stage">
-            <video class="mc-cine-video" id="cineVideo" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback preload="metadata" poster="img/hero/tres-cordiais.webp" aria-hidden="true">
-                <source src="/assets/video/maranhao-cordial-hero.mp4" type="video/mp4">
-            </video>
-            <canvas class="mc-cine-canvas" id="cineCanvas" aria-hidden="true"></canvas>
-            <div class="mc-cine-caption" id="cineCaption" aria-hidden="true">
-                <p class="mc-cine-caption-title">Maranhão Cordial</p>
-                <p class="mc-cine-caption-tag">Cordiais brasileiros.</p>
-                <p class="mc-cine-caption-abv">0,0% álcool</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- prefers-reduced-motion: o hero de sempre -- mesmo vídeo, mesmo texto,
-         sem pin, sem máscara, sem zoom (ver @media no <style> e mc-cine.js). -->
-    <div class="mc-hero mc-cine-fallback">
-        <div class="mc-hero-image">
-            <video class="mc-hero-video" muted loop playsinline preload="none" poster="img/hero/tres-cordiais.webp" width="1920" height="1080" aria-label="Maranhão Cordial">
-                <source src="/assets/video/maranhao-cordial-hero.mp4" type="video/mp4">
-                <img src="img/hero/tres-cordiais.webp" alt="As três garrafas Maranhão Cordial lado a lado — Guaraná &amp; Gengibre, Bacuri &amp; Gengibre e Cajá &amp; Gengibre — com tampas prateadas e luz discreta ao fundo." width="1991" height="790">
-            </video>
-        </div>
-        <div class="mc-hero-copy">
-            <h2>Maranhão Cordial</h2>
-            <p class="mc-tagline">Cordiais brasileiros.</p>
-            <p class="mc-abv">0,0% álcool</p>
-        </div>
-    </div>
-
-    <div class="mc-cine-produto" id="cineProduto">
-        <img class="mc-cine-produto-img" id="cineProdutoImg" src="img/hero/tres-cordiais.webp" width="1991" height="790" alt="As três garrafas Maranhão Cordial lado a lado — Guaraná &amp; Gengibre, Bacuri &amp; Gengibre e Cajá &amp; Gengibre — com tampas prateadas e luz discreta ao fundo.">
-        <div class="mc-cine-produto-copy" id="cineProdutoCopy">
-            <p class="mc-hero-subtitulo">Nossa bebida. O início de uma coleção regional.</p>
-            <p class="mc-intro">Concentrado líquido botânico sem álcool para preparar drinks.</p>
-            <ul class="mc-flavors">
-                <li>Guaraná &amp; Gengibre</li>
-                <li>Bacuri &amp; Gengibre</li>
-                <li>Cajá &amp; Gengibre</li>
-            </ul>
-        </div>
-    </div>
-</section>
-
 <section class="mc-posicionamento">
     <div class="mc-posicionamento-copy">
         <h1>Produtos regionais, entregues a você.</h1>
@@ -680,6 +459,38 @@ a { color: inherit; }
             <a href="/compreaqui.html" class="mc-cta-primaria" data-mc-cta="produtos_home">Conheça os produtos</a>
             <a href="#maranhao-cordial" class="mc-cta-secundaria" data-mc-cta="bebida_home">Conheça o Maranhão Cordial</a>
         </div>
+    </div>
+</section>
+
+<section class="mc-hero" id="maranhao-cordial">
+    <div class="mc-hero-image">
+        <video class="mc-hero-video" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback preload="metadata" poster="img/hero/tres-cordiais.webp" width="1920" height="1080" aria-label="Maranhão Cordial">
+            <source src="/assets/video/maranhao-cordial-hero.mp4" type="video/mp4">
+            <img src="img/hero/tres-cordiais.webp" alt="As três garrafas Maranhão Cordial lado a lado — Guaraná &amp; Gengibre, Bacuri &amp; Gengibre e Cajá &amp; Gengibre — com tampas prateadas e luz discreta ao fundo." width="1991" height="790">
+        </video>
+        <script>
+        // prefers-reduced-motion: mantém só o poster estático (sem animação contínua).
+        (function () {
+            var v = document.currentScript.previousElementSibling;
+            if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                v.removeAttribute('autoplay');
+                v.preload = 'none';
+                v.pause();
+            }
+        })();
+        </script>
+    </div>
+    <div class="mc-hero-copy">
+        <h2>Maranhão Cordial</h2>
+        <p class="mc-tagline">Cordiais brasileiros.</p>
+        <p class="mc-hero-subtitulo">Nossa bebida. O início de uma coleção regional.</p>
+        <p class="mc-intro">Concentrado líquido botânico sem álcool para preparar drinks.</p>
+        <ul class="mc-flavors">
+            <li>Guaraná &amp; Gengibre</li>
+            <li>Bacuri &amp; Gengibre</li>
+            <li>Cajá &amp; Gengibre</li>
+        </ul>
+        <p class="mc-abv">0,0% álcool</p>
     </div>
 </section>
 
@@ -1735,8 +1546,5 @@ a { color: inherit; }
 <script src="site-sinais.js" defer></script>
 <script src="mc-player.js" defer></script>
 <script src="catalogo-vitrine.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
-<script src="mc-cine.js" defer></script>
 </body>
 </html>
