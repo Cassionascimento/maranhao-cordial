@@ -1,7 +1,7 @@
 /* Versão leve do hero cinematográfico da home (mc-cine.js) para "Compre
  * aqui": a mesma linguagem visual -- "MARANHÃO" como janela para um vídeo
  * já existente -- só que sem pin nem zoom por scroll, apenas uma revelação
- * suave ao entrar na tela. Mesmo vídeo de sempre desta página
+ * curta e suave ao entrar na tela. Mesmo vídeo de sempre desta página
  * (maranhao-regional-10s.mp4), nunca carregado uma segunda vez: é o
  * elemento de vídeo que a própria página já tinha, só que também desenhado
  * aqui, mascarado, num <canvas>.
@@ -13,14 +13,22 @@
 (function (raiz) {
   'use strict';
 
-  /* Mesma função do hero da home (mc-cine.js), com um viewBox mais baixo
-   * (a versão leve é uma faixa 16:6, não um retângulo cheio de tela) --
-   * ver mc-cine.js para o porquê de não ter <rect> de fundo. */
-  function mascaraDaPalavra(texto) {
-    var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 600'>" +
-      "<text x='800' y='430' text-anchor='middle' " +
-      "font-family='Georgia, \"Times New Roman\", serif' font-weight='700' " +
-      "font-size='280' letter-spacing='2' fill='white'>" + texto + "</text></svg>";
+  /* Mesma função do hero da home: `larguraTexto` já vem medida
+   * (measureText, mesma fonte/peso), então o viewBox nasce do tamanho real
+   * do texto -- nunca corta M inicial nem Ã/O final internamente, antes
+   * mesmo do mask-size entrar em jogo. Ver mc-cine.js para o porquê de não
+   * ter <rect> de fundo. */
+  function mascaraDaPalavra(texto, larguraTexto, opcoes) {
+    opcoes = opcoes || {};
+    var tamanhoFonte = opcoes.tamanhoFonte || 280;
+    var familia = opcoes.familia || 'Georgia, "Times New Roman", serif';
+    var margem = opcoes.margem != null ? opcoes.margem : Math.round(tamanhoFonte * 0.28);
+    var alturaViewBox = opcoes.alturaViewBox || Math.round(tamanhoFonte * 1.55);
+    var larguraViewBox = Math.max(1, Math.ceil(larguraTexto + margem * 2));
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 " + larguraViewBox + " " + alturaViewBox + "'>" +
+      "<text x='" + (larguraViewBox / 2) + "' y='" + Math.round(alturaViewBox * 0.72) + "' text-anchor='middle' " +
+      "font-family='" + familia + "' font-weight='700' " +
+      "font-size='" + tamanhoFonte + "' letter-spacing='2' fill='white'>" + texto + "</text></svg>";
     return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
   }
 
@@ -42,8 +50,20 @@
   var reduzido = raiz.matchMedia && raiz.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduzido) return; // CSS já esconde .mc-lite-hero neste caso
 
-  canvas.style.webkitMaskImage = mascaraDaPalavra('MARANHÃO');
-  canvas.style.maskImage = mascaraDaPalavra('MARANHÃO');
+  var TEXTO = 'MARANHÃO';
+  var FAMILIA = 'Georgia, "Times New Roman", serif';
+  var TAMANHO_FONTE = 280;
+
+  function medirLarguraTexto(texto, tamanhoFonte, familia) {
+    var medidor = doc.createElement('canvas').getContext('2d');
+    medidor.font = "700 " + tamanhoFonte + "px " + familia;
+    return medidor.measureText(texto).width + 2 * Math.max(0, texto.length - 1);
+  }
+
+  var larguraMedida = medirLarguraTexto(TEXTO, TAMANHO_FONTE, FAMILIA);
+  var url = mascaraDaPalavra(TEXTO, larguraMedida, { tamanhoFonte: TAMANHO_FONTE, familia: FAMILIA });
+  canvas.style.webkitMaskImage = url;
+  canvas.style.maskImage = url;
 
   var ctx = canvas.getContext('2d', { alpha: false });
   var dpr = Math.min(raiz.devicePixelRatio || 1, 2);
@@ -88,7 +108,7 @@
     redimensionarPendente = raiz.setTimeout(redimensionarCanvas, 150);
   }, { passive: true });
 
-  // Revelação suave ao entrar na tela -- sem pin, sem scrub, sem GSAP (não é
+  // Revelação curta ao entrar na tela -- sem pin, sem scrub, sem GSAP (não é
   // necessário para um fade + leve escala que dispara uma vez só).
   function revelar() {
     wrap.classList.add('is-visible');

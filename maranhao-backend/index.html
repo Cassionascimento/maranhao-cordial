@@ -260,12 +260,12 @@ a { color: inherit; }
     margin: 0;
 }
 
-/* ---------- Hero cinematográfico: "MARANHÃO" como máscara de vídeo ----------
-   Conceito: a palavra ocupa a tela como uma janela para o vídeo que já existe
-   no hero (mesmo arquivo de sempre, um só <video>, nunca duplicado). O scroll
-   amplia essa janela (transform: scale, sem redimensionar o vídeo em si) até
-   ela tomar a tela por completo -- aí a legenda some e o texto aparece. Só
-   depois o território dá lugar ao produto (imagem e sabores já existentes).
+/* ---------- Hero cinematográfico: "MARANHÃO" como porta de entrada para o vídeo ----------
+   Conceito: a palavra nasce grande e inteira, já com o vídeo visível dentro
+   dela (mesmo arquivo de sempre, um só <video>, nunca duplicado). Um scroll
+   pequeno faz a máscara crescer e desaparecer rapidamente -- o vídeo passa a
+   ocupar a tela inteira, com tempo de sobra antes da legenda. Só depois o
+   território dá lugar ao produto (imagem e sabores já existentes).
    mc-cine-fallback é o hero de sempre (mesmo vídeo, mesmo texto, sem pin nem
    máscara) -- é o que aparece com prefers-reduced-motion. */
 .mc-cine {
@@ -283,19 +283,6 @@ a { color: inherit; }
 .mc-cine-stage {
     position: absolute;
     inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* A "janela": o scroll escala este elemento (não o vídeo dentro dele), então
-   o vídeo nunca é re-decodificado nem re-carregado -- só o recorte cresce. */
-.mc-cine-word {
-    position: relative;
-    width: min(90vw, 1360px);
-    aspect-ratio: 16 / 5;
-    transform: scale(1);
-    will-change: transform;
 }
 
 /* O <video> em si fica invisível (opacity:0) -- ele só alimenta o <canvas>
@@ -313,10 +300,19 @@ a { color: inherit; }
     pointer-events: none;
 }
 
+/* O canvas cobre a tela inteira desde o primeiro frame -- 3% maior de cada
+   lado só para a microinteração de mouse ter para onde deslocar sem revelar
+   borda. Ele NUNCA é redimensionado por CSS transform (por isso nunca perde
+   nitidez nem proporção): o "crescimento" da palavra é só o mask-size
+   mudando, calculado em JS a partir da largura real do texto -- nunca corta
+   M inicial nem Ã/O final, em nenhuma largura de tela (ver mc-cine.js). */
 .mc-cine-canvas {
+    position: absolute;
+    top: -3%;
+    left: -3%;
+    width: 106%;
+    height: 106%;
     display: block;
-    width: 100%;
-    height: 100%;
     background: var(--preto);
     opacity: 0;
     transition: opacity .5s ease;
@@ -324,14 +320,13 @@ a { color: inherit; }
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
-    -webkit-mask-size: contain;
-    mask-size: contain;
+    will-change: transform;
 }
 
 /* Some (opacity:0) até o JS montar a máscara e desenhar o primeiro quadro --
    sem isso, um retângulo sem recorte apareceria por um instante antes da
    forma das letras existir. */
-.mc-cine-word.is-ready .mc-cine-canvas {
+.mc-cine-canvas.is-ready {
     opacity: 1;
 }
 
@@ -347,15 +342,19 @@ a { color: inherit; }
     border: 0;
 }
 
+/* No terço inferior, de propósito -- nunca cobrindo o centro do quadro
+   (onde o vídeo costuma ter o que importa) durante os segundos de tela
+   cheia que ele ganhou para ser apreciado. */
 .mc-cine-caption {
     position: absolute;
     inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     text-align: center;
-    gap: 10px;
+    gap: 8px;
+    padding: 0 20px clamp(48px, 9vh, 110px);
     opacity: 0;
     pointer-events: none;
 }
@@ -400,9 +399,12 @@ a { color: inherit; }
     padding: 90px clamp(20px, 6vw, 64px) 70px;
 }
 
+/* height:auto explícito -- a imagem nunca deforma: a proporção real (os
+   atributos width/height do <img>) sempre manda, o CSS só limita a largura. */
 .mc-cine-produto-img {
     width: 100%;
     max-width: 980px;
+    height: auto;
     display: block;
     opacity: 0;
     transform: translateY(28px) scale(.96);
@@ -422,7 +424,6 @@ a { color: inherit; }
 }
 
 @media (max-width: 720px) {
-    .mc-cine-word { width: 94vw; aspect-ratio: 4 / 3; }
     .mc-cine-produto { padding: 70px 20px 50px; }
 }
 
@@ -629,12 +630,10 @@ a { color: inherit; }
 
     <div class="mc-cine-pin" id="cinePin">
         <div class="mc-cine-stage">
-            <div class="mc-cine-word" id="cineWord">
-                <video class="mc-cine-video" id="cineVideo" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback preload="metadata" poster="img/hero/tres-cordiais.webp" aria-hidden="true">
-                    <source src="/assets/video/maranhao-cordial-hero.mp4" type="video/mp4">
-                </video>
-                <canvas class="mc-cine-canvas" id="cineCanvas" aria-hidden="true"></canvas>
-            </div>
+            <video class="mc-cine-video" id="cineVideo" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback preload="metadata" poster="img/hero/tres-cordiais.webp" aria-hidden="true">
+                <source src="/assets/video/maranhao-cordial-hero.mp4" type="video/mp4">
+            </video>
+            <canvas class="mc-cine-canvas" id="cineCanvas" aria-hidden="true"></canvas>
             <div class="mc-cine-caption" id="cineCaption" aria-hidden="true">
                 <p class="mc-cine-caption-title">Maranhão Cordial</p>
                 <p class="mc-cine-caption-tag">Cordiais brasileiros.</p>
