@@ -90,17 +90,37 @@
 
   // Revelação suave ao entrar na tela -- sem pin, sem scrub, sem GSAP (não é
   // necessário para um fade + leve escala que dispara uma vez só).
-  if (raiz.IntersectionObserver) {
+  function revelar() {
+    wrap.classList.add('is-visible');
+  }
+
+  function jaNaTela() {
+    var r = wrap.getBoundingClientRect();
+    var alturaJanela = raiz.innerHeight || doc.documentElement.clientHeight;
+    return r.top < alturaJanela && r.bottom > 0;
+  }
+
+  if (jaNaTela()) {
+    // A seção normalmente já nasce visível (fica logo no topo da página) --
+    // resolve sem esperar o observer, que em alguns motores não dispara
+    // para um elemento que já está na tela no instante em que observe()
+    // é chamado (comportamento documentado do IntersectionObserver em
+    // certas versões de navegador).
+    revelar();
+  } else if (raiz.IntersectionObserver) {
     var obs = new raiz.IntersectionObserver(function (entradas) {
       entradas.forEach(function (entrada) {
         if (entrada.isIntersecting) {
-          wrap.classList.add('is-visible');
+          revelar();
           obs.unobserve(wrap);
         }
       });
     }, { threshold: 0.2 });
     obs.observe(wrap);
+    // Rede de segurança: se por qualquer motivo o observer nunca disparar,
+    // o conteúdo não pode ficar invisível para sempre.
+    raiz.setTimeout(revelar, 2500);
   } else {
-    wrap.classList.add('is-visible');
+    revelar();
   }
 })(typeof window !== 'undefined' ? window : globalThis);
